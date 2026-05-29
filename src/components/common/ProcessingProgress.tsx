@@ -33,7 +33,6 @@ export function ProcessingProgress({
 
   useEffect(() => {
     // Find the first processing step
-    // Check if all steps are complete
     const allComplete = steps.every((s) => s.status === "completed" || s.status === "error");
     if (allComplete && !isComplete) {
       setIsComplete(true);

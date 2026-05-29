@@ -15,10 +15,6 @@ impl PositionService {
         Self { pool }
     }
 
-    // =========================================================================
-    // Position Management
-    // =========================================================================
-
     /// Save unified position for a document
     pub async fn save_position(
         &self,
@@ -133,10 +129,6 @@ impl PositionService {
         Ok(0.0)
     }
 
-    // =========================================================================
-    // Bookmarks
-    // =========================================================================
-
     /// Create a new bookmark
     pub async fn create_bookmark(
         &self,
@@ -217,10 +209,6 @@ impl PositionService {
 
         Ok(())
     }
-
-    // =========================================================================
-    // Reading Sessions
-    // =========================================================================
 
     /// Start a new reading session
     pub async fn start_reading_session(
@@ -333,10 +321,6 @@ impl PositionService {
             Ok(None)
         }
     }
-
-    // =========================================================================
-    // Statistics & Queries
-    // =========================================================================
 
     /// Get documents with reading progress (for Continue Reading page)
     /// Returns all non-archived, non-completed documents sorted by most recently modified

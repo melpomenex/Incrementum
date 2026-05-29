@@ -20,6 +20,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
       handleExport();
     }
   }, [isOpen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleExport = async () => {
     setIsLoading(true);

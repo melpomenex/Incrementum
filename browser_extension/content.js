@@ -1,3 +1,4 @@
+/* globals chrome */
 // Content script for Incrementum Browser Sync
 // Provides additional functionality when injected into web pages
 
@@ -10,10 +11,6 @@
     return;
   }
 
-  // ============================================================================
-  // PWA Bridge - Enables communication with Incrementum web app
-  // ============================================================================
-
   let isPWAAvailable = false;
   let pwaMessageQueue = [];
   let pwaResponseHandlers = new Map();
@@ -22,11 +19,6 @@
 
   function isRuntimeAvailable() {
     return Boolean(globalThis.chrome?.runtime?.id);
-  }
-
-  function isExtensionContextInvalidatedError(error) {
-    const message = error?.message || '';
-    return message.includes('Extension context invalidated');
   }
 
   function startRuntimeKeepAlive() {
@@ -83,7 +75,6 @@
    * Check if current page is the Incrementum PWA
    */
   function isIncrementumPWA() {
-    // Check for common indicators of Incrementum app
     const hostname = window.location.hostname;
     const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
     const hasIncrementumMarker = document.querySelector('[data-incrementum-app]') !== null;
@@ -103,20 +94,15 @@
       const message = event.data;
       if (!message || message.source !== 'incrementum-pwa') return;
 
-      console.log('[Content] Received PWA message:', message.action);
-
       if (message.action === 'ready' || message.action === 'pong') {
         isPWAAvailable = true;
-        console.log('[Content] PWA bridge connected');
 
-        // Process any queued messages
         while (pwaMessageQueue.length > 0) {
           const queuedMsg = pwaMessageQueue.shift();
           sendToPWA(queuedMsg.message, queuedMsg.callback);
         }
       }
 
-      // Handle response to a specific request
       if (message.requestId && pwaResponseHandlers.has(message.requestId)) {
         const handler = pwaResponseHandlers.get(message.requestId);
         pwaResponseHandlers.delete(message.requestId);
@@ -157,32 +143,8 @@
     if (isPWAAvailable) {
       window.postMessage(fullMessage, '*');
     } else {
-      // Queue message until PWA is available
       pwaMessageQueue.push({ message, callback });
     }
-  }
-
-  /**
-   * Save extract via PWA bridge or background script
-   */
-  async function saveExtractViaBridge(data) {
-    return new Promise((resolve) => {
-      if (isPWAAvailable && isIncrementumPWA()) {
-        // Send directly to PWA
-        sendToPWA({
-          action: 'saveExtract',
-          data: data
-        }, (response) => {
-          resolve(response);
-        });
-      } else {
-        // Fallback to background script
-        sendRuntimeMessage({
-          action: 'saveExtract',
-          extract: data
-        }).then(resolve);
-      }
-    });
   }
 
   /**
@@ -196,7 +158,6 @@
       const range = selection.getRangeAt(0);
       const fragment = range.cloneContents();
 
-      // Create a temporary container
       const tempDiv = document.createElement('div');
       tempDiv.appendChild(fragment.cloneNode(true));
 
@@ -240,12 +201,7 @@
     }
   }
 
-  // Initialize PWA bridge
   setupPWABridge();
-
-  // ============================================================================
-  // Original content script functionality
-  // ============================================================================
 
   // State management
   let extractMode = false;
@@ -253,12 +209,10 @@
   let highlightsVisible = true;
   let pageExtracts = [];
   
-  // Load existing extracts from storage
   loadPageExtracts();
   
   // Add visual indicator when page is saved
   function showSaveIndicator(message, type = 'success') {
-    // Remove any existing indicator
     const existing = document.getElementById('incrementum-save-indicator');
     if (existing) {
       existing.remove();
@@ -269,7 +223,6 @@
       error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
     };
 
-    // Create indicator
     const indicator = document.createElement('div');
     indicator.id = 'incrementum-save-indicator';
     indicator.textContent = message;
@@ -293,7 +246,6 @@
     
     document.body.appendChild(indicator);
     
-    // Animate in
     setTimeout(() => {
       indicator.style.opacity = '1';
       indicator.style.transform = 'translateY(0)';
@@ -460,7 +412,6 @@
     return images;
   }
 
-  // Get page content for AI processing and article saving
   function getPageContent() {
     try {
       const root = getPrimaryContentRoot();
@@ -578,7 +529,6 @@
     // Capture HTML content with computed styles for visual fidelity
     const html_content = captureSelectionHTML();
 
-    // Create enhanced extract data
     const extractData = {
       id: generateExtractId(),
       text: text,
@@ -608,7 +558,6 @@
       }
     };
 
-    // Store extract locally
     pageExtracts.push(extractData);
     savePageExtracts();
 
@@ -626,7 +575,6 @@
         savePageExtracts();
       } else {
         showSaveIndicator('Failed to save extract');
-        // Remove from local storage if save failed
         pageExtracts = pageExtracts.filter(e => e.id !== extractData.id);
         savePageExtracts();
       }
@@ -670,7 +618,6 @@
       priorityScore += 8; // Contains references or contact info
     }
 
-    // Sentiment analysis
     if (analysis.sentiment === 'positive') {
       priorityScore += 5; // Positive content might be more motivating
     } else if (analysis.sentiment === 'negative') {
@@ -804,7 +751,6 @@
     return Math.max(5, Math.round(reviewTimeSeconds + comprehensionTime));
   }
 
-  // Get color based on priority level
   function getPriorityColor(priority) {
     if (priority >= 80) {
       return '#ff6b6b'; // Red for urgent
@@ -819,13 +765,11 @@
 
   // Show priority selection dialog
   function showPrioritySelectionDialog(text, selection) {
-    // Remove existing dialog
     const existingDialog = document.getElementById('incrementum-priority-dialog');
     if (existingDialog) {
       existingDialog.remove();
     }
 
-    // Create dialog
     const dialog = document.createElement('div');
     dialog.id = 'incrementum-priority-dialog';
     dialog.innerHTML = `
@@ -876,7 +820,6 @@
       </div>
     `;
 
-    // Style the dialog
     dialog.style.cssText = `
       position: fixed;
       top: 0;
@@ -1110,7 +1053,6 @@
       quotes: []
     };
     
-    // Analyze headings
     document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(heading => {
       structure.headings.push({
         level: parseInt(heading.tagName.charAt(1)),
@@ -1119,7 +1061,6 @@
       });
     });
     
-    // Analyze links
     document.querySelectorAll('a[href]').forEach(link => {
       structure.links.push({
         text: link.textContent.trim(),
@@ -1128,7 +1069,6 @@
       });
     });
     
-    // Analyze images
     document.querySelectorAll('img').forEach(img => {
       structure.images.push({
         src: img.src,
@@ -1137,7 +1077,6 @@
       });
     });
     
-    // Analyze forms
     document.querySelectorAll('form').forEach(form => {
       const inputs = Array.from(form.querySelectorAll('input, textarea, select')).map(input => ({
         type: input.type || input.tagName.toLowerCase(),
@@ -1152,7 +1091,6 @@
       });
     });
     
-    // Analyze tables
     document.querySelectorAll('table').forEach(table => {
       const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
       const rowCount = table.querySelectorAll('tr').length;
@@ -1163,7 +1101,6 @@
       });
     });
     
-    // Analyze lists
     document.querySelectorAll('ul, ol').forEach(list => {
       const items = Array.from(list.querySelectorAll('li')).map(li => li.textContent.trim());
       
@@ -1174,7 +1111,6 @@
       });
     });
     
-    // Analyze code blocks
     document.querySelectorAll('pre, code').forEach(code => {
       structure.codeBlocks.push({
         language: code.className.match(/language-(\w+)/)?.[1] || 'unknown',
@@ -1182,7 +1118,6 @@
       });
     });
     
-    // Analyze quotes
     document.querySelectorAll('blockquote').forEach(quote => {
       structure.quotes.push({
         text: quote.textContent.trim(),
@@ -1207,7 +1142,6 @@
     };
   }
 
-  // Extract mode functionality
   function enableExtractMode() {
     extractMode = true;
     document.body.style.cursor = 'crosshair';
@@ -1253,17 +1187,15 @@
     extractMode = false;
     document.body.style.cursor = '';
     
-    // Remove indicator
     const indicator = document.getElementById('incrementum-extract-indicator');
     if (indicator) {
       indicator.remove();
     }
     
-    // Remove selection listener
     document.removeEventListener('mouseup', handleTextSelection);
   }
 
-  function handleTextSelection(event) {
+  function handleTextSelection(_event) {
     if (!extractMode) return;
 
     const selection = window.getSelection();
@@ -1276,7 +1208,6 @@
   }
 
   function createExtract(text, selection) {
-    // Get context around the selection
     const range = selection.getRangeAt(0);
     const container = range.commonAncestorContainer;
     const context = container.textContent || container.innerText || '';
@@ -1284,7 +1215,6 @@
     // Capture HTML content with computed styles for visual fidelity
     const html_content = captureSelectionHTML();
 
-    // Create extract data
     const extractData = {
       id: generateExtractId(),
       text: text,
@@ -1304,7 +1234,6 @@
       }
     };
     
-    // Store extract locally
     pageExtracts.push(extractData);
     savePageExtracts();
     
@@ -1318,7 +1247,6 @@
         showSaveIndicator(`Extract saved: "${text.substring(0, 50)}..."`);
       } else {
         showSaveIndicator('Failed to save extract');
-        // Remove from local storage if save failed
         pageExtracts = pageExtracts.filter(e => e.id !== extractData.id);
         savePageExtracts();
       }
@@ -1385,13 +1313,11 @@
     const extract = pageExtracts.find(e => e.id === extractId);
     if (!extract) return;
 
-    // Remove existing tooltip
     const existingTooltip = document.getElementById('incrementum-extract-tooltip');
     if (existingTooltip) {
       existingTooltip.remove();
     }
 
-    // Create tooltip
     const tooltip = document.createElement('div');
     tooltip.id = 'incrementum-extract-tooltip';
     tooltip.innerHTML = `
@@ -1438,11 +1364,9 @@
   }
 
   function deleteExtractById(extractId) {
-    // Remove from local storage
     pageExtracts = pageExtracts.filter(e => e.id !== extractId);
     savePageExtracts();
 
-    // Remove highlight
     const highlight = highlights.find(h => h.extractId === extractId);
     if (highlight) {
       const element = highlight.element;
@@ -1513,7 +1437,6 @@
           `;
           document.head.appendChild(style);
           
-          // Remove highlight after animation
           setTimeout(() => {
             if (span.parentNode) {
               span.parentNode.replaceChild(document.createTextNode(span.textContent), span);
@@ -1523,7 +1446,6 @@
             }
           }, 2000);
           
-          // Scroll to highlight
           span.scrollIntoView({ behavior: 'smooth', block: 'center' });
           
           return { success: true };
@@ -1537,7 +1459,6 @@
   }
 
   function clearAllExtracts() {
-    // Remove all highlights
     highlights.forEach(highlight => {
       const element = highlight.element;
       const parent = element.parentNode;
@@ -1581,7 +1502,7 @@
       } else {
         let sibling = element;
         let nth = 1;
-        while (sibling = sibling.previousElementSibling) {
+        while ((sibling = sibling.previousElementSibling)) {
           if (sibling.tagName.toLowerCase() === selector) nth++;
         }
         if (nth !== 1) selector += `:nth-of-type(${nth})`;
@@ -1602,7 +1523,7 @@
     );
     
     let node;
-    while (node = walker.nextNode()) {
+    while ((node = walker.nextNode())) {
       if (node.textContent.trim()) {
         textNodes.push(node);
       }
@@ -1658,14 +1579,14 @@
           highlightText(range, extract.id);
           break;
         } catch (error) {
-          // Ignore errors when restoring highlights
+          console.warn('[Content] Could not restore highlight for extract:', error.message);
         }
       }
     }
   }
   
   // Listen for messages from background script and popup
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     switch (message.action) {
       case 'showSaveIndicator':
         showSaveIndicator(message.text || 'Saved to Incrementum', message.type || 'success');
@@ -1880,14 +1801,11 @@
 
   // YouTube-specific functionality
   function initYouTubeIntegration() {
-    // Check if we're on YouTube
     if (!window.location.hostname.includes('youtube.com')) {
       return;
     }
 
-    // Create the save button for YouTube videos
     function createYouTubeSaveButton() {
-      // Remove existing button if it exists
       const existingButton = document.getElementById('incrementum-youtube-save-btn');
       if (existingButton) {
         existingButton.remove();
@@ -1903,7 +1821,6 @@
         return;
       }
 
-      // Create the save button
       const saveButton = document.createElement('button');
       saveButton.id = 'incrementum-youtube-save-btn';
       saveButton.innerHTML = `
@@ -1958,13 +1875,10 @@
           <span>Saving...</span>
         `;
         
-        // Get video information
         const videoData = getYouTubeVideoData();
         let savedSuccessfully = false;
         
-        // Define fallback function
         const performFallbackSave = async () => {
-          console.log('Trying fallback methods...');
           let fallbackSuccessful = false;
           let INCREMENTUM_BASE_URL = 'http://127.0.0.1:8766'; // fallback to user's server
 
@@ -1983,7 +1897,6 @@
                 } catch (e) { reject(e); }
               });
 
-              // Build URL
               let serverUrl = settings.serverUrl || '127.0.0.1';
               let port = settings.browserSyncPort || 8766;
               serverUrl = serverUrl.replace(/:\d+$/, '');
@@ -1993,16 +1906,15 @@
               const url = new URL(serverUrl);
               url.port = port.toString();
               INCREMENTUM_BASE_URL = url.toString();
-              console.log('YouTube fallback using storage settings:', INCREMENTUM_BASE_URL);
 
               try {
                 localStorage.setItem('incrementum_settings', JSON.stringify(settings));
               } catch (cacheError) {
-                console.log('Failed to cache settings:', cacheError.message);
+                console.error('Failed to cache settings:', cacheError.message);
               }
             }
           } catch (settingsError) {
-            console.log('Storage API failed, trying localStorage:', settingsError.message);
+            console.error('Storage API failed, trying localStorage:', settingsError.message);
             // Method 2: Try to read settings from localStorage
             try {
               const storedSettings = localStorage.getItem('incrementum_settings');
@@ -2017,16 +1929,14 @@
                 const url = new URL(serverUrl);
                 url.port = port.toString();
                 INCREMENTUM_BASE_URL = url.toString();
-                console.log('YouTube fallback using localStorage settings:', INCREMENTUM_BASE_URL);
               }
             } catch (localError) {
-              console.log('LocalStorage also failed:', localError.message);
+              console.error('LocalStorage also failed:', localError.message);
             }
           }
 
           // Method 3: Try direct fetch
           try {
-            console.log('YouTube fallback attempting fetch to:', INCREMENTUM_BASE_URL);
             const currentUrl = window.location.href;
             const currentTitle = videoData.title || document.title;
             
@@ -2045,19 +1955,18 @@
 
             if (response.ok) {
               fallbackSuccessful = true;
-              console.log('YouTube fallback fetch successful');
             } else {
-              console.log('YouTube fallback fetch failed with status:', response.status);
+              console.error('YouTube fallback fetch failed with status:', response.status);
             }
           } catch (fetchError) {
-            console.log('YouTube fallback fetch failed:', fetchError.message);
+            console.error('YouTube fallback fetch failed:', fetchError.message);
           }
 
           if (fallbackSuccessful) {
              return true;
           } else {
             // Method 4: Clipboard fallback
-            console.log('Server connection failed, using clipboard fallback');
+            console.error('Server connection failed, using clipboard fallback');
             try {
               const url = window.location.href;
               const title = videoData.title || document.title;
@@ -2083,16 +1992,14 @@
               
               return true; // Considered handled
             } catch (clipboardError) {
-              console.log('Clipboard fallback failed:', clipboardError.message);
+              console.error('Clipboard fallback failed:', clipboardError.message);
               return false;
             }
           }
         };
 
         try {
-          // Check if extension context is valid before sending message
           if (chrome.runtime && chrome.runtime.id) {
-            console.log('[CONTENT DEBUG] Sending saveCurrentTab message to background');
             // Send to background script for saving
             const response = await new Promise((resolve, reject) => {
               const timeoutId = setTimeout(() => {
@@ -2126,14 +2033,12 @@
           }
         } catch (error) {
           console.error('Primary save failed:', error);
-          // Try fallback
           try {
              const result = await performFallbackSave();
              if (result) savedSuccessfully = true;
              else throw new Error("Fallback failed");
           } catch (fallbackError) {
              console.error("All save methods failed", fallbackError);
-             // Show error state
               saveButton.innerHTML = `
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -2205,7 +2110,6 @@
       };
     }
 
-    // Initialize the button when page loads
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', createYouTubeSaveButton);
     } else {
@@ -2246,8 +2150,6 @@
     }
   }
 
-  // Initialize YouTube integration
   initYouTubeIntegration();
 
-  console.log('Incrementum content script loaded');
 })(); 

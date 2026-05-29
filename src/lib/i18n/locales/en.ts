@@ -800,7 +800,6 @@ export const en: Dict = {
   "tabContextMenu.closeTabsToRight": "Close Tabs to Right",
   "tabContextMenu.closeAllTabs": "Close All Tabs",
 
-  // --- Card Context Menu ---
   "cardContextMenu.edit": "Edit in Studio",
   "cardContextMenu.preview": "Preview",
   "cardContextMenu.suspend": "Suspend",
@@ -1773,7 +1772,6 @@ export const en: Dict = {
   "notebooklm.synced": "Synced to Incrementum",
   "queue.addedToQueue": "Added to Queue",
 
-  // --- Extracts ---
   "extracts.createTitle": "Create Extract",
   "extracts.editTitle": "Edit Extract",
   "extracts.deleteTitle": "Delete Extract",
@@ -1871,7 +1869,6 @@ export const en: Dict = {
   "extracts.saveAndCloze": "Save and create Cloze card",
   "extracts.saveAndQA": "Save and create Q&A card",
 
-  // --- Tabs ---
   "tabs.addFeed": "Add Feed",
   "tabs.yourFeeds": "Your Feeds",
   "tabs.noFeedsYet": "No feeds yet. Add your first RSS feed above.",
@@ -1888,7 +1885,6 @@ export const en: Dict = {
   "tabs.askYourDocuments": "Ask Your Documents",
   "tabs.typeAtToMention": "Type @ to mention documents and ask questions about them.",
 
-  // --- Flashcard Studio ---
   "flashcardStudio.title": "AI Flashcard Studio",
   "flashcardStudio.subtitle": "Create, refine, and organize your learning cards",
   "flashcardStudio.chat": "Chat",
@@ -1917,13 +1913,11 @@ export const en: Dict = {
   "flashcardStudio.deleteSelected": "Delete selected",
   "flashcardStudio.welcome": "Welcome to Flashcard Studio",
 
-  // --- Viewer (new keys) ---
   "viewer.from": "From",
   "viewer.extractContent": "Extract Content",
   "viewer.selectedContent": "Selected Content",
   "viewer.selectTextHint": "Select text on this page, then click button or press",
 
-  // --- Viewer (existing) ---
   "viewer.backToDocuments": "Back to Documents",
   "viewer.searchInDocument": "Search in document...",
   "viewer.searchInDocumentShortcut": "Search in document (Ctrl+F)",
@@ -2007,10 +2001,8 @@ export const en: Dict = {
   "viewer.rateTitle": "{title} ({value})",
   "viewer.rateTitleShort": "Rate {title}",
 
-  // --- Markdown Viewer ---
   "viewer.noContentAvailable": "No content available",
 
-  // --- YouTube Viewer ---
   "viewer.youTubeVideo": "YouTube Video",
   "viewer.invalidYouTubeUrl": "Invalid YouTube URL/ID: {videoId}",
   "viewer.inlinePlaybackFailed": "Inline YouTube playback failed",
@@ -2061,7 +2053,6 @@ export const en: Dict = {
   "viewer.videoUnavailable": "This video is unavailable.",
   "viewer.youTubePlaybackError": "YouTube playback error.",
 
-  // --- Audiobook Viewer ---
   "viewer.chapters": "Chapters",
   "viewer.bookmark": "Bookmark",
   "viewer.bookmarks": "Bookmarks",
@@ -2085,7 +2076,6 @@ export const en: Dict = {
   "viewer.sleepTimerTitle": "Sleep Timer",
   "viewer.partOf": "Part {current} of {total}",
 
-  // --- Local Video Player ---
   "viewer.playbackError": "Playback Error",
   "viewer.retry": "Retry",
   "viewer.dismiss": "Dismiss",
@@ -2119,7 +2109,6 @@ export const en: Dict = {
   "viewer.audio": "Audio",
   "viewer.video": "Video",
 
-  // --- EPUB Viewer ---
   "viewer.failedToLoadEpub": "Failed to load EPUB: {error}",
   "viewer.loadingEpub": "Loading EPUB...",
   "viewer.fontSize": "Font Size",
@@ -2142,7 +2131,6 @@ export const en: Dict = {
   "viewer.prev": "Prev",
   "viewer.next": "Next",
 
-  // --- Selection Popup ---
   "viewer.textSelectionActions": "Text selection actions",
   "viewer.highlight": "Highlight",
   "viewer.copy": "Copy",
@@ -2155,7 +2143,6 @@ export const en: Dict = {
   "viewer.pinkHighlight": "Pink highlight",
   "viewer.purpleHighlight": "Purple highlight",
 
-  // --- Document Minimap ---
   "viewer.extracted": "Extracted",
   "viewer.play": "Play",
   "viewer.pause": "Pause",
@@ -2189,7 +2176,6 @@ export const en: Dict = {
   "viewer.seeking": "Seeking",
   "viewer.startingAt": "Starting at {time}",
 
-  // === Settings: DocumentsSettings ===
   "settingsDocs.documentImport": "Document Import",
   "settingsDocs.defaultCategory": "Default Category",
   "settingsDocs.autoProcess": "Auto-process on import",
@@ -2232,7 +2218,6 @@ export const en: Dict = {
   "settingsDocs.autoCleanup": "Auto-cleanup cache",
   "settingsDocs.autoCleanupDesc": "Remove cached documents older than 30 days",
 
-  // === Settings: AISettings ===
   "aiSettings.title": "AI Settings",
   "aiSettings.apiKeys": "API Keys",
   "aiSettings.openaiApiKey": "OpenAI API Key",
@@ -2260,11 +2245,9 @@ export const en: Dict = {
   "aiSettings.failedFetchOllamaModels":
     "Failed to fetch Ollama models. Make sure Ollama is running.",
 
-  // === Settings: AIProviderSettings ===
   "aiProvider.modelSettingsDesc": "Configure AI model behavior and context limits",
   "aiProvider.contextWindowDesc": "Set the maximum context window size used for AI requests",
 
-  // === Settings: LLMProviderSettings ===
   "llmProvider.configuredProviders": "Configured Providers",
   "llmProvider.addProvider": "Add Provider",
   "llmProvider.noApiKeysConfigured": "No API keys configured yet",
@@ -2297,7 +2280,6 @@ export const en: Dict = {
   "llmProvider.contextWindowLabel": "Context window: {tokens}k tokens",
   "llmProvider.modelsAvailable": "{count} models available from {name}",
 
-  // === Settings: CloudStorageSettings ===
   "cloudStorage.title": "Cloud Storage Provider",
   "cloudStorage.disconnect": "Disconnect",
   "cloudStorage.connect": "Connect",
@@ -2328,7 +2310,6 @@ export const en: Dict = {
   "cloudStorage.encryptedBeforeUpload": "All data is encrypted before uploading",
   "cloudStorage.incrementalBackups": "Supports incremental backups to save bandwidth",
 
-  // === Settings: OCRSettings ===
   "ocrSettings.title": "OCR Settings",
   "ocrSettings.desc": "Configure optical character recognition for documents",
   "ocrSettings.autoOcr": "Auto-OCR",
@@ -2439,7 +2420,6 @@ export const en: Dict = {
   "ocrSettings.langAra": "Arabic",
   "ocrSettings.langHin": "Hindi",
 
-  // === Settings: ImportExportSettings ===
   "importExport.completeBackup": "Complete App Backup",
   "importExport.completeBackupDesc":
     "Backup or restore your entire app state including all documents, study progress, settings, and preferences",
@@ -2541,9 +2521,6 @@ export const en: Dict = {
   "importExport.kindleClippings": "Kindle Clippings Import",
   "importExport.kindleClippingsDesc": "Import highlights and notes from your Kindle's My Clippings.txt file. Re-importing is safe — duplicates are automatically skipped.",
 
-  // === Settings: BackupRestorePanel ===
-
-  // === Kindle Import Dialog ===
   "kindleImport.title": "Import Kindle Clippings",
   "kindleImport.selectFile": "Select My Clippings.txt...",
   "kindleImport.validating": "Reading clippings file...",
@@ -2608,7 +2585,6 @@ export const en: Dict = {
   "backupRestore.finalizing": "Finalizing backup...",
   "backupRestore.backupComplete": "Backup complete!",
 
-  // === Settings: AppStateBackupDialog ===
   "backupDialog.title": "Backup & Restore",
   "backupDialog.subtitle": "Export or import your complete app state",
   "backupDialog.exportBackup": "Export Backup",
@@ -2655,7 +2631,6 @@ export const en: Dict = {
   "backupDialog.processing": "Processing...",
   "backupDialog.warnings": "Warnings:",
 
-  // === Settings: SyncSettings ===
   "syncSettings.title": "Sync Settings",
   "syncSettings.enabled": "Cloud sync enabled",
   "syncSettings.disabled": "Cloud sync disabled",
@@ -2713,7 +2688,6 @@ export const en: Dict = {
   "syncSettings.syncLog": "Sync Log",
   "syncSettings.noSyncHistory": "No sync history yet",
 
-  // === Settings: TTSSettings ===
   "ttsSettings.title": "Text To Speech",
   "ttsSettings.desc": "Provider-backed speech generation with built-in and custom voices.",
   "ttsSettings.provider": "Provider",
@@ -2758,7 +2732,6 @@ export const en: Dict = {
   "ttsSettings.retryGeneration": "Retry Generation",
   "ttsSettings.providerSettingsSaved": "Provider settings saved.",
 
-  // === Settings: LearningSettings ===
   "learningSettings.algorithm": "Algorithm",
   "learningSettings.spacedRepetition": "Spaced Repetition Algorithm",
   "learningSettings.fsrsDesc":
@@ -2795,7 +2768,6 @@ export const en: Dict = {
   "learningSettings.timezone": "Timezone",
   "learningSettings.timezoneDesc": "Determines when a new day starts for reviews",
 
-  // === Settings: NotificationSettings ===
   "notificationSettings.title": "Notification Permission",
   "notificationSettings.desktopApp": "Desktop App",
   "notificationSettings.installedPwa": "Installed PWA",
@@ -2849,7 +2821,6 @@ export const en: Dict = {
   "notificationSettings.backgroundInactive":
     "Get notified about due review cards when the app isn't open",
 
-  // === Settings: IntegrationSettings ===
   "integrationSettings.title": "Integrations",
   "integrationSettings.obsidian": "Obsidian",
   "integrationSettings.anki": "Anki",
@@ -2907,7 +2878,6 @@ export const en: Dict = {
     "Important: Cookies contain authentication tokens. Only share them with services you trust.",
   "integrationSettings.noNotebookSelected": "No notebook selected",
 
-  // --- RSS Queue Settings ---
   "settings.rssQueueTitle": "RSS Queue Settings",
   "settings.rssQueueDesc": "Configure how RSS items appear in your reading queue",
   "settings.rssIncludeInQueue": "Include RSS in Queue",
@@ -2959,7 +2929,6 @@ export const en: Dict = {
   "settings.rssExcludeAll": "Exclude All",
   "settings.saveSettings": "Save Settings",
 
-  // --- Audio Transcription Settings ---
   "settings.audioTranscriptionDescDesktop": "Choose your preferred transcription provider",
   "settings.audioTranscriptionDescWeb": "Cloud-based transcription for your audio and video files",
   "settings.audioDesktopRecommended": "Desktop App Recommended",
@@ -3047,7 +3016,6 @@ export const en: Dict = {
   "settings.audioRetry": "Retry",
   "settings.audioPrioritize": "Prioritize",
 
-  // --- Keyboard Shortcuts Settings ---
   "settings.keyboardShortcuts": "Keyboard Shortcuts",
   "settings.keyboardShortcutsDesc": "Customize keyboard shortcuts for quick actions",
   "settings.pressKeys": "Press keys...",
@@ -3123,7 +3091,6 @@ export const en: Dict = {
   "settings.shortcuts.general.quit.name": "Quit",
   "settings.shortcuts.general.quit.description": "Quit application",
 
-  // --- MCP Servers Settings ---
   "settings.mcpConfiguredServers": "Configured Servers",
   "settings.mcpServersCount": "{count} / {max} servers configured",
   "settings.mcpMaxServers": "Maximum {max} servers allowed",
@@ -3149,7 +3116,6 @@ export const en: Dict = {
   "settings.mcpAboutSse": "For HTTP-based servers using Server-Sent Events",
   "settings.mcpAboutMaxServers": "Maximum {max} external servers can be configured",
 
-  // --- Smart Queues Settings ---
   "settings.smartQueuesDesc": "Configure intelligent learning queue behavior",
   "settings.autoRefresh": "Auto-Refresh",
   "settings.autoRefreshDesc": "Automatically refresh the queue when items become due",
@@ -3159,12 +3125,10 @@ export const en: Dict = {
   "settings.autoRefreshTip":
     "For best performance, use auto-refresh with intervals of 30 seconds or more. Shorter intervals may impact battery life on portable devices.",
 
-  // --- Sync QR Scanner ---
   "settings.syncQrScanCode": "Scan sync code",
   "settings.syncQrCameraFailed": "Failed to start camera",
   "settings.syncQrInstruction": "Point your camera at the QR code shown on the desktop web app.",
 
-  // --- Theme Gallery ---
   "settings.themeAnimated": "animated",
   "settings.themeGalleryTitle": "Theme Gallery",
   "settings.themeGalleryDesc": "Preview all available themes",
@@ -3173,14 +3137,12 @@ export const en: Dict = {
   "settings.themeCount": "{count} themes available",
   "settings.themeOpenGallery": "Open Gallery",
 
-  // --- Settings Validation ---
   "settings.validationAllValid": "All settings are valid",
   "settings.validationErrors": "{count} Errors",
   "settings.validationWarnings": "{count} Warnings",
   "settings.validationInfo": "{count} Info",
   "settings.validationFix": "Fix",
 
-  // --- TTS Settings ---
   "settings.ttsTitle": "Text To Speech",
   "settings.ttsDescription": "Provider-backed speech generation with built-in and custom voices.",
   "settings.ttsProvider": "Provider",
@@ -3267,7 +3229,6 @@ export const en: Dict = {
   "settings.ttsPresetNameRequired": "Preset name is required.",
   "settings.ttsFailedInitPocketTts": "Failed to initialize Pocket TTS",
 
-  // --- Integration Settings ---
   "integrations.obsidianIntegration": "Obsidian Integration",
   "integrations.selectObsidianVaultFolder": "Select Obsidian Vault Folder",
   "integrations.failedOpenFolderPicker": "Failed to open folder picker",
@@ -3345,7 +3306,6 @@ export const en: Dict = {
   "integrations.noCookiesToTest": "No cookies to test",
   "integrations.failedParseCookies": "Failed to parse cookies",
 
-  // --- Backup & Restore Dialog ---
   "backup.subtitle": "Export or import your complete app state",
   "backup.exportBackupDesc":
     "Save all your data including documents, extracts, learning items, settings, and study progress to a file.",
@@ -3391,7 +3351,6 @@ export const en: Dict = {
   "backup.tryAgain": "Try Again",
   "backup.processing": "Processing...",
 
-  // --- Cloud Backup/Restore Panel ---
   "backup.fullBackup": "Full Backup",
   "backup.databaseOnly": "Database Only",
   "backup.documentsOnly": "Documents Only",
@@ -3436,7 +3395,6 @@ export const en: Dict = {
   "backup.restoreCompletedSuccess": "Restore completed successfully! {count} items restored.",
   "backup.loadingBackups": "Loading backups...",
 
-  // --- Focus Timer ---
   "focusTimer.focus": "Focus",
   "focusTimer.shortBreak": "Short Break",
   "focusTimer.longBreak": "Long Break",
@@ -3475,7 +3433,6 @@ export const en: Dict = {
   "focusTimer.timerConfigUpdated": "Timer configuration updated",
   "focusTimer.failedToUpdateSettings": "Failed to update settings",
 
-  // --- Offline / PWA ---
   "offline.pendingSync": "Pending sync",
   "offline.offline": "Offline",
   "offline.downloading": "Downloading...",
@@ -3497,7 +3454,6 @@ export const en: Dict = {
   "offline.updateReady": "A new version is ready to install.",
   "offline.update": "Update",
 
-  // --- Vimium Navigation ---
   "vimium.findPlaceholder": "Find in page...",
   "vimium.commandPlaceholder": "Type a command...",
   "vimium.noCommandsFound": "No commands found",
@@ -4405,7 +4361,6 @@ export const en: Dict = {
   "documentsView.installYtdlp": "Install yt-dlp",
   "documentsView.manualInstallGuide": "Manual install guide",
 
-  // --- Documents View: Additional missing keys ---
   "documentsView.archiveTitle": "Archive Documents",
   "documentsView.archiveMessage":
     "Archive {count} document(s)? Archived documents are hidden from the main view but can be restored later.",
@@ -4447,7 +4402,6 @@ export const en: Dict = {
   "documentsView.bulkMove": "Bulk Move",
   "documentsView.bulkReprioritize": "Bulk Reprioritize",
 
-  // --- Schedule View ---
   "schedule.title": "Schedule",
   "schedule.timeline": "Schedule",
   "schedule.allUpcoming": "All Upcoming",
@@ -4518,6 +4472,5 @@ export const en: Dict = {
   "schedule.viewTable": "Table view",
   "schedule.noData": "—",
 
-  // --- Graph controls ---
   "graph.resetRotation": "Reset rotation",
 };

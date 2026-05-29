@@ -3052,7 +3052,6 @@ export const es: Dict = {
     "En la app web, la importación de listas es una operación única. Los vídeos se importarán como documentos individuales. Para las funciones de auto-importación e intercalación en la cola, usa la app de escritorio.",
   "youtubePlaylist.youtubeApiConfig": "Configuración de YouTube Data API",
 
-  // --- Focus Timer ---
   "focusTimer.focus": "Enfoque",
   "focusTimer.shortBreak": "Descanso corto",
   "focusTimer.longBreak": "Descanso largo",
@@ -3091,7 +3090,6 @@ export const es: Dict = {
   "focusTimer.timerConfigUpdated": "Configuración del temporizador actualizada",
   "focusTimer.failedToUpdateSettings": "No se pudo actualizar los ajustes",
 
-  // --- Offline / PWA ---
   "offline.pendingSync": "Sincronización pendiente",
   "offline.offline": "Sin conexión",
   "offline.downloading": "Descargando...",
@@ -3113,7 +3111,6 @@ export const es: Dict = {
   "offline.updateReady": "Una nueva versión está lista para instalar.",
   "offline.update": "Actualizar",
 
-  // --- Vimium Navigation ---
   "vimium.findPlaceholder": "Buscar en la página...",
   "vimium.commandPlaceholder": "Escriba un comando...",
   "vimium.noCommandsFound": "No se encontraron comandos",
@@ -3846,7 +3843,6 @@ export const es: Dict = {
   "documentsView.installYtdlp": "Instalar yt-dlp",
   "documentsView.manualInstallGuide": "Guía de instalación manual",
 
-  // --- Documents View: Additional missing keys ---
   "documentsView.archiveTitle": "Archivar Documentos",
   "documentsView.archiveMessage":
     "¿Archivar {count} documento(s)? Los documentos archivados se ocultan de la vista principal pero pueden restaurarse más tarde.",
@@ -3889,7 +3885,6 @@ export const es: Dict = {
   "documentsView.bulkMove": "Movimiento Masivo",
   "documentsView.bulkReprioritize": "Repriorización Masiva",
 
-  // --- Graph controls ---
   "graph.resetRotation": "Restablecer rotación",
 
   "graph.fitToView": "Ajustar a la vista",

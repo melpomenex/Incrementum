@@ -79,7 +79,6 @@ export function ClipExtractor({
     setIsSettingStart(true);
   };
 
-  // Delete clip
   const deleteClip = (id: string) => {
     setClips(clips.filter((clip) => clip.id !== id));
   };
@@ -106,7 +105,6 @@ export function ClipExtractor({
     setPreviewClipId(null);
   };
 
-  // Handle preview playback end
   useEffect(() => {
     if (!isPreviewing || !previewClipId) return;
 
@@ -134,7 +132,6 @@ export function ClipExtractor({
     );
   };
 
-  // Extract all clips
   const extractAllClips = () => {
     clips.forEach((clip) => extractClip(clip));
   };
@@ -201,8 +198,11 @@ export function ClipExtractor({
                 <div
                   key={clip.id}
                   className="absolute top-0 h-full bg-primary/60 hover:bg-primary/80 transition-colors cursor-pointer rounded"
+                  role="button"
+                  tabIndex={0}
                   style={{ left: `${left}%`, width: `${width}%` }}
                   onClick={() => onSeek(clip.start)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') onSeek(clip.start); }}
                   title={`${clip.name}: ${formatTime(clip.start)} - ${formatTime(clip.end)}`}
                 />
               );

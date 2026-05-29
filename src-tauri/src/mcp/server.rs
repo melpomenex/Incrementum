@@ -1,4 +1,3 @@
-// MCP Server Implementation
 use super::types::*;
 use super::tools::MCPToolRegistry;
 use serde_json::json;
@@ -41,7 +40,6 @@ impl MCPServer {
         // Server is now ready
         eprintln!("MCP Server started on stdin/stdout");
 
-        // Process incoming JSON-RPC messages
         loop {
             let mut line = String::new();
             reader.read_line(&mut line)?;
@@ -50,7 +48,6 @@ impl MCPServer {
                 continue;
             }
 
-            // Parse and handle the request
             let request: JsonRpcRequest = match serde_json::from_str(&line) {
                 Ok(req) => req,
                 Err(_e) => {
@@ -130,7 +127,6 @@ impl MCPServer {
             .ok_or(JsonRpcError::invalid_params())?;
         let arguments = params.get("arguments").cloned().unwrap_or(json!({}));
 
-        // Execute the tool
         let result = tokio::runtime::Runtime::new()
             .map_err(|e| JsonRpcError {
                 code: -32603,

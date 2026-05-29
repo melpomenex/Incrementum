@@ -30,7 +30,6 @@ async function fetchArticleWithProxy(url: string): Promise<{
   for (const proxy of CORS_PROXIES) {
     try {
       const fetchUrl = proxy ? proxy + encodeURIComponent(url) : url;
-      console.log(`[importFromUrl] Trying fetch:`, proxy || 'direct');
       
       const response = await fetch(fetchUrl, {
         headers: {
@@ -48,22 +47,19 @@ async function fetchArticleWithProxy(url: string): Promise<{
         throw new Error('Response too short, likely an error page');
       }
 
-      // Parse to extract title
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
       const title = doc.querySelector('title')?.textContent?.trim() || 
                     doc.querySelector('h1')?.textContent?.trim() || 
                     new URL(url).hostname;
 
-      console.log(`[importFromUrl] Successfully fetched via ${proxy || 'direct'}`);
-      
       return {
         html,
         title,
         fetchMethod: proxy ? 'proxy' : 'direct',
       };
     } catch (err) {
-      console.log(`[importFromUrl] Fetch failed:`, proxy || 'direct', err);
+      console.error(`[importFromUrl] Fetch failed:`, proxy || 'direct', err);
       lastError = err as Error;
       continue;
     }
@@ -91,7 +87,6 @@ export function processHtmlContent(rawHtml: string, baseUrl: string, title: stri
     }
   }
   
-  // Remove dangerous elements
   const dangerousSelectors = [
     'script',
     'iframe',
@@ -112,7 +107,6 @@ export function processHtmlContent(rawHtml: string, baseUrl: string, title: stri
     });
   }
 
-  // Remove event handlers
   doc.querySelectorAll('*').forEach(el => {
     Array.from(el.attributes).forEach(attr => {
       if (attr.name.startsWith('on')) {
@@ -161,7 +155,6 @@ export async function importFromUrl(
   options?: { preserveImages?: boolean }
 ): Promise<Omit<Document, 'id'>> {
   try {
-    // Validate URL
     const validUrl = new URL(url);
     const hostname = validUrl.hostname;
     const preserveImages = options?.preserveImages ?? true;
@@ -172,7 +165,6 @@ export async function importFromUrl(
     let fileType: Document['fileType'] = 'html';
     let fetchMethod: 'direct' | 'proxy' = 'direct';
 
-    // Check if this is a direct file link
     const isDirectFile = /\.(pdf|epub|md|markdown|txt|html?)$/i.test(validUrl.pathname);
 
     if (isDirectFile) {
@@ -180,7 +172,6 @@ export async function importFromUrl(
       const fetched = await fetchUrlContent(validUrl.toString());
       filePath = fetched.file_path;
       
-      // Determine file type
       if (fetched.content_type.includes('pdf')) {
         fileType = 'pdf';
       } else if (fetched.content_type.includes('markdown') || fetched.content_type.includes('text/markdown')) {
@@ -191,7 +182,6 @@ export async function importFromUrl(
         fileType = 'other';
       }
 
-      // Extract title from filename
       const urlParts = validUrl.pathname.split('/');
       const fileName = urlParts[urlParts.length - 1] || hostname;
       title = fileName.replace(/\.(html?|md|txt|pdf|epub)$/i, '') || `Web Content - ${hostname}`;
@@ -219,7 +209,6 @@ export async function importFromUrl(
       fetchMethod = method;
       title = fetchedTitle;
       
-      // Process HTML content
       content = processHtmlContent(html, url, title, preserveImages);
       
       // Store the HTML in a virtual file path for browser mode
@@ -233,7 +222,6 @@ export async function importFromUrl(
       }
     }
 
-    // Extract additional metadata
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, 'text/html');
     const text = doc.body?.textContent?.trim() || '';
@@ -254,7 +242,6 @@ export async function importFromUrl(
       doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content') ||
       undefined;
 
-    // Create document object with FSRS-compatible fields
     const now = new Date().toISOString();
     const newDoc: Omit<Document, 'id'> = {
       title: title || `Web Content - ${hostname}`,
@@ -304,13 +291,11 @@ export async function importFromUrl(
  */
 export async function importFromArxiv(input: string, format: 'pdf' | 'html' = 'pdf'): Promise<Omit<Document, 'id'>> {
   try {
-    // Extract Arxiv ID from URL or direct input
     const arxivId = extractArxivId(input);
     if (!arxivId) {
       throw new Error('Invalid Arxiv ID or URL');
     }
 
-    // Fetch paper metadata from Arxiv API
     const metadata = await fetchArxivMetadata(arxivId);
 
     // Download PDF or HTML using the backend fetch function
@@ -321,7 +306,6 @@ export async function importFromArxiv(input: string, format: 'pdf' | 'html' = 'p
     const fetched = await fetchUrlContent(downloadUrl);
     const pdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
 
-    // Create document object
     const document: Omit<Document, 'id'> = {
       title: metadata.title,
       filePath: fetched.file_path,
@@ -423,13 +407,11 @@ async function fetchArxivMetadata(arxivId: string): Promise<ArxivMetadata> {
     const published = entry.querySelector('published')?.textContent || new Date().toISOString();
     const updated = entry.querySelector('updated')?.textContent || new Date().toISOString();
 
-    // Extract authors
     const authors: string[] = [];
     entry.querySelectorAll('author name').forEach((author) => {
       authors.push(author.textContent || '');
     });
 
-    // Extract categories
     const categories: string[] = [];
     const primaryCategory = entry.querySelector('primary_category')?.textContent || '';
     entry.querySelectorAll('category').forEach((cat) => {
@@ -448,7 +430,6 @@ async function fetchArxivMetadata(arxivId: string): Promise<ArxivMetadata> {
     };
   } catch (error) {
     console.error('Error fetching Arxiv metadata:', error);
-    // Return minimal metadata on error
     return {
       title: `Arxiv Paper ${arxivId}`,
       authors: [],
@@ -515,12 +496,10 @@ export function validateUrl(url: string): { valid: boolean; error?: string } {
   try {
     const parsed = new URL(url);
 
-    // Check protocol
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return { valid: false, error: 'Only HTTP and HTTPS URLs are supported' };
     }
 
-    // Check for common non-content URLs
     const excludedDomains = ['localhost', '127.0.0.1', '0.0.0.0'];
     if (excludedDomains.includes(parsed.hostname)) {
       return { valid: false, error: 'Local URLs are not supported' };

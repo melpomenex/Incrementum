@@ -95,16 +95,16 @@ impl VectorStore {
 
     /// Initialize the global LRU cache (called once)
     fn init_cache() {
-        let mut cache = EMBEDDING_CACHE.write().unwrap();
+        let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
         if cache.is_none() {
-            *cache = Some(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap()));
+            *cache = Some(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE > 0")));
             info!("Initialized embedding LRU cache with capacity {}", DEFAULT_CACHE_SIZE);
         }
     }
 
     /// Get cache statistics
     pub fn cache_stats() -> (usize, Option<usize>) {
-        let cache = EMBEDDING_CACHE.read().unwrap();
+        let cache = EMBEDDING_CACHE.read().expect("embedding cache rwlock poisoned");
         match cache.as_ref() {
             Some(c) => (c.len(), Some(c.cap().get())),
             None => (0, None),
@@ -113,7 +113,7 @@ impl VectorStore {
 
     /// Clear the embedding cache
     pub fn clear_cache() {
-        let mut cache = EMBEDDING_CACHE.write().unwrap();
+        let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
         if let Some(ref mut c) = *cache {
             c.clear();
             info!("Cleared embedding cache");
@@ -167,12 +167,11 @@ impl VectorStore {
         .await
         .map_err(IncrementumError::from)?;
 
-        // Update stats
         self.update_stats_after_insert(model, bytes.len() as i64).await?;
 
         // Cache the embedding if caching is enabled
         if self.cache_enabled {
-            let mut cache = EMBEDDING_CACHE.write().unwrap();
+            let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
             if let Some(ref mut c) = *cache {
                 c.put(id.to_string(), embedding.to_vec());
                 trace!("Cached embedding {} for document {}", id, document_id);
@@ -193,9 +192,8 @@ impl VectorStore {
     /// Get an embedding by ID (from cache or DB)
     #[allow(clippy::await_holding_lock)]
     pub async fn get_embedding(&self, id: &str) -> Result<Option<EmbeddingRecord>> {
-        // Try cache first
         if self.cache_enabled {
-            let cache = EMBEDDING_CACHE.read().unwrap();
+            let cache = EMBEDDING_CACHE.read().expect("embedding cache rwlock poisoned");
             let embedding_vec = cache.as_ref().and_then(|c| c.peek(id).cloned());
             drop(cache);
             if let Some(embedding) = embedding_vec {
@@ -205,14 +203,13 @@ impl VectorStore {
             }
         }
 
-        // Fetch from database
         trace!("Cache miss for embedding {}, fetching from DB", id);
         let record = self.get_embedding_from_db(id).await?;
 
         // Add to cache if found
         if let Some(ref rec) = record {
             if self.cache_enabled {
-                let mut cache = EMBEDDING_CACHE.write().unwrap();
+                let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
                 if let Some(ref mut c) = *cache {
                     c.put(id.to_string(), rec.embedding.clone());
                 }
@@ -246,9 +243,8 @@ impl VectorStore {
 
             let id: String = row.try_get("id")?;
 
-            // Update cache
             if self.cache_enabled {
-                let mut cache = EMBEDDING_CACHE.write().unwrap();
+                let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
                 if let Some(ref mut c) = *cache {
                     c.put(id.clone(), embedding.clone());
                 }
@@ -270,7 +266,6 @@ impl VectorStore {
             });
         }
 
-        // Update access counts
         self.update_access_counts(&records).await?;
 
         Ok(records)
@@ -287,7 +282,6 @@ impl VectorStore {
     ) -> Result<Vec<SimilarityResult>> {
         let start_time = std::time::Instant::now();
 
-        // Build query with optional model filter
         let (rows, total_candidates) = if let Some(model) = model_filter {
             let rows = sqlx::query(
                 r#"
@@ -363,7 +357,6 @@ impl VectorStore {
 
     /// Delete embeddings for a document
     pub async fn delete_document_embeddings(&self, document_id: &str) -> Result<u64> {
-        // Get the embeddings first to calculate size for stats
         let rows = sqlx::query(
             r#"SELECT id, model, LENGTH(embedding) as bytes FROM embeddings WHERE document_id = ?1"#,
         )
@@ -383,23 +376,20 @@ impl VectorStore {
             total_bytes += bytes;
             *model_counts.entry(model).or_insert(0) += 1;
 
-            // Remove from cache
             if self.cache_enabled {
-                let mut cache = EMBEDDING_CACHE.write().unwrap();
+                let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
                 if let Some(ref mut c) = *cache {
                     c.pop(&id);
                 }
             }
         }
 
-        // Delete from database
         let result = sqlx::query("DELETE FROM embeddings WHERE document_id = ?1")
             .bind(document_id)
             .execute(self.repository.pool())
             .await
             .map_err(IncrementumError::from)?;
 
-        // Update stats
         for (model, count) in model_counts {
             self.update_stats_after_delete(&model, count, total_bytes / rows.len() as i64 * count)
                 .await?;
@@ -416,7 +406,6 @@ impl VectorStore {
 
     /// Delete a single embedding
     pub async fn delete_embedding(&self, id: &str) -> Result<bool> {
-        // Get info for stats update
         let row = sqlx::query(
             r#"SELECT model, LENGTH(embedding) as bytes FROM embeddings WHERE id = ?1"#,
         )
@@ -429,22 +418,19 @@ impl VectorStore {
             let model: String = row.try_get("model")?;
             let bytes: i64 = row.try_get("bytes")?;
 
-            // Remove from cache
             if self.cache_enabled {
-                let mut cache = EMBEDDING_CACHE.write().unwrap();
+                let mut cache = EMBEDDING_CACHE.write().expect("embedding cache rwlock poisoned");
                 if let Some(ref mut c) = *cache {
                     c.pop(id);
                 }
             }
 
-            // Delete from database
             let result = sqlx::query("DELETE FROM embeddings WHERE id = ?1")
                 .bind(id)
                 .execute(self.repository.pool())
                 .await
                 .map_err(IncrementumError::from)?;
 
-            // Update stats
             self.update_stats_after_delete(&model, 1, bytes).await?;
 
             return Ok(result.rows_affected() > 0);

@@ -60,7 +60,6 @@ export function useQueueNavigation() {
     documentGroups[0] || null
   );
 
-  // Update current group when document groups change
   useEffect(() => {
     if (documentGroups.length > 0) {
       setCurrentGroup(documentGroups[currentDocumentIndex] || documentGroups[0]);
@@ -152,19 +151,16 @@ export function useQueueNavigation() {
   }, [documentGroups, openDocumentViewer]);
 
   return {
-    // State
     documentGroups,
     currentDocumentIndex,
     currentGroup,
     currentItem,
     totalDocuments: documentGroups.length,
 
-    // Navigation helpers
     canGoToPreviousDocument,
     canGoToNextDocument,
     canGoToNextChunk,
 
-    // Actions
     goToPreviousDocument,
     goToNextDocument,
     goToNextChunk,

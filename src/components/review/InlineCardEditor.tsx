@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Check, X, Loader2, ExternalLink, Ban, Play } from "lucide-react";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";

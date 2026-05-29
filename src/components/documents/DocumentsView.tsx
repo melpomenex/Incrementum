@@ -36,8 +36,7 @@ import { ArxivImportDialog } from "../import/ArxivImportDialog";
 import { WebArticleImportDialog } from "../import/WebArticleImportDialog";
 import { AudiobookImportDialog } from "../import/AudiobookImportDialog";
 import { ImportProgressIndicator } from "../import/ImportProgressIndicator";
-import { MarkdownBundlePreview } from "../import/MarkdownBundlePreview";
-import type { ImportBundleOptions } from "../import/MarkdownBundlePreview";
+import { MarkdownBundlePreview, type ImportBundleOptions } from "../import/MarkdownBundlePreview";
 import { EmptyDocuments, EmptySearch } from "../common/EmptyState";
 import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
 import { DocumentCardSkeleton, DocumentGridSkeleton } from "../common/Skeleton";
@@ -49,7 +48,6 @@ import {
   DocumentSortDirection,
   DocumentSortKey,
   DocumentViewMode,
-  SMART_SECTION_LABELS,
   formatRelativeTime,
   getLastTouched,
   getNextAction,
@@ -69,12 +67,12 @@ import {
 } from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { getDeviceInfo } from "../../lib/pwa";
-import { invokeCommand, isTauri, isMac } from "../../lib/tauri";
+import { invokeCommand, isTauri } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
 import { findCompanionDoc } from "../../utils/documentPairing";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
-import { enqueueAutoTranscription, getTranscriptionQueue } from "../../api/transcription";
+import { enqueueAutoTranscription } from "../../api/transcription";
 import { useSettingsStore } from "../../stores/settingsStore";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
@@ -174,7 +172,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     deleteDocument,
     segmentDocument,
   } = useDocumentStore();
-  const activeCollectionId = useCollectionStore((state) => state.activeCollectionId);
   const collections = useCollectionStore((state) => state.collections);
   const createCollection = useCollectionStore((state) => state.createCollection);
 
@@ -202,7 +199,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
   const [isInspectorOpen, setInspectorOpen] = useState(() => !isMobile);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [_collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   const [showYouTubeImport, setShowYouTubeImport] = useState(false);
   const [showAnnaArchiveSearch, setShowAnnaArchiveSearch] = useState(false);
@@ -234,7 +231,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
-
 
   useEffect(() => {
     loadDocuments();
@@ -289,7 +285,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
 
   const searchTokens = useMemo(() => parseDocumentSearch(debouncedSearch), [debouncedSearch]);
 
-  // Get unique file types for filter dropdown
   const availableFileTypes = useMemo(() => {
     const types = new Set(documents.map((doc) => doc.fileType));
     return Array.from(types).sort();
@@ -342,7 +337,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     });
   }, [mode, sortedDocuments, updateDocument]);
 
-  const sectionedDocuments = useMemo(() => {
+  const _sectionedDocuments = useMemo(() => {
     const sections: Record<string, Document[]> = {};
     for (const doc of sortedDocuments) {
       const section = getSmartSection(doc);
@@ -381,7 +376,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
       window.removeEventListener("import-document", handleImportShortcut as EventListener);
   }, [handleImport]);
 
-  // Handle files from drag and drop upload component
   const handleDragDropFiles = useCallback(
     async (filePaths: string[]) => {
       if (filePaths.length === 0) return;
@@ -397,12 +391,10 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     [importFromFiles, onOpenDocument]
   );
 
-  // Handle Anki package import
   const handleAnkiPackage = useCallback(
     async (filePath: string) => {
       try {
         const decks = await importAnkiPackage(filePath);
-        console.log(`Imported ${decks.length} decks from Anki package`);
         // TODO: Show a dialog to let user select which decks to import
         // For now, just log success
         await loadDocuments();
@@ -413,7 +405,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     [loadDocuments]
   );
 
-  // Handle JSON deck import
   const handleStudyJsonDeck = useCallback(
     async (filePath: string) => {
       try {
@@ -422,7 +413,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
           { filePath, collectionId: useCollectionStore.getState().activeCollectionId }
         );
         useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
-        console.log("JSON deck imported successfully");
         await loadDocuments();
       } catch (err) {
         console.error("Failed to import JSON deck:", err);
@@ -431,22 +421,18 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     [loadDocuments]
   );
 
-  // Handle markdown bundle detection
   const handleBundleDetected = useCallback((bundle: MarkdownBundle, files: File[]) => {
-    console.log("[DocumentsView] Markdown bundle detected:", bundle);
     setDetectedBundle(bundle);
     setBundleFiles(files);
     setShowMarkdownBundlePreview(true);
   }, []);
 
-  // Handle markdown bundle import
   const handleBundleImport = useCallback(
     async (options: ImportBundleOptions) => {
       if (!detectedBundle) return;
 
       try {
         const doc = await importBundle(detectedBundle, options);
-        console.log("[DocumentsView] Bundle imported:", doc);
         await loadDocuments();
         setShowMarkdownBundlePreview(false);
         setDetectedBundle(null);
@@ -481,7 +467,6 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
       // Extract timestamp from URL if present (e.g., ?t=933)
       const timestamp = extractYouTubeTimestamp(youtubeUrl.trim());
       if (timestamp !== null && timestamp > 0) {
-        // Save the timestamp as the initial video position
         await updateDocumentApi(document.id, { currentPage: timestamp } as any);
       }
 
@@ -638,7 +623,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     const existing = collections.find(
       (collection) => collection.name.toLowerCase() === targetName.toLowerCase()
     );
-    const target = existing ?? await createCollection(targetName);
+    const _target = existing ?? await createCollection(targetName);
     // TODO: Update collection_id on selected documents via backend API
     setSelectedIds(new Set());
   };
@@ -737,7 +722,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     setActiveViewId(view.id);
   };
 
-  const toggleSection = (section: string) => {
+  const _toggleSection = (section: string) => {
     setCollapsedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
@@ -799,7 +784,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 <BookAudio className="w-4 h-4" />
                 {t("documentsView.audiobook")}
               </button>
-              {false && isTauri() && (
+              {(false as boolean) && isTauri() && (
                 <button
                   onClick={() => setShowAnnaArchiveSearch(true)}
                   className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
@@ -1830,7 +1815,6 @@ function DocumentProgressIndicator({ doc }: { doc: Document }) {
     }
   }
 
-  // Get the display progress percent
   const displayProgress =
     progressPercent > 0
       ? progressPercent
@@ -2533,7 +2517,7 @@ function MobileImportMenu({
             <span>{t("documentsView.audiobook")}</span>
           </button>
 
-          {false && isTauri() && (
+          {(false as boolean) && isTauri() && (
             <>
               <div className="my-1 border-t border-border" />
               <button

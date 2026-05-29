@@ -63,7 +63,6 @@ export function YouTubeImportDialog({
   const [installingYtdlp, setInstallingYtdlp] = useState(false);
   const [installMessage, setInstallMessage] = useState<string | null>(null);
 
-  // Check yt-dlp availability on mount
   useEffect(() => {
     if (isOpen) {
       checkYTDLP();
@@ -107,7 +106,6 @@ export function YouTubeImportDialog({
     setVideoInfo(null);
     setStatus("idle");
 
-    // Detect import type
     if (value && isYouTubeURL(value)) {
       const type = getYouTubeURLType(value);
       if (type === "playlist") setImportType("playlist");

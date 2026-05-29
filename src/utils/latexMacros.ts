@@ -173,7 +173,6 @@ export class MacroExpander {
       const nextChar = expression[idx + escapedCmd.length];
       if (nextChar !== undefined && /[a-zA-Z]/.test(nextChar)) continue;
 
-      // Parse arguments if needed
       let expanded: string;
       let consumedLength: number;
 

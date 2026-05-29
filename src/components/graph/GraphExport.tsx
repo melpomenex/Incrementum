@@ -40,7 +40,6 @@ export function exportGraphToPNG(
 ): void {
   const { scale = 2, backgroundColor = "#ffffff" } = options;
 
-  // Create temporary canvas for scaling
   const tempCanvas = document.createElement("canvas");
   tempCanvas.width = canvas.width * scale;
   tempCanvas.height = canvas.height * scale;
@@ -48,7 +47,6 @@ export function exportGraphToPNG(
 
   if (!tempCtx) return;
 
-  // Fill background
   tempCtx.fillStyle = backgroundColor;
   tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
@@ -87,7 +85,6 @@ export function exportGraphToSVG(
   const width = maxX - minX + 40;
   const height = maxY - minY + 40;
 
-  // Build SVG
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${minX - 20} ${minY - 20} ${width} ${height}">
   <style>
@@ -99,7 +96,6 @@ export function exportGraphToSVG(
   <rect width="100%" height="100%" fill="${backgroundColor}"/>
 `;
 
-  // Draw edges
   data.edges.forEach((edge) => {
     const source = data.nodes.find((n) => n.id === edge.source);
     const target = data.nodes.find((n) => n.id === edge.target);
@@ -127,7 +123,6 @@ export function exportGraphToSVG(
 `;
   });
 
-  // Draw nodes
   data.nodes.forEach((node) => {
     const color = node.color || "#3b82f6";
     const radius = node.radius || 20;
@@ -305,13 +300,11 @@ export function exportGraphToDOT(
   dot += "  node [shape=circle];\n";
   dot += "  edge [dir=none];\n\n";
 
-  // Nodes
   data.nodes.forEach((node) => {
     const color = node.color || "#3b82f6";
     dot += `  "${node.id}" [label="${node.label}", fillcolor="${color}", style=filled];\n`;
   });
 
-  // Edges
   data.edges.forEach((edge) => {
     let style = "";
     if (edge.type === "reference") style = " [color=blue, penwidth=2]";

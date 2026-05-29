@@ -185,14 +185,13 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
   const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
   const ctxMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load embedding config on mount
   useEffect(() => {
     (async () => {
       try {
         const { invokeCommand } = await import("../../lib/tauri");
         const config = await invokeCommand<EmbeddingConfig | null>("get_embedding_config");
         setEmbeddingConfig(config ?? undefined);
-      } catch {}
+      } catch (_e) { /* non-critical */ }
     })();
   }, []);
 
@@ -221,7 +220,6 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
 
   // Debug: Check if scroll mode is available
   useEffect(() => {
-    console.log("ReviewQueueView state:", { queueMode, onOpenScrollMode: !!onOpenScrollMode });
   }, [queueMode, onOpenScrollMode]);
 
   useEffect(() => {
@@ -277,7 +275,6 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}…` : trimmed;
   }
 
-  // Get unique file types for filter dropdown
   const availableFileTypes = useMemo(() => {
     const types = new Set(items.map((item) => item.documentFileType).filter(Boolean));
     return Array.from(types).sort();
@@ -1143,6 +1140,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 ref={queueListRef}
                 className="space-y-3"
                 tabIndex={isManualBrowseActive ? 0 : -1}
+                role="listbox"
                 onKeyDown={handleQueueListKeyDown}
                 aria-label={t("queue.queueItemsList")}
               >

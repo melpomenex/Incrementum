@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X, Calendar, BookOpen, Clock, Settings, Scissors, Sparkles, AlertTriangle, Layers } from "lucide-react";
+import { X, Calendar, BookOpen, Clock, Scissors, Sparkles, AlertTriangle, Layers } from "lucide-react";
 import type { Document } from "../../types/document";
 import { useI18n } from "../../lib/i18n";
 
@@ -29,7 +29,7 @@ export function SplitDocumentDialog({
   document: doc,
   onSplitSuccess,
 }: SplitDocumentDialogProps) {
-  const { t } = useI18n();
+  const { t: _t } = useI18n();
   const [numChunks, setNumChunks] = useState(5);
   const [spacingDays, setSpacingDays] = useState(1);
   const [archiveParent, setArchiveParent] = useState(true);
@@ -182,6 +182,7 @@ export function SplitDocumentDialog({
       {/* Backdrop with frosted blur */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-300"
+        role="presentation"
         onClick={onClose}
       />
 
@@ -233,6 +234,7 @@ export function SplitDocumentDialog({
                   min="2"
                   max="20"
                   value={numChunks}
+                  aria-label="Number of chunks"
                   onChange={(e) => setNumChunks(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
@@ -259,6 +261,7 @@ export function SplitDocumentDialog({
                   min="0"
                   max="7"
                   value={spacingDays}
+                  aria-label="FSRS queue delay days"
                   onChange={(e) => setSpacingDays(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
@@ -277,6 +280,7 @@ export function SplitDocumentDialog({
                 <input
                   type="checkbox"
                   checked={archiveParent}
+                  aria-label="Archive parent document"
                   onChange={(e) => setArchiveParent(e.target.checked)}
                   className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary/45 cursor-pointer"
                 />
@@ -323,6 +327,7 @@ export function SplitDocumentDialog({
                     <input
                       type="text"
                       value={part.title}
+                      aria-label={`Chunk ${index + 1} title`}
                       onChange={(e) => handleTitleChange(index, e.target.value)}
                       className="flex-1 bg-transparent hover:bg-muted/30 focus:bg-background border border-transparent focus:border-border rounded px-2 py-1 text-sm font-medium text-foreground focus:outline-none transition-all"
                       title="Rename chunk"

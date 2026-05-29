@@ -71,7 +71,6 @@ export function encodeDocumentState(state: DocumentState): string {
 export function decodeDocumentState(fragment: string): DocumentState {
   const state: DocumentState = {};
 
-  // Remove leading # if present
   const hash = fragment.startsWith('#') ? fragment.slice(1) : fragment;
 
   if (!hash) {
@@ -187,10 +186,8 @@ export function compressIdList(ids: string[]): string {
     if (prevIndex !== null && currentIndex !== null &&
         ids[i].startsWith(end.slice(0, -prevIndex.length)) &&
         currentIndex === prevIndex + 1) {
-      // Continue range
       end = ids[i];
     } else {
-      // End current range
       if (start === end) {
         ranges.push(start);
       } else {
@@ -238,7 +235,6 @@ export function decompressIdList(compressed: string): string[] {
         }
       }
     } else {
-      // Regular ID
       ids.push(part);
     }
   }

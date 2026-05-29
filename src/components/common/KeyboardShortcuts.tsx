@@ -430,7 +430,6 @@ export function useKeyboardShortcuts() {
     handlersRef.current.delete(id);
   }, []);
 
-  // Handle keyboard events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in input
@@ -442,7 +441,6 @@ export function useKeyboardShortcuts() {
 
       if (isInput) return;
 
-      // Check each shortcut
       for (const shortcut of shortcuts) {
         const combo = shortcut.currentCombo || shortcut.defaultCombo;
         if (eventMatchesCombo(e, combo)) {

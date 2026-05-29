@@ -145,7 +145,6 @@ export function applyAnchoredTextHighlights(params: {
     removeAllHighlightMarks(root);
   }
 
-  // Build a set of desired highlight IDs
   const desiredIds = new Set(
     highlights.filter((h) => h.endOffset > h.startOffset).map((h) => h.id),
   );
@@ -163,7 +162,6 @@ export function applyAnchoredTextHighlights(params: {
     return;
   }
 
-  // Remove highlights that are no longer desired
   for (const mark of currentMarks) {
     const id = mark.dataset.highlightId ?? "";
     if (!desiredIds.has(id)) {

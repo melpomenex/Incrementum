@@ -35,7 +35,6 @@ interface UseSummaryCacheResult {
 export function useSummaryCache(): UseSummaryCacheResult {
   const [stats, setStats] = useState<UseSummaryCacheResult["stats"]>(null);
 
-  // Load stats on mount
   useEffect(() => {
     setStats(summaryCache.getStats());
   }, []);

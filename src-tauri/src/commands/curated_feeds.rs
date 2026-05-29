@@ -14,7 +14,6 @@ pub struct CuratedFeed {
 
 pub fn get_curated_feeds() -> Vec<CuratedFeed> {
     let mut feeds = vec![
-        // ===== NEWS (22) =====
         cf("BBC News", "http://feeds.bbci.co.uk/news/rss.xml", "https://www.bbc.co.uk/news", "News"),
         cf("BBC World", "http://feeds.bbci.co.uk/news/world/rss.xml", "https://www.bbc.co.uk/news/world", "News"),
         cf("CNN", "http://rss.cnn.com/rss/edition.rss", "https://edition.cnn.com", "News"),
@@ -38,7 +37,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("USA Today", "https://rss.usatoday.com/usatodaycomNews-topStories", "https://www.usatoday.com", "News"),
         cf("Fox News", "http://feeds.foxnews.com/foxnews/latest", "https://www.foxnews.com", "News"),
 
-        // ===== TECH (22) =====
         cf("Hacker News", "https://news.ycombinator.com/rss", "https://news.ycombinator.com", "Tech"),
         cf("TechCrunch", "http://feeds.feedburner.com/TechCrunch", "https://techcrunch.com", "Tech"),
         cf("The Verge", "https://www.theverge.com/rss/index.xml", "https://www.theverge.com", "Tech"),
@@ -63,7 +61,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("The Information", "https://www.theinformation.com/feed", "https://www.theinformation.com", "Tech"),
         cf("Platformer", "https://www.platformer.news/feed/", "https://www.platformer.news", "Tech"),
 
-        // ===== SCIENCE (16) =====
         cf("Scientific American", "https://www.scientificamerican.com/feed/", "https://www.scientificamerican.com", "Science"),
         cf("Nature", "https://www.nature.com/nature.rss", "https://www.nature.com", "Science"),
         cf("ScienceDaily", "https://www.sciencedaily.com/rss/all.xml", "https://www.sciencedaily.com", "Science"),
@@ -80,7 +77,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Science News", "https://www.sciencenews.org/feed", "https://www.sciencenews.org", "Science"),
         cf("Live Science", "https://www.livescience.com/feed", "https://www.livescience.com", "Science"),
 
-        // ===== PROGRAMMING (18) =====
         cf("GitHub Blog", "https://github.blog/feed/", "https://github.blog", "Programming"),
         cf("Stack Overflow Blog", "https://stackoverflow.blog/feed/", "https://stackoverflow.blog", "Programming"),
         cf("CSS-Tricks", "https://css-tricks.com/feed/", "https://css-tricks.com", "Programming"),
@@ -98,7 +94,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("ByteByte", "https://blog.bytebyte.com/feed.xml", "https://blog.bytebyte.com", "Programming"),
         cf("LogRocket Blog", "https://blog.logrocket.com/feed", "https://blog.logrocket.com", "Programming"),
 
-        // ===== BUSINESS & FINANCE (16) =====
         cf("Bloomberg", "https://www.bloomberg.com/feed", "https://www.bloomberg.com", "Business & Finance"),
         cf("Forbes", "https://www.forbes.com/business/feed/", "https://www.forbes.com/business", "Business & Finance"),
         cf("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html", "https://www.cnbc.com", "Business & Finance"),
@@ -115,7 +110,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Seeking Alpha", "https://seekingalpha.com/market_currents.xml", "https://seekingalpha.com", "Business & Finance"),
         cf("Yahoo Finance", "https://finance.yahoo.com/news/rssindex", "https://finance.yahoo.com", "Business & Finance"),
 
-        // ===== STARTUPS (14) =====
         cf("Product Hunt", "https://www.producthunt.com/feed", "https://www.producthunt.com", "Startups"),
         cf("VentureBeat", "https://feeds.feedburner.com/venturebeat/SZYF", "https://venturebeat.com", "Startups"),
         cf("Paul Graham Essays", "http://www.aaronsw.com/2002/feeds/pgessays.rss", "https://paulgraham.com", "Startups"),
@@ -131,7 +125,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Techstars", "https://www.techstars.com/blog/feed/", "https://www.techstars.com", "Startups"),
         cf("500 Startups", "https://500.co/feed", "https://500.co", "Startups"),
 
-        // ===== SPORTS (10) =====
         cf("ESPN", "https://www.espn.com/espn/rss/news", "https://www.espn.com", "Sports"),
         cf("BBC Sport", "http://feeds.bbci.co.uk/sport/rss.xml", "https://www.bbc.co.uk/sport", "Sports"),
         cf("The Athletic", "https://theathletic.com/feed/", "https://theathletic.com", "Sports"),
@@ -143,7 +136,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("SB Nation", "https://www.sbnation.com/", "https://www.sbnation.com", "Sports"),
         cf("FOX Sports", "https://www.foxsports.com/feed", "https://www.foxsports.com", "Sports"),
 
-        // ===== GAMING (11) =====
         cf("Kotaku", "https://kotaku.com/rss", "https://kotaku.com", "Gaming"),
         cf("IGN", "http://feeds.ign.com/ign/all", "https://www.ign.com", "Gaming"),
         cf("Polygon", "https://www.polygon.com/rss/index.xml", "https://www.polygon.com", "Gaming"),
@@ -156,7 +148,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Destructoid", "https://www.destructoid.com/feed", "https://www.destructoid.com", "Gaming"),
         cf("TouchArcade", "https://toucharcade.com/community/forums/-/index.rss", "https://toucharcade.com", "Gaming"),
 
-        // ===== ENTERTAINMENT & CULTURE (16) =====
         cf("The Onion", "https://www.theonion.com/rss", "https://www.theonion.com", "Entertainment"),
         cf("AV Club", "https://film.avclub.com/rss", "https://www.avclub.com", "Entertainment"),
         cf("Variety", "https://variety.com/feed/", "https://variety.com", "Entertainment"),
@@ -173,7 +164,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("E! Online", "https://www.eonline.com/feed/", "https://www.eonline.com", "Entertainment"),
         cf("People", "https://people.com/feed/", "https://people.com", "Entertainment"),
 
-        // ===== DESIGN & ARCHITECTURE (12) =====
         cf("Dezeen", "https://www.dezeen.com/feed/", "https://www.dezeen.com", "Design"),
         cf("ArchDaily", "http://feeds.feedburner.com/Archdaily", "https://www.archdaily.com", "Design"),
         cf("Architectural Digest", "https://www.architecturaldigest.com/feed/rss", "https://www.architecturaldigest.com", "Design"),
@@ -187,7 +177,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("It's Nice That", "https://itsnicethat.com/feed", "https://itsnicethat.com", "Design"),
         cf("Logo Design Love", "https://logodesignlove.com/feed/", "https://logodesignlove.com", "Design"),
 
-        // ===== PHOTOGRAPHY (8) =====
         cf("PetaPixel", "https://petapixel.com/feed/", "https://petapixel.com", "Photography"),
         cf("FStoppers", "https://fstoppers.com/feed", "https://fstoppers.com", "Photography"),
         cf("500px", "https://iso.500px.com/feed/", "https://500px.com", "Photography"),
@@ -197,7 +186,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Landscape Photography", "https://www.landscapephotomagazine.com/feed/", "https://www.landscapephotomagazine.com", "Photography"),
         cf("The Guardian - Camera", "https://www.theguardian.com/artanddesign/photography/rss", "https://www.theguardian.com/artanddesign/photography", "Photography"),
 
-        // ===== FOOD & COOKING (14) =====
         cf("Serious Eats", "http://feeds.feedburner.com/seriouseats/recipes", "https://seriouseats.com", "Food"),
         cf("Bon Appetit", "https://www.bonappetit.com/feed/rss", "https://www.bonappetit.com", "Food"),
         cf("Food & Wine", "https://www.foodandwine.com/rss", "https://www.foodandwine.com", "Food"),
@@ -212,7 +200,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("The Guardian - Food", "https://www.theguardian.com/food/rss", "https://www.theguardian.com/food", "Food"),
         cf("BBC Good Food", "https://www.bbc.co.uk/food/rss", "https://www.bbc.co.uk/food", "Food"),
 
-        // ===== BOOKS & READING (8) =====
         cf("Book Riot", "https://bookriot.com/feed/", "https://bookriot.com", "Books"),
         cf("The New York Review of Books", "https://www.nybooks.com/feed", "https://www.nybooks.com", "Books"),
         cf("Literary Hub", "https://lithubraryhub.com/feed/", "https://lithubraryhub.com", "Books"),
@@ -222,7 +209,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Granta", "https://granta.com/feed", "https://granta.com", "Books"),
         cf("The Millions", "https://www.themillions.com/feed/", "https://www.themillions.com", "Books"),
 
-        // ===== TRAVEL (8) =====
         cf("Atlas Obscura", "https://www.atlasobscura.com/feeds/latest", "https://www.atlasobscura.com", "Travel"),
         cf("Lonely Planet", "https://www.lonelyplanet.com/news/feed/atom/", "https://www.lonelyplanet.com", "Travel"),
         cf("Nomadic Matt", "https://www.nomadicmatt.com/travel-blog/feed/", "https://www.nomadicmatt.com", "Travel"),
@@ -232,7 +218,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Frommer's", "https://www.frommers.com/feeds/rss", "https://www.frommers.com", "Travel"),
         cf("Adventure.com", "https://www.adventure.com/feed", "https://www.adventure.com", "Travel"),
 
-        // ===== FASHION & BEAUTY (8) =====
         cf("Vogue", "https://www.vogue.com/feed/rss", "https://www.vogue.com", "Fashion"),
         cf("Who What Wear", "https://www.whowhatwear.com/rss", "https://www.whowhatwear.com", "Fashion"),
         cf("Refinery29", "https://www.refinery29.com/fashion/rss.xml", "https://www.refinery29.com/fashion", "Fashion"),
@@ -242,7 +227,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Highsnobiety", "https://www.highsnobiety.com/feed/", "https://www.highsnobiety.com", "Fashion"),
         cf("The Cut", "https://www.thecut.com/feed/", "https://www.thecut.com", "Fashion"),
 
-        // ===== SPACE & ASTRONOMY (6) =====
         cf("Space.com", "https://www.space.com/feeds/all", "https://www.space.com", "Space"),
         cf("NASA", "https://www.nasa.gov/rss/dyn/breaking_news.rss", "https://www.nasa.gov", "Space"),
         cf("New Scientist - Space", "https://www.newscientist.com/subject/space/feed/", "https://www.newscientist.com/space", "Space"),
@@ -250,7 +234,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Universe Today", "https://www.universetoday.com/feed/", "https://www.universetoday.com", "Space"),
         cf("Astronomy.com", "https://www.astronomy.com/feed/", "https://www.astronomy.com", "Space"),
 
-        // ===== HUMOR (8) =====
         cf("xkcd", "https://xkcd.com/rss.xml", "https://xkcd.com", "Humor"),
         cf("The Oatmeal", "http://feeds.feedburner.com/oatmealfeed", "https://theoatmeal.com", "Humor"),
         cf("SMBC Comics", "https://www.smbc-comics.com/comic/rss", "https://www.smbc-comics.com", "Humor"),
@@ -260,7 +243,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Fail Blog", "http://feeds.feedburner.com/failblog", "https://failblog.com", "Humor"),
         cf("Cracked", "http://feeds.feedburner.com/CrackedRSS", "https://www.cracked.com", "Humor"),
 
-        // ===== MUSIC (8) =====
         cf("Pitchfork", "http://pitchfork.com/rss/news", "https://pitchfork.com", "Music"),
         cf("Rolling Stone - Music", "https://www.rollingstone.com/music/feed/", "https://www.rollingstone.com/music", "Music"),
         cf("Billboard", "https://www.billboard.com/articles/rss.xml", "https://www.billboard.com", "Music"),
@@ -270,7 +252,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Pitchfork - Reviews", "http://pitchfork.com/rss/reviews.xml", "https://pitchfork.com/reviews", "Music"),
         cf("Resident Advisor", "https://www.residentadvisor.net/feed", "https://www.residentadvisor.net", "Music"),
 
-        // ===== CARS (8) =====
         cf("Jalopnik", "https://jalopnik.com/rss", "https://jalopnik.com", "Cars"),
         cf("Autoblog", "https://www.autoblog.com/rss.xml", "https://www.autoblog.com", "Cars"),
         cf("Car and Driver", "https://www.caranddriver.com/rss/all.xml/", "https://www.caranddriver.com", "Cars"),
@@ -280,7 +261,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Top Gear", "https://www.topgear.com/uk/rss.xml", "https://www.topgear.com", "Cars"),
         cf("Auto Express", "https://www.autoexpress.co.uk/feed", "https://www.autoexpress.co.uk", "Cars"),
 
-        // ===== DIY & MAKING (6) =====
         cf("Hackaday", "https://hackaday.com/blog/feed/", "https://hackaday.com", "DIY"),
         cf("How-To Geek", "https://www.howtogeek.com/feed/", "https://www.howtogeek.com", "DIY"),
         cf("MakeUseOf", "https://www.makeuseof.com/feed/", "https://www.makeuseof.com", "DIY"),
@@ -288,7 +268,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Instructables", "https://www.instructables.com/feed/", "https://www.instructables.com", "DIY"),
         cf("Wirecutter", "https://www.wirecutter.com/feed/", "https://www.wirecutter.com", "DIY"),
 
-        // ===== HISTORY (6) =====
         cf("History Today", "https://www.historytoday.com/feed", "https://www.historytoday.com", "History"),
         cf("National Geographic", "https://www.nationalgeographic.com/feed/", "https://www.nationalgeographic.com", "History"),
         cf("Smithsonian Magazine", "https://www.smithsonianmag.com/feed/", "https://www.smithsonianmag.com", "History"),
@@ -296,7 +275,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Historical Times", "https://www.historicaltimes.com/feed", "https://www.historicaltimes.com", "History"),
         cf("Ancient History Encyclopedia", "https://www.ancient.eu/feed/", "https://www.ancient.eu", "History"),
 
-        // ===== PERSONAL FINANCE (8) =====
         cf("NerdWallet", "https://www.nerdwallet.com/blog/feed/", "https://www.nerdwallet.com", "Personal Finance"),
         cf("The Penny Hoarder", "https://www.thepennyhoarder.com/feed/", "https://www.thepennyhoarder.com", "Personal Finance"),
         cf("MoneySaving Expert", "https://www.moneysavingexpert.com/feed/", "https://www.moneysavingexpert.com", "Personal Finance"),
@@ -306,7 +284,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Millennial Money", "https://millennialmoney.com/feed/", "https://millennialmoney.com", "Personal Finance"),
         cf("Financial Samurai", "https://www.financialsamurai.com/feed/", "https://www.financialsamurai.com", "Personal Finance"),
 
-        // ===== AI & MACHINE LEARNING (6) =====
         cf("OpenAI Blog", "https://openai.com/blog/rss/", "https://openai.com/blog", "AI"),
         cf("Google AI Blog", "https://blog.google/technology/ai/rss/", "https://blog.google/technology/ai/", "AI"),
         cf("MIT Technology Review", "https://www.technologyreview.com/feed/", "https://www.technologyreview.com", "AI"),
@@ -314,7 +291,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Machine Learning Mastery", "https://machinelearningmastery.com/feed/", "https://machinelearningmastery.com", "AI"),
         cf("The Gradient", "https://thegradient.pub/feed/", "https://thegradient.pub", "AI"),
 
-        // ===== SECURITY (6) =====
         cf("Krebs on Security", "https://krebsonsecurity.com/feed/", "https://krebsonsecurity.com", "Security"),
         cf("Schneier on Security", "https://www.schneier.com/feed/", "https://www.schneier.com", "Security"),
         cf("BleepingComputer", "https://www.bleepingcomputer.com/feed/", "https://www.bleepingcomputer.com", "Security"),
@@ -322,13 +298,11 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Dark Reading", "https://darkreading.com/feed/", "https://darkreading.com", "Security"),
         cf("Naked Security", "https://nakedsecurity.scmp.com/feed/", "https://nakedsecurity.scmp.com", "Security"),
 
-        // ===== CRYPTO & WEB3 (4) =====
         cf("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/", "https://www.coindesk.com", "Crypto"),
         cf("CoinTelegraph", "https://cointelegraph.com/feed", "https://cointelegraph.com", "Crypto"),
         cf("Decrypt", "https://decrypt.co/feed/", "https://decrypt.co", "Crypto"),
         cf("Blockworks", "https://www.blockworks.co/feed/", "https://www.blockworks.co", "Crypto"),
 
-        // ===== ENVIRONMENT & CLIMATE (6) =====
         cf("Grist", "https://grist.org/feed/", "https://grist.org", "Environment"),
         cf("Inside Climate News", "https://insideclimatenews.org/feed/", "https://insideclimatenews.org", "Environment"),
         cf("Climate Home", "https://www.climatechangenews.com/feed/", "https://www.climatechangenews.com", "Environment"),
@@ -336,7 +310,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Yale Environment 360", "https://e360.yale.edu/feed/", "https://e360.yale.edu", "Environment"),
         cf("Earther", "https://www.earther.com/blog/feed/", "https://www.earther.com", "Environment"),
 
-        // ===== UK (12) =====
         cf("Daily Mail", "https://www.dailymail.co.uk/home/index.rss", "https://www.dailymail.co.uk", "UK"),
         cf("The Independent", "http://www.independent.co.uk/news/uk/rss", "https://www.independent.co.uk", "UK"),
         cf("Daily Mirror", "https://www.dailymirror.co.uk/?service=rss", "https://www.dailymirror.co.uk", "UK"),
@@ -349,7 +322,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Sky News UK", "https://news.sky.com/rss", "https://news.sky.com", "UK"),
         cf("Metro UK", "https://metro.co.uk/feed/", "https://metro.co.uk", "UK"),
 
-        // ===== INDIA (14) =====
         cf("Times of India", "https://timesofindia.indiatimes.com/rssfeedstopstories.cms", "https://timesofindia.indiatimes.com", "India"),
         cf("The Hindu", "https://www.thehindu.com/feeder/default.rss", "https://www.thehindu.com", "India"),
         cf("NDTV", "https://feeds.feedburner.com/ndtvnews-top-stories", "https://www.ndtv.com", "India"),
@@ -363,7 +335,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Business Standard", "https://www.business-standard.com/rss/home_page_top_stories.rss", "https://www.business-standard.com", "India"),
         cf("Hindustan Times", "https://www.hindustantimes.com/feed/", "https://www.hindustantimes.com", "India"),
 
-        // ===== US (12) =====
         cf("LA Times", "https://www.latimes.com/world-nation/rss2.0.xml", "https://www.latimes.com", "US"),
         cf("Chicago Tribune", "https://www.chicagotribune.com/feed/", "https://www.chicagotribune.com", "US"),
         cf("USA Today", "https://rss.usatoday.com/usatodaycomNews-topStories", "https://www.usatoday.com", "US"),
@@ -374,7 +345,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Miami Herald", "https://www.miamiherald.com/feed/", "https://www.miamiherald.com", "US"),
         cf("Arizona Republic", "https://www.azcentral.com/feed/", "https://www.azcentral.com", "US"),
 
-        // ===== CANADA (8) =====
         cf("CBC News", "https://www.cbc.ca/cmlink/rss-topstories", "https://www.cbc.ca/news", "Canada"),
         cf("CTV News", "https://www.ctvnews.ca/rss/ctvnews-ca-top-stories-public-rss-1.822009", "https://www.ctvnews.ca", "Canada"),
         cf("Global News", "https://globalnews.ca/feed/", "https://globalnews.ca", "Canada"),
@@ -384,7 +354,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Vancouver Sun", "https://vancouversun.com/feed/", "https://vancouversun.com", "Canada"),
         cf("Globe and Mail", "https://www.theglobeandmail.com/feed/", "https://www.theglobeandmail.com", "Canada"),
 
-        // ===== AUSTRALIA (10) =====
         cf("ABC News Australia", "https://www.abc.net.au/news/feed/1948/rss.xml", "https://www.abc.net.au/news", "Australia"),
         cf("Sydney Morning Herald", "https://www.smh.com.au/rss/feed.xml", "https://www.smh.com.au", "Australia"),
         cf("The Age", "https://www.theage.com.au/rss/feed.xml", "https://www.theage.com.au", "Australia"),
@@ -394,7 +363,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Crikey", "https://feeds.feedburner.com/com/rCTl", "https://www.crikey.com.au", "Australia"),
         cf("The Conversation", "https://theconversation.com/au/feed/", "https://theconversation.com/au", "Australia"),
 
-        // ===== GERMANY (8) =====
         cf("ZEIT ONLINE", "http://newsfeed.zeit.de/index", "https://www.zeit.de", "Germany"),
         cf("FAZ", "https://www.faz.net/rss/aktuell/", "https://www.faz.net", "Germany"),
         cf("Tagesschau", "http://www.tagesschau.de/xml/rss2", "https://www.tagesschau.de", "Germany"),
@@ -404,7 +372,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Handelsblatt", "https://www.handelsblatt.com/feed/", "https://www.handelsblatt.com", "Germany"),
         cf("Manager Magazin", "https://www.manager-magazin.de/feed/", "https://www.manager-magazin.de", "Germany"),
 
-        // ===== FRANCE (8) =====
         cf("Le Monde", "https://www.lemonde.fr/rss/une.xml", "https://www.lemonde.fr", "France"),
         cf("Le Figaro", "https://www.lefigaro.fr/rss/figaro_actualites.xml", "https://www.lefigaro.fr", "France"),
         cf("France 24", "https://www.france24.com/en/rss", "https://www.france24.com", "France"),
@@ -414,7 +381,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("France Info", "https://www.francetvinfo.fr/titres.rss", "https://www.francetvinfo.fr", "France"),
         cf("Libération", "https://www.liberation.fr/rss/", "https://www.liberation.fr", "France"),
 
-        // ===== SPAIN (6) =====
         cf("El Pais", "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada", "https://elpais.com", "Spain"),
         cf("El Mundo", "https://elmundo.es/rss", "https://elmundo.es", "Spain"),
         cf("El Confidencial", "https://rss.elconfidencial.com/espana/", "https://elconfidencial.com", "Spain"),
@@ -422,7 +388,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("La Vanguardia", "https://www.lavanguardia.com/rss/", "https://www.lavanguardia.com", "Spain"),
         cf("El Periodico", "https://www.elperiodico.com/es/rss/rss_portada.xml", "https://www.elperiodico.com", "Spain"),
 
-        // ===== ITALY (10) =====
         cf("ANSA", "https://www.ansa.it/sito/ansait_rss.xml", "https://www.ansa.it", "Italy"),
         cf("Il Post", "https://www.ilpost.it/feed/", "https://www.ilpost.it", "Italy"),
         cf("La Repubblica", "https://www.repubblica.it/rss/homepage/rss2.0.xml", "https://www.repubblica.it", "Italy"),
@@ -433,7 +398,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Internazionale", "https://www.internazionale.it/sitemaps/rss.xml", "https://www.internazionale.it", "Italy"),
         cf("Fanpage.it", "https://www.fanpage.it/feed/", "https://www.fanpage.it", "Italy"),
 
-        // ===== JAPAN (8) =====
         cf("Japan Times", "https://www.japantimes.co.jp/feed/topstories/", "https://www.japantimes.co.jp", "Japan"),
         cf("Japan Today", "https://japantoday.com/feed", "https://japantoday.com", "Japan"),
         cf("NHK News Web", "https://www3.nhk.or.jp/nhkworld/en/news/rss.xml", "https://www3.nhk.or.jp/nhkworld", "Japan"),
@@ -443,7 +407,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Nikkei Asia", "https://asia.nikkei.com/feed/", "https://asia.nikkei.com", "Japan"),
         cf("Kyodo News", "https://english.kyodonews.net/rss/all.xml", "https://english.kyodonews.net", "Japan"),
 
-        // ===== BRAZIL (6) =====
         cf("Folha de S.Paulo", "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", "https://www.folha.uol.com.br", "Brazil"),
         cf("O Globo", "https://oglo.globo.com/rss/", "https://oglo.globo.com", "Brazil"),
         cf("O Estado de S. Paulo", "https://www.estadao.com.br/feed/", "https://www.estadao.com.br", "Brazil"),
@@ -451,7 +414,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Veja", "https://veja.abril.com.br/rss/", "https://veja.abril.com.br", "Brazil"),
         cf("IG", "https://ig.com.br/rss/", "https://ig.com.br", "Brazil"),
 
-        // ===== MEXICO (8) =====
         cf("El Universal", "https://www.eluniversal.com.mx/seccion/1671/rss.xml", "https://www.eluniversal.com.mx", "Mexico"),
         cf("Excelsior", "https://www.excelsior.com.mx/rss.xml", "https://www.excelsior.com.mx", "Mexico"),
         cf("Reforma", "https://www.reforma.com/rss/portada.xml", "https://www.reforma.com.mx", "Mexico"),
@@ -461,7 +423,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Milenio", "https://www.milenio.com.mx/feed/", "https://www.milenio.com.mx", "Mexico"),
         cf("Cronica de Hoy", "https://www.cronicodehoy.com.mx/rss/feed.xml", "https://www.cronicodehoy.com.mx", "Mexico"),
 
-        // ===== RUSSIA (8) =====
         cf("Meduza", "https://meduza.io/rss/all", "https://meduza.io", "Russia"),
         cf("The Moscow Times", "https://www.themoscowtimes.com/rss/news", "https://www.themoscowtimes.com", "Russia"),
         cf("RBK", "https://www.rbc.ru/rss/", "https://www.rbc.ru", "Russia"),
@@ -471,7 +432,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Izvestia", "https://iz.ru/rss/", "https://iz.ru", "Russia"),
         cf("Novaya Gazeta", "https://novayagazeta.ru/rss/", "https://novayagazeta.ru", "Russia"),
 
-        // ===== UKRAINE (6) =====
         cf("Ukrayinska Pravda", "https://www.pravda.com.ua/rss/", "https://www.pravda.com.ua", "Ukraine"),
         cf("UNIAN", "https://rss.unian.net/site/news_eng.rss", "https://unian.net", "Ukraine"),
         cf("NV", "https://nv.ua/rss/all.xml", "https://nv.ua", "Ukraine"),
@@ -479,7 +439,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Kyiv Independent", "https://kyivindependent.com/feed/", "https://kyivindependent.com", "Ukraine"),
         cf("The Gaze", "https://thegaze.post/rss/", "https://thegaze.post", "Ukraine"),
 
-        // ===== SOUTH AFRICA (8) =====
         cf("News24", "http://feeds.news24.com/articles/news24/TopStories/rss", "https://www.news24.com", "South Africa"),
         cf("Daily Maverick", "https://www.dailymaverick.co.za/dmrss/", "https://www.dailymaverick.co.za", "South Africa"),
         cf("TimesLIVE", "https://www.timeslive.co.za/rss/", "https://www.timeslive.co.za", "South Africa"),
@@ -489,7 +448,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("City Press", "https://www.pressreader.com/feed/", "https://www.pressreader.com", "South Africa"),
         cf("The Star", "https://www.thestar.co.za/feed/", "https://www.thestar.co.za", "South Africa"),
 
-        // ===== NIGERIA (6) =====
         cf("Premium Times", "https://www.premiumtimesng.com/feed", "https://www.premiumtimesng.com", "Nigeria"),
         cf("Daily Post", "https://dailypost.ng/feed", "https://dailypost.ng", "Nigeria"),
         cf("The Guardian Nigeria", "https://guardian.ng/feed/", "https://guardian.ng", "Nigeria"),
@@ -498,7 +456,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Vanguard", "https://www.vanguardngr.com/feed/", "https://www.vanguardngr.com", "Nigeria"),
         cf("Sahara Reporters", "http://saharareporters.com/feeds/latest/feed", "https://saharareporters.com", "Nigeria"),
 
-        // ===== PHILIPPINES (8) =====
         cf("INQUIRER.net", "https://www.inquirer.net/fullfeed", "https://www.inquirer.net", "Philippines"),
         cf("Philippine Star", "https://www.philstar.com/rss/headlines", "https://www.philstar.com", "Philippines"),
         cf("ABS-CBN News", "https://data.gmanews.tv/gno/rss/news/feed.xml", "https://www.gmanews.tv", "Philippines"),
@@ -507,7 +464,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("BusinessWorld", "https://www.bworldonline.com/feed/", "https://www.bworldonline.com", "Philippines"),
         cf("Philippine Daily Inquirer", "https://www.dailytribune.net.ph/feed/", "https://www.dailytribune.net.ph", "Philippines"),
 
-        // ===== PAKISTAN (6) =====
         cf("The Express Tribune", "https://tribune.com.pk/feed/home", "https://tribune.com.pk", "Pakistan"),
         cf("Dawn News", "https://www.dawn.com/feed/", "https://www.dawn.com", "Pakistan"),
         cf("The Nation", "https://nation.com.pk/rss/top-stories", "https://nation.com.pk", "Pakistan"),
@@ -515,7 +471,6 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("ARY News", "https://www.arynews.tv/feed/", "https://www.arynews.tv", "Pakistan"),
         cf("Bol News", "https://www.bolnews.com/feed/", "https://www.bolnews.com", "Pakistan"),
 
-        // ===== POLAND (6) =====
         cf("RMF24", "https://www.rmf24.pl/feed", "https://www.rmf24.pl", "Poland"),
         cf("Gazeta Wyborcza", "https://www.gazetaprawy.pl/rss.xml", "https://www.gazetaprawy.pl", "Poland"),
         cf("Gazeta Prawna", "https://www.gazeta.pl/rss.xml", "https://www.gazeta.pl", "Poland"),
@@ -523,13 +478,11 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Newsweek Polska", "https://www.newsweek.pl/rss.xml", "https://www.newsweek.pl", "Poland"),
         cf("Wirtualne Media", "https://www.wirtualnemedia.pl/rss/wirtualnemedia_rss.xml", "https://www.wirtualnemedia.pl", "Poland"),
 
-        // ===== HONG KONG (4) =====
         cf("South China Morning Post", "https://www.scmp.com/rss/91/feed", "https://www.scmp.com", "Hong Kong"),
         cf("Hong Kong Free Press", "https://www.hongkongfp.com/feed/", "https://www.hongkongfp.com", "Hong Kong"),
         cf("The Standard", "https://www.thestandard.com.hk/newsfeed/latest/news.xml", "https://www.thestandard.com.hk", "Hong Kong"),
         cf("Hong Kong Economic Journal", "https://www.hkej.com/rss/hongkong", "https://www.hkej.com", "Hong Kong"),
 
-        // ===== INDONESIA (6) =====
         cf("Kompas", "https://www.kompas.com/rss/", "https://www.kompas.com", "Indonesia"),
         cf("Republika", "https://www.republika.co.id/rss/", "https://www.republika.co.id", "Indonesia"),
         cf("Tempo", "https://www.tempo.co/feed/", "https://www.tempo.co", "Indonesia"),
@@ -537,25 +490,21 @@ pub fn get_curated_feeds() -> Vec<CuratedFeed> {
         cf("Bisnis Indonesia", "https://www.bisnis.com/feed/", "https://www.bisnis.com", "Indonesia"),
         cf("Detik.com", "https://www.detik.com/feed/", "https://www.detik.com", "Indonesia"),
 
-        // ===== IRAN (4) =====
         cf("Iran Front Page", "https://ifpnews.com/feed/", "https://ifpnews.com", "Iran"),
         cf("Tasnim", "https://www.tasnimnews.com/fa/rss/feed/0/8/0/%D9%85%D9%85%D8%AA%D8%AA-%D8%B3%D9%87%D8%AA%D9%85%D8%AA", "https://www.tasnimnews.com", "Iran"),
         cf("ISNA", "https://www.isna.ir/rss", "https://www.isna.ir", "Iran"),
         cf("Tabnak", "https://www.tabnak.ir/fa/rss/allnews", "https://www.tabnak.ir", "Iran"),
 
-        // ===== IRELAND (4) =====
         cf("TheJournal.ie", "https://www.thejournal.ie/feed/", "https://www.thejournal.ie", "Ireland"),
         cf("Irish Independent", "https://www.independent.ie/rss/", "https://www.independent.ie", "Ireland"),
         cf("BreakingNews.ie", "https://feeds.breakingnews.ie/bntopstories", "https://www.breakingnews.ie", "Ireland"),
         cf("Irish Times", "https://www.irishtimes.com/rss/", "https://www.irishtimes.com", "Ireland"),
 
-        // ===== UAE / MIDDLE EAST (4) =====
         cf("Gulf News", "https://gulfnews.com/feed/", "https://gulfnews.com", "Middle East"),
         cf("Al Jazeera English", "https://www.aljazeera.com/english/rss", "https://www.aljazeera.com/english", "Middle East"),
         cf("Middle East Eye", "https://www.middleeasteye.net/feed/", "https://www.middleeasteye.net", "Middle East"),
         cf("Arab News", "https://www.arabnews.com/rss/", "https://www.arabnews.com", "Middle East"),
 
-        // ===== NEW ZEALAND (4) =====
         cf("Stuff.co.nz", "https://www.stuff.co.nz/feed/", "https://www.stuff.co.nz", "New Zealand"),
         cf("New Zealand Herald", "https://www.nzherald.co.nz/feed/", "https://www.nzherald.co.nz", "New Zealand"),
         cf("Newstalk", "https://www.newstalk.co.nz/feed/", "https://www.newstalk.co.nz", "New Zealand"),

@@ -216,16 +216,20 @@ export async function buildSemanticGraph(
 
       if (embeddedCount > 0 || embeddedRssCount > 0) {
         // Re-fetch the graph now that embeddings exist
-        const result2 = await invoke<SemanticGraphResult>("compute_semantic_graph", {
+        const graphWithEmbeddings = await invoke<SemanticGraphResult>("compute_semantic_graph", {
           items: summaries,
           rssItems: rssSummaries,
           thresholdPercent,
           config: embeddingConfig,
         });
 
-        if (result2.nodes.length > 0) {
+        if (graphWithEmbeddings.nodes.length > 0) {
           onEmbeddingStatus?.("done");
+<<<<<<< Updated upstream
           return convertBackendResult(result2, items, rssItems || []);
+=======
+          return convertBackendResult(graphWithEmbeddings, items);
+>>>>>>> Stashed changes
         }
       }
 
@@ -236,8 +240,12 @@ export async function buildSemanticGraph(
     }
   }
 
+<<<<<<< Updated upstream
   // Lexical fallback
   return lexicalBuildSemanticGraph(items, thresholdPercent, focalTopic, rssItems);
+=======
+  return lexicalBuildSemanticGraph(items, thresholdPercent, focalTopic);
+>>>>>>> Stashed changes
 }
 
 export { type EmbeddingConfigInput as EmbeddingConfig };

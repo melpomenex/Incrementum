@@ -198,7 +198,6 @@ export function WorkloadCalendar() {
     return { startDate: start, endDate: end, months: [prev, curr, next] };
   }, [centerYear, centerMonth]);
 
-  // Fetch data
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);

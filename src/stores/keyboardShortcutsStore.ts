@@ -65,7 +65,6 @@ export const useKeyboardShortcutsStore = create<KeyboardShortcutsState>()(
       loadDefaults: () => set({ shortcuts: DEFAULT_SHORTCUTS }),
 
       updateShortcut: (id, newKeys) => {
-        // Check for conflicts
         const existing = get().shortcuts.find((s) => s.keys === newKeys && s.id !== id);
         if (existing) {
           console.warn(`Key conflict: "${newKeys}" is already used by "${existing.action}"`);

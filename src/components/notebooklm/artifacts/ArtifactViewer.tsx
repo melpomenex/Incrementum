@@ -112,7 +112,6 @@ export function ArtifactViewer({
   const handleAddDataTableToQueue = async (data: DataTableRow[]) => {
     setIsAddingToQueue(true);
     try {
-      // Create a flashcard for each row
       for (const row of data.slice(0, 10)) {
         const keys = Object.keys(row);
         if (keys.length >= 2) {
@@ -180,7 +179,6 @@ export function ArtifactViewer({
           parsedContent = content;
         }
         
-        // Check if this is a legacy job error
         if (typeof parsedContent === 'object' && parsedContent !== null && 'error' in parsedContent) {
           const errorData = parsedContent as any;
           return (
@@ -207,7 +205,6 @@ export function ArtifactViewer({
           );
         }
         
-        // Handle case where content is wrapped in a jsonContent field
         if (typeof parsedContent === 'object' && parsedContent !== null && 'jsonContent' in parsedContent) {
           parsedContent = (parsedContent as any).jsonContent;
         }
@@ -490,10 +487,8 @@ function VideoViewer({ content, title, artifactId }: { content: string; title?: 
 
 function ReportViewer({ content, title }: { content: string; title?: string }) {
   // Try to parse as markdown or render as text
-  let htmlContent = content;
-
   // Simple markdown to HTML conversion (basic)
-  htmlContent = content
+  const htmlContent = content
     .replace(/^# (.*$)/gim, "<h1>$1</h1>")
     .replace(/^## (.*$)/gim, "<h2>$1</h2>")
     .replace(/^### (.*$)/gim, "<h3>$1</h3>")
@@ -547,13 +542,11 @@ function DataTableViewer({
   try {
     let parsed = JSON.parse(content);
     
-    // Check for legacy job error
     if (typeof parsed === 'object' && parsed !== null && 'error' in parsed) {
       isLegacyError = true;
       legacyMessage = parsed.message || "This data table was created with an older version.";
     }
     
-    // Handle case where content is wrapped in a jsonContent field
     if (typeof parsed === 'object' && parsed !== null && 'jsonContent' in parsed) {
       parsed = parsed.jsonContent;
     }

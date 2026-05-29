@@ -1,12 +1,3 @@
-/**
- * usePdfCustomSelection - Integration hook for custom PDF text selection.
- *
- * Provides a complete selection system that:
- * 1. Extracts tokens from PDF pages
- * 2. Builds spatial index for fast lookup
- * 3. Manages selection state machine
- * 4. Emits selection changes via callback
- */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PdfSelectionContext } from "../../../types/selection";
@@ -136,7 +127,6 @@ export function usePdfCustomSelection(
       const viewport = pageViewportRefs.current[pageIndex];
       if (!viewport) return;
 
-      // Check if we already have tokens at this scale
       const lastScale = lastScalesRef.current[pageIndex];
       if (lastScale === viewport.scale && indexedPagesRef.current.has(pageIndex)) {
         return; // Already indexed at this scale
@@ -175,7 +165,6 @@ export function usePdfCustomSelection(
           engineRef.current?.handlePointerDown(pageIndex, pending.x, pending.y);
         }
 
-        // Update ready state
         if (!isReady && indexedPagesRef.current.size > 0) {
           setIsReady(true);
           setSelectionState((prev) => ({ ...prev, isReady: true }));
@@ -204,7 +193,6 @@ export function usePdfCustomSelection(
     indexedPagesRef.current.clear();
     extractionSuccessRef.current.clear();
 
-    // Extract tokens for all pages with viewports
     for (let i = 0; i < pageViewportRefs.current.length; i++) {
       const viewport = pageViewportRefs.current[i];
       if (viewport) {
@@ -219,7 +207,6 @@ export function usePdfCustomSelection(
   useEffect(() => {
     if (!enabled || !pdf) return;
 
-    // Check if any viewport scale changed
     let scaleChanged = false;
     for (let i = 0; i < pageViewportRefs.current.length; i++) {
       const viewport = pageViewportRefs.current[i];
@@ -244,7 +231,6 @@ export function usePdfCustomSelection(
   useEffect(() => {
     if (!enabled || !pdf) return;
 
-    // Extract tokens for pages that have viewports
     for (let i = 0; i < pageViewportRefs.current.length; i++) {
       const viewport = pageViewportRefs.current[i];
       if (viewport && !indexedPagesRef.current.has(i)) {
@@ -294,7 +280,6 @@ export function usePdfCustomSelection(
         const existing = pendingSelectionRef.current.get(pageIndex);
         if (existing) clearTimeout(existing.timeout);
 
-        // Queue the selection and trigger extraction
         const timeout = setTimeout(() => {
           pendingSelectionRef.current.delete(pageIndex);
           // After timeout, the page will fall back to native selection
@@ -371,7 +356,6 @@ export function usePdfCustomSelection(
     const handleDocumentClick = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      // Check if click is outside any page container
       const isInsidePage = pageContainerRefs.current.some(
         (container) => container && container.contains(target)
       );

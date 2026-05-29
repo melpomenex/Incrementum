@@ -357,11 +357,9 @@ pub async fn import_collection_archive_merge(
     let payload: MergePayload = serde_json::from_slice(&payload_bytes)
         .map_err(|e| AppError::Internal(format!("Invalid archive payload: {}", e)))?;
 
-    // Create a new collection for the imported data
     let mut collection_name = manifest.collection_name
         .unwrap_or_else(|| "Imported Collection".to_string());
 
-    // Handle duplicate collection names
     let existing_collections = repo.get_collections().await.unwrap_or_default();
     let existing_names: Vec<String> = existing_collections.iter().map(|c| c.name.clone()).collect();
     if existing_names.contains(&collection_name) {
@@ -370,7 +368,6 @@ pub async fn import_collection_archive_merge(
     let new_collection = repo.create_collection(&collection_name, None, None).await?;
     let new_collection_id = new_collection.id;
 
-    // Build ID remapping tables
     let mut doc_id_map: HashMap<String, String> = HashMap::new();
     let mut extract_id_map: HashMap<String, String> = HashMap::new();
     let mut item_id_map: HashMap<String, String> = HashMap::new();
@@ -397,7 +394,6 @@ pub async fn import_collection_archive_merge(
         }
     }
 
-    // Write document files
     let docs_dir = ensure_document_storage(&app)?;
     for file_entry in &payload.files {
         let file_bytes = read_zip_bytes(&mut archive, &file_entry.zip_path)?;

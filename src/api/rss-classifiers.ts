@@ -5,10 +5,6 @@
 
 import { invokeCommand, isTauri } from "../lib/tauri";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface RssClassifier {
   id: string;
   feed_id: string;
@@ -37,10 +33,6 @@ function shouldUseHttp(): boolean {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";
 }
-
-// ============================================================================
-// Auto functions (Tauri IPC → HTTP → localStorage fallback)
-// ============================================================================
 
 export async function addClassifierAuto(
   feedId: string,

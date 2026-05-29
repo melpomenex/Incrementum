@@ -43,7 +43,6 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
       if (paths && paths.length > 0) {
         const selectedPath = paths[0];
         setFilePath(selectedPath);
-        // Extract filename from path
         const name = selectedPath.split(/[/\\]/).pop() || selectedPath;
         setFileName(name);
         setTitle(name.replace(/\.[^/.]+$/, '')); // Remove extension
@@ -69,7 +68,6 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
     setError(null);
 
     try {
-      // Import via Tauri command - pass file path instead of bytes
       const result = await invokeCommand<Document>('import_video_file', {
         sourcePath: filePath,
         title: title.trim(),
@@ -118,7 +116,10 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
           </label>
           <div className="flex items-center gap-4">
             <div
+              role="button"
+              tabIndex={0}
               onClick={handleFileSelect}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleFileSelect(); }}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${
                 filePath ? 'border-primary' : 'border-border'
               }`}

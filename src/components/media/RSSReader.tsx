@@ -161,13 +161,11 @@ export function RSSReader() {
     try {
       const saved = await setRssPreferencesAuto(newPreferences, selectedFeed?.id);
       setPreferences(saved);
-      console.log("Preferences saved successfully:", saved);
     } catch (error) {
       console.error("Failed to save preferences:", error);
     }
   };
 
-  // Load preferences on mount or when feed changes
   useEffect(() => {
     (async () => {
       try {
@@ -179,7 +177,6 @@ export function RSSReader() {
     })();
   }, [selectedFeed?.id]);
 
-  // Load feeds on mount and when collection changes
   const activeCollectionId = useCollectionStore((s) => s.activeCollectionId);
   useEffect(() => {
     (async () => {
@@ -286,7 +283,6 @@ export function RSSReader() {
     return sorted;
   }, [preferences]);
 
-  // Update items when feeds or view mode changes
   useEffect(() => {
     const allFeedItems = feeds.flatMap((feed) => feed.items.map((item) => ({ feed, item })));
 
@@ -344,12 +340,10 @@ export function RSSReader() {
     setItems(sortedList);
   }, [viewMode, selectedFeed, feeds, searchQuery, selectedTagFilter, selectedTagIds, articleTags, intelligenceFilter, showDisliked, preferences, applyFilterPreferences, applySortingPreferences]);
 
-  // Load tags on mount
   useEffect(() => {
     void loadTags();
   }, [loadTags]);
 
-  // Load article tags when selected article changes
   useEffect(() => {
     if (selectedItem) {
       void loadArticleTags(selectedItem.id).then(() => {
@@ -414,7 +408,6 @@ export function RSSReader() {
       if (localStorageFolders) {
         const migrated = await migrateFoldersFromLocalStorageAuto(localStorageFolders);
         if (migrated > 0) {
-          console.log(`[RSS] Migrated ${migrated} folders from localStorage to SQLite`);
           localStorage.removeItem("rss_folders");
         }
       }
@@ -450,7 +443,6 @@ export function RSSReader() {
       if (source === "manual") {
         setSyncFeedback("syncing");
       }
-      console.log("[RSS Auto-Refresh] Starting periodic refresh...");
 
       try {
         const currentFeeds = await getSubscribedFeedsAuto();
@@ -487,9 +479,6 @@ export function RSSReader() {
                     return !existingItem; // Only new items
                   });
                   if (newItems.length > 0) {
-                    console.log(
-                      `[RSS] Auto-fetching full content for ${newItems.length} new items in feed "${feed.title}"`
-                    );
                     newItems.forEach((item) => {
                       void fetchArticleFullContent(item.id, item.link);
                     });
@@ -511,7 +500,6 @@ export function RSSReader() {
           setSyncFeedback(hadFeedErrors ? "error" : "success");
           scheduleSyncFeedbackReset(hadFeedErrors ? 5000 : 3500);
         }
-        console.log("[RSS Auto-Refresh] Completed periodic refresh");
       } catch (error) {
         console.error("[RSS Auto-Refresh] Failed to refresh feeds:", error);
         if (source === "manual") {
@@ -525,23 +513,15 @@ export function RSSReader() {
     [isAutoRefreshing, scheduleSyncFeedbackReset]
   );
 
-  // Set up periodic auto-refresh
   useEffect(() => {
-    // Start the auto-refresh interval
     autoRefreshIntervalRef.current = setInterval(() => {
       refreshAllFeeds("auto");
     }, DEFAULT_REFRESH_INTERVAL_MS);
 
-    console.log(
-      `[RSS Auto-Refresh] Set up periodic refresh every ${DEFAULT_REFRESH_INTERVAL_MS / 1000 / 60} minutes`
-    );
-
-    // Cleanup on unmount
     return () => {
       if (autoRefreshIntervalRef.current) {
         clearInterval(autoRefreshIntervalRef.current);
         autoRefreshIntervalRef.current = null;
-        console.log("[RSS Auto-Refresh] Cleared periodic refresh interval");
       }
       if (syncFeedbackTimeoutRef.current) {
         clearTimeout(syncFeedbackTimeoutRef.current);
@@ -710,7 +690,6 @@ export function RSSReader() {
         })
       );
       
-      // Update items list currently shown in the view
       setItems((prevItems) =>
         prevItems.map((itemObj) => {
           if (itemObj.feed.id === feedId) {

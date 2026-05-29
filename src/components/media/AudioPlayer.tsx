@@ -56,7 +56,6 @@ export function AudioPlayer({
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [showPlaylist, setShowPlaylist] = useState(false);
 
-  // Get current track info
   const currentTrack = playlist ? playlist[currentTrackIndex] : { src, title, artist };
 
   // Visualizer
@@ -64,7 +63,6 @@ export function AudioPlayer({
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [animationId, setAnimationId] = useState<number | null>(null);
 
-  // Initialize audio context for visualizer
   useEffect(() => {
     const currentSrc = currentTrack?.src || src || "";
     const isTauriAsset = currentSrc.startsWith("asset:") || 
@@ -101,7 +99,6 @@ export function AudioPlayer({
     };
   }, [isPlaying, currentTrack?.src, src]);
 
-  // Visualizer animation
   useEffect(() => {
     if (analyser && canvasRef.current && isPlaying) {
       const canvas = canvasRef.current;
@@ -142,7 +139,6 @@ export function AudioPlayer({
           for (let i = 0; i < bufferLength; i++) {
             const barHeight = (dataArray[i] / 255) * canvas.height;
 
-            // Create gradient based on position
             const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
             gradient.addColorStop(0, "hsl(250, 70%, 50%)");
             gradient.addColorStop(0.5, "hsl(280, 70%, 50%)");
@@ -169,7 +165,6 @@ export function AudioPlayer({
     }
   }, [analyser, isPlaying]);
 
-  // Update time
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       const time = audioRef.current.currentTime;
@@ -259,7 +254,6 @@ export function AudioPlayer({
     }
   };
 
-  // Handle track change from playlist
   const handleTrackChange = (index: number) => {
     setCurrentTrackIndex(index);
     onTrackChange?.(index);
@@ -284,7 +278,6 @@ export function AudioPlayer({
     }
   };
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -343,7 +336,6 @@ export function AudioPlayer({
     }
   };
 
-  // Handle ended
   const handleEnded = () => {
     onEnded?.();
     if (repeatMode === "one") {
@@ -355,8 +347,6 @@ export function AudioPlayer({
       nextTrack();
     }
   };
-
-
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">

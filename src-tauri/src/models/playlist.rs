@@ -25,7 +25,6 @@ pub struct PlaylistSubscription {
     pub last_refreshed_at: Option<String>,
     pub refresh_interval_hours: i32,
     
-    // Metadata
     pub created_at: String,
     pub modified_at: String,
 }
@@ -41,15 +40,12 @@ pub struct PlaylistVideo {
     pub thumbnail_url: Option<String>,
     pub position: Option<i32>,
     
-    // Import status
     pub is_imported: bool,
     pub document_id: Option<String>,
     
-    // Queue interspersion tracking
     pub added_to_queue: bool,
     pub queue_position: Option<i32>,
     
-    // Metadata
     pub published_at: Option<String>,
     pub discovered_at: String,
     pub imported_at: Option<String>,

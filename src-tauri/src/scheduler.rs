@@ -60,7 +60,7 @@ impl BackupSchedule {
                     .with_hour(*hour)
                     .and_then(|t| t.with_minute(*minute))
                     .and_then(|t| t.with_second(0))
-                    .unwrap();
+                    .expect("valid daily schedule time");
 
                 let scheduled = if scheduled > now {
                     scheduled
@@ -86,7 +86,7 @@ impl BackupSchedule {
                     .with_hour(*hour)
                     .and_then(|t| t.with_minute(*minute))
                     .and_then(|t| t.with_second(0))
-                    .unwrap();
+                    .expect("valid weekly schedule time");
 
                 let days_until = (target_weekday.number_from_monday() as i32 -
                     now.weekday().number_from_monday() as i32 + 7) % 7;
@@ -105,7 +105,7 @@ impl BackupSchedule {
                     .and_then(|t| t.with_hour(*hour))
                     .and_then(|t| t.with_minute(*minute))
                     .and_then(|t| t.with_second(0))
-                    .unwrap();
+                    .expect("valid monthly schedule time");
 
                 let scheduled = if scheduled > now {
                     scheduled
@@ -181,7 +181,6 @@ impl BackupScheduler {
 
         self.config = config;
 
-        // Update next scheduled time
         if enabled {
             let next = Utc::now() + chrono::Duration::seconds(
                 duration.as_secs() as i64
@@ -219,7 +218,6 @@ impl BackupScheduler {
             loop {
                 interval.tick().await;
 
-                // Check if still running
                 {
                     let running = running_flag.lock().await;
                     if !*running {
@@ -227,7 +225,6 @@ impl BackupScheduler {
                     }
                 }
 
-                // Perform backup
                 if config.enabled {
                     let manager = BackupManager::new(db.clone(), db_path.clone());
                     if let Ok(_manager) = manager {
@@ -235,7 +232,6 @@ impl BackupScheduler {
                         // For now, just log
                         tracing::info!("Scheduled backup triggered");
 
-                        // Update next scheduled time
                         let next = Utc::now() + chrono::Duration::seconds(
                             config.schedule.next_duration().as_secs() as i64
                         );

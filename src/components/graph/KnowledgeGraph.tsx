@@ -155,7 +155,6 @@ export function KnowledgeGraph({
         return;
       }
 
-      // Initialize velocities if not exist
       // Apply forces
       nodes.forEach((node) => {
         let fx = 0;
@@ -174,7 +173,6 @@ export function KnowledgeGraph({
           fy += (dy / dist) * force;
         });
 
-        // Attraction along edges
         edges.forEach((edge) => {
           if (edge.source === node.id) {
             const target = positions[edge.target];
@@ -197,11 +195,9 @@ export function KnowledgeGraph({
           }
         });
 
-        // Center gravity
         fx += (width / 2 - positions[node.id].x) * 0.01;
         fy += (height / 2 - positions[node.id].y) * 0.01;
 
-        // Update position with temperature
         positions[node.id].x += fx * temperature * 0.1;
         positions[node.id].y += fy * temperature * 0.1;
       });
@@ -216,7 +212,6 @@ export function KnowledgeGraph({
     simulate();
   }, [laidOutNodes, data.edges, physicsEnabled, isActive]);
 
-  // Start simulation when data or layout changes
   useEffect(() => {
     if (physicsEnabled && layout === LayoutAlgorithm.Force && isActive) {
       runForceSimulation();
@@ -247,7 +242,6 @@ export function KnowledgeGraph({
     ctx.translate(transform.x, transform.y);
     ctx.scale(transform.k, transform.k);
 
-    // Draw edges
     data.edges.forEach((edge) => {
       const source = positions[edge.source];
       const target = positions[edge.target];
@@ -292,7 +286,6 @@ export function KnowledgeGraph({
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Draw edge label
       if (edge.label && showLabels && transform.k > 0.5) {
         const midX = (source.x + target.x) / 2;
         const midY = (source.y + target.y) / 2;
@@ -304,7 +297,6 @@ export function KnowledgeGraph({
       }
     });
 
-    // Draw nodes
     laidOutNodes.forEach((node) => {
       const pos = positions[node.id];
       if (!pos) return;
@@ -339,7 +331,6 @@ export function KnowledgeGraph({
         }
       }
 
-      // Draw node shadow
       if (isSelected || isHovered) {
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, (node.radius || 20) + 5, 0, Math.PI * 2);
@@ -347,20 +338,17 @@ export function KnowledgeGraph({
         ctx.fill();
       }
 
-      // Draw node
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, node.radius || 20, 0, Math.PI * 2);
       ctx.fillStyle = nodeColor;
       ctx.fill();
 
-      // Draw border
       if (isSelected || isHighlighted) {
         ctx.strokeStyle = textColor;
         ctx.lineWidth = 2 / transform.k;
         ctx.stroke();
       }
 
-      // Draw label
       if (showLabels || isHovered || isSelected) {
         ctx.font = `${isHovered || isSelected ? 14 : 12 / transform.k}px sans-serif`;
         ctx.fillStyle = textColor;
@@ -386,7 +374,6 @@ export function KnowledgeGraph({
     showLabels,
   ]);
 
-  // Animation loop
   useEffect(() => {
     if (!physicsEnabled || !isActive) return;
 
@@ -404,7 +391,6 @@ export function KnowledgeGraph({
     };
   }, [draw, physicsEnabled, isActive]);
 
-  // Handle canvas resize
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -421,7 +407,6 @@ export function KnowledgeGraph({
     return () => window.removeEventListener("resize", resize);
   }, [draw]);
 
-  // Handle mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
@@ -437,7 +422,6 @@ export function KnowledgeGraph({
         y: e.clientY - dragStart.y,
       });
     } else {
-      // Check for node hover
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 

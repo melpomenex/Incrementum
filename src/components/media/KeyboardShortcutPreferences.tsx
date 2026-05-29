@@ -50,7 +50,6 @@ export function KeyboardShortcutPreferences({ onClose }: KeyboardShortcutPrefere
 
     setPendingKeys(combo);
 
-    // Check for conflicts
     const existing = shortcuts.find(
       (s) => s.keys === combo && s.id !== editingId
     );

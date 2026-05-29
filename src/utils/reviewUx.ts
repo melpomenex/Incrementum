@@ -152,14 +152,12 @@ export function getQueueStatus(item: QueueItem): QueueStatus {
       // Due today or within the last day
       return "due";
     }
-    // Scheduled for future
     return "scheduled";
   }
 
   return "new";
 }
 
-// Get detailed FSRS scheduling info for display
 export function getFsrsSchedulingInfo(item: QueueItem): {
   status: string;
   statusLabel: string;

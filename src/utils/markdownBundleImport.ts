@@ -117,7 +117,6 @@ async function tryCreateBundle(mdFile: File, allFiles: File[]): Promise<Markdown
     metadata = await parseMetadataJson(metadataFile);
   }
 
-  // Extract frontmatter from markdown as fallback metadata
   const frontmatterMetadata = extractMarkdownFrontMatter(mdContent);
 
   // Merge: JSON metadata takes precedence over frontmatter
@@ -139,7 +138,6 @@ async function tryCreateBundle(mdFile: File, allFiles: File[]): Promise<Markdown
     const filePath = getRelativePath(file);
     const fileDir = getFileDirectory(file);
 
-    // Check if image is in a related directory
     const isRelated = imageDirs.some(dir => {
       if (dir === '') {
         // Images in same directory as markdown
@@ -232,16 +230,13 @@ export function extractMarkdownFrontMatter(content: string): MarkdownMetadata | 
       value = value.slice(1, -1);
       metadata[key] = value.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
     }
-    // Handle quoted strings
     else if ((value.startsWith('"') && value.endsWith('"')) ||
              (value.startsWith("'") && value.endsWith("'"))) {
       metadata[key] = value.slice(1, -1);
     }
-    // Handle numbers
     else if (/^\d+$/.test(value)) {
       metadata[key] = parseInt(value, 10);
     }
-    // Plain string
     else {
       metadata[key] = value;
     }
@@ -285,17 +280,14 @@ export async function createBundleDocument(
 ): Promise<Omit<Document, 'id'>> {
   const now = new Date().toISOString();
 
-  // Get title from metadata or filename
   const title = bundle.metadata?.title ||
                 getBaseName(bundle.markdownFile.name);
 
-  // Get tags from metadata
   const tags = bundle.metadata?.tags || [];
 
   // Calculate word count
   const wordCount = bundle.markdownContent.split(/\s+/).filter(w => w.length > 0).length;
 
-  // Create image manifest
   const bundleImages: Record<string, string> = {};
   for (const [path, file] of bundle.images) {
     bundleImages[path] = file.name;
@@ -354,7 +346,6 @@ function isMetadataFile(file: File): boolean {
 }
 
 function getBaseName(filename: string): string {
-  // Remove extension
   return filename.replace(/\.(md|markdown|json)$/i, '').replace(/_metadata$/i, '');
 }
 

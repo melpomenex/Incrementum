@@ -66,6 +66,5 @@ pub async fn get_achievements() -> Result<Vec<Achievement>, String> {
 #[tauri::command]
 pub async fn check_and_unlock_achievements() -> Result<Vec<Achievement>, String> {
     // TODO: Check streak milestones and goal completions
-    // Return any newly unlocked achievements
     Ok(vec![])
 }

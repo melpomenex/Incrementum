@@ -32,7 +32,6 @@ export function AISettings({ onChange }: { onChange: () => void }) {
   const { settings, updateSettings } = useSettingsStore();
   const [contextWindowTokens, setContextWindowTokens] = useState(settings.ai.maxTokens);
 
-  // Load context window tokens on mount
   useEffect(() => {
     setContextWindowTokens(settings.ai.maxTokens);
   }, [settings.ai.maxTokens]);
@@ -55,7 +54,6 @@ export function AISettings({ onChange }: { onChange: () => void }) {
     setMemoryEnabled(settings.ai.memoryEnabled || false);
   }, [settings.ai.memoryEnabled]);
 
-  // Load memory content on mount
   useEffect(() => {
     async function loadMemory() {
       try {

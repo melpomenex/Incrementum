@@ -1,4 +1,3 @@
-// Export all stores
 export { useQueueStore } from "./queueStore";
 export { useReviewStore } from "./reviewStore";
 export { useDocumentStore } from "./documentStore";

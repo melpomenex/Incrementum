@@ -220,7 +220,6 @@ const animations = `
   }
 `;
 
-// Inject styles
 if (typeof document !== "undefined") {
   const styleId = "review-feedback-animations";
   if (!document.getElementById(styleId)) {

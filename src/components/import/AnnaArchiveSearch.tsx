@@ -73,13 +73,11 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
       // Download to temp directory (default behavior)
       const downloadResult = await downloadBook(book.id, format);
 
-      // Import the downloaded file
       const importedDoc = await importDocument(downloadResult.file_path);
 
       // Mark as imported
       setImportedBookIds((prev) => new Set(prev).add(book.id));
 
-      // Notify parent component
       onImportComplete?.(importedDoc.filePath);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to download book";
@@ -262,7 +260,6 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
 function analyzeError(message: string): SearchError {
   const lowerMsg = message.toLowerCase();
 
-  // Missing dependency errors
   if (lowerMsg.includes("python") || lowerMsg.includes("playwright") || lowerMsg.includes("chromium")) {
     return {
       message: "Book download requires Python with Playwright",
@@ -275,7 +272,6 @@ function analyzeError(message: string): SearchError {
     };
   }
 
-  // Network errors
   if (lowerMsg.includes("failed to fetch") || 
       lowerMsg.includes("network error") ||
       lowerMsg.includes("connection") ||
@@ -296,7 +292,6 @@ function analyzeError(message: string): SearchError {
     };
   }
 
-  // Parse errors
   if (lowerMsg.includes("parse") || 
       lowerMsg.includes("html") ||
       lowerMsg.includes("json") ||
@@ -312,7 +307,6 @@ function analyzeError(message: string): SearchError {
     };
   }
 
-  // Not found errors
   if (lowerMsg.includes("not found") || 
       lowerMsg.includes("no results") ||
       lowerMsg.includes("empty")) {
@@ -328,7 +322,6 @@ function analyzeError(message: string): SearchError {
     };
   }
 
-  // Default unknown error
   return {
     message: message || "An unexpected error occurred",
     type: "unknown",

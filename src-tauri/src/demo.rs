@@ -22,7 +22,6 @@ pub async fn should_import_demo_content(repo: &Repository) -> Result<bool> {
 
 /// Get the demo content directory path
 pub fn get_demo_content_dir() -> PathBuf {
-    // Check for environment variable override
     if let Ok(custom_path) = std::env::var("DEMO_CONTENT_DIR") {
         return PathBuf::from(custom_path);
     }
@@ -134,7 +133,6 @@ pub async fn check_and_import_demo_content(repo: &Repository) -> Result<bool> {
 
     let mut imported_count = 0usize;
 
-    // Import .apkg files
     let apkg_files = get_demo_apkg_files()?;
     for apkg_path in apkg_files {
         eprintln!("Importing demo APKG: {:?}", apkg_path);
@@ -149,7 +147,6 @@ pub async fn check_and_import_demo_content(repo: &Repository) -> Result<bool> {
         imported_count += 1;
     }
 
-    // Import book files
     let book_files = get_demo_book_files()?;
     for book_path in book_files {
         eprintln!("Found demo book: {:?}", book_path);

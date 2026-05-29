@@ -189,6 +189,21 @@ export function RichContentRenderer({
   const [iframeHeight, setIframeHeight] = useState(100);
   const [isLoading, setIsLoading] = useState(true);
 
+  // useEffect must be called unconditionally (rules-of-hooks)
+  useEffect(() => {
+    if (mode === 'full' && iframeRef.current && expanded) {
+      const theme = readThemeColors();
+      const doc = createIframeDocument(htmlContent, theme);
+      const blob = new Blob([doc], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      iframeRef.current.src = url;
+
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
+  }, [htmlContent, expanded, mode]);
+
   if (!htmlContent || mode === "text-only") {
     return (
       <div className={`text-sm text-foreground leading-relaxed ${className}`}>
@@ -232,20 +247,6 @@ export function RichContentRenderer({
       setIframeHeight(Math.min(height, parseInt(maxHeight)));
     }
   };
-
-  useEffect(() => {
-    if (iframeRef.current && expanded) {
-      const theme = readThemeColors();
-      const doc = createIframeDocument(htmlContent, theme);
-      const blob = new Blob([doc], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      iframeRef.current.src = url;
-
-      return () => {
-        URL.revokeObjectURL(url);
-      };
-    }
-  }, [htmlContent, expanded]);
 
   return (
     <div className={`relative ${className}`}>

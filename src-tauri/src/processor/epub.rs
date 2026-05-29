@@ -49,7 +49,6 @@ fn extract_text_from_html(html: &str) -> String {
         }
     }
 
-    // Clean up multiple spaces
     result.split_whitespace().collect::<Vec<&str>>().join(" ")
 }
 

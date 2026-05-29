@@ -1,12 +1,3 @@
-/**
- * Throttled requestAnimationFrame hook.
- *
- * Provides a timestamp-gated RAF loop that limits execution to a target FPS.
- * The RAF callback still fires (keeping the loop alive), but the render function
- * only executes when enough time has elapsed.
- *
- * Design decision D1: No external dependency. Five lines of code solve it.
- */
 
 import { useRef, useCallback, useEffect } from "react";
 

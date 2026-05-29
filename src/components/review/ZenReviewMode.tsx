@@ -334,8 +334,8 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   const [contextPeekVisible, setContextPeekVisible] = useState(false);
   const [justRated, setJustRated] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { settings } = useSettingsStore();
   
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Alt key for context peek
@@ -351,7 +351,6 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
       }
       if (!containerRef.current?.contains(e.target as Node)) return;
       
-      // Exit on Escape
       if (e.key === "Escape") {
         onExit();
         return;
@@ -441,7 +440,6 @@ export function ZenReviewMode({ onExit }: ZenReviewModeProps) {
   }
   
   const currentCardData = currentCard as any;
-  const { settings } = useSettingsStore();
 
   // Compute algorithm-aware metadata values
   const effectiveAlgorithm = currentCardData.algorithm_type || settings.learning.algorithm;

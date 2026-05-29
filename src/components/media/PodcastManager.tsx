@@ -53,14 +53,13 @@ import type {
   PodcastTranscriptResponse,
   PodcastSearchResult,
 } from "../../api/podcast";
-import { isTauri, listen, convertFileSrc } from "../../lib/tauri";
+import { isTauri, listen } from "../../lib/tauri";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import {
   useContextMenu,
   ContextMenu,
   ContextMenuItemType,
-  type ContextMenuItem,
 } from "../common/ContextMenu";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
@@ -68,7 +67,7 @@ import { AudiobookViewer } from "../viewer/AudiobookViewer";
 import { cn } from "../../utils";
 import { podcastFeedSearch } from "../../utils/podcastSearch";
 import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
-import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
+import { AssistantPanel } from "../assistant/AssistantPanel";
 import { resolveGenericAssistantContext, type ResolvedAssistantContext } from "../../utils/assistantContext";
 
 interface PodcastManagerProps {
@@ -190,9 +189,8 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       unlisten2.then((f) => f());
       unlisten3.then((f) => f());
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Download event listeners
   useEffect(() => {
     if (!isTauri()) return;
 
@@ -235,7 +233,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       u1.then((f) => f());
       u2.then((f) => f());
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Check downloaded paths and probe duration for episodes missing it
   useEffect(() => {
@@ -261,9 +259,9 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         }
       }
     })();
-  }, [episodes]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [contextFeed, setContextFeed] = useState<PodcastFeed | null>(null);
-  const [contextEpisode, setContextEpisode] = useState<PodcastEpisode | null>(null);
+  }, [episodes]);
+  const [_contextFeed, setContextFeed] = useState<PodcastFeed | null>(null);
+  const [_contextEpisode, setContextEpisode] = useState<PodcastEpisode | null>(null);
   const [renamingFeed, setRenamingFeed] = useState<PodcastFeed | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
@@ -283,7 +281,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   const selectedFeed = feeds.find((f) => f.id === selectedFeedId) ?? null;
 
-  // Load subscriptions
   const loadFeeds = useCallback(async () => {
     try {
       setIsLoadingFeeds(true);
@@ -297,7 +294,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     }
   }, [toast]);
 
-  // Load episodes for the selected feed
   const loadEpisodes = useCallback(async (feedId: string) => {
     try {
       setIsLoadingEpisodes(true);
@@ -343,12 +339,11 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         console.error("Podcast migration failed:", error);
       }
 
-      // Load feeds after migration
       await loadFeeds();
     };
 
     migrateFromLocalStorage();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load feeds on mount (after potential migration)
   useEffect(() => {
@@ -358,7 +353,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     loadFeeds();
   }, [loadFeeds]);
 
-  // Load episodes when a feed is selected
   useEffect(() => {
     if (selectedFeedId) {
       loadEpisodes(selectedFeedId);
@@ -400,9 +394,8 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     }
   };
 
-  // Remove subscription
   const handleRemoveSubscription = async (feedId: string) => {
-    const feed = feeds.find((f) => f.id === feedId);
+    const _feed = feeds.find((f) => f.id === feedId);
     confirmDialog.confirm({
       title: "Unsubscribe",
       message: t("podcastManager.unsubscribeConfirm"),
@@ -429,7 +422,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   // Play episode
   const handlePlayEpisode = (feed: PodcastFeed, episode: PodcastEpisode) => {
-    console.log("[PodcastManager] Play episode:", { id: episode.id, title: episode.title, audioUrl: episode.audioUrl });
     onPlayEpisode?.(feed, episode);
     setPlayingEpisode({ episode, feed });
   };
@@ -449,7 +441,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       setEpisodes((prev) =>
         prev.map((ep) => (ep.id === episodeId ? { ...ep, played: !currentlyPlayed } : ep))
       );
-      // Update unplayed counts in feed list
       setFeeds((prev) =>
         prev.map((f) => {
           if (f.id === selectedFeedId) {
@@ -589,7 +580,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     return sorted;
   };
 
-  // Get total unplayed count
   const totalUnplayed = feeds.reduce((acc, feed) => acc + (feed.unplayedCount ?? 0), 0);
 
   // Feed context menu handler
@@ -826,7 +816,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     }
   };
 
-  const handleChatAboutThis = async (episode: PodcastEpisode, feed: PodcastFeed) => {
+  const handleChatAboutThis = async (episode: PodcastEpisode, _feed: PodcastFeed) => {
     try {
       const transcriptText = episode.transcriptText || (await getPodcastTranscript(episode.id)).text;
       if (!transcriptText) {
@@ -1266,7 +1256,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                           {(() => {
                             const progress = transcriptionProgress.get(episode.id);
                             if (progress) {
-                              // In progress
                               return (
                                 <div className="flex items-center gap-2">
                                   <div className="flex-shrink-0 w-10 h-10 border border-primary/30 rounded-full flex items-center justify-center">
@@ -1306,7 +1295,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                                 </button>
                               );
                             }
-                            // No transcript yet
                             return (
                               <button
                                 onClick={() => handleTranscribe(episode.id)}
@@ -1353,7 +1341,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                             {(() => {
                               const progress = transcriptionProgress.get(episode.id);
                               if (!progress) {
-                                // Error state
                                 if (episode.transcriptStatus === "error") {
                                   return (
                                     <div className="mt-2 flex items-center gap-2 text-xs">
@@ -1367,7 +1354,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                                     </div>
                                   );
                                 }
-                                // Done state
                                 if (episode.transcriptStatus === "done") {
                                   return (
                                     <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -1441,7 +1427,6 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             </div>
           </>
         ) : (
-          // Empty state
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <Rss className="w-16 h-16 mx-auto mb-4 opacity-50" />

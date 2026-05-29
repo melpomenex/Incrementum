@@ -44,15 +44,14 @@ impl AutoTranscriptionQueue {
                                 if let Err(e) = app.emit("transcription://queue-updated", ()) {
                                     tracing::debug!("Failed to emit queue-updated: {}", e);
                                 }
-                                // Trigger processing
-                                if active_inner.lock().unwrap().is_none() {
+                                if active_inner.lock().expect("auto queue mutex poisoned").is_none() {
                                     if let Err(e) = Self::process_next(&repo, &app, &active_inner).await {
                                         tracing::warn!("Auto-transcription process error: {}", e);
                                     }
                                 }
                             }
                             AutoQueueCommand::Process => {
-                                if active_inner.lock().unwrap().is_none() {
+                                if active_inner.lock().expect("auto queue mutex poisoned").is_none() {
                                     if let Err(e) = Self::process_next(&repo, &app, &active_inner).await {
                                         tracing::warn!("Auto-transcription process error: {}", e);
                                     }
@@ -62,7 +61,7 @@ impl AutoTranscriptionQueue {
                                 if let Err(e) = repo.cancel_transcription_job(&id).await {
                                     tracing::warn!("Failed to cancel transcription job: {}", e);
                                 }
-                                let mut active = active_inner.lock().unwrap();
+                                let mut active = active_inner.lock().expect("auto queue mutex poisoned");
                                 if let Some(ref active_id) = *active {
                                     if active_id == &id {
                                         *active = None;
@@ -100,7 +99,7 @@ impl AutoTranscriptionQueue {
     }
 
     pub fn active_job_id(&self) -> Option<String> {
-        self.active_job_id.lock().unwrap().clone()
+        self.active_job_id.lock().expect("auto queue mutex poisoned").clone()
     }
 
     async fn process_next(
@@ -115,10 +114,9 @@ impl AutoTranscriptionQueue {
             None => return Ok(()),
         };
 
-        // Update to processing
         repo.update_transcription_status(&entry.id, TranscriptionJobStatus::Processing, None, Some(0)).await?;
         {
-            let mut active = active_job_id.lock().unwrap();
+            let mut active = active_job_id.lock().expect("auto queue mutex poisoned");
             *active = Some(entry.id.clone());
         }
         if let Err(e) = app.emit("transcription://queue-updated", ()) {
@@ -146,14 +144,13 @@ impl AutoTranscriptionQueue {
         }
 
         {
-            let mut active = active_job_id.lock().unwrap();
+            let mut active = active_job_id.lock().expect("auto queue mutex poisoned");
             *active = None;
         }
         if let Err(e) = app.emit("transcription://queue-updated", ()) {
             tracing::debug!("Failed to emit queue-updated: {}", e);
         }
 
-        // Process next in queue
         Box::pin(Self::process_next(repo, app, active_job_id)).await?;
 
         Ok(())
@@ -167,13 +164,11 @@ impl AutoTranscriptionQueue {
         let engine = TranscriptionEngine::new(app.clone());
         let model_manager = ModelManager::new(app)?;
 
-        // Check if model is available
         let model_path = model_manager.get_model_path(&entry.model_id);
         if !model_path.exists() {
             return Err(anyhow::anyhow!("Whisper model not found: {}", entry.model_id));
         }
 
-        // Check if audio file exists
         let audio_path = std::path::Path::new(&entry.audio_path);
         if !audio_path.exists() {
             return Err(anyhow::anyhow!("Audio file not found: {}", entry.audio_path));
@@ -182,7 +177,6 @@ impl AutoTranscriptionQueue {
         // Prepare audio
         let wav_path = engine.prepare_audio(std::path::Path::new(&entry.audio_path)).await?;
 
-        // Create transcript record
         sqlx::query("INSERT OR REPLACE INTO transcripts (book_id, chapter_id, model_used, language, status) VALUES (?, ?, ?, ?, 'processing')")
             .bind(&entry.document_id)
             .bind(&entry.document_id)
@@ -220,7 +214,7 @@ impl AutoTranscriptionQueue {
         });
 
         engine.transcribe(&wav_path, &model_path, &entry.language, move |seg| {
-            segments_clone.lock().unwrap().push(seg.clone());
+            segments_clone.lock().expect("transcription segments mutex poisoned").push(seg.clone());
 
             let repo = repo_clone.clone();
             let entry_id = entry_id.clone();
@@ -252,9 +246,8 @@ impl AutoTranscriptionQueue {
             });
         }, Some(progress_cb)).await?;
 
-        // Build full transcript text from segments
         let full_text: String = {
-            let all_segments = segments.lock().unwrap();
+            let all_segments = segments.lock().expect("transcription segments mutex poisoned");
             all_segments.iter()
                 .map(|s| s.text.trim())
                 .filter(|t| !t.is_empty())
@@ -262,7 +255,6 @@ impl AutoTranscriptionQueue {
                 .join(" ")
         };
 
-        // Update document content with transcript
         if !full_text.is_empty() {
             sqlx::query("UPDATE documents SET content = ? WHERE id = ?")
                 .bind(&full_text)

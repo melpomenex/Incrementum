@@ -75,11 +75,9 @@ pub async fn update_extract(
     max_disclosure_level: Option<i32>,
     repo: State<'_, Repository>,
 ) -> Result<Extract> {
-    // Get existing extract
     let mut extract = repo.get_extract(&id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Extract {}", id)))?;
 
-    // Update fields
     if let Some(content) = content {
         extract.content = content;
     }
@@ -106,7 +104,6 @@ pub async fn update_extract(
     }
     extract.date_modified = chrono::Utc::now();
 
-    // Save the updated extract
     repo.update_extract(&extract).await?;
     Ok(extract)
 }

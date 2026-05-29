@@ -114,7 +114,6 @@ impl DocumentRepository {
                 let tags_json: String = row.get("tags");
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-                // Parse metadata if present
                 let metadata_json: Option<String> = row.try_get("metadata")?;
                 let metadata: Option<crate::models::DocumentMetadata> =
                     metadata_json.and_then(|json| serde_json::from_str(&json).ok());
@@ -176,7 +175,6 @@ impl DocumentRepository {
                 let tags_json: String = row.get("tags");
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-                // Parse metadata if present
                 let metadata_json: Option<String> = row.try_get("metadata")?;
                 let metadata: Option<crate::models::DocumentMetadata> =
                     metadata_json.and_then(|json| serde_json::from_str(&json).ok());
@@ -249,7 +247,6 @@ impl DocumentRepository {
             let tags_json: String = row.get("tags");
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-            // Parse metadata if present
             let metadata_json: Option<String> = row.try_get("metadata")?;
             let metadata: Option<crate::models::DocumentMetadata> =
                 metadata_json.and_then(|json| serde_json::from_str(&json).ok());

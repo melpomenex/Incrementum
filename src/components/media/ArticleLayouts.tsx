@@ -3,9 +3,8 @@
  * 2-column masonry grid with large cards, thumbnails, excerpts
  */
 
-import { formatFeedDate, generateArticleExcerpt } from "../../api/rss";
+import { formatFeedDate, generateArticleExcerpt, type FeedItem, type Feed } from "../../api/rss";
 import { Star, StarOff } from "lucide-react";
-import type { FeedItem, Feed } from "../../api/rss";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 
 interface ArticleLayoutProps {
@@ -32,7 +31,10 @@ export function MagazineLayout({
       {items.map(({ feed, item }) => (
         <article
           key={item.id}
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(feed, item)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onSelect(feed, item); }}
           className="break-inside-avoid bg-card border border-border/50 rounded-xl overflow-hidden hover:border-border cursor-pointer transition-all group"
         >
           {/* Thumbnail */}
@@ -120,7 +122,10 @@ export function GridLayout({
       {items.map(({ feed, item }) => (
         <article
           key={item.id}
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(feed, item)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onSelect(feed, item); }}
           className="bg-card border border-border/50 rounded-lg overflow-hidden hover:border-border cursor-pointer transition-all group"
         >
           {showThumbnails && item.thumbnail ? (

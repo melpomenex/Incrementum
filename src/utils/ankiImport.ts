@@ -167,13 +167,11 @@ export async function convertAnkiCardsToLearningItems(
     metadata: Record<string, any>;
   }> = [];
 
-  // Create learning items for each card
   for (const card of deck.cards) {
     // Find the note for this card
     const note = deck.notes.find(n => n.id === card.noteId);
     if (!note) continue;
 
-    // Extract question and answer from fields
     const questionField = note.fields.find(f =>
       f.name.toLowerCase().includes("front") ||
       f.name.toLowerCase().includes("question")

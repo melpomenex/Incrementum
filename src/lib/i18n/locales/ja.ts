@@ -2995,7 +2995,6 @@ export const ja: Dict = {
     "Web アプリでは、プレイリストインポートは一回限りの操作です。動画は個別のドキュメントとしてインポートされます。自動インポートとキュー混入機能についてはデスクトップアプリを使用してください。",
   "youtubePlaylist.youtubeApiConfig": "YouTube Data API 設定",
 
-  // --- Focus Timer ---
   "focusTimer.focus": "集中",
   "focusTimer.shortBreak": "小休憩",
   "focusTimer.longBreak": "長休憩",
@@ -3034,7 +3033,6 @@ export const ja: Dict = {
   "focusTimer.timerConfigUpdated": "タイマー設定を更新しました",
   "focusTimer.failedToUpdateSettings": "設定を更新できませんでした",
 
-  // --- Offline / PWA ---
   "offline.pendingSync": "同期待ち",
   "offline.offline": "オフライン",
   "offline.downloading": "ダウンロード中...",
@@ -3056,7 +3054,6 @@ export const ja: Dict = {
   "offline.updateReady": "新しいバージョンのインストール準備ができています。",
   "offline.update": "更新",
 
-  // --- Vimium Navigation ---
   "vimium.findPlaceholder": "ページ内を検索...",
   "vimium.commandPlaceholder": "コマンドを入力...",
   "vimium.noCommandsFound": "コマンドが見つかりません",
@@ -3773,7 +3770,6 @@ export const ja: Dict = {
   "documentsView.installYtdlp": "yt-dlp をインストール",
   "documentsView.manualInstallGuide": "手動インストールガイド",
 
-  // --- Documents View: Additional missing keys ---
   "documentsView.archiveTitle": "ドキュメントをアーカイブ",
   "documentsView.archiveMessage":
     "{count} 件のドキュメントをアーカイブしますか？アーカイブされたドキュメントはメインビューから非表示になりますが、後で復元できます。",
@@ -3816,7 +3812,6 @@ export const ja: Dict = {
   "documentsView.bulkMove": "一括移動",
   "documentsView.bulkReprioritize": "一括優先度変更",
 
-  // --- Graph controls ---
   "graph.resetRotation": "回転をリセット",
 
   "graph.fitToView": "表示に合わせる",

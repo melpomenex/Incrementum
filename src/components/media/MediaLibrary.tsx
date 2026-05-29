@@ -47,7 +47,6 @@ export function MediaLibrary() {
   const [section, setSection] = useState<ViewSection>("library");
   const [stats, setStats] = useState(getLibraryStats());
 
-  // Load items
   useEffect(() => {
     loadItems();
     setStats(getLibraryStats());

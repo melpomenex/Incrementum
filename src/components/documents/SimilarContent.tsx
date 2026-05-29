@@ -64,7 +64,6 @@ function calculateSimilarity(item1: ContentItem, item2: ContentItem): Similarity
   };
 }
 
-// Get file type icon
 function getTypeIcon(fileType?: string) {
   switch (fileType?.toLowerCase()) {
     case "pdf":
@@ -81,7 +80,6 @@ function getTypeIcon(fileType?: string) {
   }
 }
 
-// Get file type color
 function getTypeColor(fileType?: string) {
   switch (fileType?.toLowerCase()) {
     case "pdf":

@@ -16,10 +16,8 @@ import { useState, useRef } from "react";
 import { X, Activity, Brain, Clock, Database, TrendingDown } from "lucide-react";
 import { cn } from "../../utils";
 import type { LearningItem } from "../../api/review";
-import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
-import { parseSm20State, sm20Retrievability } from "../../lib/sm20";
-import type { SM18State } from "../../lib/sm18";
-import type { SM20State } from "../../lib/sm20";
+import { parseSm18State, sm18Retrievability, type SM18State } from "../../lib/sm18";
+import { parseSm20State, sm20Retrievability, type SM20State } from "../../lib/sm20";
 import { useSettingsStore } from "../../stores/settingsStore";
 
 interface FSRSInspectorProps {

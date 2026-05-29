@@ -77,7 +77,6 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
         }));
 
         try {
-            // Run AI analysis in parallel
             const [summary, keyPoints, questions] = await Promise.all([
                 summarizeContent(extract.content, 150).catch(() => null),
                 extractKeyPoints(extract.content, 5).catch(() => null),

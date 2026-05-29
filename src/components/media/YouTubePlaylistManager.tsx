@@ -196,7 +196,6 @@ export function YouTubePlaylistManager({
     
     setExpandedId(id);
     
-    // Fetch videos if not already loaded
     if (!videos[id]) {
       try {
         const detail = await getPlaylistSubscription(id);

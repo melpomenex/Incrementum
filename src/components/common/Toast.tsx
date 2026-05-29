@@ -52,14 +52,13 @@ const MAX_VISIBLE_TOASTS = 4;
 /**
  * Use toast store
  */
-export const useToastStore = create<ToastStore>((set, get) => ({
+export const useToastStore = create<ToastStore>((set, _get) => ({
   toasts: [],
   addToast: (toast) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newToast: ToastData = { ...toast, id, progress: 100 };
 
     set((state) => {
-      // Remove oldest toast if we're at the limit
       const toasts = state.toasts.length >= MAX_VISIBLE_TOASTS
         ? state.toasts.slice(1)
         : state.toasts;

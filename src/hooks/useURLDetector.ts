@@ -92,7 +92,6 @@ function isYouTubeURL(url: string): boolean {
 function detectURL(input: string): URLDetectionResult {
   const trimmed = input.trim();
 
-  // Check if it's a valid URL
   if (!VALID_URL_PATTERN.test(trimmed)) {
     return {
       isURL: false,
@@ -101,7 +100,6 @@ function detectURL(input: string): URLDetectionResult {
     };
   }
 
-  // Check for YouTube first
   if (isYouTubeURL(trimmed)) {
     const videoId = extractYouTubeID(trimmed);
     const playlistId = extractPlaylistID(trimmed);
@@ -114,7 +112,6 @@ function detectURL(input: string): URLDetectionResult {
     };
   }
 
-  // Check for RSS feed
   if (isRSSFeedURL(trimmed)) {
     return {
       isURL: true,

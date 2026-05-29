@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSettingsStore, defaultSettings } from "../../stores/settingsStore";
 import { getSubscribedFeedsAuto, type Feed } from "../../api/rss";
 import { useI18n } from "../../lib/i18n";
@@ -8,9 +8,6 @@ import {
   Settings2,
   Sliders,
   Percent,
-  Sparkles,
-  Filter,
-  CheckCircle,
   Eye,
   EyeOff,
   Inbox,

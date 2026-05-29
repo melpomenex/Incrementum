@@ -4,7 +4,6 @@ import {
   getAIConfig,
   setAIConfig,
   setApiKey,
-  getMaskedApiKey,
   testAIConnection,
   listOllamaModels,
   LLMProviderType,
@@ -82,13 +81,11 @@ export function AISettings() {
           setHasAnthropicKey(!!anthropicVal);
           setHasOpenrouterKey(!!openrouterVal);
         }
-        // Load context window tokens from settings store
         setContextWindowTokens(settings.ai.maxTokens);
         setPwaAssistantEnabled(settings.ai.pwaAssistantButtonEnabled);
         setPwaAssistantSide(settings.ai.pwaAssistantButtonSide);
         setMemoryEnabled(settings.ai.memoryEnabled || false);
 
-        // Load memory content
         try {
           const content = await invokeCommand<string>("get_memory_content");
           setMemoryContent(content);
@@ -109,7 +106,6 @@ export function AISettings() {
     try {
       setIsSaving(true);
 
-      // Save API keys only when the user entered a new one
       if (openaiKey) {
         await setApiKey("openai", openaiKey);
         setHasOpenaiKey(true);

@@ -137,7 +137,6 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
       });
     }
     
-    // Check for milestones before submitting
     const currentStreak = streak;
     const willComplete = currentIndex >= queue.length - 1;
     
@@ -272,7 +271,6 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     };
   }, [isQueueListOpen]);
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -413,7 +411,6 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   }
 
   if (!currentCard) {
-    // Review session complete
     return (
       <div ref={containerRef} className="flex flex-col items-center justify-center h-full p-6 gap-6">
         <ReviewComplete
@@ -440,7 +437,6 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
   const maxMinutes = Math.max(1, Math.round((estimatedSecondsRemaining / 60) * 1.15));
   const isCurrentDocument = isDocumentItem(currentCard);
 
-  // Render Zen Mode
   if (isZenMode && !isLoading && queue.length > 0 && currentCard) {
     return (
       <ZenReviewMode onExit={() => setIsZenMode(false)} />

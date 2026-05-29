@@ -306,7 +306,6 @@ interface SerializedTabData {
   data?: Record<string, unknown>;
 }
 
-// Remove tab IDs from panes that are not in the valid set
 function filterInvalidTabsFromPane(pane: Pane, validTabIds: Set<string>): Pane {
   if (pane.type === "tabs") {
     const tabIds = pane.tabIds.filter((id) => validTabIds.has(id));
@@ -348,7 +347,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   rootPane: createTabPane(),
   closedTabs: [],
 
-  // Get default tabs that should always be available
   getDefaultTabs: () => {
     return [];
   },
@@ -399,7 +397,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           if (firstPane) {
             finalTargetPaneId = firstPane.id;
           } else {
-            // Create new root pane
             const newPane = createTabPane([id], id);
             return {
               tabs: [...state.tabs, newTab],
@@ -423,7 +420,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         if (firstPane) {
           finalTargetPaneId = firstPane.id;
         } else {
-          // Create new root pane
           const newPane = createTabPane([id], id);
           return {
             tabs: [...state.tabs, newTab],
@@ -556,7 +552,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         newActiveTabId = newTabIds[newIndex] || null;
       }
 
-      // Check if this is the last tab in the only pane
       const isLastTabInOnlyPane = newTabIds.length === 0 && 
         state.rootPane.type === "tabs" && 
         state.rootPane.id === pane.id;
@@ -774,7 +769,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       
       if (!fromPane || !toPane) return state;
 
-      // Remove from source pane
       const newFromTabIds = fromPane.tabIds.filter((id) => id !== tabId);
       let newFromActiveTabId = fromPane.activeTabId;
       if (fromPane.activeTabId === tabId) {
@@ -799,7 +793,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         activeTabId: toPane.activeTabId || tabId,
       }));
 
-      // Clean up empty panes
       const finalPane = findPaneByIdRecursive(newRootPane, fromPaneId) as TabPane;
       if (finalPane && finalPane.tabIds.length === 0) {
         newRootPane = removePaneFromTree(newRootPane, fromPaneId) || createTabPane();
@@ -816,10 +809,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       const pane = findPaneByIdRecursive(state.rootPane, paneId) as TabPane;
       if (!pane) return state;
 
-      // Create new pane with just this tab
       const newPane = createTabPane([tabId], tabId);
       
-      // Remove tab from original pane
       const newTabIds = pane.tabIds.filter((id) => id !== tabId);
       const newActiveTabId = pane.activeTabId === tabId 
         ? (newTabIds[0] || null)
@@ -831,7 +822,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         activeTabId: newActiveTabId,
       };
 
-      // Create split
       const children = side === "before" 
         ? [newPane, updatedOriginalPane]
         : [updatedOriginalPane, newPane];
@@ -904,23 +894,19 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       
       if (!fromPane || !targetPane) return state;
 
-      // Remove from source
       const newFromTabIds = fromPane.tabIds.filter((id) => id !== tabId);
       const newFromActiveTabId = fromPane.activeTabId === tabId
         ? (newFromTabIds[0] || null)
         : fromPane.activeTabId;
 
-      // Create new pane for the moved tab
       const newPane = createTabPane([tabId], tabId);
 
-      // Create split with target pane
       const children = side === "before"
         ? [newPane, targetPane]
         : [targetPane, newPane];
 
       const splitPane = createSplitPane(direction, children, [50, 50]);
 
-      // Update root pane
       let newRootPane = updatePaneInTree(state.rootPane, fromPaneId, (p) => ({
         ...(p as TabPane),
         tabIds: newFromTabIds,
@@ -943,7 +929,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         newRootPane = splitPane;
       }
 
-      // Clean up empty source pane
       const finalFromPane = findPaneByIdRecursive(newRootPane, fromPaneId) as TabPane;
       if (finalFromPane && finalFromPane.tabIds.length === 0) {
         newRootPane = removePaneFromTree(newRootPane, fromPaneId) || createTabPane();
@@ -1085,7 +1070,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       // Filter pane tree to remove tabs that failed rehydration
       const filteredRootPane = filterInvalidTabsFromPane(data.rootPane, validTabIds);
 
-      // Clean up empty panes
       const cleanedPane = cleanupEmptyPanes(filteredRootPane);
 
       set({

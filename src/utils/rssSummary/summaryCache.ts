@@ -44,14 +44,12 @@ export class SummaryCache {
       return null;
     }
 
-    // Check if entry has expired
     const entryAge = Date.now() - new Date(entry.timestamp).getTime();
     if (entryAge > TTL_MS) {
       this.cache.delete(articleId);
       return null;
     }
 
-    // Check if content has changed
     if (entry.contentHash !== contentHash) {
       this.cache.delete(articleId);
       return null;
@@ -207,7 +205,6 @@ export class SummaryCache {
 /** Singleton instance for application-wide use */
 export const summaryCache = new SummaryCache();
 
-// Load cache on module initialization
 if (typeof window !== "undefined") {
   summaryCache.loadFromStorage();
 }

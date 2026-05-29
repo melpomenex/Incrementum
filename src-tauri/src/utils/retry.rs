@@ -65,12 +65,10 @@ impl RetryConfig {
 pub fn is_retryable_error(error: &AppError) -> bool {
     let error_str = error.to_string().to_lowercase();
 
-    // Check for timeout-related errors
     if error_str.contains("timeout") || error_str.contains("timed out") {
         return true;
     }
 
-    // Check for connection-related errors
     if error_str.contains("connection")
         || error_str.contains("connect")
         || error_str.contains("dns")
@@ -94,7 +92,6 @@ pub fn is_retryable_error(error: &AppError) -> bool {
         return true;
     }
 
-    // Check for transient errors
     if error_str.contains("temporary")
         || error_str.contains("transient")
         || error_str.contains("unavailable")
@@ -135,7 +132,6 @@ where
         match operation().await {
             Ok(result) => return Ok(result),
             Err(e) => {
-                // Check if we should retry
                 if attempt < config.max_attempts - 1 && is_retryable_error(&e) {
                     // Calculate delay with exponential backoff
                     let delay_ms = calculate_delay(attempt, &config);
@@ -208,7 +204,6 @@ where
     with_retry(
         || async {
             operation().await.map_err(|e| {
-                // Check if it's a retryable reqwest error
                 if is_retryable_reqwest_error(&e) {
                     AppError::Network(format!("{} (retryable)", e))
                 } else {
@@ -223,17 +218,14 @@ where
 
 /// Check if a reqwest error is retryable
 fn is_retryable_reqwest_error(error: &reqwest::Error) -> bool {
-    // Check for timeout
     if error.is_timeout() {
         return true;
     }
 
-    // Check for connection errors
     if error.is_connect() {
         return true;
     }
 
-    // Check HTTP status codes
     if let Some(status) = error.status() {
         // Server errors (5xx)
         if status.is_server_error() {
@@ -245,9 +237,7 @@ fn is_retryable_reqwest_error(error: &reqwest::Error) -> bool {
         }
     }
 
-    // Check for request errors that might be transient
     if error.is_request() {
-        // Check the underlying error for network-related issues
         let error_str = error.to_string().to_lowercase();
         if error_str.contains("connection")
             || error_str.contains("dns")

@@ -75,7 +75,6 @@ export function highlightSearchTerms(
     }
   }
 
-  // Create excerpt
   const excerptStart = Math.max(0, bestStart - contextLength);
   const excerptEnd = Math.min(
     text.length,
@@ -101,17 +100,14 @@ export function highlightSearchTerms(
  * Extract search terms from query
  */
 export function extractSearchTerms(query: string): string[] {
-  // Remove operators and extract terms
   const terms: string[] = [];
 
-  // Handle quoted phrases
   const phraseRegex = /"([^"]+)"/g;
   let match;
   while ((match = phraseRegex.exec(query)) !== null) {
     terms.push(match[1]);
   }
 
-  // Remove phrases from query
   const queryWithoutPhrases = query.replace(/"[^"]+"/g, "");
 
   // Split remaining query by whitespace and operators
@@ -153,14 +149,12 @@ export function calculateRelevanceScore(
     // Exact title match bonus
     if (titleLower === term) score += 50;
 
-    // Start of title match bonus
     if (titleLower.startsWith(term)) score += 20;
 
     // Content matches
     const contentMatches = (contentLower.match(new RegExp(escapeRegex(term), "g")) || []).length;
     score += contentMatches * 1;
 
-    // Phrase match bonus
     if (titleLower.includes(term) || contentLower.includes(term)) {
       score += 5;
     }
@@ -258,7 +252,6 @@ export function applySearchOperators(query: string): SearchQuery {
     });
   }
 
-  // Handle AND/OR operators
   const orMatches = query.match(/(\S+)\s+OR\s+(\S+)/gi);
   if (orMatches) {
     orMatches.forEach((match) => {
@@ -268,7 +261,6 @@ export function applySearchOperators(query: string): SearchQuery {
     });
   }
 
-  // Handle quoted phrases
   const phraseMatches = query.match(/"([^"]+)"/g);
   if (phraseMatches) {
     phraseMatches.forEach((match) => {
@@ -371,37 +363,31 @@ export interface AdvancedSearchQuery {
 export function parseAdvancedSearch(query: string): AdvancedSearchQuery {
   const result: AdvancedSearchQuery = {};
 
-  // Parse type: filter
   const typeMatch = query.match(/type:(\w+)/i);
   if (typeMatch) {
     result.type = [typeMatch[1] as SearchResultType];
   }
 
-  // Parse tag: filter
   const tagMatches = query.match(/tag:(\w+)/gi);
   if (tagMatches) {
     result.tag = tagMatches.map((m) => m.split(":")[1]);
   }
 
-  // Parse category: filter
   const categoryMatches = query.match(/category:(\w+)/gi);
   if (categoryMatches) {
     result.category = categoryMatches.map((m) => m.split(":")[1]);
   }
 
-  // Parse title: filter
   const titleMatch = query.match(/title:(.+)/i);
   if (titleMatch) {
     result.title = titleMatch[1];
   }
 
-  // Parse content: filter
   const contentMatch = query.match(/content:(.+)/i);
   if (contentMatch) {
     result.content = contentMatch[1];
   }
 
-  // Parse before/after dates
   const beforeMatch = query.match(/before:(.+)/i);
   if (beforeMatch) {
     result.before = new Date(beforeMatch[1]);

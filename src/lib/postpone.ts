@@ -1,19 +1,3 @@
-/**
- * Postpone Engine
- *
- * Algorithm-aware postponement for spaced repetition items, modeled after
- * SuperMemo 20's postpone system (reverse-engineered from sm20.exe via Ghidra).
- *
- * Items with lower stability and higher difficulty receive smaller postponement
- * increases (they're struggling, so we don't want to push them too far out).
- * Well-established items (high stability, low difficulty) get larger increases.
- *
- * Documents are treated as "topics" in the SM-20 model.
- */
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface PostponeConfig {
   // Item parameters
@@ -84,10 +68,6 @@ export interface PostponeStats {
   averageIncrease: number;
 }
 
-// =============================================================================
-// Defaults
-// =============================================================================
-
 export const defaultPostponeConfig: PostponeConfig = {
   itemIncrease: 50,
   itemMinIncrease: 1,
@@ -124,10 +104,6 @@ export const defaultPostponeConfig: PostponeConfig = {
   topicMinSkip: 1,
 };
 
-// =============================================================================
-// Priority Computation
-// =============================================================================
-
 /**
  * Derive a priority value (0–100) from item state.
  * Higher stability and lower difficulty = lower priority (well-established).
@@ -143,10 +119,6 @@ export function computePriority(
   const raw = 100 - (stability * difficultyFactor) + lapsesPenalty;
   return Math.max(0, Math.min(100, Math.round(raw)));
 }
-
-// =============================================================================
-// Simple Postpone (linear interpolation by priority, no eligibility checks)
-// =============================================================================
 
 function simplePostpone(input: PostponeInput, config: PostponeConfig): PostponeResult {
   const { type, priority, interval } = input;
@@ -182,10 +154,6 @@ function simplePostpone(input: PostponeInput, config: PostponeConfig): PostponeR
   };
 }
 
-// =============================================================================
-// Eligibility Checks
-// =============================================================================
-
 function isItemEligibleForSkip(input: PostponeInput, config: PostponeConfig): boolean {
   return (
     input.daysSinceReview >= config.minElapsed &&
@@ -203,10 +171,6 @@ function isTopicEligibleForSkip(input: PostponeInput, config: PostponeConfig): b
       input.daysSinceReview >= config.topicElapsedMin)
   );
 }
-
-// =============================================================================
-// Interval Randomization
-// =============================================================================
 
 function randomizeInterval(base: number, maxNoise: number): number {
   const eps = 0.00001;
@@ -230,10 +194,6 @@ function randomizeInterval(base: number, maxNoise: number): number {
   return result;
 }
 
-// =============================================================================
-// Core Postpone
-// =============================================================================
-
 /**
  * Compute the interval increase for a single element using the SM-20 postpone algorithm.
  * Returns a PostponeResult with the computed increase, new interval, and ratio.
@@ -249,7 +209,6 @@ export function postponeElement(input: PostponeInput, config: PostponeConfig): P
     return simplePostpone(input, config);
   }
 
-  // Topic skip path
   if (type === "topic" && config.skipTopics) {
     const topicMinSkip = config.topicMinSkip ?? 1;
     minInterval = Math.max(1, Math.max(minInterval, topicMinSkip));
@@ -266,13 +225,11 @@ export function postponeElement(input: PostponeInput, config: PostponeConfig): P
   let ratio: number;
 
   if (type === "item") {
-    // Check eligibility: if eligible for skip, skip it
     if (config.checkItemSkip && isItemEligibleForSkip(input, config)) {
       isSkipped = true;
     }
     ratio = config.itemIncrease / 100.0 + 1.0;
   } else {
-    // Topic
     if (config.checkTopicSkip && isTopicEligibleForSkip(input, config)) {
       isSkipped = true;
     }
@@ -333,10 +290,6 @@ export function postponeElement(input: PostponeInput, config: PostponeConfig): P
     ratio: newRatio,
   };
 }
-
-// =============================================================================
-// Batch Postpone
-// =============================================================================
 
 /**
  * Postpone all items in a list, collecting statistics.

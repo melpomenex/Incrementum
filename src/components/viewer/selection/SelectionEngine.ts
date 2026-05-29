@@ -1,13 +1,3 @@
-/**
- * SelectionEngine - State machine for geometric text selection.
- *
- * Handles:
- * 1. Start (pointerdown): Find nearest token, set as start/end
- * 2. Move (pointermove): Find nearest token, update selection range
- * 3. End (pointerup): Build final result, emit callback
- * 4. Cancel: Clear selection
- */
-
 
 import type { PdfRect } from "../../../types/selection";
 import type {
@@ -85,7 +75,6 @@ export class SelectionEngine {
       return;
     }
 
-    // Start new selection
     this.state = "selecting";
     this.startPageIndex = pageIndex;
     this.startTokenId = hit.token.id;
@@ -187,7 +176,6 @@ export class SelectionEngine {
       return;
     }
 
-    // Get all selected tokens
     const { pageSelections, selectedText } = this.computeSelection();
 
     this.selectionState = {
@@ -214,7 +202,6 @@ export class SelectionEngine {
     const pageSelections = new Map<number, PageSelectionState>();
     const textParts: string[] = [];
 
-    // Single page selection
     if (this.startPageIndex === this.endPageIndex) {
       const tokens = this.spatialIndex.getTokensInRange(
         this.startPageIndex,
@@ -312,12 +299,10 @@ export class SelectionEngine {
       if (lastToken) {
         const yDiff = Math.abs(token.viewportY - lastToken.viewportY);
 
-        // Check for line break
         if (yDiff > this.config.newlineYThreshold) {
           currentLine++;
           lines[currentLine] = [];
         } else {
-          // Check for space
           const gap = token.viewportX - (lastToken.viewportX + lastToken.viewportW);
           if (gap > this.config.spaceGapThreshold) {
             lines[currentLine].push(" ");
@@ -347,7 +332,6 @@ export class SelectionEngine {
 
     const { pageSelections, selectedText } = this.computeSelection();
 
-    // Build page results with PDF coordinates
     const pages: CustomSelectionResult["pages"] = [];
 
     for (const [pageIndex, pageSel] of pageSelections) {

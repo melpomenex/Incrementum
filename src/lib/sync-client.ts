@@ -174,7 +174,6 @@ export async function pullChanges(): Promise<SyncPullResponse> {
         await db.bulkPutLearningItems(response.learningItems);
     }
 
-    // Update sync version
     setLastSyncVersion(response.syncVersion);
 
     return response;
@@ -186,7 +185,6 @@ export async function pullChanges(): Promise<SyncPullResponse> {
 export async function pushChanges(): Promise<SyncPushResponse> {
     const since = getLastSyncVersion();
 
-    // Get local changes
     const documents = await db.getChangedDocuments(since);
     const extracts = await db.getChangedExtracts(since);
     const learningItems = await db.getChangedLearningItems(since);
@@ -205,7 +203,6 @@ export async function pushChanges(): Promise<SyncPushResponse> {
         body: JSON.stringify({ documents, extracts, learningItems }),
     });
 
-    // Update sync version
     setLastSyncVersion(response.syncVersion);
 
     return response;
@@ -365,7 +362,6 @@ export async function migrateDemoDataToAccount(): Promise<void> {
     // Trigger sync which will push all local data first, then pull server data
     await triggerSync();
 
-    console.log('[Sync] Demo data migration complete');
 }
 
 // Auto-sync on visibility change (when tab becomes visible)

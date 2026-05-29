@@ -262,6 +262,8 @@ export function MindMapViewer({ data, onAddToQueue, title }: MindMapViewerProps)
         className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing mindmap-canvas"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        role="application"
+        aria-label="Mind map canvas"
       >
         <svg
           width={canvasWidth}
@@ -314,13 +316,12 @@ export function parseMindMapData(raw: unknown): MindMapNode | null {
       };
     };
 
-    const rootNode = rawAny.nodes.find((n: any) => n.type === "root" || n.isRoot);
+    const rootNode = (rawAny.nodes as Array<Record<string, unknown>>).find((n) => n.type === "root" || n.isRoot);
     if (rootNode) {
-      return buildTree(rootNode.id);
+      return buildTree(rootNode.id as string);
     }
   }
 
-  // Simple hierarchical format
   if (rawAny.name || rawAny.title || rawAny.topic) {
     const parseNode = (obj: any): MindMapNode => ({
       id: obj.id || Math.random().toString(36).slice(2),

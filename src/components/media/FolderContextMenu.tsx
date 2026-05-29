@@ -12,8 +12,7 @@ import {
   Clock,
   BarChart3,
 } from "lucide-react";
-import { updateFolderAuto, deleteFolderAuto } from "../../api/rss-folders";
-import type { RssFolder } from "../../api/rss-folders";
+import { updateFolderAuto, deleteFolderAuto, type RssFolder } from "../../api/rss-folders";
 import { IconPicker } from "./IconPicker";
 
 interface FolderContextMenuProps {

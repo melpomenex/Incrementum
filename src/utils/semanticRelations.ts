@@ -98,7 +98,6 @@ export function scoreFocalTopic(item: QueueItem, topic: string): number {
 export function calculateItemSimilarity(itemA: QueueItem, itemB: QueueItem): number {
   if (itemA.id === itemB.id) return 1.0;
   
-  // Create text packages for comparison
   const textA = [itemA.documentTitle, itemA.question, itemA.clozeText, itemA.category].filter(Boolean).join(" ");
   const textB = [itemB.documentTitle, itemB.question, itemB.clozeText, itemB.category].filter(Boolean).join(" ");
   

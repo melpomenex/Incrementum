@@ -1,4 +1,3 @@
-// MCP Tools Implementation
 use serde_json::json;
 use super::types::{ToolDefinition, ToolCallResult, ToolContent};
 use std::collections::HashMap;
@@ -26,7 +25,6 @@ impl MCPToolRegistry {
     }
 
     fn register_default_tools(&mut self) {
-        // Document Management Tools
         self.register_tool(ToolDefinition {
             name: "create_document".to_string(),
             description: "Create a new document in Incrementum".to_string(),
@@ -226,7 +224,6 @@ impl MCPToolRegistry {
             }),
         });
 
-        // PDF Tools
         self.register_tool(ToolDefinition {
             name: "add_pdf_selection".to_string(),
             description: "Create notes from PDF text selection".to_string(),
@@ -241,7 +238,6 @@ impl MCPToolRegistry {
             }),
         });
 
-        // Batch Operations
         self.register_tool(ToolDefinition {
             name: "batch_create_cards".to_string(),
             description: "Create multiple flashcards at once".to_string(),
@@ -277,7 +273,6 @@ impl MCPToolRegistry {
             }),
         });
 
-        // Video Extract Tools
         self.register_tool(ToolDefinition {
             name: "extract_video_snippet".to_string(),
             description: "Extract a snippet from a video by searching its transcript. Creates a VideoExtract that can be added to the review queue for spaced repetition.".to_string(),
@@ -321,7 +316,6 @@ impl MCPToolRegistry {
             }),
         });
 
-        // Deck Management
         self.register_tool(ToolDefinition {
             name: "create_deck".to_string(),
             description: "Create a new study deck. Decks group flashcards and learning items by tags for organized review.".to_string(),
@@ -919,7 +913,6 @@ impl MCPToolRegistry {
         let rating = args["rating"].as_u64().ok_or("rating is required")?;
         let time_taken = args["time_taken"].as_i64().map(|t| t as i32);
 
-        // Get the document
         let document = match self.repository.get_document(document_id).await {
             Ok(Some(d)) => d,
             Ok(None) => {
@@ -984,7 +977,6 @@ impl MCPToolRegistry {
             }
         };
 
-        // Update the document with new scheduling data
         let new_reps = document.reps.unwrap_or(0) + 1;
         let new_time_spent = document.total_time_spent.unwrap_or(0) + time_taken.unwrap_or(0);
 
@@ -1031,7 +1023,6 @@ impl MCPToolRegistry {
         let rating = args["rating"].as_u64().ok_or("rating is required")?;
         let _time_taken = args["time_taken"].as_i64().map(|t| t as i32);
 
-        // Get the extract
         let extract = match self.repository.get_extract(extract_id).await {
             Ok(Some(e)) => e,
             Ok(None) => {
@@ -1073,7 +1064,6 @@ impl MCPToolRegistry {
 
         let review_rating = ReviewRating::from(rating as i32);
 
-        // Get current stability and difficulty from memory state
         let current_stability = extract.memory_state.as_ref().map(|ms| ms.stability);
         let current_difficulty = extract.memory_state.as_ref().map(|ms| ms.difficulty);
 
@@ -1100,7 +1090,6 @@ impl MCPToolRegistry {
             }
         };
 
-        // Update the extract with new scheduling data
         let new_review_count = extract.review_count + 1;
         let new_reps = extract.reps + 1;
         let last_review = Some(now);
@@ -1164,7 +1153,6 @@ impl MCPToolRegistry {
         let page_number = args["page_number"].as_u64().ok_or("page_number is required")?;
         let selection = args["selection"].as_str().ok_or("selection is required")?;
 
-        // Create an extract from the PDF selection
         let mut extract = Extract::new(document_id.to_string(), selection.to_string());
         extract.page_number = Some(page_number as i32);
         extract.highlight_color = Some("yellow".to_string());
@@ -1291,12 +1279,7 @@ impl MCPToolRegistry {
         }
     }
 
-    // ============================================================================
-    // Video Extract Tools
-    // ============================================================================
-
     async fn execute_extract_video_snippet(&self, args: serde_json::Value) -> Result<ToolCallResult, String> {
-        // Get parameters
         let document_id = args["document_id"].as_str();
         let url = args["url"].as_str();
         let description = args["description"].as_str();
@@ -1345,7 +1328,6 @@ impl MCPToolRegistry {
             });
         }
 
-        // Get the transcript segments from the video_transcript table
         let segments: Vec<TranscriptSegment> = match self.repository.get_video_transcript(&doc.id).await {
             Ok(Some((_transcript, segments_json))) => {
                 serde_json::from_str(&segments_json).unwrap_or_default()
@@ -1453,7 +1435,6 @@ impl MCPToolRegistry {
             format!("Segment at {}", format_seconds(found_start))
         };
 
-        // Create the video extract
         let mut extract = VideoExtract::new(
             doc.id.clone(),
             found_start,

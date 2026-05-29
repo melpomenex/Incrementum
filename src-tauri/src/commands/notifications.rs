@@ -14,7 +14,6 @@ use crate::notifications::{
 pub async fn check_tauri_notification_permission() -> Result<NotificationPermission> {
     use tauri_plugin_notification::NotificationExt;
     
-    // Get the app handle and check permission
     // Note: This will be called from the frontend with the app handle
     Ok(NotificationPermission::NotRequested)
 }
@@ -94,7 +93,6 @@ pub async fn schedule_study_reminders(hour: u8, minute: u8) -> Result<()> {
 /// Get notification settings from database
 #[tauri::command]
 pub async fn get_notification_settings(repo: State<'_, Repository>) -> Result<NotificationSettings> {
-    // Get settings from database or return defaults
     let settings = sqlx::query_as::<_, (bool, bool, bool, bool, bool, u8, u8)>(
         r#"
         SELECT study_reminders, cards_due, review_completed, document_imported, sound_enabled,
@@ -128,7 +126,6 @@ pub async fn update_notification_settings(
     settings: NotificationSettings,
     repo: State<'_, Repository>,
 ) -> Result<()> {
-    // Delete existing settings
     sqlx::query("DELETE FROM notification_settings")
         .execute(repo.pool())
         .await?;

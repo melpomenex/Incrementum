@@ -872,7 +872,6 @@ impl EmbeddingProvider for OllamaEmbeddingProvider {
 
     async fn generate_embeddings_batch(&self, texts: &[String]) -> Result<Vec<EmbeddingResponse>, String> {
         // Ollama doesn't support batch embeddings in the same way
-        // Process individually and combine results
         let mut responses = Vec::new();
         for text in texts {
             let response = self.generate_embedding(text).await?;

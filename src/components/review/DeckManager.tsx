@@ -14,29 +14,25 @@ import {
   Loader2,
   Inbox,
   FolderOpen,
-  MoreHorizontal,
   Plus,
   Download,
   GraduationCap,
   Flame,
   Clock,
-  Brain,
   Target,
   CheckCircle2,
   Edit3,
-  Calendar,
   Copy,
   Pause,
   Upload,
 } from "lucide-react";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
-import { useReviewStore } from "../../stores/reviewStore";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { useConfirmDialog, ConfirmDialog } from "../common/ConfirmDialog";
 import { getAllLearningItems, createLearningItem, exportDeckAsApkg, exportDeckAsCsv, type LearningItem } from "../../api/learning-items";
 import { bulkSuspendItems, bulkUnsuspendItems, bulkDeleteItems } from "../../api/queue";
-import { filterByDecks, matchesDeck } from "../../utils/studyDecks";
+import { matchesDeck } from "../../utils/studyDecks";
 import { DynamicVirtualList } from "../common/VirtualList";
 import { DeckManagerCardRow } from "./DeckManagerCardRow";
 import { deleteLearningItem } from "../../lib/database";
@@ -331,7 +327,6 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     setSortDir("desc");
   }, []);
 
-  // Create a new empty card for the current deck
   const handleNewCard = useCallback(async () => {
     if (!expandedDeck) return;
     try {
@@ -354,7 +349,6 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     }
   }, [expandedDeck, toast, t, loadAllItems]);
 
-  // Start review with better error feedback
   const handleStudyNow = useCallback(async () => {
     if (!expandedDeck || !onStartReview) return;
     try {
@@ -425,7 +419,6 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
     const store = useStudyDeckStore.getState();
     store.clearDeckSelection();
     store.toggleDeckSelection(deckId);
-    // Start review session
     if (onStartReview) {
       await onStartReview();
     }
@@ -533,8 +526,6 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
       await handleDeckExportCsv(expandedDeck.id);
     }
   }, [expandedDeck, handleDeckExportApkg, handleDeckExportCsv]);
-
-  // --- Single card action handlers (for context menu) ---
 
   const handleCardSuspend = useCallback(async (cardId: string) => {
     try {
@@ -1439,4 +1430,3 @@ function RetagPopover({
     </div>
   );
 }
-

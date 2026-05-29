@@ -42,7 +42,6 @@ export async function initLocalStorageSync(): Promise<void> {
     return;
   }
 
-  // Return existing promise if already initializing
   if (initPromise) {
     return initPromise;
   }

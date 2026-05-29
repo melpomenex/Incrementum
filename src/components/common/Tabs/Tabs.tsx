@@ -40,7 +40,6 @@ export function Tabs() {
     // When dragging tabs, only prevent file drops on document
     // Don't interfere with the drag operation itself
     const handleDrop = (e: DragEvent) => {
-      // Check if the drop target is inside a tab pane
       const target = e.target as HTMLElement;
       const isTabDrop = target.closest("[data-tab-pane]");
       
@@ -59,7 +58,6 @@ export function Tabs() {
     };
   }, [draggedTabId]);
 
-  // Handle keyboard shortcuts for tab navigation
   useEffect(() => {
     const cycleTab = (direction: 1 | -1) => {
       const paneIds = useTabsStore.getState().getTabPaneIds();

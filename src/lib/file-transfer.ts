@@ -8,10 +8,6 @@
 import { WebsocketProvider } from "y-websocket";
 import { FileManifest, getDeviceId } from "./file-manifest";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 /** Chunk size for file transfers (64KB) */
 export const CHUNK_SIZE = 64 * 1024;
 
@@ -62,10 +58,6 @@ export type FileTransferEvent =
   | { type: "transfer-cancelled"; fileId: string; requestId: string };
 
 type FileTransferListener = (event: FileTransferEvent) => void;
-
-// =============================================================================
-// FileTransferManager Class
-// =============================================================================
 
 /**
  * Manages file transfers between devices via WebSocket
@@ -119,10 +111,6 @@ export class FileTransferManager {
     });
   }
 
-  // ===========================================================================
-  // WebSocket Setup
-  // ===========================================================================
-
   private setupWebSocketHandlers(ws: WebSocket): void {
     // We use awareness protocol's broadcast function for custom messages
     // since y-websocket doesn't have a direct custom message API
@@ -149,10 +137,6 @@ export class FileTransferManager {
     };
   }
 
-  // ===========================================================================
-  // Message Handling
-  // ===========================================================================
-
   private handleFileTransferMessage(msg: FileTransferMessage): void {
     switch (msg.type) {
       case "file-request":
@@ -176,7 +160,6 @@ export class FileTransferManager {
   private handleFileRequest(msg: { type: "file-request"; fileId: string; requesterDeviceId: string; requestId: string }): void {
     const { fileId, requesterDeviceId, requestId } = msg;
 
-    // Check if we have this file
     const fileBlob = this.localFiles.get(fileId);
     if (!fileBlob) {
       // We don't have it, ignore
@@ -196,7 +179,6 @@ export class FileTransferManager {
       totalChunks,
     });
 
-    // Start sending chunks
     this.startOutboundTransfer(fileId, requestId, requesterDeviceId, fileBlob);
   }
 
@@ -213,7 +195,6 @@ export class FileTransferManager {
       return;
     }
 
-    // Update transfer with total chunks
     transfer.totalChunks = totalChunks;
     this.emit({ type: "transfer-started", fileId, requestId, direction: "outbound" });
   }
@@ -236,7 +217,6 @@ export class FileTransferManager {
     const progress = transfer.receivedChunks.size / totalChunks;
     this.emit({ type: "transfer-progress", fileId, requestId, progress });
 
-    // Check if complete
     if (transfer.receivedChunks.size === totalChunks) {
       this.assembleAndComplete(transfer);
     }
@@ -254,14 +234,9 @@ export class FileTransferManager {
     const { fileId, requestId, error } = msg;
     this.emit({ type: "transfer-error", fileId, requestId, error });
 
-    // Clean up
     this.inboundTransfers.delete(requestId);
     this.outboundTransfers.delete(requestId);
   }
-
-  // ===========================================================================
-  // Sending Files
-  // ===========================================================================
 
   /**
    * Register a local file for sharing
@@ -269,7 +244,6 @@ export class FileTransferManager {
   registerLocalFile(fileId: string, blob: Blob): void {
     this.localFiles.set(fileId, blob);
 
-    // Update manifest presence
     const fileIds = Array.from(this.localFiles.keys());
     this.manifest.updateMyPresence(fileIds);
   }
@@ -337,33 +311,24 @@ export class FileTransferManager {
     this.outboundTransfers.delete(requestId);
   }
 
-  // ===========================================================================
-  // Receiving Files
-  // ===========================================================================
-
   /**
    * Request a file from other devices
    */
   async requestFile(fileId: string): Promise<Blob> {
-    // Check if we already have it
     const local = this.localFiles.get(fileId);
     if (local) {
       return local;
     }
 
-    // Check if there's an online device that has it
     const sources = this.manifest.findDevicesWithFile(fileId);
     if (sources.length === 0) {
-      // Queue the request for when a source comes online
       return new Promise((resolve, reject) => {
         this.pendingRequests.set(fileId, { fileId, resolve, reject });
       });
     }
 
-    // Create a request ID
     const requestId = `${this.deviceId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    // Set up inbound transfer
     const transfer: InboundTransfer = {
       fileId,
       requestId,
@@ -375,7 +340,6 @@ export class FileTransferManager {
     };
     this.inboundTransfers.set(requestId, transfer);
 
-    // Create a promise for the transfer
     const transferPromise = new Promise<Blob>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("Transfer timeout"));
@@ -428,7 +392,6 @@ export class FileTransferManager {
       chunks.push(chunk);
     }
 
-    // Create blob from chunks
     const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
     const combined = new Uint8Array(totalLength);
     let offset = 0;
@@ -437,11 +400,9 @@ export class FileTransferManager {
       offset += chunk.length;
     }
 
-    // Get content type from manifest
     const entry = this.manifest.getFile(transfer.fileId);
     const blob = new Blob([combined], { type: entry?.contentType || "application/octet-stream" });
 
-    // Store locally
     this.localFiles.set(transfer.fileId, blob);
     this.manifest.updateMyPresence(Array.from(this.localFiles.keys()));
 
@@ -458,10 +419,6 @@ export class FileTransferManager {
       }
     }
   }
-
-  // ===========================================================================
-  // Helpers
-  // ===========================================================================
 
   private sendMessage(msg: FileTransferMessage): void {
     if (this.provider.ws && this.provider.ws.readyState === WebSocket.OPEN) {
@@ -493,10 +450,6 @@ export class FileTransferManager {
   private handleAwarenessChange(): void {
     // Awareness change - could be used for additional sync signaling
   }
-
-  // ===========================================================================
-  // Public API
-  // ===========================================================================
 
   /**
    * Check if a file is available locally
@@ -552,10 +505,6 @@ export class FileTransferManager {
     this.manifest.goOffline();
   }
 
-  // ===========================================================================
-  // Events
-  // ===========================================================================
-
   subscribe(listener: FileTransferListener): () => void {
     this.listeners.add(listener);
     return () => {
@@ -573,10 +522,6 @@ export class FileTransferManager {
     });
   }
 }
-
-// =============================================================================
-// IndexedDB Cache for Files
-// =============================================================================
 
 const FILE_CACHE_DB_NAME = "incrementum-file-cache";
 const FILE_CACHE_STORE = "files";

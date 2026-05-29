@@ -3,7 +3,6 @@ import { createError } from '../middleware/errorHandler.js';
 
 export const oauthRouter = Router();
 
-// OAuth initiation
 oauthRouter.get('/:provider', (req, res) => {
     const { provider } = req.params;
     // TODO: Implement provider-specific redirect logic (Google, GitHub)
@@ -11,7 +10,6 @@ oauthRouter.get('/:provider', (req, res) => {
     res.status(501).json({ message: `OAuth for ${provider} not implemented yet` });
 });
 
-// OAuth callback
 oauthRouter.get('/:provider/callback', async (req, res, next) => {
   const { provider } = req.params;
     const { code } = req.query;

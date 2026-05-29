@@ -53,7 +53,6 @@ struct AppState {
     db: Arc<Mutex<Option<Database>>>,
 }
 
-// Import AI command module types
 use commands::ai::AIState;
 use commands::focus_timer::FocusTimer;
 
@@ -116,7 +115,7 @@ pub fn run() {
             .open(&log_path)?;
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("system time before UNIX epoch")
             .as_secs();
         writeln!(file, "[{timestamp}] startup: run() entry")?;
         Ok(())
@@ -140,7 +139,7 @@ pub fn run() {
             .open(&log_path)?;
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("system time before UNIX epoch")
             .as_secs();
         writeln!(file, "[{timestamp}] startup: after dotenv")?;
         Ok(())
@@ -150,7 +149,6 @@ pub fn run() {
     // before this function is called. This ensures they are set early enough
     // to affect all WebKit initialization.
 
-    // Initialize tracing early so all startup logs are captured
     tracing_subscriber::fmt::init();
 
     const LOCALHOST_PORT: u16 = 9527;
@@ -164,7 +162,7 @@ pub fn run() {
             .open(&log_path)?;
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("system time before UNIX epoch")
             .as_secs();
         writeln!(file, "[{timestamp}] startup: before chrono")?;
         Ok(())
@@ -179,7 +177,7 @@ pub fn run() {
             .open(&log_path)?;
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("system time before UNIX epoch")
             .as_secs();
         writeln!(file, "[{timestamp}] startup: before builder")?;
         Ok(())
@@ -207,10 +205,6 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
     }
 
-    // Packaged webviews can intercept Ctrl/Cmd+key combos before JavaScript sees
-    // them. Menu accelerators fire at the native event loop level and provide a
-    // second delivery path when the global-shortcut plugin is unavailable or
-    // behaves differently in release artifacts.
     #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
     {
         builder = builder.menu(|app| {
@@ -257,9 +251,6 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             {}
 
-            // Linux: no native menu bar — webview handles keyboard shortcuts directly.
-            // With decorations=false in tiling WMs, a native menu creates a
-            // redundant "Tauri App" header.
             #[cfg(target_os = "linux")]
             {}
 
@@ -310,9 +301,6 @@ pub fn run() {
             install_panic_hook(app_handle.clone());
             log_startup(&app_handle, "startup: begin");
 
-            // Linux: disable system window decorations at runtime.
-            // Config has decorations=true for Windows/macOS; we override here
-            // to remove the redundant GTK title bar in tiling WMs like Hyprland.
             #[cfg(target_os = "linux")]
             {
                 use tauri::Manager;
@@ -399,9 +387,7 @@ pub fn run() {
                 log_startup(&app_handle, "startup: global shortcuts registered");
             }
 
-            // Initialize async runtime for database setup
             let result: anyhow::Result<()> = tauri::async_runtime::block_on(async {
-                // Get app data directory
                 let app_dir = app
                     .path()
                     .app_data_dir()
@@ -409,7 +395,6 @@ pub fn run() {
 
                 log_startup(&app_handle, &format!("startup: app data dir = {}", app_dir.display()));
 
-                // Ensure directory exists
                 std::fs::create_dir_all(&app_dir)
                     .with_context(|| format!("Failed to create app data dir: {}", app_dir.display()))?;
 
@@ -417,14 +402,12 @@ pub fn run() {
 
                 let db_path = app_dir.join("incrementum.db");
 
-                // Initialize database
                 let db = Database::new(db_path)
                     .await
                     .context("Failed to initialize database")?;
 
                 log_startup(&app_handle, "startup: database initialized");
 
-                // Run migrations
                 db.migrate()
                     .await
                     .context("Failed to run migrations")?;
@@ -433,12 +416,11 @@ pub fn run() {
 
                 // Store database in app state
                 let state = AppState::new();
-                *state.db.lock().unwrap() = Some(db);
+                *state.db.lock().expect("app state mutex poisoned") = Some(db);
 
                 // Clone the pool for creating repositories before state is moved
-                let pool = state.db.lock().unwrap().as_ref().unwrap().pool().clone();
+                let pool = state.db.lock().expect("app state mutex poisoned").as_ref().expect("db just set above").pool().clone();
 
-                // Create repository for use in commands
                 let repo = database::Repository::new(pool.clone());
 
                 // Initialize cloud auth provider (managed immediately so commands can access it)
@@ -449,7 +431,6 @@ pub fn run() {
                 app.manage(cloud_auth_provider.clone());
                 app.manage(auth_store.clone());
 
-                // Load persisted cloud tokens in the background so they don't
                 // block app startup.  Providers are registered into the managed
                 // state once loaded.
                 let bg_cloud_auth = cloud_auth_provider.clone();
@@ -499,7 +480,7 @@ pub fn run() {
                     for provider in &["openai", "anthropic", "openrouter"] {
                         match bg_key_store.get_key(provider).await {
                             Ok(Some(key)) => {
-                                let mut config = ai_config_mutex.lock().unwrap();
+                                let mut config = ai_config_mutex.lock().expect("AI config mutex poisoned");
                                 let current = config.get_or_insert_with(Default::default);
                                 match *provider {
                                     "openai" => current.api_keys.openai = Some(key),
@@ -582,7 +563,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
-            // Document commands
             commands::get_documents,
             commands::get_document,
             commands::resolve_document_cover,
@@ -593,7 +573,6 @@ pub fn run() {
             commands::update_document_progress,
             commands::delete_document,
             commands::dismiss_document,
-            // Collection commands
             commands::collections::get_collections,
             commands::collections::create_collection,
             commands::collections::get_collection,
@@ -602,7 +581,6 @@ pub fn run() {
             commands::collections::get_active_collection,
             commands::collections::set_active_collection,
             commands::collections::get_collection_due_count,
-            // Position tracking commands
             commands::get_document_position,
             commands::save_document_position,
             commands::get_document_progress,
@@ -623,7 +601,6 @@ pub fn run() {
             commands::convert_pdf_to_html,
             commands::convert_document_pdf_to_html,
             commands::extract_document_text,
-            // Extract commands
             commands::get_extracts,
             commands::get_extract,
             commands::create_extract,
@@ -635,7 +612,6 @@ pub fn run() {
             commands::create_cloze_from_extract,
             commands::create_qa_from_extract,
             commands::get_reviewable_extracts,
-            // Learning item commands
             commands::get_due_items,
             commands::create_learning_item,
             commands::update_learning_item_content_with_version,
@@ -651,15 +627,12 @@ pub fn run() {
             commands::get_learning_items_by_extract,
             commands::get_all_learning_items,
             commands::check_semantic_duplicate_candidates,
-            // Image registry commands
             commands::ingest_image_asset,
             commands::list_image_assets,
             commands::get_image_asset,
             commands::delete_image_asset,
-            // Category commands
             commands::get_categories,
             commands::create_category,
-            // Queue commands
             commands::get_queue,
             commands::get_next_queue_item,
             commands::get_queue_items,
@@ -673,7 +646,6 @@ pub fn run() {
             commands::bulk_unsuspend_items,
             commands::bulk_delete_items,
             commands::export_queue,
-            // Review commands
             commands::start_review,
             commands::submit_review,
             commands::restore_learning_item_state,
@@ -683,7 +655,6 @@ pub fn run() {
             commands::get_review_sessions_by_collection,
             commands::get_all_review_results,
             commands::get_categories_by_collection,
-            // Algorithm commands
             commands::calculate_sm2_next,
             commands::rate_document,
             commands::rate_document_engaging,
@@ -697,7 +668,6 @@ pub fn run() {
             commands::optimize_algorithm_params,
             commands::get_default_engagement_preferences,
             commands::get_smart_start_position,
-            // AI commands
             commands::get_ai_config,
             commands::set_ai_config,
             commands::set_api_key,
@@ -718,7 +688,6 @@ pub fn run() {
             commands::get_memory_content,
             commands::save_memory_content,
             commands::update_memory_from_chat,
-            // Analytics commands
             commands::get_dashboard_stats,
             commands::get_memory_stats,
             commands::get_activity_data,
@@ -726,7 +695,6 @@ pub fn run() {
             commands::get_leech_dashboard,
             commands::get_workload_data,
             commands::get_workload_day_details,
-            // YouTube commands
             youtube::check_ytdlp,
             youtube::setup_ytdlp_auto,
             youtube::get_ytdlp_path,
@@ -740,7 +708,6 @@ pub fn run() {
             youtube::extract_youtube_video_id,
             youtube::import_youtube_video,
             youtube::get_youtube_chapters,
-            // Video commands
             commands::import_video_file,
             commands::get_video_storage_path,
             commands::add_video_bookmark,
@@ -754,14 +721,12 @@ pub fn run() {
             commands::split_audio_for_groq,
             commands::cleanup_audio_chunks,
             commands::read_file_bytes,
-            // Video extract commands
             commands::create_video_extract,
             commands::get_video_extracts,
             commands::get_video_extract,
             commands::update_video_extract,
             commands::delete_video_extract,
             commands::rate_video_extract,
-            // Audiobook commands
             commands::parse_audiobook_metadata,
             commands::import_podcast_audio_file,
             commands::scan_directory_for_audiobooks,
@@ -788,7 +753,6 @@ pub fn run() {
             sync::get_sync_status,
             sync::resolve_sync_conflict,
             sync::get_sync_log,
-            // Integration commands
             integrations::export_to_obsidian,
             integrations::export_extract_to_obsidian,
             integrations::export_flashcards_to_obsidian,
@@ -834,7 +798,6 @@ pub fn run() {
             notebooklm::notebooklm_cli_login,
             notebooklm::notebooklm_cli_logout,
             notebooklm::notebooklm_cli_status,
-            // Pocket TTS commands
             pocket_tts::pocket_tts_status,
             pocket_tts::pocket_tts_generate,
             pocket_tts::pocket_tts_stop,
@@ -847,7 +810,6 @@ pub fn run() {
             browser_sync_server::set_browser_sync_config,
             browser_sync_server::get_automation_api_key,
             browser_sync_server::rotate_automation_api_key,
-            // RSS commands
             commands::create_rss_feed,
             commands::get_rss_feeds,
             commands::get_rss_feed,
@@ -921,17 +883,14 @@ pub fn run() {
             commands::get_feed_statistics,
             commands::set_feed_view_preferences,
             commands::migrate_folders_from_localstorage,
-            // Segmentation commands
             commands::segment_document,
             commands::auto_segment_and_create_extracts,
             commands::split_document,
-            // Legacy import commands
             commands::import_legacy_archive,
             commands::preview_segmentation,
             commands::extract_key_points_from_text,
             commands::batch_segment_documents,
             commands::get_recommended_segmentation,
-            // Notification commands
             commands::check_notification_permission,
             commands::request_notification_permission,
             commands::send_notification,
@@ -947,7 +906,6 @@ pub fn run() {
             commands::get_notification_settings,
             commands::update_notification_settings,
             commands::create_custom_notification,
-            // MCP commands
             commands::mcp::mcp_list_servers,
             commands::mcp::mcp_add_server,
             commands::mcp::mcp_remove_server,
@@ -958,24 +916,20 @@ pub fn run() {
             commands::mcp::mcp_call_incrementum_tool,
             commands::mcp::mcp_get_server_tools,
             commands::mcp::mcp_get_server_info,
-            // LLM commands
             commands::llm::llm_chat,
             commands::llm::llm_chat_with_context,
             commands::llm::llm_stream_chat,
             commands::llm::llm_get_models,
             commands::llm::llm_test_connection,
-            // Cloud OAuth commands
             commands::oauth_start,
             commands::oauth_callback,
             commands::oauth_get_account,
             commands::oauth_disconnect,
             commands::oauth_is_authenticated,
-            // Cloud Backup commands
             commands::backup_create,
             commands::backup_restore,
             commands::backup_list,
             commands::backup_delete,
-            // Cloud Sync commands
             commands::cloud_sync_init,
             commands::cloud_sync_now,
             commands::cloud_sync_get_status,
@@ -984,21 +938,17 @@ pub fn run() {
             commands::cloud_import_files,
             commands::import_collection_archive,
             commands::import_collection_archive_merge,
-            // Scheduler commands
             commands::scheduler_init,
             commands::scheduler_start,
             commands::scheduler_stop,
             commands::scheduler_update_config,
             commands::scheduler_get_status,
             commands::scheduler_trigger_backup,
-            // Anki import commands
             anki::import_anki_package_to_learning_items,
             anki::import_anki_package_bytes_to_learning_items,
-            // Anki export commands
             anki::export_deck_as_apkg,
             anki::export_deck_as_csv,
             anki::export_all_decks_as_apkg,
-            // SuperMemo import commands
             supermemo_import::import_supermemo_package,
             supermemo_import::validate_supermemo_package,
             // Study JSON import commands
@@ -1009,10 +959,8 @@ pub fn run() {
             kindle_clippings::validate_kindle_clippings,
             kindle_clippings::import_kindle_clippings_file,
             kindle_clippings::backfill_kindle_imports,
-            // Demo content commands
             demo::import_demo_content_manually,
             demo::get_demo_content_status,
-            // OCR commands
             commands::init_ocr,
             commands::ocr_image_file,
             commands::ocr_image_bytes,
@@ -1028,7 +976,6 @@ pub fn run() {
             commands::glm_start_ollama_runtime,
             commands::glm_stop_ollama_runtime,
             commands::glm_pull_ollama_model,
-            // Screenshot commands
             #[cfg(feature = "screenshot")]
             screenshot::capture_screenshot,
             #[cfg(feature = "screenshot")]
@@ -1037,7 +984,6 @@ pub fn run() {
             screenshot::capture_app_window,
             #[cfg(feature = "screenshot")]
             screenshot::get_screen_info,
-            // Transcription commands
             transcription::get_transcription_profiles,
             transcription::download_transcription_model,
             transcription::delete_transcription_model,
@@ -1052,21 +998,10 @@ pub fn run() {
             transcription::enqueue_all_untranscribed,
             transcription::clear_transcription_queue,
             transcription::remove_transcription_entry,
-            // Semantic search commands - TEMPORARILY DISABLED for debugging Windows startup crash
-            // commands::generate_embedding,
-            // commands::generate_embeddings_batch,
-            // commands::index_transcript,
-            // commands::semantic_search,
-            // commands::get_embedding_models,
-            // commands::clear_all_embeddings,
-            // commands::get_embedding_stats,
-            // commands::is_indexed,
-            // Semantic graph commands
             commands::embed_queue_items,
             commands::embed_active_rss_articles,
             commands::compute_semantic_graph,
             commands::get_embedding_config,
-            // Focus timer commands
             commands::get_focus_timer_state,
             commands::start_focus_timer,
             commands::pause_focus_timer,
@@ -1076,9 +1011,7 @@ pub fn run() {
             commands::get_focus_timer_remaining,
             commands::tick_focus_timer,
             commands::reset_focus_timer_daily_stats,
-            // Battery state command
             battery::get_battery_state,
-            // Podcast commands
             commands::search_podcasts,
             commands::subscribe_podcast,
             commands::unsubscribe_podcast,

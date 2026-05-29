@@ -353,7 +353,6 @@ pub async fn pull_ollama_model(
 ) -> Result<String> {
     resolve_ollama_binary(ollama_path.clone())?;
 
-    // Check if ollama is running by attempting to connect
     let default_endpoint = "http://127.0.0.1:11434";
     let is_running = check_openai_models(default_endpoint).await;
 

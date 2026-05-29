@@ -4,7 +4,6 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 export const documentsRouter = Router();
 
-// Get a single document by ID
 documentsRouter.get('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -41,7 +40,6 @@ documentsRouter.post('/:id/progress', authMiddleware, async (req: AuthRequest, r
         const userId = req.userId!;
         const { current_page, current_scroll_percent, current_cfi } = req.body;
 
-        // Update only the progress fields
         const result = await pool.query(`
             UPDATE documents 
             SET current_page = COALESCE($3, current_page),

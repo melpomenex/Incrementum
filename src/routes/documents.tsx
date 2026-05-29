@@ -4,8 +4,7 @@ import { Link2, Mic } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useDocumentStore } from "../stores";
 import { useStudyDeckStore } from "../stores/studyDeckStore";
-import { EnhancedFilePicker } from "../components/documents/EnhancedFilePicker";
-import type { ImportSource } from "../components/documents/EnhancedFilePicker";
+import { EnhancedFilePicker, type ImportSource } from "../components/documents/EnhancedFilePicker";
 import { TranscriptionButton } from "../components/transcription";
 import { isTranscribableFileType } from "../components/transcription/TranscriptionQueueActions";
 import type { Document } from "../types/document";
@@ -52,7 +51,6 @@ export function Documents() {
       const imported = await openFilePickerAndImport();
       if (imported.length > 0) {
         // Documents are already added to state by the store
-        console.log(`Imported ${imported.length} document(s)`);
         // Open the first imported document
         navigate(`/documents/${imported[0].id}`);
       }
@@ -62,24 +60,18 @@ export function Documents() {
   };
 
   const handleImportFromPicker = async (source: ImportSource, data: any) => {
-    console.log('[Documents] Import from picker:', source, data);
     try {
       let importedDoc = null;
       if (source === 'url') {
-        console.log('[Documents] Calling importFromUrl with:', data.url);
         importedDoc = await importFromUrl(data.url);
-        console.log('[Documents] importFromUrl completed');
       } else if (source === 'arxiv') {
-        console.log('[Documents] Calling importFromArxiv with:', data.url);
         importedDoc = await importFromArxiv(data.url);
-        console.log('[Documents] importFromArxiv completed');
       } else if (source === 'local') {
         // Separate .json files (deck import) from regular documents
         const filePaths: string[] = data.filePaths;
         const jsonPaths = filePaths.filter((p: string) => p.toLowerCase().endsWith('.json'));
         const regularPaths = filePaths.filter((p: string) => !p.toLowerCase().endsWith('.json'));
 
-        // Import JSON decks
         if (jsonPaths.length > 0) {
           setImporting(true);
           setError(null);
@@ -89,7 +81,6 @@ export function Documents() {
                 "import_study_json_file",
                 { filePath: jsonPath, collectionId: useCollectionStore.getState().activeCollectionId }
               );
-              console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards`);
               useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
             }
             await loadDocuments();
@@ -101,7 +92,6 @@ export function Documents() {
           }
         }
 
-        // Import regular documents
         if (regularPaths.length > 0) {
           const imported = await importFromFiles(regularPaths);
           if (imported.length > 0) {
@@ -153,7 +143,6 @@ export function Documents() {
             "import_study_json_file",
             { filePath: data.filePath, collectionId: useCollectionStore.getState().activeCollectionId }
           );
-          console.log(`Imported "${result.deck_name}": ${result.cards_imported} cards (${result.cards_skipped} duplicates skipped)`);
           useStudyDeckStore.getState().ensureDecksExist([result.deck_name]);
           await loadDocuments();
         } catch (err) {
@@ -178,7 +167,6 @@ export function Documents() {
     }
   };
 
-
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -202,6 +190,7 @@ export function Documents() {
     // Convert FileList to file paths (in Tauri, we'd need to use the file system API)
     // The file.path property is available when files are dragged from the file system
     const filePaths = files
+   
       .map(file => (file as any).path)
       .filter(path => path && typeof path === 'string');
 
@@ -371,6 +360,9 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
       <div 
         onClick={onClick}
         className="cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter") onClick?.(); }}
       >
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-foreground line-clamp-2">
@@ -453,6 +445,8 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
       <div 
         onClick={onClick}
         className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground cursor-pointer"
+          role="button"
+          tabIndex={0}
       >
         <span>{t("documentsLegacy.addedOn", { date: new Date(doc.dateAdded).toLocaleDateString() })}</span>
         {doc.isFavorite && <span>⭐</span>}

@@ -21,10 +21,6 @@ export function usePaneId(): string | undefined {
 // Context to provide tab active status to sub-components
 const ActiveTabContext = createContext<boolean>(true);
 
-/**
- * Hook to get whether the current tab is active/visible.
- * Can be used by heavy components to pause loops/renderers in background tabs.
- */
 export function useIsActiveTab(): boolean {
   return useContext(ActiveTabContext);
 }

@@ -149,10 +149,8 @@ CREATE INDEX IF NOT EXISTS idx_files_sync ON files(user_id, sync_version);
 export async function migrate(): Promise<void> {
   const pool = getPool();
   await pool.query(schema);
-  console.log('Database migration completed');
 }
 
-// CLI entry point
 if (import.meta.url === `file://${process.argv[1]}`) {
   import('./connection.js').then(async ({ initDatabase }) => {
     await initDatabase();

@@ -5,8 +5,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { invokeCommand } from "../lib/tauri";
-import { ObsidianGraph } from "../components/graph/ObsidianGraph";
-import type { ObsidianGraphHandle } from "../components/graph/ObsidianGraph";
+import { ObsidianGraph, type ObsidianGraphHandle } from "../components/graph/ObsidianGraph";
 import { ObsidianSphere } from "../components/graph/ObsidianSphere";
 import { GraphFilterControls, applyGraphFilters, extractGraphMetadata } from "../components/graph/GraphFilters";
 import { NodeDetailView } from "../components/graph/NodeDetailView";
@@ -60,7 +59,6 @@ export function KnowledgeGraphPage() {
   const [graphLinkDistance, setGraphLinkDistance] = useState(120);
   const [graphNodeScale, setGraphNodeScale] = useState(1);
 
-  // Load graph data
   const loadGraphData = useCallback(async () => {
     setIsLoading(true);
 
@@ -193,7 +191,6 @@ export function KnowledgeGraphPage() {
     };
   }, [filters.searchQuery, filteredData]);
 
-  // Extract metadata
   const { categories, tags } = useMemo(() => {
     return extractGraphMetadata(graphData.nodes);
   }, [graphData]);
@@ -215,7 +212,6 @@ export function KnowledgeGraphPage() {
     return counts;
   }, [graphData]);
 
-  // Get selected node data
   const selectedNodeData = useMemo(() => {
     if (!selectedNode) return null;
     const node = graphData.nodes.find((n) => n.id === selectedNode);
@@ -278,7 +274,8 @@ export function KnowledgeGraphPage() {
         break;
     }
   }, [addTab]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const handleNodeEditFallback = useCallback((nodeId: string) => {
     const node = graphData.nodes.find((n) => n.id === nodeId);
     if (!node) return;
@@ -324,7 +321,8 @@ export function KnowledgeGraphPage() {
         break;
     }
   }, [addTab, graphData.nodes, toast]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const handleSaveNodeDetails = useCallback(async (
     nodeId: string,
     updates: {

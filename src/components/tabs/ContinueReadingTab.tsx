@@ -158,6 +158,7 @@ export function ContinueReadingTab() {
                 <button
                   key={doc.id}
                   onClick={() => openDocument(doc)}
+                  aria-label={`Open ${doc.title || "document"}`}
                   className="text-left p-4 bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow border border-border"
                 >
                   <div className="flex items-start justify-between mb-2 gap-2">

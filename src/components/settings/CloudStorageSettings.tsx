@@ -94,14 +94,12 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
   const [oauthUrl, setOauthUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle OAuth callback from URL query params
   useEffect(() => {
     const oauthSuccess = searchParams.get("oauth_success");
     const oauthError = searchParams.get("oauth_error");
     const providerParam = searchParams.get("provider") as CloudProviderType | null;
 
     if (oauthSuccess === "true" && providerParam) {
-      // OAuth was successful
       setState(prev => ({
         ...prev,
         provider: providerParam,
@@ -114,18 +112,15 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
       setConnectingProvider(null);
       setOauthUrl(null);
 
-      // Clean up URL params
       window.history.replaceState({}, "", "/settings");
 
       onChange();
     } else if (oauthError) {
-      // OAuth failed
       setError(decodeURIComponent(oauthError));
       setConnectingProvider(null);
       setOauthUrl(null);
       sessionStorage.removeItem("pending_oauth_provider");
 
-      // Clean up URL params
       window.history.replaceState({}, "", "/settings");
     }
   }, [searchParams, onChange]);

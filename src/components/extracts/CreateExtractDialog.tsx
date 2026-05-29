@@ -79,7 +79,6 @@ export function CreateExtractDialog({
   const { t } = useI18n();
   const { documents } = useDocumentStore();
 
-  // Get the current document for context display
   const currentDocument = documents.find((d) => d.id === documentId);
 
   // Reset form when dialog opens

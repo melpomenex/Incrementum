@@ -88,7 +88,6 @@ impl IdleScanner {
                 let model_id = "distil-small.en";
                 let language = "en";
 
-                // Check if a model is installed
                 let model_manager = match ModelManager::new(&app_handle) {
                     Ok(m) => m,
                     Err(_) => continue,

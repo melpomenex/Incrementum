@@ -13,8 +13,7 @@ import { useDocumentStore } from "../stores/documentStore";
 import type { Document } from "../types/document";
 import { isTauri } from "../lib/tauri";
 import { storeBrowserFile } from "../lib/browser-file-store";
-import type { AppStateExport, ExportMetadata } from "./appStateExport";
-import { APP_STATE_EXPORT_VERSION } from "./appStateExport";
+import { APP_STATE_EXPORT_VERSION, type AppStateExport, type ExportMetadata } from "./appStateExport";
 
 /**
  * Import options
@@ -83,7 +82,6 @@ export function validateExportFile(data: unknown): { valid: boolean; error?: str
 
   const exportData = data as Partial<AppStateExport>;
 
-  // Check metadata
   if (!exportData.metadata) {
     return { valid: false, error: "Missing export metadata" };
   }
@@ -161,7 +159,6 @@ export async function importAppState(
     onProgress?.(progress);
   };
 
-  // Phase 1: Validate
   updateProgress({
     phase: "validating",
     message: "Validating export file...",
@@ -180,12 +177,10 @@ export async function importAppState(
     };
   }
 
-  // Check version compatibility
   if (exportData.metadata.version < APP_STATE_EXPORT_VERSION) {
     result.warnings.push(`Importing from older export format (v${exportData.metadata.version}). Some features may not be restored.`);
   }
 
-  // Phase 2: Import Settings
   if (importSettings && exportData.settings) {
     updateProgress({
       phase: "settings",
@@ -202,7 +197,6 @@ export async function importAppState(
     }
   }
 
-  // Phase 3: Import Collections (before documents so assignments work)
   let collectionIdMap: Record<string, string> = {}; // Maps old IDs to new IDs
 
   if (importCollections && exportData.collections) {
@@ -236,7 +230,6 @@ export async function importAppState(
     }
   }
 
-  // Phase 4: Restore Files (if included)
   const restoredFilePaths: Record<string, string> = {}; // Maps old file paths to new paths
 
   if (importFiles && exportData.files && exportData.fileMappings) {
@@ -284,7 +277,6 @@ export async function importAppState(
 
         result.stats.filesRestored++;
 
-        // Update progress
         if (i % 5 === 0) {
           updateProgress({
             phase: "files",
@@ -300,7 +292,6 @@ export async function importAppState(
     }
   }
 
-  // Phase 5: Import Documents
   const documentIdMap: Record<string, string> = {}; // Maps old IDs to new IDs
 
   if (importDocuments && exportData.documents) {
@@ -319,7 +310,6 @@ export async function importAppState(
       const doc = exportData.documents[i];
       
       try {
-        // Check for duplicates by content hash or file path
         const isDuplicate = documents.some(
           (d) => d.contentHash && d.contentHash === doc.contentHash
         );
@@ -336,13 +326,11 @@ export async function importAppState(
           }
         }
 
-        // Update file path if file was restored
         let newFilePath = doc.filePath;
         if (restoredFilePaths[doc.id]) {
           newFilePath = restoredFilePaths[doc.id];
         }
 
-        // Create document via API
         let newDoc: Document;
         if (isTauri()) {
           const { invokeCommand } = await import("../lib/tauri");
@@ -360,7 +348,6 @@ export async function importAppState(
           });
         }
 
-        // Update document with all metadata including scheduling
         const updates: Partial<Document> = {
           content: doc.content,
           contentHash: doc.contentHash,
@@ -403,10 +390,8 @@ export async function importAppState(
         // Map old ID to new ID
         documentIdMap[doc.id] = newDoc.id;
 
-
         result.stats.documentsImported++;
 
-        // Update progress
         if (i % 5 === 0) {
           updateProgress({
             phase: "documents",
@@ -422,7 +407,6 @@ export async function importAppState(
     }
   }
 
-  // Phase 6: Import Extracts
   if (importExtracts && exportData.extracts) {
     updateProgress({
       phase: "extracts",
@@ -459,7 +443,6 @@ export async function importAppState(
 
         result.stats.extractsImported++;
 
-        // Update progress
         if (i % 10 === 0) {
           updateProgress({
             phase: "extracts",
@@ -475,7 +458,6 @@ export async function importAppState(
     }
   }
 
-  // Phase 7: Import Learning Items
   if (importLearningItems && exportData.learningItems) {
     updateProgress({
       phase: "learningItems",
@@ -513,7 +495,6 @@ export async function importAppState(
 
         result.stats.learningItemsImported++;
 
-        // Update progress
         if (i % 10 === 0) {
           updateProgress({
             phase: "learningItems",
@@ -529,7 +510,6 @@ export async function importAppState(
     }
   }
 
-  // Phase 8: Import UI State (optional, last)
   if (importUIState && exportData.uiState) {
     try {
       useUIStore.setState({

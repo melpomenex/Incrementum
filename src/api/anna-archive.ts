@@ -1,7 +1,5 @@
 import { invokeCommand } from "../lib/tauri";
 
-console.log('[AnnaArchive] Module initialized v3');
-
 /**
  * Get the Anna's Archive URL for a book
  * 
@@ -104,11 +102,9 @@ export async function getAvailableMirrors(): Promise<string[]> {
  * @returns Suggested file path
  */
 export function getSuggestedDownloadPath(book: BookSearchResult, format: BookFormat): string {
-  // Create a safe filename from title and author
   const safeTitle = book.title.replace(/[^a-zA-Z0-9]/g, "_");
   const safeAuthor = book.author?.replace(/[^a-zA-Z0-9]/g, "_") ?? "unknown";
 
-  // Create filename: Author - Title.format
   const filename = `${safeAuthor} - ${safeTitle}.${format}`;
 
   return filename;

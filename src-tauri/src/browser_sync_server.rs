@@ -402,7 +402,6 @@ pub async fn start_server(
     app_handle: AppHandle,
     ai_config: Option<AIConfig>,
 ) -> Result<(), AppError> {
-    // Check if server is already running
     let mut handle = SERVER_HANDLE.lock().await;
     if handle.is_some() {
         return Err(AppError::IntegrationError(
@@ -415,7 +414,6 @@ pub async fn start_server(
         .parse()
         .map_err(|e| AppError::IntegrationError(format!("Invalid address: {}", e)))?;
 
-    // Create server state
     let running = Arc::new(Mutex::new(true));
     let state = ServerState {
         repo: repo.clone(),
@@ -425,13 +423,11 @@ pub async fn start_server(
         automation_api_key: Arc::new(Mutex::new(config.api_key.clone())),
     };
 
-    // Build router with AI, RSS, and Document endpoints
     let app = Router::new()
         // Extension/AI endpoints
         .route("/", post(handle_extension_request))
         .route("/ai/process", post(handle_ai_request))
         .route("/ai/status", get(handle_ai_status))
-        // RSS feed endpoints
         .route("/api/rss/feeds", post(handle_create_feed).get(handle_list_feeds))
         .route("/api/rss/feeds/:id", get(handle_get_feed).put(handle_update_feed).delete(handle_delete_feed))
         .route("/api/rss/feeds/:id/articles", get(handle_get_feed_articles))
@@ -475,10 +471,8 @@ pub async fn start_server(
         .route("/api/rss/feeds/:feed_id/statistics", get(handle_get_feed_statistics))
         .route("/api/rss/feeds/:feed_id/view-prefs", put(handle_set_feed_view_prefs))
         .route("/api/rss/folders/migrate", post(handle_migrate_folders))
-        // Document progress endpoints
         .route("/api/documents/:id", get(handle_get_document))
         .route("/api/documents/:id/progress", post(handle_update_progress))
-        // Podcast endpoints
         .route("/api/podcast/search", get(handle_podcast_search))
         .route("/api/podcast/subscribe", post(handle_podcast_subscribe))
         .route("/api/podcast/feeds", get(handle_podcast_list_feeds))
@@ -493,7 +487,6 @@ pub async fn start_server(
         .route("/api/podcast/episodes/:episode_id/transcript", get(handle_podcast_get_transcript))
         .route("/api/podcast/episodes/:episode_id/cancel-transcription", post(handle_podcast_cancel_transcription))
         .route("/api/podcast/feeds/:feed_id/auto-transcribe", post(handle_podcast_set_auto_transcribe))
-        // Automation API endpoints
         .route("/api/automation/cards", post(handle_automation_create_card))
         .route("/api/automation/reviews/due-count", get(handle_automation_due_count))
         .route("/api/automation/reviews/submit", post(handle_automation_submit_review))
@@ -610,7 +603,6 @@ async fn handle_extension_request(
         payload.r#type, payload.url
     );
 
-    // Check if this is a connection test
     if payload.test.unwrap_or(false) {
         return (
             StatusCode::OK,
@@ -622,7 +614,6 @@ async fn handle_extension_request(
             .into_response();
     }
 
-    // Validate required fields
     if payload.url.is_empty() {
         return error_response(StatusCode::BAD_REQUEST, "Missing required field: url");
     }
@@ -828,7 +819,6 @@ async fn handle_import_request(
             .collect::<Vec<_>>()
     });
 
-    // Check if document with this URL already exists
     let existing = state
         .repo
         .find_document_by_url(&payload.url)
@@ -888,7 +878,6 @@ async fn handle_import_request(
         });
     }
 
-    // Fetch content if not provided
     // For YouTube, we skip fetching raw HTML content as it's not useful for reading
     let content = if payload_content.is_empty() {
         if matches!(file_type, FileType::Youtube) {
@@ -921,7 +910,6 @@ async fn handle_import_request(
         None
     };
 
-    // Create document
     let document = Document {
         id: uuid::Uuid::new_v4().to_string(),
         collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
@@ -1062,7 +1050,6 @@ async fn handle_extract_request(
         } else {
             None
         };
-        // Create a minimal document for this URL
         let document = Document {
             id: uuid::Uuid::new_v4().to_string(),
             collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
@@ -1115,7 +1102,6 @@ async fn handle_extract_request(
     let notes = build_extension_extract_notes(payload);
     let memory_state = extract_memory_state_from_fsrs(payload.fsrs_data.as_ref());
 
-    // Create extract with rich HTML content for visual fidelity
     let extract = Extract {
         id: uuid::Uuid::new_v4().to_string(),
         collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
@@ -1292,7 +1278,6 @@ async fn fetch_page_content(url: &str) -> Result<String, AppError> {
         .await
         .map_err(|e| AppError::IntegrationError(format!("Failed to read response: {}", e)))?;
 
-    // Extract text content from HTML
     Ok(extract_text_from_html(&html))
 }
 
@@ -1547,7 +1532,6 @@ async fn handle_ai_request(
         payload.content.len()
     );
 
-    // Get AI config
     let ai_config = {
         let config_guard = state.ai_config.lock().await;
         config_guard.clone()
@@ -1573,7 +1557,6 @@ async fn handle_ai_request(
         }
     };
 
-    // Create AI provider
     let provider = match AIProvider::from_config(
         config.default_provider,
         &config.api_keys,
@@ -1604,7 +1587,6 @@ async fn handle_ai_request(
     let word_count = calculate_word_count(&payload.content);
     let complexity = estimate_complexity(&payload.content);
 
-    // Process based on operation type
     let mut response = AIResponse {
         success: true,
         summary: None,
@@ -1680,17 +1662,14 @@ async fn handle_ai_request(
             // Get all AI features at once - create separate providers for each operation
             let summarizer = Summarizer::new(provider);
             
-            // Run summarization
             if let Ok(summary) = summarizer.summarize(&payload.content, payload.max_words).await {
                 response.summary = Some(summary);
             }
             
-            // Run key points extraction
             if let Ok(points) = summarizer.extract_key_points(&payload.content, payload.count).await {
                 response.key_points = Some(points);
             }
             
-            // Create new provider for questions
             if let Ok(qa_provider) = AIProvider::from_config(
                 config.default_provider,
                 &config.api_keys,
@@ -1947,7 +1926,6 @@ async fn handle_opml_import(
     State(state): State<ServerState>,
     Json(payload): Json<OpmlImportRequest>,
 ) -> Response {
-    // Parse OPML content
     let parsed_feeds = match parse_opml_content(&payload.opml_content) {
         Ok(feeds) => feeds,
         Err(e) => {
@@ -2120,10 +2098,6 @@ fn escape_xml(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-// ============================================================================
-// RSS User Preferences API Handlers
-// ============================================================================
-
 /// Request to get RSS user preferences
 #[derive(Debug, Deserialize)]
 pub struct GetPreferencesRequest {
@@ -2142,7 +2116,6 @@ async fn handle_get_preferences(
     match state.repo.get_rss_user_preferences(feed_id, user_id).await {
         Ok(Some(prefs)) => (StatusCode::OK, Json(prefs)).into_response(),
         Ok(None) => {
-            // Return default preferences if none exist
             let defaults = RssUserPreference {
                 id: uuid::Uuid::new_v4().to_string(),
                 user_id: user_id.map(|s| s.to_string()),
@@ -2192,10 +2165,6 @@ async fn handle_set_preferences(
         }
     }
 }
-
-// ============================================================================
-// RSS NewsBlur Features API Handlers
-// ============================================================================
 
 /// Handle adding a classifier
 async fn handle_add_classifier(
@@ -2575,9 +2544,6 @@ async fn handle_get_discovered_sites(
 async fn handle_refresh_discoveries(
     State(state): State<ServerState>,
 ) -> Response {
-    // refresh_discoveries is a Tauri command that takes State<'_, Repository>
-    // For HTTP, we do a simplified version: extract domains from recent articles and try RSS auto-discovery
-    // This handler is a placeholder - full discovery requires async HTTP requests
     (StatusCode::OK, Json(serde_json::json!({"discovered": 0}))).into_response()
 }
 
@@ -2639,7 +2605,6 @@ async fn handle_update_folder(
         };
     }
 
-    // Build parameterized update
     if let Some(ref n) = name {
         if let Err(e) = sqlx::query("UPDATE rss_folders SET name = ? WHERE id = ?").bind(n).bind(&id).execute(state.repo.pool()).await {
             return error_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string());
@@ -2775,10 +2740,6 @@ async fn handle_migrate_folders(
     }
 }
 
-// ============================================================================
-// Document Progress API Handlers
-// ============================================================================
-
 /// Handle getting a document by ID
 async fn handle_get_document(
     State(state): State<ServerState>,
@@ -2876,9 +2837,8 @@ pub async fn start_browser_sync_server(
         api_key: loaded_config.api_key,
     };
 
-    // Get AI config from the AI state
     let ai_config = {
-        let guard = ai_state.config.lock().unwrap();
+        let guard = ai_state.config.lock().expect("AI config mutex poisoned");
         guard.clone()
     };
 
@@ -2993,10 +2953,6 @@ pub async fn rotate_automation_api_key() -> Result<String, AppError> {
     Ok(new_key)
 }
 
-// ============================================================================
-// Podcast HTTP handlers
-// ============================================================================
-
 #[derive(Deserialize)]
 struct SubscribeRequest {
     feed_url: String,
@@ -3064,7 +3020,6 @@ async fn handle_podcast_subscribe(
     State(state): State<ServerState>,
     Json(payload): Json<SubscribeRequest>,
 ) -> Response {
-    // Check if already subscribed
     if let Ok(Some(existing)) = state.repo.get_podcast_feed_by_url(&payload.feed_url).await {
         let episode_count = state.repo.count_podcast_episodes(&existing.id).await.unwrap_or(0);
         let unplayed_count = state.repo.count_unplayed_podcast_episodes(&existing.id).await.unwrap_or(0);
@@ -3075,7 +3030,6 @@ async fn handle_podcast_subscribe(
         })).into_response();
     }
 
-    // Fetch and parse the feed
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .user_agent("Incrementum/1.31.0")
@@ -3263,7 +3217,6 @@ async fn handle_podcast_get_episode_queue(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     let include_played = params.get("include_played").map(|v| v == "true").unwrap_or(false);
-    // Get episodes across all feeds
     match state.repo.get_podcast_feeds().await {
         Ok(feeds) => {
             let mut all_episodes: Vec<PodcastEpisode> = Vec::new();
@@ -3322,7 +3275,6 @@ async fn handle_podcast_transcribe(
     axum::extract::Path(episode_id): axum::extract::Path<String>,
     Json(payload): Json<TranscribeRequest>,
 ) -> Response {
-    // Get episode
     let episode = match state.repo.get_podcast_episode_by_id(&episode_id).await {
         Ok(Some(ep)) => ep,
         Ok(None) => return error_response(StatusCode::NOT_FOUND, "Episode not found"),
@@ -3353,7 +3305,6 @@ async fn handle_podcast_transcribe(
         use tokio::io::AsyncWriteExt;
         use std::sync::{Arc, Mutex};
 
-        // --- Download audio ---
         let temp_dir = match app_handle.path().app_data_dir() {
             Ok(d) => d.join("temp_transcription"),
             Err(e) => {
@@ -3405,7 +3356,6 @@ async fn handle_podcast_transcribe(
             return;
         }
 
-        // --- Transcribe ---
         let _ = repo.update_episode_transcript_status(&ep_id, "transcribing", None, None).await;
         let _ = app_handle.emit("podcast://transcription-progress", serde_json::json!({
             "episodeId": &ep_id, "status": "transcribing", "progress": 30

@@ -1,15 +1,5 @@
 import { isTauri } from "./tauri";
 
-/**
- * Browser Extension Bridge for PWA Mode
- *
- * Enables communication between the Incrementum browser extension and the web app
- * when running in PWA/browser mode (without the Tauri desktop backend).
- *
- * The extension's content script sends messages via window.postMessage,
- * and this bridge receives and processes them.
- */
-
 import { createExtract, type CreateExtractInput } from '../api/extracts';
 import * as db from './database';
 
@@ -59,8 +49,6 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
   const message = event.data as ExtensionMessage;
   if (!message || message.source !== 'incrementum-extension') return;
 
-  console.log('[PWA Bridge] Received message:', message.action);
-
   try {
     switch (message.action) {
       case 'ping': {
@@ -100,7 +88,6 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
 
         const { url, title, text, html_content, context, tags } = message.data;
 
-        // Create or find document for this URL
         let docId = `web-${Date.now()}`;
 
         // Try to find existing document by URL
@@ -109,7 +96,6 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
         if (existingDoc) {
           docId = existingDoc.id;
         } else {
-          // Create new document for this URL
           await db.createDocument({
             id: docId,
             title: title || 'Untitled',
@@ -125,7 +111,6 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
           });
         }
 
-        // Create the extract with rich HTML content
         const extractInput: CreateExtractInput = {
           document_id: docId,
           content: text,
@@ -165,7 +150,6 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
 
         const { url, title, text, html_content: _html_content, tags } = message.data;
 
-        // Create document for this page
         const doc = await db.createDocument({
           title: title || 'Untitled',
           file_path: url,
@@ -193,7 +177,6 @@ async function handleExtensionMessage(event: MessageEvent): Promise<void> {
       }
 
       default:
-        console.log('[PWA Bridge] Unknown action:', message.action);
         sendResponse({
           source: 'incrementum-pwa',
           action: message.action,
@@ -255,7 +238,6 @@ function showNotification(title: string, message: string): void {
       toastEl.style.transform = 'translateY(0)';
     });
 
-    // Remove after delay
     setTimeout(() => {
       toastEl.style.opacity = '0';
       toastEl.style.transform = 'translateY(20px)';
@@ -282,7 +264,6 @@ export function initExtensionBridge(): void {
   }, '*');
 
   bridgeInitialized = true;
-  console.log('[PWA Bridge] Browser extension bridge initialized');
 }
 
 /**
@@ -299,5 +280,4 @@ export function cleanupExtensionBridge(): void {
   if (!bridgeInitialized) return;
   window.removeEventListener('message', handleExtensionMessage);
   bridgeInitialized = false;
-  console.log('[PWA Bridge] Browser extension bridge cleaned up');
 }

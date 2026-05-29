@@ -61,14 +61,12 @@ export async function openDatabase(): Promise<IDBDatabase> {
             const target = event.target as IDBOpenDBRequest;
             const database = target.result;
 
-            // Documents store
             if (!database.objectStoreNames.contains(STORES.documents)) {
                 const docStore = database.createObjectStore(STORES.documents, { keyPath: 'id' });
                 docStore.createIndex('by_date_added', 'date_added', { unique: false });
                 docStore.createIndex('by_sync_version', 'sync_version', { unique: false });
             }
 
-            // Extracts store
             if (!database.objectStoreNames.contains(STORES.extracts)) {
                 const extStore = database.createObjectStore(STORES.extracts, { keyPath: 'id' });
                 extStore.createIndex('by_document', 'document_id', { unique: false });
@@ -76,7 +74,6 @@ export async function openDatabase(): Promise<IDBDatabase> {
                 extStore.createIndex('by_sync_version', 'sync_version', { unique: false });
             }
 
-            // Learning items store
             if (!database.objectStoreNames.contains(STORES.learningItems)) {
                 const itemStore = database.createObjectStore(STORES.learningItems, { keyPath: 'id' });
                 itemStore.createIndex('by_document', 'document_id', { unique: false });
@@ -216,8 +213,6 @@ async function deleteById(storeName: string, id: string): Promise<void> {
         request.onerror = () => reject(request.error);
     }));
 }
-
-// ============= Document Operations =============
 
 export interface Document {
     id: string;
@@ -378,8 +373,6 @@ export async function deleteDocument(id: string): Promise<void> {
     }
 }
 
-// ============= Extract Operations =============
-
 export interface MemoryState {
     stability: number;
     difficulty: number;
@@ -441,7 +434,6 @@ export async function createExtract(ext: Partial<Extract>): Promise<Extract> {
         sync_version: 0,
     };
 
-    // Update document extract count
     const doc = await getDocument(ext.document_id!);
     if (doc) {
         await updateDocument(doc.id, { extract_count: doc.extract_count + 1 });
@@ -484,7 +476,6 @@ export async function deleteExtract(id: string): Promise<void> {
         ext.date_modified = new Date().toISOString();
         await put(STORES.extracts, ext);
 
-        // Update document extract count
         const doc = await getDocument(ext.document_id);
         if (doc && doc.extract_count > 0) {
             await updateDocument(doc.id, { extract_count: doc.extract_count - 1 });
@@ -509,8 +500,6 @@ export async function getDueExtracts(): Promise<Extract[]> {
         request.onerror = () => reject(request.error);
     }));
 }
-
-// ============= Learning Item Operations =============
 
 export interface LearningItem {
     id: string;
@@ -545,7 +534,6 @@ export interface LearningItem {
 export async function createLearningItem(item: Partial<LearningItem>): Promise<LearningItem> {
     const fullItem = buildLearningItemRecord(item);
 
-    // Update document learning item count
     if (item.document_id) {
         const doc = await getDocument(item.document_id);
         if (doc) {
@@ -635,7 +623,6 @@ export async function deleteLearningItem(id: string): Promise<void> {
         item.date_modified = new Date().toISOString();
         await put(STORES.learningItems, item);
 
-        // Update document learning item count
         if (item.document_id) {
             const doc = await getDocument(item.document_id);
             if (doc && doc.learning_item_count > 0) {
@@ -663,8 +650,6 @@ export async function getDueLearningItems(): Promise<LearningItem[]> {
     }));
 }
 
-// ============= File Operations =============
-
 export interface StoredFile {
     id: string;
     filename: string;
@@ -676,7 +661,6 @@ export interface StoredFile {
 export async function storeFile(file: File, filePath?: string): Promise<StoredFile> {
     // Use the filePath as the id if provided (for browser-file:// paths)
     const fileId = filePath || uuidv4();
-    console.log(`[IndexedDB] Storing file:`, { fileId, name: file.name, size: file.size, type: file.type });
     const storedFile: StoredFile = {
         id: fileId,
         filename: file.name,
@@ -685,19 +669,16 @@ export async function storeFile(file: File, filePath?: string): Promise<StoredFi
         created_at: new Date().toISOString(),
     };
     const result = await put(STORES.files, storedFile);
-    console.log(`[IndexedDB] File stored successfully:`, fileId);
     return result;
 }
 
 export async function getFile(id: string): Promise<StoredFile | null> {
-    console.log(`[IndexedDB] Looking up file by id:`, id);
     const result = await getById<StoredFile>(STORES.files, id);
-    console.log(`[IndexedDB] File lookup by id result:`, result ? `found (${result.blob?.size} bytes)` : 'not found');
+    console.error(`[IndexedDB] File lookup by id result:`, result ? `found (${result.blob?.size} bytes)` : 'not found');
     return result;
 }
 
 export async function getFileByName(filename: string): Promise<StoredFile | null> {
-    console.log(`[IndexedDB] Looking up file by name:`, filename);
     return withRetry((database) => new Promise((resolve, reject) => {
         const tx = database.transaction(STORES.files, 'readonly');
         const store = tx.objectStore(STORES.files);
@@ -706,7 +687,7 @@ export async function getFileByName(filename: string): Promise<StoredFile | null
             const request = store.getAll();
             request.onsuccess = () => {
                 const match = request.result.find((f: StoredFile) => f.filename === filename) || null;
-                console.log(`[IndexedDB] File lookup by name (fallback) result:`, match ? `found (${match.blob?.size} bytes)` : 'not found');
+                console.error(`[IndexedDB] File lookup by name (fallback) result:`, match ? `found (${match.blob?.size} bytes)` : 'not found');
                 resolve(match);
             };
             request.onerror = () => reject(request.error);
@@ -716,7 +697,7 @@ export async function getFileByName(filename: string): Promise<StoredFile | null
         const request = index.get(filename);
         request.onsuccess = () => {
             const result = request.result || null;
-            console.log(`[IndexedDB] File lookup by name result:`, result ? `found (${result.blob?.size} bytes)` : 'not found');
+            console.error(`[IndexedDB] File lookup by name result:`, result ? `found (${result.blob?.size} bytes)` : 'not found');
             resolve(result);
         };
         request.onerror = () => reject(request.error);
@@ -755,9 +736,6 @@ export async function clearStore(storeName: string): Promise<void> {
     }));
 }
 
-
-// ============= Sync State Operations =============
-
 export async function getSyncState(key: string): Promise<unknown> {
     const result = await getById<{ key: string; value: unknown }>(STORES.syncState, key);
     return result?.value;
@@ -766,8 +744,6 @@ export async function getSyncState(key: string): Promise<unknown> {
 export async function setSyncState(key: string, value: unknown): Promise<void> {
     await put(STORES.syncState, { key, value });
 }
-
-// ============= Bulk Operations for Sync =============
 
 export async function getChangedDocuments(sinceSyncVersion: number): Promise<Document[]> {
     const all = await getAll<Document>(STORES.documents);

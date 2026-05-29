@@ -22,7 +22,6 @@ export function KnowledgeSpherePage() {
     setIsLoading(true);
 
     try {
-      // Fetch data from backend
       const documents = await invokeCommand<any[]>("get_documents", { collectionId: activeCollectionId ?? null });
       const extracts = await invokeCommand<any[]>("get_extracts", { documentId: null });
       const learningItems = await invokeCommand<any[]>("get_all_learning_items");
@@ -34,7 +33,6 @@ export function KnowledgeSpherePage() {
         return doc ? doc.collectionId === activeCollectionId : true;
       };
 
-      // Build nodes array
       const nodeMap = new Map<string, Node>();
 
       // Add document nodes
@@ -102,6 +100,7 @@ export function KnowledgeSpherePage() {
   useEffect(() => {
     loadSphereData();
   }, [activeCollectionId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (

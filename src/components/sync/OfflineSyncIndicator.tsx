@@ -123,6 +123,9 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
           <div
             className="fixed inset-0 z-10"
             onClick={() => setShowMenu(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setShowMenu(false); }}
+            role="button"
+            tabIndex={-1}
           />
 
           {/* Menu */}

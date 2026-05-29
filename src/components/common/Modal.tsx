@@ -121,7 +121,6 @@ export function Modal() {
     }
   };
 
-  // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && modal.visible) {
@@ -135,7 +134,6 @@ export function Modal() {
     }
   }, [modal.visible, modal.closable]);
 
-  // Focus management
   useEffect(() => {
     if (modal.visible && modalRef.current) {
       const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(

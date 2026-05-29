@@ -9,7 +9,6 @@ import { createError } from '../middleware/errorHandler.js';
 
 export const filesRouter = Router();
 
-// Configure multer for file uploads
 const storagePath = process.env.STORAGE_PATH || './uploads';
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
@@ -88,7 +87,6 @@ if (REQUIRE_PAID_FILE_SYNC) {
     filesRouter.use(checkPaidTier);
 }
 
-// Upload a file
 filesRouter.post('/', upload.single('file'), async (req: AuthRequest, res, next) => {
     try {
         if (!req.file) {
@@ -136,7 +134,6 @@ filesRouter.post('/', upload.single('file'), async (req: AuthRequest, res, next)
     }
 });
 
-// Download a file
 filesRouter.get('/:id', async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -158,7 +155,6 @@ filesRouter.get('/:id', async (req: AuthRequest, res, next) => {
     }
 });
 
-// Delete a file
 filesRouter.delete('/:id', async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -176,14 +172,12 @@ filesRouter.delete('/:id', async (req: AuthRequest, res, next) => {
 
             const file = result.rows[0];
             if (file.deleted_at) {
-                // Idempotent delete
                 await client.query('COMMIT');
                 return res.json({ success: true });
             }
 
             const { startVersion } = await allocateSyncVersions(client, req.userId!, 1);
 
-            // Delete from disk
             try {
                 await fs.unlink(file.storage_path);
             } catch {

@@ -34,7 +34,6 @@ function resolveImagePath(
   if (docId) {
     let cleanPath = path;
 
-    // Remove leading ./ if present
     if (cleanPath.startsWith('./')) {
       cleanPath = cleanPath.slice(2);
     }
@@ -45,7 +44,6 @@ function resolveImagePath(
       cleanPath = parts[parts.length - 1];
     }
 
-    // Check if we have a manifest mapping
     const storedName = imageManifest?.[path] || imageManifest?.[cleanPath];
     const pathToUse = storedName || cleanPath;
 
@@ -129,9 +127,7 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       return `${prefix}${latexToHTML(expr)}`;
     });
 
-    // Links
     formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="text-primary underline decoration-dotted underline-offset-4 hover:decoration-solid" href="$2" target="_blank" rel="noreferrer">$1</a>');
-    // Bold
     formatted = formatted.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     // Italic (underscore)
     formatted = formatted.replace(/\b_(.+?)_\b/g, "<em>$1</em>");
@@ -179,7 +175,6 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
     const orderedMatch = line.match(/^\s*\d+\.\s+(.*)$/);
     const hrMatch = line.match(/^\s*((\*\s*){3,}|(-\s*){3,}|(_\s*){3,})\s*$/);
 
-    // Headers
     if (headingMatch) {
       flushList();
       flushBlockquote();
@@ -194,7 +189,6 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       continue;
     }
 
-    // Horizontal rule
     if (hrMatch) {
       flushList();
       flushBlockquote();
@@ -202,14 +196,12 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       continue;
     }
 
-    // Blockquote
     if (blockquoteMatch) {
       flushList();
       blockquoteLines.push(blockquoteMatch[1]);
       continue;
     }
 
-    // Table
     if (hasTablePipe(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
       flushList();
       flushBlockquote();
@@ -251,7 +243,6 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       continue;
     }
 
-    // Unordered list
     if (unorderedMatch) {
       flushBlockquote();
       if (listType !== "ul") {
@@ -263,7 +254,6 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       continue;
     }
 
-    // Ordered list
     if (orderedMatch) {
       flushBlockquote();
       if (listType !== "ol") {
@@ -275,14 +265,12 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
       continue;
     }
 
-    // Empty line
     if (line.trim() === "") {
       flushList();
       flushBlockquote();
       continue;
     }
 
-    // Regular paragraph
     flushList();
     flushBlockquote();
     html += `<p class="my-2">${formatInline(line)}</p>`;

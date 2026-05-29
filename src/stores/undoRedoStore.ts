@@ -68,13 +68,11 @@ export const useUndoRedoStore = create<UndoRedoState>()(
 
       executeCommand: async (command: UndoableCommand) => {
         try {
-          // Execute the command
           await command.execute();
 
           // Add to undo stack
           const newUndoStack = [...get().undoStack, command];
 
-          // Limit stack size
           if (newUndoStack.length > get().maxHistorySize) {
             newUndoStack.shift();
           }

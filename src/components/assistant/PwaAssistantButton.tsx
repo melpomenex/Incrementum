@@ -375,7 +375,6 @@ export function PwaAssistantButton({
   const handleOpen = async () => {
     if (!enabled) return;
 
-    // Check if we have document context
     if (!context.content && context.type === "document" && !context.resolveForPrompt) {
       console.warn("[PwaAssistantButton] No document content available:", { context });
 
@@ -384,11 +383,6 @@ export function PwaAssistantButton({
         setIsExtractingContent(true);
         try {
           const result = await documentsApi.extractDocumentText(context.documentId);
-          console.log("[PwaAssistantButton] Extracted document content:", {
-            hasContent: !!result.content,
-            contentLength: result.content?.length,
-            wasExtracted: result.extracted,
-          });
 
           if (result.content && result.content.length > 0) {
             // Content extracted successfully, update the context
@@ -412,13 +406,6 @@ export function PwaAssistantButton({
         return;
       }
     }
-
-    console.log("[PwaAssistantButton] Opening assistant with context:", {
-      type: context.type,
-      hasContent: !!context.content,
-      contentLength: context.content?.length,
-      documentId: context.documentId,
-    });
 
     setIsOpen(true);
     setError(null);

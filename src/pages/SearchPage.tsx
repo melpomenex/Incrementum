@@ -8,7 +8,6 @@ import {
   Layers,
   X,
   Clock,
-  Hash,
   Folder,
   ChevronRight,
 } from "lucide-react";
@@ -50,6 +49,7 @@ export function SearchPage() {
 
     return () => clearTimeout(handler);
   }, [query, selectedFilters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const performSearch = async () => {
     setIsSearching(true);

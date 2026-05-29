@@ -3,7 +3,7 @@
  * Allows browsing and selecting themes with live preview
  */
 
-import React, { useState } from 'react';
+import { useState } from "react";
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme, ThemeId } from '../../types/theme';
 import { Check, Palette, Download, Upload, Trash2, Eye, Sparkles } from 'lucide-react';

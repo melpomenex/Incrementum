@@ -116,7 +116,6 @@ export function ImportPreview({
   // Duplicate warning state
   const isDuplicate = duplicateCheck.isDuplicate && !isLoading;
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center gap-3 px-4 py-6">
@@ -128,7 +127,6 @@ export function ImportPreview({
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="px-4 py-6">
@@ -190,7 +188,6 @@ export function ImportPreview({
     );
   }
 
-  // Render specific preview based on type
   switch (urlType) {
     case URLType.YouTube:
       return (
@@ -373,7 +370,7 @@ function ImportOptionsUI({
 
         {showCollections && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setShowCollections(false)} />
+            <div className="fixed inset-0 z-10" role="presentation" onClick={() => setShowCollections(false)} />
             <div className="absolute z-20 left-6 top-full mt-1 w-56 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
                 <span className="text-xs font-medium">Collections</span>

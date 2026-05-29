@@ -19,7 +19,6 @@ pub async fn oauth_start(provider_type: String) -> Result<String, String> {
     let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // Create provider instance
     let mut provider: Box<dyn CloudProvider> = match provider_type {
         CloudProviderType::OneDrive => {
             Box::new(OneDriveProvider::new(OneDriveConfig::default()))
@@ -32,7 +31,6 @@ pub async fn oauth_start(provider_type: String) -> Result<String, String> {
         }
     };
 
-    // Start authentication
     provider
         .authenticate()
         .await
@@ -51,7 +49,6 @@ pub async fn oauth_callback(
     let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // Create provider instance
     let mut provider: Box<dyn CloudProvider> = match provider_type {
         CloudProviderType::OneDrive => {
             Box::new(OneDriveProvider::new(OneDriveConfig::default()))
@@ -64,7 +61,6 @@ pub async fn oauth_callback(
         }
     };
 
-    // Handle the callback
     let result = provider
         .handle_callback(&code, &state)
         .await
@@ -118,13 +114,11 @@ pub async fn oauth_disconnect(
     let provider_type = CloudProviderType::from_str(&provider_type)
         .ok_or_else(|| format!("Unknown provider type: {}", provider_type))?;
 
-    // Remove persisted token
     auth_store
         .remove_token(provider_type)
         .await
         .map_err(|e| e.to_string())?;
 
-    // Remove provider from state
     auth_provider.inner().remove_provider(provider_type);
 
     Ok(())

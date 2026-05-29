@@ -24,7 +24,6 @@ authRouter.post('/register', async (req, res, next) => {
         const { email, password } = registerSchema.parse(req.body);
         const pool = getPool();
 
-        // Check if user exists
         const existing = await pool.query(
             'SELECT id FROM users WHERE email = $1',
             [email.toLowerCase()]
@@ -43,7 +42,6 @@ authRouter.post('/register', async (req, res, next) => {
             [userId, email.toLowerCase(), passwordHash]
         );
 
-        // Initialize sync cursor
         await pool.query(
             'INSERT INTO sync_cursors (user_id) VALUES ($1)',
             [userId]
@@ -73,7 +71,6 @@ authRouter.post('/register', async (req, res, next) => {
     }
 });
 
-// Login
 authRouter.post('/login', async (req, res, next) => {
     try {
         const { email, password } = loginSchema.parse(req.body);
@@ -118,7 +115,6 @@ authRouter.post('/login', async (req, res, next) => {
     }
 });
 
-// Verify token (used by clients to check auth status)
 authRouter.get('/verify', async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;

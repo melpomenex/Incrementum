@@ -58,7 +58,6 @@ export function useToastExtract(options?: UseToastExtractOptions) {
         );
         handleAutoSummarization(extract.content).then((summary) => {
           if (summary) {
-            console.log(`Auto-summary generated: ${summary.length} chars`);
           }
         }).catch((err) =>
           console.error("Auto-summarization failed:", err)

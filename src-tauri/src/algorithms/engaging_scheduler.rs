@@ -313,7 +313,6 @@ impl EngagingScheduler {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        // Update topic history based on top items
         self.update_topic_history(&scored);
 
         // Return the scored items (clone to avoid move issues)
@@ -411,7 +410,6 @@ impl EngagingScheduler {
             reasons.push("Topic variety".to_string());
         }
 
-        // Recent addition bonus
         if self.preferences.favor_recent_additions {
             let hours_since_added = (now - item.date_added).num_hours();
             if hours_since_added < self.preferences.recent_window_hours {

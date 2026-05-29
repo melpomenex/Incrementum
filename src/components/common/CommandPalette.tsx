@@ -103,7 +103,6 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
     }
   }, [isOpen]);
 
-  // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const filtered = filteredCommands();
 

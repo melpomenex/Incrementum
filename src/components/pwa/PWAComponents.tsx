@@ -32,7 +32,7 @@ const INSTALL_DISMISS_MS = 3 * 24 * 60 * 60 * 1000;
 function isStandaloneMode() {
   return window.matchMedia("(display-mode: standalone)").matches ||
     window.matchMedia("(display-mode: fullscreen)").matches ||
-    (window.navigator as any).standalone === true;
+    (window.navigator as unknown as { standalone: boolean }).standalone === true;
 }
 
 function isIOSDevice() {
@@ -65,7 +65,6 @@ export function PWAInstallPrompt({
     setIsIOS(ios);
     setIsMobile(mobile);
 
-    // Check if already dismissed
     const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY);
     if (dismissed) {
       const dismissedTime = parseInt(dismissed, 10);

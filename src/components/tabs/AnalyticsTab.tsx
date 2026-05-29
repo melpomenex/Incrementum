@@ -28,7 +28,7 @@ import { useI18n } from "../../lib/i18n";
 
 export function AnalyticsTab() {
   const { addTab } = useTabsStore();
-  const documents = useDocumentStore((state) => state.documents);
+  const _documents = useDocumentStore((state) => state.documents);
   const { t } = useI18n();
   const {
     dashboardStats,

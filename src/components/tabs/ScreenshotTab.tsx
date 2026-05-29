@@ -43,10 +43,8 @@ export function ScreenshotTab() {
     if (!previewImage) return;
 
     try {
-      // Extract base64 data
       const base64Data = previewImage.split(',')[1];
 
-      // Create document from screenshot
       const timestamp = new Date().toISOString();
       const fileName = `screenshot-${timestamp}.png`;
       const docTitle = `Screenshot - ${new Date().toLocaleString()}`;
@@ -72,8 +70,7 @@ export function ScreenshotTab() {
         },
       };
 
-      const savedDoc = await invokeCommand("save_document", { document: documentData });
-      console.log("Screenshot saved:", savedDoc);
+      const _savedDoc = await invokeCommand("save_document", { document: documentData });
 
       // Reset preview and reload
       setPreviewImage(null);
@@ -215,6 +212,9 @@ export function ScreenshotTab() {
                         : "bg-card border border-border hover:bg-muted"
                       }`}
                     onClick={() => setSelectedScreenshot(screenshot)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") setSelectedScreenshot(screenshot); }}
                   >
                     <div className="flex items-center gap-2">
                       {screenshot.content ? (

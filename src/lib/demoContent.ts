@@ -21,15 +21,12 @@ export const DEMO_CONTENT_CONFIG = {
  */
 export async function shouldImportDemoContent(learningItemStore: any): Promise<boolean> {
   if (DEMO_CONTENT_CONFIG.skipImport) {
-    console.log('[Demo Content] Skipped via environment variable');
     return false;
   }
 
-  // Check if there are any existing learning items
   try {
     const items = await learningItemStore?.getItems?.();
     if (items && items.length > 0) {
-      console.log('[Demo Content] Database not empty, skipping import');
       return false;
     }
   } catch (error) {
@@ -46,20 +43,19 @@ export async function getDemoApkgFiles(): Promise<string[]> {
   try {
     const response = await fetch(`${DEMO_CONTENT_CONFIG.baseUrl}/index.json`);
     if (!response.ok) {
-      console.log('[Demo Content] No demo content index found');
+      console.error('[Demo Content] No demo content index found');
       return [];
     }
 
     const contentType = response.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
-      console.log('[Demo Content] Demo content index is not JSON (not deployed)');
       return [];
     }
 
     const index = await response.json();
     return index.apkgFiles || [];
   } catch (error) {
-    console.log('[Demo Content] Could not load demo content index:', error);
+    console.error('[Demo Content] Could not load demo content index:', error);
     return [];
   }
 }
@@ -76,7 +72,6 @@ export async function getDemoBookFiles(): Promise<string[]> {
 
     const contentType = response.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
-      console.log('[Demo Content] Demo content index is not JSON (not deployed)');
       return [];
     }
 
@@ -109,7 +104,6 @@ export async function importDemoApkg(filename: string): Promise<{
   learningItems: Array<{ documentId: string; itemType: string; question: string; answer: string; tags: string[] }>;
 }> {
   const url = `${DEMO_CONTENT_CONFIG.baseUrl}/${filename}`;
-  console.log(`[Demo Content] Loading ${url}`);
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -137,23 +131,17 @@ export async function checkAndImportDemoContent(
     return 0;
   }
 
-  console.log('[Demo Content] Importing demo content...');
-
   let importedCount = 0;
 
-  // Import .apkg files
   const apkgFiles = await getDemoApkgFiles();
   for (const filename of apkgFiles) {
     try {
-      console.log(`[Demo Content] Importing demo APKG: ${filename}`);
       const result = await importDemoApkg(filename);
 
-      // Create documents
       for (const doc of result.documents) {
         await documentStore?.create?.(doc);
       }
 
-      // Create learning items
       for (const item of result.learningItems) {
         await learningItemStore?.create?.(item);
       }
@@ -163,8 +151,6 @@ export async function checkAndImportDemoContent(
       console.error(`[Demo Content] Failed to import ${filename}:`, error);
     }
   }
-
-  console.log(`[Demo Content] Import complete - ${importedCount} file(s) imported`);
 
   return importedCount;
 }

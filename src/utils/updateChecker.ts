@@ -97,7 +97,6 @@ export async function checkForUpdates(
 
     if (!latestVersion || !currentVersion) return null;
 
-    // Check if the latest is actually newer
     if (semverCompare(latestVersion, currentVersion) <= 0) {
       return null; // up-to-date
     }

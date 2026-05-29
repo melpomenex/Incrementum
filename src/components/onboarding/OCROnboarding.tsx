@@ -291,7 +291,6 @@ export function OCROnboarding({ onComplete, onSkip }: OCROnboardingProps) {
 export function useOCROnboarding() {
   const [shouldShow, setShouldShow] = useState(false);
 
-  // Check if onboarding was completed before
   useState(() => {
     const completed = localStorage.getItem("ocr_onboarding_completed");
     const settingsVersion = localStorage.getItem("ocr_settings_version");

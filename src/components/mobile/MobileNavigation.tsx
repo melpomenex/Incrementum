@@ -108,7 +108,6 @@ const primaryNavItems: NavItem[] = [
   },
 ];
 
-// All nav items for reference (used by more menu)
 const allNavItems: NavItem[] = [
   ...primaryNavItems,
   {
@@ -183,7 +182,6 @@ export function MobileNavigation({
     };
   }, []);
   
-  // Handle fullscreen toggle
   const handleFullscreenToggle = async () => {
     await toggleFullscreen();
     setFullscreenState(isFullscreen());
@@ -195,7 +193,6 @@ export function MobileNavigation({
   // 2. Not in PWA fullscreen mode already (manifest display: fullscreen)
   const showFullscreenOption = isFullscreenSupported() && !isPWA();
   
-  // Get active tab ID from the first tab pane
   const activeTabId = useMemo(() => {
     const findFirstTabPane = (pane: typeof rootPane): { type: "tabs"; id: string; tabIds: string[]; activeTabId: string | null } | null => {
       if (pane.type === "tabs") return pane;
@@ -535,16 +532,12 @@ export function MobileSettingsPanel({
             label={t("mobileNav.clearOfflineData")}
             description={t("mobileNav.clearOfflineDataDesc")}
             onClick={() => {
-              // Implement clear cache
-              console.log("Clearing offline data");
             }}
           />
           <ButtonSetting
             label={t("mobileNav.downloadForOffline")}
             description={t("mobileNav.downloadForOfflineDesc")}
             onClick={() => {
-              // Implement offline download
-              console.log("Downloading for offline");
             }}
           />
         </div>
@@ -553,8 +546,6 @@ export function MobileSettingsPanel({
         <div className="mobile-settings-footer">
           <button
             onClick={() => {
-              // Save settings
-              console.log("Saving settings:", settings);
               onClose();
             }}
             className="mobile-settings-save"
@@ -582,7 +573,6 @@ export function PWastatusIndicator() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Check PWA status
     const checkPWA = () => {
       setIsPWA(
         window.matchMedia("(display-mode: standalone)").matches ||

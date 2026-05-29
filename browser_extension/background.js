@@ -1,3 +1,4 @@
+/* globals chrome */
 // Background service worker for Incrementum Browser Sync
 // Handles tab monitoring, bookmark syncing, and communication with Incrementum
 
@@ -44,7 +45,7 @@ async function resolveExtractToastTabId(sender, extract) {
       return tab.id;
     }
   } catch (error) {
-    console.log('[DEBUG] Could not resolve toast tab id:', error.message);
+    console.error('[DEBUG] Could not resolve toast tab id:', error.message);
   }
 
   return null;
@@ -78,7 +79,6 @@ async function queueExtractForSync(data) {
   const pending = await getPendingExtracts();
   pending.push(queuedPayload);
   await setPendingExtracts(pending);
-  console.log('[DEBUG] Queued extract for later sync:', queuedPayload.queueId);
   return queuedPayload;
 }
 
@@ -139,7 +139,6 @@ async function flushQueuedExtracts() {
     }
 
     await setPendingExtracts(remaining);
-    console.log('[DEBUG] Flush queued extracts result:', { flushed, remaining: remaining.length });
     return { success: true, flushed, remaining: remaining.length };
   } finally {
     flushInProgress = false;
@@ -160,19 +159,13 @@ async function flushQueuedExtractsIfPossible() {
   return flushQueuedExtracts();
 }
 
-// Load settings and update base URL
 async function loadSettings() {
   try {
     const settings = await chrome.storage.sync.get(['serverUrl', 'browserSyncPort', 'enableContextMenu', 'enableNotifications']);
-    console.log('[DEBUG] Raw settings from storage:', settings);
 
-    // Build URL from components
     let serverUrl = settings.serverUrl || '127.0.0.1';
     let port = settings.browserSyncPort || 8766;
 
-    console.log('[DEBUG] Using serverUrl:', serverUrl, 'port:', port);
-
-    // Remove any existing port from serverUrl to avoid duplication
     serverUrl = serverUrl.replace(/:\d+$/, '');
 
     // Ensure serverUrl has protocol
@@ -188,65 +181,52 @@ async function loadSettings() {
 
     ENABLE_CONTEXT_MENU = settings.enableContextMenu !== false;
     ENABLE_NOTIFICATIONS = settings.enableNotifications !== false;
-    console.log('[DEBUG] Constructed final URL:', INCREMENTUM_BASE_URL);
   } catch (error) {
     console.error('[DEBUG] Error loading settings:', error);
     INCREMENTUM_BASE_URL = 'http://127.0.0.1:8766'; // Fallback
     ENABLE_CONTEXT_MENU = true;
     ENABLE_NOTIFICATIONS = true;
-    console.log('[DEBUG] Using fallback URL:', INCREMENTUM_BASE_URL);
   }
 }
 
-// Initialize extension
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('Incrementum Browser Sync installed');
 
-  // Load extension settings
   await loadSettings();
 
-  // Create context menu items
   refreshContextMenus();
   await flushQueuedExtractsIfPossible();
 });
 
 // Service worker startup event
 chrome.runtime.onStartup.addListener(async () => {
-  console.log('[DEBUG] Service worker starting up');
   await loadSettings();
   refreshContextMenus();
   await flushQueuedExtractsIfPossible();
 });
 
 chrome.runtime.onSuspend.addListener(() => {
-  console.log('[DEBUG] Service worker suspending, cleaning transient state');
   keepAliveCount = 0;
 });
 
 // Keep service worker active when needed
-chrome.action.onClicked.addListener((tab) => {
-  console.log('[DEBUG] Extension icon clicked');
+chrome.action.onClicked.addListener((_tab) => {
+  // Intentionally empty: placeholder for future popup toggle behavior
 });
 
-
-// Create context menu items
 function createContextMenus() {
   chrome.contextMenus.removeAll(() => {
-    // Save page context menu
     chrome.contextMenus.create({
       id: 'save-page',
       title: '💾 Save to Incrementum',
       contexts: ['page']
     });
 
-    // Save link context menu
     chrome.contextMenus.create({
       id: 'save-link',
       title: '🔗 Save Link to Incrementum',
       contexts: ['link']
     });
 
-    // Extract selection context menu
     chrome.contextMenus.create({
       id: 'create-extract',
       title: '📝 Create Extract',
@@ -266,7 +246,6 @@ function refreshContextMenus() {
   }
 }
 
-// Handle context menu clicks
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   switch (info.menuItemId) {
     case 'save-page':
@@ -287,33 +266,27 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// Handle messages from popup and content scripts
 // NOTE: In MV3, onMessage listeners must not be `async`, otherwise the returned Promise
 // can cause Chrome to close the message channel before `sendResponse()` runs.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[DEBUG] Background received message:', message?.action, message);
 
   (async () => {
     try {
       switch (message.action) {
         case 'getStatus': {
           const statusResponse = await getStatus();
-          console.log('[DEBUG] getStatus response:', statusResponse);
           sendResponse(statusResponse);
           break;
         }
 
         case 'saveCurrentTab': {
-          console.log('[DEBUG] Processing saveCurrentTab request');
           try {
             const saveResponse = await saveCurrentTab();
-            console.log('[DEBUG] saveCurrentTab response:', saveResponse);
             sendResponse(saveResponse);
-            console.log('[DEBUG] saveCurrentTab response sent');
           } catch (error) {
             console.error('[DEBUG] Error in saveCurrentTab handler:', error);
             sendResponse({ success: false, error: error.message });
-            console.log('[DEBUG] saveCurrentTab error response sent');
+            console.error('[DEBUG] saveCurrentTab error response sent');
           }
           break;
         }
@@ -353,9 +326,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case 'settingsChanged':
           // Reload settings when they change
           await loadSettings();
-          console.log('Settings reloaded after change, new URL:', INCREMENTUM_BASE_URL);
 
-          // Update context menus if needed
           if (message.settings && message.settings.enableContextMenu !== undefined) {
             ENABLE_CONTEXT_MENU = message.settings.enableContextMenu !== false;
             refreshContextMenus();
@@ -440,7 +411,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         default:
-          console.log('[DEBUG] Unknown action:', message.action);
           sendResponse({ success: false, error: 'Unknown action' });
       }
     } catch (error) {
@@ -452,11 +422,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Keep message channel open for async response
 });
 
-// Get connection status
 async function getStatus(options = {}) {
   try {
     await loadSettings();
-    console.log('Status check - URL:', INCREMENTUM_BASE_URL);
 
     // Since BrowserSyncServer only handles POST requests, test connectivity differently
     // Try to make a simple POST request with minimal data to test server availability
@@ -468,7 +436,6 @@ async function getStatus(options = {}) {
       body: JSON.stringify({ test: true, source: 'status_check' })
     });
 
-    console.log('Status check response:', response.status, response.ok);
     // Any response (including 400) means the server is reachable
     if (options.flushQueue !== false) {
       await flushQueuedExtracts();
@@ -485,12 +452,9 @@ async function getStatus(options = {}) {
 // Test connection
 async function testConnection() {
   try {
-    console.log('[DEBUG] testConnection() called');
     await loadSettings();
-    console.log('[DEBUG] Connection test - URL:', INCREMENTUM_BASE_URL);
 
     const requestBody = JSON.stringify({ test: true, source: 'connection_test', timestamp: new Date().toISOString() });
-    console.log('[DEBUG] Sending POST request with body:', requestBody);
 
     // Test with a simple POST request since that's what the server expects
     const response = await fetch(browserSyncEndpoint(), {
@@ -501,7 +465,6 @@ async function testConnection() {
       body: requestBody
     });
 
-    console.log('[DEBUG] Connection test response:', response.status, response.ok);
     // Any response means the server is running
     const flushResult = await flushQueuedExtracts();
     const pending = await getPendingExtracts();
@@ -514,29 +477,22 @@ async function testConnection() {
   }
 }
 
-// Save current tab
 async function saveCurrentTab() {
   try {
-    console.log('[DEBUG] saveCurrentTab function started');
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log('[DEBUG] Active tab:', tab ? { id: tab.id, url: tab.url, title: tab.title } : 'null');
 
     if (!tab || isInternalUrl(tab.url)) {
-      console.log('[DEBUG] Cannot save - internal URL or no tab');
+      console.error('[DEBUG] Cannot save - internal URL or no tab');
       return { success: false, error: 'Cannot save internal browser pages' };
     }
 
-    console.log('[DEBUG] Calling savePage with:', tab.url, tab.title);
     const result = await savePage(tab.url, tab.title);
-    console.log('[DEBUG] savePage result:', result);
 
     if (result.success) {
-      console.log('[DEBUG] savePage successful, showing notification');
       await sendInPageToast(tab.id, result.success, 'Page saved to Incrementum!');
     }
 
-    console.log('[DEBUG] saveCurrentTab returning result:', result);
     return result;
   } catch (error) {
     console.error('[DEBUG] Error in saveCurrentTab:', error);
@@ -544,7 +500,6 @@ async function saveCurrentTab() {
   }
 }
 
-// Save all tabs
 async function saveAllTabs() {
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
@@ -574,12 +529,10 @@ async function saveAllTabs() {
 
 async function sendToIncrementum(data, options = {}) {
   try {
-    console.log('[DEBUG] sendToIncrementum called with:', data);
     await loadSettings();
 
     // Use the root endpoint as expected by BrowserSyncServer
     const endpoint = browserSyncEndpoint();
-    console.log('[DEBUG] sendToIncrementum endpoint:', endpoint);
 
     const trimmedText = (data.text || '').trim();
 
@@ -600,8 +553,6 @@ async function sendToIncrementum(data, options = {}) {
       fsrs_data: data.fsrs_data
     });
 
-    console.log('[DEBUG] sendToIncrementum request body:', requestBody);
-
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -609,8 +560,6 @@ async function sendToIncrementum(data, options = {}) {
       },
       body: requestBody
     });
-
-    console.log('[DEBUG] sendToIncrementum response:', response.status, response.ok);
 
     if (response.ok) {
       // The BrowserSyncServer returns 200 OK without JSON body
@@ -629,7 +578,6 @@ async function sendToIncrementum(data, options = {}) {
     return { success: false, error: error.message, retryable: true };
   }
 }
-// Save link by opening a tab, extracting content, and saving
 async function saveLink(url, sourceTabId, linkText) {
   // Resolve a title without opening a tab — use link text or hostname
   let fallbackTitle = '';
@@ -643,7 +591,6 @@ async function saveLink(url, sourceTabId, linkText) {
   const title = resolvedLinkText || fallbackTitle;
 
   try {
-    console.log('[DEBUG] Saving link as URL-only import:', url);
     const result = await sendToIncrementum({
       url,
       title,
@@ -659,7 +606,6 @@ async function saveLink(url, sourceTabId, linkText) {
     return { success: false, error: error.message };
   }
 }
-
 
 async function savePage(url, title) {
   try {
@@ -681,7 +627,7 @@ async function savePage(url, title) {
           extractedImages = response.page?.extracted_images;
         }
       } catch (error) {
-        console.log('[DEBUG] Could not get content from content script:', error.message);
+        console.error('[DEBUG] Could not get content from content script:', error.message);
       }
     }
 
@@ -745,10 +691,9 @@ async function sendInPageToast(tabId, success, message) {
       }
     }
   } catch (error) {
-    console.log('[DEBUG] Could not send in-page toast:', error.message);
+    console.error('[DEBUG] Could not send in-page toast:', error.message);
   }
 }
-
 
 // Helper function to check if URL is internal
 function isInternalUrl(url) {
@@ -767,7 +712,6 @@ function isInternalUrl(url) {
   return internalPrefixes.some(prefix => url.startsWith(prefix));
 }
 
-// Handle keyboard shortcuts
 chrome.commands.onCommand.addListener(async (command) => {
   switch (command) {
     case 'save-current-tab':
@@ -813,7 +757,7 @@ async function quickExtract() {
       if (response && response.success && response.text) {
         await createExtractFromSelection(response.text, tab);
       } else {
-        console.log('No text selected for quick extract');
+        console.warn('[DEBUG] No selection text available for quick extract');
       }
     }
   } catch (error) {
@@ -838,8 +782,6 @@ async function requestAIAnalysis(data) {
   try {
     await loadSettings();
     const endpoint = `${INCREMENTUM_BASE_URL}/ai/process`;
-
-    console.log('[DEBUG] Requesting AI analysis:', endpoint);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -868,7 +810,6 @@ async function requestAIAnalysis(data) {
     }
 
     const result = await response.json();
-    console.log('[DEBUG] AI response:', result);
     return result;
 
   } catch (error) {
@@ -880,7 +821,6 @@ async function requestAIAnalysis(data) {
   }
 }
 
-// Check AI status from desktop app
 async function checkAIStatus() {
   try {
     await loadSettings();
@@ -905,5 +845,3 @@ async function checkAIStatus() {
     return { configured: false, error: error.message };
   }
 }
-
-console.log('Incrementum background script loaded');

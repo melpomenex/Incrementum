@@ -83,7 +83,6 @@ export function exportStatisticsToCSV(
   let csv = "Period,Start Date,End Date\n";
   csv += `${data.period},${data.startDate.toISOString()},${data.endDate.toISOString()}\n\n`;
 
-  // Review Statistics
   csv += "Review Statistics\n";
   csv += "Metric,Value\n";
   csv += `Total Reviews,${data.reviewStats.totalReviews}\n`;
@@ -91,7 +90,6 @@ export function exportStatisticsToCSV(
   csv += `Average Rating,${data.reviewStats.averageRating}\n`;
   csv += `Completion Rate,${data.reviewStats.completionRate}\n\n`;
 
-  // Learning Progress
   csv += "Learning Progress\n";
   csv += "Metric,Value\n";
   csv += `Cards Learned,${data.learningProgress.cardsLearned}\n`;
@@ -100,7 +98,6 @@ export function exportStatisticsToCSV(
   csv += `Total Study Time,${data.learningProgress.totalStudyTime}\n`;
   csv += `Streak Days,${data.learningProgress.streakDays}\n\n`;
 
-  // Category Performance
   csv += "Category Performance\n";
   csv += "Category,Total Cards,Average Retention,Total Reviews\n";
   data.categoryPerformance.forEach((cat) => {
@@ -108,7 +105,6 @@ export function exportStatisticsToCSV(
   });
   csv += "\n";
 
-  // Time Series Data
   csv += "Time Series Data\n";
   csv += "Date,Reviews,Retention,Study Time\n";
   data.timeSeriesData.forEach((row) => {
@@ -146,17 +142,14 @@ export function exportStatisticsToPNG(
   canvas.width = 1200;
   canvas.height = 800;
 
-  // Draw background
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw title
   ctx.fillStyle = "#000000";
   ctx.font = "bold 24px Arial";
   ctx.textAlign = "center";
   ctx.fillText("Statistics Report", canvas.width / 2, 50);
 
-  // Draw period
   ctx.font = "16px Arial";
   ctx.fillText(
     `${data.period.toUpperCase()}: ${formatDate(data.startDate)} - ${formatDate(data.endDate)}`,
@@ -178,7 +171,6 @@ export function exportStatisticsToPNG(
   ctx.fillText(`Completion Rate: ${(data.reviewStats.completionRate * 100).toFixed(1)}%`, 50, y);
   y += 50;
 
-  // Draw learning progress
   ctx.fillText("Learning Progress", 50, y);
   y += 30;
   ctx.fillText(`Cards Learned: ${data.learningProgress.cardsLearned}`, 70, y);
@@ -189,7 +181,6 @@ export function exportStatisticsToPNG(
   y += 25;
   ctx.fillText(`Streak: ${data.learningProgress.streakDays} days`, 70, y);
 
-  // Export
   canvas.toBlob((blob) => {
     if (blob) {
       const url = URL.createObjectURL(blob);
@@ -293,7 +284,6 @@ export function exportStatisticsToPDF(
   data: StatisticsData,
   _filename = "statistics-report.pdf"
 ): void {
-  // Create a print-friendly HTML document
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
 

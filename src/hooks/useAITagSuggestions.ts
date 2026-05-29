@@ -50,7 +50,6 @@ Provide 3-7 relevant tags. Only respond with the JSON array, no additional text.
 
       const response = await answerQuestion(prompt, contentPreview);
 
-      // Parse the JSON response
       let parsedTags: TagSuggestion[] = [];
 
       try {
@@ -74,7 +73,6 @@ Provide 3-7 relevant tags. Only respond with the JSON array, no additional text.
         }
       }
 
-      // Validate and clean up suggestions
       const validSuggestions = parsedTags
         .filter((s) => s.tag && typeof s.tag === "string")
         .map((s) => ({
@@ -118,7 +116,6 @@ export function generateBasicTags(content: string, title?: string): TagSuggestio
   const lowerContent = content.toLowerCase();
   const lowerTitle = title?.toLowerCase() || "";
 
-  // Check for topic keywords
   const topicKeywords: Record<string, string[]> = {
     "programming": ["code", "function", "variable", "algorithm", "programming", "developer", "software"],
     "science": ["experiment", "hypothesis", "research", "study", "scientific", "data"],
@@ -146,7 +143,6 @@ export function generateBasicTags(content: string, title?: string): TagSuggestio
     }
   }
 
-  // Check for content type
   if (lowerContent.includes("step 1") || lowerContent.includes("how to") || lowerContent.includes("tutorial")) {
     suggestions.push({ tag: "tutorial", confidence: "high", category: "type" });
   }
@@ -157,7 +153,6 @@ export function generateBasicTags(content: string, title?: string): TagSuggestio
     suggestions.push({ tag: "reference", confidence: "medium", category: "type" });
   }
 
-  // Check for difficulty indicators
   if (lowerContent.includes("introduction") || lowerContent.includes("basics") || lowerContent.includes("beginner")) {
     suggestions.push({ tag: "beginner", confidence: "medium", category: "difficulty" });
   }

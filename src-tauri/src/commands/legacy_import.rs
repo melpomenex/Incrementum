@@ -550,7 +550,6 @@ fn parse_extract_row(row: &sqlx::sqlite::SqliteRow) -> Result<Extract> {
     let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".to_string());
     let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-    // Parse FSRS memory state
     let stability: Option<f64> = row.try_get("memory_state_stability").ok();
     let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
     let memory_state = match (stability, difficulty) {

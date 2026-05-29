@@ -3058,7 +3058,6 @@ export const zh: Dict = {
     "在网页应用中，播放列表导入是一次性操作。视频将作为单独的文档导入。如需自动导入和队列穿插功能，请使用桌面应用。",
   "youtubePlaylist.youtubeApiConfig": "YouTube Data API 配置",
 
-  // --- Focus Timer ---
   "focusTimer.focus": "专注",
   "focusTimer.shortBreak": "短休息",
   "focusTimer.longBreak": "长休息",
@@ -3097,7 +3096,6 @@ export const zh: Dict = {
   "focusTimer.timerConfigUpdated": "计时器配置已更新",
   "focusTimer.failedToUpdateSettings": "更新设置失败",
 
-  // --- Offline / PWA ---
   "offline.pendingSync": "待同步",
   "offline.offline": "离线",
   "offline.downloading": "下载中...",
@@ -3118,7 +3116,6 @@ export const zh: Dict = {
   "offline.updateReady": "新版本已准备就绪，可以安装。",
   "offline.update": "更新",
 
-  // --- Vimium Navigation ---
   "vimium.findPlaceholder": "在页面中查找...",
   "vimium.commandPlaceholder": "输入命令...",
   "vimium.noCommandsFound": "未找到命令",
@@ -3945,7 +3942,6 @@ export const zh: Dict = {
   "documentsView.installYtdlp": "安装 yt-dlp",
   "documentsView.manualInstallGuide": "手动安装指南",
 
-  // --- Documents View: Additional missing keys ---
   "documentsView.archiveTitle": "归档文档",
   "documentsView.archiveMessage":
     "归档 {count} 个文档？归档的文档将从主视图中隐藏，但可以随时恢复。",
@@ -3985,7 +3981,6 @@ export const zh: Dict = {
   "documentsView.bulkMove": "批量移动",
   "documentsView.bulkReprioritize": "批量调整优先级",
 
-  // --- Graph controls ---
   "graph.resetRotation": "重置旋转",
 
   "graph.fitToView": "适应视图",
@@ -4014,7 +4009,6 @@ export const zh: Dict = {
   "performanceMonitor.empty": "尚未记录性能指标。",
   "performanceMonitor.legend": "图例：",
 
-  // --- Schedule View ---
   "schedule.title": "日程",
   "schedule.timeline": "日程",
   "schedule.allUpcoming": "全部待办",

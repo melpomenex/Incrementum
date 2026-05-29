@@ -3,7 +3,7 @@
  * Automatically extracts text and key phrases from documents on load
  */
 
-import { invokeCommand as invoke } from "../lib/tauri";
+import { invokeCommand as invoke, isTauri } from "../lib/tauri";
 import {
   ocrImageFile,
   getGLMRuntimeStatus,
@@ -11,7 +11,6 @@ import {
   updateOCRConfig,
   type OCRConfig,
 } from "../api/ocrCommands";
-import { isTauri } from "../lib/tauri";
 import { useSettingsStore } from "../stores/settingsStore";
 import { detectMathContent, extractMathFromText } from "./mathOcr";
 import {
@@ -174,7 +173,6 @@ export async function extractDocumentOnLoad(
     },
   };
 
-  // Check if we should perform OCR
   const shouldOCR = ocr.autoOCR || ocr.autoExtractOnLoad;
   const isPDF = fileType === "pdf";
   const isImage = ["png", "jpg", "jpeg", "tiff", "bmp", "gif"].includes(fileType);
@@ -230,7 +228,6 @@ export async function extractDocumentOnLoad(
 
   // If we have text, process it
   if (result.text) {
-    // Extract key phrases
     if (ocr.keyPhraseExtraction) {
       result.keyPhrases = await extractKeyPhrases(result.text, {
         maxPhrases: 15,
@@ -243,7 +240,6 @@ export async function extractDocumentOnLoad(
       });
     }
 
-    // Extract math expressions
     if (ocr.mathOcrEnabled) {
       const mathDetection = detectMathContent(result.text);
       if (mathDetection.hasMath) {
@@ -254,7 +250,6 @@ export async function extractDocumentOnLoad(
     // Calculate statistics
     result.statistics = getTextStatistics(result.text);
 
-    // Generate summary
     result.summary = extractSummary(result.text, {
       maxSentences: 3,
       keyPhrases: result.keyPhrases,
@@ -319,14 +314,12 @@ export async function extractFromPDF(
     }
 
     if (result.text) {
-      // Extract key phrases
       if (ocr.keyPhraseExtraction) {
         result.keyPhrases = await extractKeyPhrases(result.text);
       } else {
         result.keyPhrases = extractKeyPhrasesFrontend(result.text);
       }
 
-      // Extract math if enabled
       if (options.extractMath || ocr.mathOcrEnabled) {
         result.mathExpressions = extractMathFromText(result.text);
       }
@@ -412,7 +405,6 @@ export async function extractFromImage(
     }
 
     if (result.text) {
-      // Extract key phrases
       if (ocr.keyPhraseExtraction) {
         result.keyPhrases = await extractKeyPhrases(result.text);
       } else {
@@ -497,7 +489,6 @@ export async function autoExtractWithCache(
   filePath: string,
   fileType: string
 ): Promise<DocumentExtractResult> {
-  // Check cache first
   const cached = loadCachedExtractionResult(documentId);
   if (cached) {
     return cached;
@@ -506,7 +497,6 @@ export async function autoExtractWithCache(
   // Perform extraction
   const result = await extractDocumentOnLoad(documentId, filePath, fileType);
 
-  // Cache the result
   if (result.text || result.keyPhrases.length > 0) {
     cacheExtractionResult(documentId, result);
   }

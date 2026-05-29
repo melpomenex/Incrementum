@@ -16,7 +16,7 @@ type AnimCtx = {
   /** Particle-count multiplier (0.25–2). Animations should multiply their base count by this. */
   density: number;
   /** Minimum ms between frames (0 = uncapped). Default 33ms (~30fps) */
-  frameInterval: number;
+  _frameInterval: number;
   /** Register a timer that will be cleaned up on stop */
   timer: (id: number) => void;
   /** Register a resize listener (auto-cleaned) */
@@ -31,7 +31,7 @@ type AnimFn = (a: AnimCtx) => void;
 
 const _ANIM: Record<string, AnimFn> = {
   /* ── rain ──────────────────────────────────────────────────── */
-  rain({ cv, ctx, density, frameInterval, timer, frame, shouldRender }) {
+  rain({ cv, ctx, density, _frameInterval, timer, frame, shouldRender }) {
     const drops: { x: number; y: number; len: number; speed: number; opacity: number }[] = [];
     for (let i = 0; i < Math.round(150 * density); i++)
       drops.push({
@@ -79,7 +79,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── deepspace ─────────────────────────────────────────────── */
-  deepspace({ cv, ctx, density, frameInterval, timer, frame, shouldRender }) {
+  deepspace({ cv, ctx, density, _frameInterval, timer, frame, shouldRender }) {
     const stars: { x: number; y: number; r: number; speed: number; tw: number }[] = [];
     for (let i = 0; i < Math.round(200 * density); i++)
       stars.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() * 1.5 + 0.3, speed: Math.random() * 0.2 + 0.05, tw: Math.random() * Math.PI * 2 });
@@ -109,7 +109,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── snowfall ──────────────────────────────────────────────── */
-  snowfall({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  snowfall({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const flakes: { x: number; y: number; r: number; speed: number; w: number; ws: number; opacity: number }[] = [];
     for (let i = 0; i < Math.round(120 * density); i++)
       flakes.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() * 2.5 + 0.8, speed: Math.random() * 1 + 0.5, w: Math.random() * Math.PI * 2, ws: Math.random() * 0.02 + 0.01, opacity: Math.random() * 0.6 + 0.3 });
@@ -126,7 +126,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── fireflies ─────────────────────────────────────────────── */
-  fireflies({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  fireflies({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const flies: { x: number; y: number; vx: number; vy: number; phase: number; r: number }[] = [];
     for (let i = 0; i < Math.round(50 * density); i++)
       flies.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, phase: Math.random() * Math.PI * 2, r: Math.random() * 2 + 1 });
@@ -149,7 +149,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── aurora ────────────────────────────────────────────────── */
-  aurora({ cv, ctx, frameInterval, frame, shouldRender }) {
+  aurora({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let t = 0;
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
       ctx.clearRect(0, 0, cv.width, cv.height); t += 0.005;
@@ -168,7 +168,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── digitalrain ───────────────────────────────────────────── */
-  digitalrain({ cv, ctx, frameInterval, frame, shouldRender }) {
+  digitalrain({ cv, ctx, _frameInterval, frame, shouldRender }) {
     const cols = Math.floor(cv.width / 14);
     const ypos = Array.from({ length: cols }, () => Math.random() * cv.height);
     const chars = "01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン";
@@ -190,7 +190,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── neongrid ──────────────────────────────────────────────── */
-  neongrid({ cv, ctx, frameInterval, frame, shouldRender }) {
+  neongrid({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let offset = 0;
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
       ctx.clearRect(0, 0, cv.width, cv.height); offset = (offset + 0.5) % 50;
@@ -213,7 +213,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── underwater ────────────────────────────────────────────── */
-  underwater({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  underwater({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const bubbles: { x: number; y: number; r: number; speed: number; w: number }[] = [];
     for (let i = 0; i < Math.round(60 * density); i++)
       bubbles.push({ x: Math.random() * cv.width, y: cv.height + Math.random() * cv.height, r: Math.random() * 4 + 1, speed: Math.random() * 1.5 + 0.3, w: Math.random() * Math.PI * 2 });
@@ -232,7 +232,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── cherryblossom ─────────────────────────────────────────── */
-  cherryblossom({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  cherryblossom({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const petals: { x: number; y: number; r: number; speed: number; drift: number; rot: number; rs: number; opacity: number }[] = [];
     for (let i = 0; i < Math.round(80 * density); i++)
       petals.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() * 4 + 2, speed: Math.random() * 1 + 0.3, drift: Math.random() * 0.5 + 0.2, rot: Math.random() * Math.PI * 2, rs: Math.random() * 0.03 + 0.01, opacity: Math.random() * 0.6 + 0.15 });
@@ -251,7 +251,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── starwarp ──────────────────────────────────────────────── */
-  starwarp({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  starwarp({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const stars: { x: number; y: number; z: number }[] = [];
     for (let i = 0; i < Math.round(200 * density); i++)
       stars.push({ x: (Math.random() - 0.5) * cv.width, y: (Math.random() - 0.5) * cv.height, z: Math.random() * 1000 + 1 });
@@ -275,7 +275,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── ember ─────────────────────────────────────────────────── */
-  ember({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  ember({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const sparks: { x: number; y: number; vx: number; vy: number; life: number; r: number }[] = [];
     for (let i = 0; i < Math.round(70 * density); i++)
       sparks.push({ x: Math.random() * cv.width, y: cv.height + Math.random() * 100, vx: (Math.random() - 0.5) * 0.5, vy: -(Math.random() * 1.5 + 0.5), life: Math.random(), r: Math.random() * 2 + 0.5 });
@@ -293,7 +293,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── nebula ────────────────────────────────────────────────── */
-  nebula({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  nebula({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const clouds: { x: number; y: number; r: number; vx: number; vy: number; hue: number; phase: number }[] = [];
     for (let i = 0; i < Math.round(40 * density); i++) {
       const hue = Math.random() * 360;
@@ -315,7 +315,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── confetti ──────────────────────────────────────────────── */
-  confetti({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  confetti({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const colors = ["#ff4466", "#44ff66", "#4488ff", "#ffaa00", "#ff44ff", "#44ffff", "#ffff44"];
     const pieces: { x: number; y: number; w: number; h: number; rot: number; rs: number; speed: number; drift: number; color: string; opacity: number }[] = [];
     for (let i = 0; i < Math.round(80 * density); i++)
@@ -335,7 +335,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── campfire ──────────────────────────────────────────────── */
-  campfire({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  campfire({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const embers: { x: number; ox: number; y: number; vy: number; life: number; r: number; w: number }[] = [];
     for (let i = 0; i < Math.round(90 * density); i++) {
       const x = cv.width * 0.3 + Math.random() * cv.width * 0.4;
@@ -358,7 +358,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── oceanwaves ────────────────────────────────────────────── */
-  oceanwaves({ cv, ctx, frameInterval, frame, shouldRender }) {
+  oceanwaves({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let t = 0;
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
       ctx.clearRect(0, 0, cv.width, cv.height); t += 0.02;
@@ -377,7 +377,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── plasma ────────────────────────────────────────────────── */
-  plasma({ cv, ctx, frameInterval, frame, shouldRender }) {
+  plasma({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let t = 0;
     const bw = Math.ceil(cv.width / 4), bh = Math.ceil(cv.height / 4);
     const buf = document.createElement("canvas"); buf.width = bw; buf.height = bh;
@@ -403,7 +403,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── alien ─────────────────────────────────────────────────── */
-  alien({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  alien({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const stars: { x: number; y: number; r: number; tw: number }[] = [];
     for (let i = 0; i < Math.round(100 * density); i++) stars.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() * 1.2 + 0.3, tw: Math.random() * Math.PI * 2 });
     const ufos: { x: number; y: number; vx: number; w: number; bob: number; beamOn: boolean; beamTimer: number }[] = [];
@@ -465,7 +465,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── lightning ─────────────────────────────────────────────── */
-  lightning({ cv, ctx, density, frameInterval, timer, frame, shouldRender }) {
+  lightning({ cv, ctx, density, _frameInterval, timer, frame, shouldRender }) {
     const bolts: { segs: { x: number; y: number }[]; a: number }[] = [];
     const drops: { x: number; y: number; len: number; speed: number }[] = [];
     for (let i = 0; i < Math.round(80 * density); i++) drops.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, len: Math.random() * 10 + 5, speed: Math.random() * 3 + 4 });
@@ -505,7 +505,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── sandstorm ─────────────────────────────────────────────── */
-  sandstorm({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  sandstorm({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const grains: { x: number; y: number; r: number; speed: number; vy: number; o: number }[] = [];
     for (let i = 0; i < Math.round(200 * density); i++)
       grains.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() * 1.5 + 0.3, speed: Math.random() * 3 + 1, vy: (Math.random() - 0.5) * 0.5, o: Math.random() * 0.45 + 0.09 });
@@ -523,7 +523,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── hologram ──────────────────────────────────────────────── */
-  hologram({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  hologram({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     let offset = 0;
     const lines: { y: number; speed: number; h: number; o: number }[] = [];
     for (let i = 0; i < Math.round(30 * density); i++) lines.push({ y: Math.random() * cv.height, speed: Math.random() * 1 + 0.5, h: Math.random() * 2 + 1, o: Math.random() * 0.18 + 0.06 });
@@ -541,7 +541,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── meteorshower ──────────────────────────────────────────── */
-  meteorshower({ cv, ctx, density, frameInterval, timer, frame, shouldRender }) {
+  meteorshower({ cv, ctx, density, _frameInterval, timer, frame, shouldRender }) {
     const stars: { x: number; y: number; r: number; tw: number }[] = [];
     for (let i = 0; i < Math.round(100 * density); i++) stars.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() + 0.3, tw: Math.random() * Math.PI * 2 });
     function mk() { return { x: Math.random() * cv.width * 1.5, y: -20 - Math.random() * 100, speed: Math.random() * 6 + 4, len: Math.random() * 60 + 30, angle: Math.PI * 0.7 + Math.random() * 0.2, a: Math.random() * 0.4 + 0.3 }; }
@@ -566,7 +566,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── pixelrain ─────────────────────────────────────────────── */
-  pixelrain({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  pixelrain({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const colors = ["#44dd88", "#22cc66", "#66eebb", "#33bb77", "#55ffaa"];
     const pixels: { x: number; y: number; s: number; speed: number; color: string; o: number }[] = [];
     for (let i = 0; i < Math.round(100 * density); i++)
@@ -583,7 +583,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── synthsun ──────────────────────────────────────────────── */
-  synthsun({ cv, ctx, frameInterval, frame, shouldRender }) {
+  synthsun({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let t = 0;
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
       ctx.clearRect(0, 0, cv.width, cv.height); t += 0.01;
@@ -612,7 +612,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── toxicrain ─────────────────────────────────────────────── */
-  toxicrain({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  toxicrain({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const drops: { x: number; y: number; len: number; speed: number; o: number }[] = [];
     for (let i = 0; i < Math.round(120 * density); i++)
       drops.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, len: Math.random() * 12 + 6, speed: Math.random() * 4 + 3, o: Math.random() * 0.36 + 0.12 });
@@ -628,7 +628,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── fairydust ─────────────────────────────────────────────── */
-  fairydust({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  fairydust({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const colorBases = ["rgba(255,220,100,", "rgba(220,180,255,", "rgba(180,220,255,", "rgba(255,180,220,"];
     const sparks: { x: number; y: number; r: number; ph: number; vx: number; vy: number; ci: number }[] = [];
     for (let i = 0; i < Math.round(60 * density); i++)
@@ -651,7 +651,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── comettrail ────────────────────────────────────────────── */
-  comettrail({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  comettrail({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const stars: { x: number; y: number; r: number; tw: number }[] = [];
     for (let i = 0; i < Math.round(80 * density); i++) stars.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, r: Math.random() + 0.2, tw: Math.random() * Math.PI * 2 });
     function mk() { return { x: -50 - Math.random() * 100, y: Math.random() * cv.height * 0.6, speed: Math.random() * 2 + 1.5, a: Math.random() * 0.3 + 0.2, trail: [] as { x: number; y: number }[] }; }
@@ -676,7 +676,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── lavalamp ──────────────────────────────────────────────── */
-  lavalamp({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  lavalamp({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const blobs: { x: number; y: number; r: number; vx: number; vy: number; ph: number; hue: number }[] = [];
     for (let i = 0; i < Math.max(2, Math.round(6 * density)); i++)
       blobs.push({ x: cv.width * 0.2 + Math.random() * cv.width * 0.6, y: cv.height * 0.3 + Math.random() * cv.height * 0.4, r: Math.random() * 60 + 30, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, ph: Math.random() * Math.PI * 2, hue: Math.random() * 40 + 10 });
@@ -698,7 +698,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── electricarc ───────────────────────────────────────────── */
-  electricarc({ cv, ctx, density, frameInterval, timer, frame, shouldRender }) {
+  electricarc({ cv, ctx, density, _frameInterval, timer, frame, shouldRender }) {
     const nodes: { x: number; y: number; vx: number; vy: number }[] = [];
     for (let i = 0; i < Math.max(2, Math.round(8 * density)); i++) nodes.push({ x: Math.random() * cv.width, y: Math.random() * cv.height, vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8 });
     const arcs: { p: { x: number; y: number }[]; a: number }[] = [];
@@ -734,7 +734,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── galaxy ────────────────────────────────────────────────── */
-  galaxy({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  galaxy({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const stars: { dist: number; angle: number; r: number; speed: number; hue: number }[] = [];
     const arms = 3;
     for (let i = 0; i < Math.round(250 * density); i++) {
@@ -756,7 +756,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── glitch ────────────────────────────────────────────────── */
-  glitch({ cv, ctx, frameInterval, frame, shouldRender }) {
+  glitch({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let f = 0;
     const colors = ["rgba(255,68,102,0.18)", "rgba(68,136,255,0.18)", "rgba(68,255,136,0.18)", "rgba(255,255,68,0.12)"];
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
@@ -776,7 +776,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── firewall ──────────────────────────────────────────────── */
-  firewall({ cv, ctx, frameInterval, frame, shouldRender }) {
+  firewall({ cv, ctx, _frameInterval, frame, shouldRender }) {
     const cols = Math.floor(cv.width / 10);
     const ypos = Array.from({ length: cols }, () => Math.random() * cv.height);
     const chars = "0123456789ABCDEF<>/{}[]|";
@@ -798,7 +798,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── northern ──────────────────────────────────────────────── */
-  northern({ cv, ctx, frameInterval, frame, shouldRender }) {
+  northern({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let t = 0;
     const bands = [{ h: 140, y: 0.12, a: 50 }, { h: 180, y: 0.18, a: 40 }, { h: 280, y: 0.25, a: 35 }, { h: 160, y: 0.10, a: 55 }, { h: 220, y: 0.22, a: 30 }];
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
@@ -817,7 +817,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── sunbeams ──────────────────────────────────────────────── */
-  sunbeams({ cv, ctx, frameInterval, frame, shouldRender }) {
+  sunbeams({ cv, ctx, _frameInterval, frame, shouldRender }) {
     let t = 0;
     (function draw(timestamp) { if (!shouldRender(timestamp)) { frame(requestAnimationFrame(draw)); return; }
       ctx.clearRect(0, 0, cv.width, cv.height); t += 0.005;
@@ -841,7 +841,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── dandelions ────────────────────────────────────────────── */
-  dandelions({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  dandelions({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const seeds: { x: number; y: number; r: number; speed: number; w: number; ws: number; opacity: number }[] = [];
     for (let i = 0; i < Math.round(40 * density); i++)
       seeds.push({
@@ -868,7 +868,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── rainywindow ────────────────────────────────────────────── */
-  rainywindow({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  rainywindow({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const droplets: {
       x: number;
       y: number;
@@ -1028,7 +1028,6 @@ const _ANIM: Record<string, AnimFn> = {
 
       // 3. Update and Draw sliding/falling droplets
       for (const d of droplets) {
-        // Update physics
         if (d.state === 'sliding') {
           d.y += d.speed;
           d.x += Math.sin(d.wobblePhase) * 0.25;
@@ -1102,7 +1101,6 @@ const _ANIM: Record<string, AnimFn> = {
       
       ctx.fillStyle = '#090d16'; // Cozy deep slate-wood tone
       
-      // Border frame
       ctx.fillRect(0, 0, cv.width, frameWidth); // top
       ctx.fillRect(0, cv.height - frameWidth, cv.width, frameWidth); // bottom
       ctx.fillRect(0, frameWidth, frameWidth, cv.height - 2 * frameWidth); // left
@@ -1207,15 +1205,11 @@ const _ANIM: Record<string, AnimFn> = {
 
       if (isLandscape) {
         const cx = cv.width / 2;
-        // Left glass pane
         drawPaneShadows(frameWidth, frameWidth, cx - dividerWidth / 2, cv.height - frameWidth);
-        // Right glass pane
         drawPaneShadows(cx + dividerWidth / 2, frameWidth, cv.width - frameWidth, cv.height - frameWidth);
       } else {
         const cy = cv.height / 2;
-        // Top glass pane
         drawPaneShadows(frameWidth, frameWidth, cv.width - frameWidth, cy - dividerWidth / 2);
-        // Bottom glass pane
         drawPaneShadows(frameWidth, cy + dividerWidth / 2, cv.width - frameWidth, cv.height - frameWidth);
       }
 
@@ -1224,7 +1218,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── cyberhighway ───────────────────────────────────────────── */
-  cyberhighway({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  cyberhighway({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const streaks: { x: number; y: number; len: number; speed: number; width: number; color: string }[] = [];
     const colors = ["#ff0055", "#00ffcc", "#9900ff", "#0088ff"];
     for (let i = 0; i < Math.round(25 * density); i++)
@@ -1251,7 +1245,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── cosmicdust ─────────────────────────────────────────────── */
-  cosmicdust({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  cosmicdust({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const particles: { x: number; y: number; r: number; angle: number; speed: number; radialSpeed: number; dist: number; color: string }[] = [];
     const colors = ["rgba(255, 64, 128, ", "rgba(128, 64, 255, ", "rgba(64, 224, 255, ", "rgba(255, 128, 0, "];
     for (let i = 0; i < Math.round(150 * density); i++)
@@ -1283,7 +1277,7 @@ const _ANIM: Record<string, AnimFn> = {
   },
 
   /* ── bioglow ────────────────────────────────────────────────── */
-  bioglow({ cv, ctx, density, frameInterval, frame, shouldRender }) {
+  bioglow({ cv, ctx, density, _frameInterval, frame, shouldRender }) {
     const spores: { x: number; y: number; r: number; speed: number; pulseSpeed: number; phase: number; color: string }[] = [];
     const colors = ["rgba(0, 240, 255, ", "rgba(0, 255, 180, ", "rgba(100, 180, 255, "];
     for (let i = 0; i < Math.round(35 * density); i++)
@@ -1331,7 +1325,7 @@ export function ThemeBackdrop() {
   const [isVisible, setIsVisible] = useState(!document.hidden);
 
   const animation = theme.effects?.backgroundAnimation;
-  const { onBattery, battery } = useBattery();
+  const { onBattery, battery: _battery } = useBattery();
   const density = settings.animationFrequency;
   // Reduce density when on battery (50% reduction)
   const effectiveDensity = onBattery ? density * 0.5 : density;
@@ -1385,7 +1379,6 @@ export function ThemeBackdrop() {
     const ctx = cv.getContext("2d");
     if (!ctx) return;
 
-    // Stop previous
     if (animIdRef.current !== null) { cancelAnimationFrame(animIdRef.current); animIdRef.current = null; }
     timersRef.current.forEach(t => clearInterval(t)); timersRef.current = [];
     if (resizeFnRef.current) { window.removeEventListener("resize", resizeFnRef.current); resizeFnRef.current = null; }
@@ -1427,7 +1420,7 @@ export function ThemeBackdrop() {
       cv,
       ctx,
       density: effectiveDensity,
-      frameInterval: BACKDROP_FRAME_INTERVAL,
+      _frameInterval: BACKDROP_FRAME_INTERVAL,
       timer(id: number) { timersRef.current.push(id); },
       onResize(fn: () => void) { resizeFnRef.current = fn; },
       frame(id: number) { animIdRef.current = id; },

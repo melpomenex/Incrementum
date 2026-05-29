@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Folder, Plus } from 'lucide-react';
+import { Folder } from "lucide-react";
 import { useCollectionStore } from '../../stores/collectionStore';
 import { useDocumentStore } from '../../stores/documentStore';
 import type { Collection } from '../../types/collection';

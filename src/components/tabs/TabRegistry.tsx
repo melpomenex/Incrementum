@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, type ComponentType } from "react";
 import type { TabType } from "../../stores/tabsStore";
 
 // Central registry of all lazy-loaded tab components
@@ -39,10 +39,6 @@ export const NotebookLMTab = debugLazy("NotebookLMTab", () => import("../../page
 export const ImageRegistryTab = debugLazy("ImageRegistryTab", () => import("./ImageRegistryTab").then(m => ({ default: m.ImageRegistryTab })));
 export const PodcastTab = debugLazy("PodcastTab", () => import("../media/PodcastManager").then(m => ({ default: m.PodcastManager })));
 
-/**
- * Maps TabType strings to their lazy-loaded React components.
- * Used by session restore to rehydrate tabs from serialized data.
- */
 export const TAB_TYPE_ICONS: Record<string, string> = {
   dashboard: "📊", documents: "📂", queue: "📚", review: "🧠",
   analytics: "📈", settings: "⚙️", rss: "📡", newsletter: "📰",

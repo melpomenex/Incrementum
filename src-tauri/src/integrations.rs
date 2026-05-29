@@ -72,7 +72,6 @@ impl ExtensionServer {
                 while let Some(msg) = ws.next().await {
                     match msg {
                         Ok(Message::Text(text)) => {
-                            // Handle extension message
                             if let Err(e) = handle_extension_message(&mut ws, &text).await {
                                 eprintln!("Error handling message: {}", e);
                             }
@@ -111,14 +110,12 @@ async fn handle_extension_message(
             "data": { "status": "ok" }
         }),
         Some("save_page") => {
-            // Handle page save
             serde_json::json!({
                 "type": "save_response",
                 "data": { "success": true, "document_id": "saved" }
             })
         },
         Some("create_extract") => {
-            // Handle extract creation
             serde_json::json!({
                 "type": "extract_response",
                 "data": { "success": true, "extract_id": "created" }
@@ -148,7 +145,6 @@ pub async fn export_document_to_obsidian(
 
     let notes_path = obsidian_notes_path(config);
 
-    // Create notes folder if it doesn't exist
     fs::create_dir_all(&notes_path)
         .map_err(|e| AppError::IntegrationError(format!("Failed to create notes folder: {}", e)))?;
 
@@ -157,7 +153,6 @@ pub async fn export_document_to_obsidian(
     // Generate markdown content
     let markdown = generate_obsidian_markdown(&document);
 
-    // Write file
     fs::write(&file_path, markdown)
         .map_err(|e| AppError::IntegrationError(format!("Failed to write markdown: {}", e)))?;
 
@@ -193,7 +188,6 @@ pub async fn export_extract_to_obsidian_internal(
 fn generate_obsidian_markdown(document: &crate::models::Document) -> String {
     let mut markdown = String::new();
 
-    // Frontmatter
     markdown.push_str("---\n");
     markdown.push_str(&format!("title: {}\n", document.title));
     markdown.push_str("incrementum-type: document\n");
@@ -206,15 +200,12 @@ fn generate_obsidian_markdown(document: &crate::models::Document) -> String {
     markdown.push_str(&format!("incrementum-id: {}\n", document.id));
     markdown.push_str("---\n\n");
 
-    // Title
     markdown.push_str(&format!("# {}\n\n", document.title));
 
-    // Content
     if let Some(content) = &document.content {
         markdown.push_str(content);
     }
 
-    // Tags
     if !document.tags.is_empty() {
         markdown.push_str("\n\n");
         for tag in &document.tags {
@@ -229,7 +220,6 @@ fn generate_obsidian_markdown(document: &crate::models::Document) -> String {
 fn generate_extract_markdown(extract: &crate::models::Extract) -> String {
     let mut markdown = String::new();
 
-    // Frontmatter
     markdown.push_str("---\n");
     let title = extract.page_title.as_deref().unwrap_or("Untitled");
     markdown.push_str(&format!("title: {}\n", title));
@@ -239,14 +229,11 @@ fn generate_extract_markdown(extract: &crate::models::Extract) -> String {
     markdown.push_str(&format!("disclosure-level: {}\n", extract.progressive_disclosure_level));
     markdown.push_str("---\n\n");
 
-    // Title
     markdown.push_str(&format!("## {}\n\n", title));
 
-    // Content
     markdown.push_str(&extract.content);
     markdown.push('\n');
 
-    // Metadata
     markdown.push_str("\n---\n");
     if let Some(page_number) = extract.page_number {
         markdown.push_str(&format!("Page: {}\n", page_number));
@@ -273,7 +260,6 @@ pub async fn export_conversation_to_obsidian_internal(
     let vault_path = PathBuf::from(&config.vault_path);
     let notes_path = vault_path.join(&config.notes_folder);
 
-    // Create notes folder if it doesn't exist
     fs::create_dir_all(&notes_path)
         .map_err(|e| AppError::IntegrationError(format!("Failed to create notes folder: {}", e)))?;
 
@@ -285,7 +271,6 @@ pub async fn export_conversation_to_obsidian_internal(
     // Generate markdown content
     let markdown = generate_conversation_markdown(messages, title, context_info);
 
-    // Write file
     fs::write(&file_path, markdown)
         .map_err(|e| AppError::IntegrationError(format!("Failed to write markdown: {}", e)))?;
 
@@ -302,7 +287,6 @@ pub async fn export_assistant_message_to_obsidian_internal(
     let vault_path = PathBuf::from(&config.vault_path);
     let notes_path = vault_path.join(&config.notes_folder);
 
-    // Create notes folder if it doesn't exist
     fs::create_dir_all(&notes_path)
         .map_err(|e| AppError::IntegrationError(format!("Failed to create notes folder: {}", e)))?;
 
@@ -314,7 +298,6 @@ pub async fn export_assistant_message_to_obsidian_internal(
     // Generate markdown for single message
     let markdown = generate_single_message_markdown(message, title, context_info);
 
-    // Write file
     fs::write(&file_path, markdown)
         .map_err(|e| AppError::IntegrationError(format!("Failed to write markdown: {}", e)))?;
 
@@ -330,7 +313,6 @@ fn generate_conversation_markdown(
     let mut markdown = String::new();
     let now = chrono::Local::now();
 
-    // Frontmatter
     markdown.push_str("---\n");
     markdown.push_str(&format!("title: \"{}\"\n", title));
     markdown.push_str(&format!("created: {}\n", now.format("%Y-%m-%d %H:%M")));
@@ -341,7 +323,6 @@ fn generate_conversation_markdown(
     markdown.push_str("tags:\n  - ai-conversation\n  - incrementum\n");
     markdown.push_str("---\n\n");
 
-    // Title
     markdown.push_str(&format!("# {}\n\n", title));
 
     // Context info if available
@@ -351,7 +332,6 @@ fn generate_conversation_markdown(
         markdown.push_str("\n\n");
     }
 
-    // Conversation
     markdown.push_str("## Conversation\n\n");
 
     for message in messages {
@@ -390,7 +370,6 @@ fn generate_conversation_markdown(
         }
     }
 
-    // Footer
     markdown.push_str("---\n\n");
     markdown.push_str(&format!("*Exported from [Incrementum](https://github.com/melpomenex/incrementum-tauri) on {}*\n", now.format("%Y-%m-%d %H:%M")));
 
@@ -406,7 +385,6 @@ fn generate_single_message_markdown(
     let mut markdown = String::new();
     let now = chrono::Local::now();
 
-    // Frontmatter
     markdown.push_str("---\n");
     markdown.push_str(&format!("title: \"{}\"\n", title));
     markdown.push_str(&format!("created: {}\n", now.format("%Y-%m-%d %H:%M")));
@@ -418,7 +396,6 @@ fn generate_single_message_markdown(
     markdown.push_str("tags:\n  - ai-response\n  - incrementum\n");
     markdown.push_str("---\n\n");
 
-    // Title
     markdown.push_str(&format!("# {}\n\n", title));
 
     // Context info if available
@@ -439,7 +416,6 @@ fn generate_single_message_markdown(
     }
     markdown.push('\n');
 
-    // Footer
     markdown.push_str("---\n\n");
     markdown.push_str(&format!("*Exported from [Incrementum](https://github.com/melpomenex/incrementum-tauri) on {}*\n", now.format("%Y-%m-%d %H:%M")));
 
@@ -465,7 +441,6 @@ pub async fn import_from_obsidian_internal(
     let content = fs::read_to_string(file_path)
         .map_err(|e| AppError::IntegrationError(format!("Failed to read file: {}", e)))?;
 
-    // Parse frontmatter
     let (frontmatter, body) = parse_frontmatter(&content);
 
     let incrementum_type = frontmatter
@@ -519,9 +494,8 @@ pub async fn import_from_obsidian_internal(
         return Ok((created.document_id, vec![created.id]));
     }
 
-    // Check if it's an Incrementum export
     if let Some(id) = frontmatter.get("incrementum-id") {
-        let document_id = id.as_str().unwrap();
+        let document_id = id.as_str().expect("incrementum-id should be a string");
         if let Some(existing) = repo.get_document(document_id).await? {
             let title = frontmatter.get("title")
                 .and_then(|v| v.as_str())
@@ -569,12 +543,10 @@ pub async fn import_from_obsidian_internal(
         }
     }
 
-    // Create new document
     let title = frontmatter.get("title")
         .and_then(|v| v.as_str())
         .unwrap_or_else(|| extract_title_from_content(&body));
 
-    // Create document
     let document_id = frontmatter
         .get("incrementum-id")
         .and_then(|v| v.as_str())
@@ -1009,7 +981,6 @@ pub async fn sync_flashcards_to_anki(
 
 #[tauri::command]
 pub async fn start_extension_server(_port: u16) -> Result<bool, AppError> {
-    // Start the WebSocket server
     Ok(true)
 }
 

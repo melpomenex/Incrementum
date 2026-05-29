@@ -129,7 +129,6 @@ export function DataMigrationUI() {
     }
   };
 
-  // Validate database
   const validateDatabase = async () => {
     if (!dbPath) return;
 
@@ -168,7 +167,6 @@ export function DataMigrationUI() {
     }
   };
 
-  // Start migration
   const startMigration = async () => {
     if (!dbPath || !validation?.valid) {
       alert("Please select and validate a database before migrating");
@@ -178,7 +176,6 @@ export function DataMigrationUI() {
     setIsProcessing(true);
 
     try {
-      // Create backup
       setMigrationProgress({
         stage: "backup",
         current: 0,
@@ -189,7 +186,6 @@ export function DataMigrationUI() {
       const backup = await createMigrationBackup(dbPath);
       setBackupPath(backup);
 
-      // Start migration
       setMigrationProgress({
         stage: "migrating",
         current: 0,

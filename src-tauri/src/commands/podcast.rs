@@ -23,7 +23,6 @@ use tokio::io::AsyncWriteExt;
 /// Subscribe to a podcast feed
 #[tauri::command]
 pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) -> Result<PodcastFeedResponse> {
-    // Check if already subscribed
     if let Some(existing) = repo.get_podcast_feed_by_url(&feed_url).await? {
         let episodes = repo.get_podcast_episodes(Some(&existing.id), Some(true)).await?;
         let episode_count = episodes.len() as i64;
@@ -35,7 +34,6 @@ pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) ->
         });
     }
 
-    // Fetch the feed
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .user_agent("Incrementum/1.31.0")
@@ -61,7 +59,6 @@ pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) ->
         .await
         .map_err(|e| IncrementumError::Internal(format!("Failed to read feed response: {}", e)))?;
 
-    // Parse the RSS feed
     let parsed = parse_podcast_feed(&xml)
         .map_err(|e| IncrementumError::Internal(format!("Failed to parse podcast feed: {}", e)))?;
 
@@ -87,7 +84,6 @@ pub async fn subscribe_podcast(feed_url: String, repo: State<'_, Repository>) ->
     // Insert feed into DB
     repo.insert_podcast_feed(&feed).await?;
 
-    // Bulk insert episodes
     repo.insert_podcast_episodes_bulk(&feed_id, &parsed.episodes).await?;
 
     let episode_count = parsed.episodes.len() as i64;
@@ -147,7 +143,6 @@ pub async fn refresh_podcast_feed(
 
     let feed_url = feed.feed_url.clone();
 
-    // Fetch the feed
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .user_agent("Incrementum/1.31.0")
@@ -173,11 +168,9 @@ pub async fn refresh_podcast_feed(
         .await
         .map_err(|e| IncrementumError::Internal(format!("Failed to read feed response: {}", e)))?;
 
-    // Parse the RSS feed
     let parsed = parse_podcast_feed(&xml)
         .map_err(|e| IncrementumError::Internal(format!("Failed to parse podcast feed: {}", e)))?;
 
-    // Update feed metadata
     let mut updated_feed = feed.clone();
     updated_feed.title = parsed.title;
     updated_feed.description = parsed.description;
@@ -382,7 +375,7 @@ async fn run_transcription_job(
     // Insert cancellation token
     let cancel_token = Arc::new(AtomicBool::new(false));
     {
-        let mut map = tokens.lock().unwrap();
+        let mut map = tokens.lock().expect("podcast tokens mutex poisoned");
         map.insert(episode_id.clone(), cancel_token.clone());
     }
 
@@ -556,7 +549,6 @@ async fn run_transcription_job(
     }
     .await;
 
-    // Cleanup temp file
     let _ = std::fs::remove_file(&temp_file);
 
     if let Err(e) = transcribe_result {
@@ -618,7 +610,6 @@ async fn create_transcript_extracts(
         return Ok(());
     }
 
-    // Create a Document record for the transcript
     let doc_title = format!("{} (Transcript)", episode.title);
     let mut doc = Document::new(doc_title, format!("podcast://{}", episode.id), FileType::Other);
     doc.content = Some(text.to_string());
@@ -699,7 +690,6 @@ pub async fn get_podcast_transcript(
         });
     }
 
-    // Return the full text as a single segment.
     // The Whisper engine produces segments during transcription but they are
     // concatenated into the stored transcript. Individual segment timestamps
     // could be added in a future enhancement.
@@ -722,7 +712,7 @@ pub async fn cancel_podcast_transcription(
     episode_id: String,
     tokens: State<'_, PodcastTranscriptionTokens>,
 ) -> Result<()> {
-    let map = tokens.lock().unwrap();
+    let map = tokens.lock().expect("podcast tokens mutex poisoned");
     if let Some(token) = map.get(&episode_id) {
         token.store(true, Ordering::Relaxed);
         Ok(())
@@ -814,7 +804,6 @@ pub async fn download_podcast_episode(
     audio_type: Option<String>,
     app_handle: AppHandle,
 ) -> Result<String> {
-    // Check if already downloaded
     if let Some(existing) = find_existing_download(&episode_id) {
         return Ok(existing.to_string_lossy().to_string());
     }
@@ -889,7 +878,6 @@ pub async fn download_podcast_episode(
         if let Ok(segments) = crate::sponsorblock::fetch_sponsorblock_segments(vid).await {
             if !segments.is_empty() {
                 println!("[SponsorBlock] Found {} skippable segments. Cutting using ffmpeg...", segments.len());
-                // Emit special cutting status
                 let _ = app_handle.emit(
                     "podcast://download-progress",
                     serde_json::json!({ "episodeId": &episode_id, "progress": 100, "status": "cutting" }),

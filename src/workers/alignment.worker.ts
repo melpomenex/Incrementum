@@ -128,7 +128,7 @@ function alignSegments(
 ): SegmentCFIMap[] {
   const mappings: SegmentCFIMap[] = [];
 
-  const chapterMap = new Map(chapterMatches.map(m => [m.audioChapterIndex, m]));
+  const _chapterMap = new Map(chapterMatches.map(m => [m.audioChapterIndex, m]));
 
   for (let si = 0; si < input.transcriptSegments.length; si++) {
     const seg = input.transcriptSegments[si];

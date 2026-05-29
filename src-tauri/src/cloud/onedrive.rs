@@ -27,9 +27,6 @@ pub struct OneDriveConfig {
 impl Default for OneDriveConfig {
     fn default() -> Self {
         Self {
-            // Microsoft Graph API default scopes for Incrementum
-            // Credentials can be set via environment variables:
-            // INCREMENTUM_ONEDRIVE_CLIENT_ID and INCREMENTUM_ONEDRIVE_CLIENT_SECRET
             client_id: std::env::var("INCREMENTUM_ONEDRIVE_CLIENT_ID")
                 .unwrap_or_else(|_| "YOUR_CLIENT_ID".to_string()),
             client_secret: std::env::var("INCREMENTUM_ONEDRIVE_CLIENT_SECRET")
@@ -89,7 +86,6 @@ impl OneDriveProvider {
 
     /// Get the OAuth authorization URL
     fn get_auth_url(&mut self) -> Result<String, AppError> {
-        // Validate credentials before attempting OAuth
         if self.config.client_id == "YOUR_CLIENT_ID" || self.config.client_id.is_empty() {
             return Err(AppError::Internal(
                 "OneDrive OAuth is not configured. Please set the INCREMENTUM_ONEDRIVE_CLIENT_ID \
@@ -201,9 +197,9 @@ impl OneDriveProvider {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::AUTHORIZATION,
-            format!("Bearer {}", token.access_token).parse().unwrap(),
+            format!("Bearer {}", token.access_token).parse().expect("valid header value"),
         );
-        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().expect("valid header value"));
 
         Ok(headers)
     }
@@ -229,7 +225,6 @@ impl OneDriveProvider {
             .await
             .map_err(|e| AppError::Internal(format!("Failed to parse user info: {}", e)))?;
 
-        // Fetch storage quota
         let quota_response = self.http_client
             .get(format!("{}/root/special/appfolder", self.api_base_url()))
             .headers(self.get_auth_headers()?)
@@ -311,7 +306,6 @@ impl CloudProvider for OneDriveProvider {
     }
 
     async fn handle_callback(&mut self, code: &str, state: &str) -> Result<AuthResult, AppError> {
-        // Validate state parameter
         if let Some(expected_state) = &self.pending_state {
             if state != expected_state {
                 return Ok(AuthResult {
@@ -328,7 +322,6 @@ impl CloudProvider for OneDriveProvider {
         // Calculate token expiration
         let expires_at = Utc::now() + Duration::seconds(token_response.expires_in as i64);
 
-        // Store auth token
         self.auth_token = Some(AuthToken {
             access_token: token_response.access_token.clone(),
             refresh_token: token_response.refresh_token.clone(),
@@ -336,7 +329,6 @@ impl CloudProvider for OneDriveProvider {
             token_type: token_response.token_type,
         });
 
-        // Fetch account info
         let account_info = self.fetch_account_info().await?;
         self.account_info = Some(account_info.clone());
 
@@ -402,7 +394,6 @@ impl CloudProvider for OneDriveProvider {
     ) -> Result<String, AppError> {
         let headers = self.get_auth_headers()?;
 
-        // Build the upload path
         let upload_path = if path.starts_with('/') {
             format!("{}{}", self.get_app_folder_path(), path)
         } else {
@@ -458,7 +449,6 @@ impl CloudProvider for OneDriveProvider {
             format!("{}/{}", self.get_app_folder_path(), path)
         };
 
-        // Get download URL first
         let response = self.http_client
             .get(format!("{}/{}:/content", self.api_base_url(), download_path))
             .headers(headers)
@@ -604,7 +594,7 @@ impl CloudProvider for OneDriveProvider {
         };
 
         let parent_path = if path.contains('/') {
-            let pos = path.rfind('/').unwrap();
+            let pos = path.rfind('/').expect("path already checked to contain /");
             &path[..pos]
         } else {
             ""
@@ -657,7 +647,6 @@ impl OneDriveProvider {
     ) -> Result<String, AppError> {
         const CHUNK_SIZE: usize = 320 * 1024 * 1024; // 320MB chunks
 
-        // Create upload session
         let headers = self.get_auth_headers()?;
         let upload_session_body = serde_json::json!({
             "item": {
@@ -717,7 +706,6 @@ impl OneDriveProvider {
             }
         }
 
-        // Get the final drive item
         let final_response = self.http_client
             .get(&session.upload_url)
             .headers(self.get_auth_headers()?)
@@ -738,8 +726,6 @@ impl OneDriveProvider {
         Ok(result.id)
     }
 }
-
-// ============ API Response Types ============
 
 #[derive(Debug, Deserialize)]
 struct TokenResponse {

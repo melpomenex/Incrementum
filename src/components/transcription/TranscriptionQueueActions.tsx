@@ -5,7 +5,7 @@
  * Shows inline status and quick transcription buttons.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { FileAudio, FileVideo, Mic, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../utils';
 import { TranscriptionButton, TranscriptionStatusBadge } from './TranscriptionButton';
@@ -63,7 +63,6 @@ export function TranscriptionQueueActions({
 }: TranscriptionQueueActionsProps) {
   const [hasTranscript, setHasTranscript] = useState<boolean | null>(null);
 
-  // Check if transcript already exists
   useEffect(() => {
     if (!isTranscribableFileType(fileType)) return;
     

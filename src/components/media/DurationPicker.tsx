@@ -23,9 +23,11 @@ const PRESETS = [
 
 export function DurationPicker({ onSelect, onCancel, mode }: DurationPickerProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="presentation" onClick={onCancel}>
       <div
         className="bg-card border border-border rounded-lg shadow-lg p-3 w-48 z-50"
+        role="dialog"
+        aria-label="Duration picker"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-xs font-medium text-muted-foreground mb-2">

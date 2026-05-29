@@ -27,7 +27,6 @@ pub fn trigram_similarity(a: &str, b: &str) -> f64 {
         return 1.0;
     }
 
-    // Build trigram sets
     let trigrams_a: std::collections::HashSet<String> = (0..a_lower.len().saturating_sub(1))
         .map(|i| a_lower[i..i + 3.min(a_lower.len() - i)].to_string())
         .filter(|s| s.len() == 3)
@@ -47,10 +46,6 @@ pub fn trigram_similarity(a: &str, b: &str) -> f64 {
 
     (2.0 * intersection as f64) / (union as f64)
 }
-
-// ============================================================================
-// Intelligence Score Service
-// ============================================================================
 
 /// Compute intelligence score for a single article
 pub async fn compute_intelligence_score(
@@ -102,7 +97,6 @@ pub async fn compute_intelligence_score(
     // Green always wins: if score > 0, clamp to positive
     let score = if score > 0.0 { score } else { 0.0 };
 
-    // Save the computed score
     repo::save_intelligence_score(repo, article_id, score).await?;
 
     Ok(score)
@@ -110,7 +104,6 @@ pub async fn compute_intelligence_score(
 
 /// Batch compute intelligence scores for all articles needing recomputation
 pub async fn recompute_all_intelligence_scores(repo: &Repository) -> Result<i32> {
-    // Get articles that need recomputation
     let article_ids = repo::get_articles_needing_score(repo, 1000).await?;
 
     let mut count = 0;
@@ -123,10 +116,6 @@ pub async fn recompute_all_intelligence_scores(repo: &Repository) -> Result<i32>
 
     Ok(count)
 }
-
-// ============================================================================
-// Classifier Service
-// ============================================================================
 
 /// Add a classifier and invalidate related scores
 pub async fn add_classifier(
@@ -193,10 +182,6 @@ pub async fn update_classifiers_batch(
     Ok(())
 }
 
-// ============================================================================
-// Story Clustering Service
-// ============================================================================
-
 /// Compute story clusters for recent articles
 pub async fn compute_story_clusters(
     repo: &Repository,
@@ -253,13 +238,8 @@ pub async fn compute_story_clusters(
     Ok(clusters)
 }
 
-// ============================================================================
-// Tag Service
-// ============================================================================
-
 /// Add a tag or return existing
 pub async fn add_tag(repo: &Repository, name: &str) -> Result<RssTag> {
-    // Check if tag exists
     if let Some(existing) = repo::get_tag_by_name(repo, name).await? {
         return Ok(existing);
     }
@@ -281,10 +261,6 @@ pub async fn merge_tags(
     repo::merge_tags(repo, source_tag_id, target_tag_id).await?;
     repo::remove_tag(repo, source_tag_id).await
 }
-
-// ============================================================================
-// Discovery Service
-// ============================================================================
 
 /// Attempt to discover RSS feed from a website
 pub async fn discover_feed_from_site(
@@ -324,7 +300,6 @@ pub async fn discover_feed_from_site(
                 || lower.contains("application/atom+xml")
                 || lower.contains("text/xml"))
         {
-                // Extract href
                 if let Some(href_start) = lower.find("href=\"").or_else(|| lower.find("href='")) {
                     let href_start = href_start + 6;
                     if let Some(href_end) = lower[href_start..]
@@ -392,7 +367,6 @@ pub async fn discover_feed_from_site(
 
 /// Refresh discoveries from recent articles
 pub async fn refresh_discoveries(repo: &Repository) -> Result<i32> {
-    // Extract unique domains from recent article URLs
     let rows = repo::get_recent_articles_for_discovery(repo).await?;
 
     let mut domains: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -402,7 +376,6 @@ pub async fn refresh_discoveries(repo: &Repository) -> Result<i32> {
         }
     }
 
-    // Remove domains we're already subscribed to
     let subscribed = repo::get_subscribed_feed_urls(repo).await?;
 
     let mut count = 0;
@@ -413,7 +386,6 @@ pub async fn refresh_discoveries(repo: &Repository) -> Result<i32> {
             continue;
         }
 
-        // Check if already discovered
         let exists = repo::discovered_site_exists(repo, &format!("%{}%", domain)).await?;
 
         if exists {
@@ -432,10 +404,6 @@ pub async fn refresh_discoveries(repo: &Repository) -> Result<i32> {
 
     Ok(count)
 }
-
-// ============================================================================
-// Migration Service
-// ============================================================================
 
 /// Migrate folders from localStorage JSON
 pub async fn migrate_folders_from_localstorage(
@@ -462,14 +430,12 @@ pub async fn migrate_folders_from_localstorage(
             continue;
         }
 
-        // Check if already migrated
         if repo::folder_exists(repo, &id).await? {
             continue;
         }
 
         repo::create_folder_migration(repo, &id, &name, idx as i32).await?;
 
-        // Migrate feed associations
         if let Some(feeds) = folder.get("feeds").and_then(|v| v.as_array()) {
             for (feed_idx, feed_id_val) in feeds.iter().enumerate() {
                 if let Some(feed_id) = feed_id_val.as_str() {
@@ -489,10 +455,6 @@ pub async fn migrate_folders_from_localstorage(
 
     Ok(migrated)
 }
-
-// ============================================================================
-// Curated Feeds Service
-// ============================================================================
 
 /// Seed curated feeds into rss_discovered_sites
 pub async fn seed_curated_feeds(repo: &Repository) -> Result<i32> {

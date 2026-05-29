@@ -9,7 +9,6 @@ export type DocumentFileType =
   | 'audio'
   | 'audiobook';
 
-// Queue and review types
 export interface QueueItem {
   id: string;
   documentId: string;
@@ -30,7 +29,6 @@ export interface QueueItem {
   category?: string;
   progress: number; // 0-100
   
-  // Playlist interspersion fields
   /** Source identifier, e.g., "playlist:<subscription_id>" */
   source?: string;
   /** Position in queue for interspersion calculation */

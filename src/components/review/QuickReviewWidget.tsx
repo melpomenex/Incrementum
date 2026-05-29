@@ -110,7 +110,6 @@ export function QuickReviewWidget({
     }
   }, [currentIndex]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't capture shortcuts when user is typing
@@ -151,7 +150,6 @@ export function QuickReviewWidget({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentCard, isFlipped, handleFlip, handleRate]);
 
-  // No cards state
   if (reviewCards.length === 0) {
     return (
       <div className={`bg-card border border-border rounded-2xl p-6 ${className}`}>
@@ -168,7 +166,6 @@ export function QuickReviewWidget({
     );
   }
 
-  // Completed state
   if (currentIndex >= reviewCards.length || remainingCount === 0) {
     return (
       <div className={`bg-card border border-border rounded-2xl p-6 ${className}`}>

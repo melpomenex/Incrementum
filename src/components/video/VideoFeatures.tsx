@@ -18,7 +18,7 @@ import {
   Loader2,
   Info,
 } from 'lucide-react';
-import { invokeCommand } from '../../lib/tauri';
+import { invokeCommand, isTauri } from "../../lib/tauri";
 import { useDocumentStore } from '../../stores/documentStore';
 import { getDocument } from '../../api/documents';
 import { getVideoTranscript } from '../../api/video-extracts';
@@ -26,7 +26,6 @@ import { getVideoTranscriptionStatus, subscribeVideoTranscriptionStatus, getTran
 import { useTranscriptionStore } from '../../stores/useTranscriptionStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useToast } from '../common/Toast';
-import { isTauri } from '../../lib/tauri';
 import { TranscriptionButton } from '../transcription';
 
 interface VideoBookmark {
@@ -77,17 +76,16 @@ export function VideoFeatures({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Get document from store
   const documents = useDocumentStore((state) => state.documents);
   const document = documents.find((d) => d.id === documentId);
   const resolvedFilePath = filePath ?? document?.filePath;
   const resolvedTitle = documentTitle ?? document?.title;
 
-  // Load data when tab changes
   useEffect(() => {
     if (!documentId) return;
     loadData(activeTab);
   }, [documentId, activeTab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadData = async (tab: string) => {
     setLoading(true);
@@ -137,7 +135,6 @@ export function VideoFeatures({
     }
   };
 
-  // Remove bookmark
   const removeBookmark = async (bookmarkId: string) => {
     try {
       await invokeCommand('delete_video_bookmark', {
@@ -149,14 +146,12 @@ export function VideoFeatures({
     }
   };
 
-  // Fetch chapters from YouTube
   const handleFetchYouTubeChapters = async () => {
     if (!documentId) return;
 
     setLoading(true);
     setErrorMessage(null);
     try {
-      // Get the document to retrieve its URL using the proper API
       const doc = await getDocument(documentId);
 
       if (!doc) {
@@ -172,7 +167,6 @@ export function VideoFeatures({
         return;
       }
 
-      // Fetch chapters from YouTube
       const youtubeChapters = await invokeCommand<VideoChapter[]>('get_youtube_chapters', {
         url: videoUrl,
         documentId,

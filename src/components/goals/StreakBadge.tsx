@@ -6,8 +6,7 @@
 import { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
 import { getReadingStreak } from '../../api/readingGoals';
-import type { ReadingStreak } from '../../types/readingGoal';
-import { formatStreakDays, getStreakMilestone, getStreakColor } from '../../types/readingGoal';
+import { formatStreakDays, getStreakMilestone, getStreakColor, type ReadingStreak } from "../../types/readingGoal";
 
 interface StreakBadgeProps {
   className?: string;

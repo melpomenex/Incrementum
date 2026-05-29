@@ -16,7 +16,6 @@ pub async fn segment_document(
     overlap: usize,
     repo: State<'_, Repository>,
 ) -> Result<SegmentationResult> {
-    // Get the document
     let doc = repo.get_document(&document_id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound("Document not found".to_string()))?;
 
@@ -25,7 +24,6 @@ pub async fn segment_document(
         return Err(crate::error::IncrementumError::Internal("Document has no content".to_string()));
     }
 
-    // Parse method
     let segmentation_method = match method.as_str() {
         "semantic" => SegmentationMethod::Semantic,
         "paragraph" => SegmentationMethod::Paragraph,
@@ -57,7 +55,6 @@ pub async fn auto_segment_and_create_extracts(
     overlap: Option<usize>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<String>> {
-    // Get the document
     let doc = repo.get_document(&document_id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound("Document not found".to_string()))?;
 
@@ -85,7 +82,6 @@ pub async fn auto_segment_and_create_extracts(
     let segmenter = DocumentSegmenter::new(config);
     let result = segmenter.segment(&content)?;
 
-    // Create extracts from segments
     let mut extract_ids = Vec::new();
 
     for segment in result.segments {
@@ -210,7 +206,6 @@ pub async fn get_recommended_segmentation(
             (SegmentationMethod::Paragraph, 400, 0)
         }
         "markdown" => {
-            // Markdown has headers
             (SegmentationMethod::Smart, 250, 20)
         }
         _ => {
@@ -257,14 +252,12 @@ pub async fn split_document(
     archive_parent: bool,
     repo: State<'_, Repository>,
 ) -> Result<Vec<String>> {
-    // Fetch parent document
     let parent = repo.get_document(&document_id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound("Parent document not found".to_string()))?;
 
     let total_chunks = parts.len() as i32;
     let mut child_ids = Vec::with_capacity(parts.len());
 
-    // Create child documents
     for (i, part) in parts.into_iter().enumerate() {
         let chunk_index = i as i32;
         let mut child_doc = Document::with_collection(
@@ -360,7 +353,6 @@ pub async fn split_document(
         child_ids.push(saved_child.id);
     }
 
-    // Optional parent dismissal
     if archive_parent {
         repo.update_document_dismiss(&parent.id, true).await?;
     }

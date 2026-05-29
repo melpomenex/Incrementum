@@ -21,7 +21,6 @@ pub async fn extract_pdf_content(file_path: &str) -> Result<ExtractedContent> {
         }
     };
 
-    // Get file size
     let file_size = buffer.len();
 
     // Extract text using pdf-extract with a timeout to prevent hanging on large PDFs
@@ -51,7 +50,6 @@ pub async fn extract_pdf_content(file_path: &str) -> Result<ExtractedContent> {
     // Count words in extracted text
     let word_count = text.split_whitespace().count();
 
-    // Get metadata using lopdf
     let doc = match lopdf::Document::load_mem(&buffer) {
         Ok(d) => d,
         Err(e) => {
@@ -65,7 +63,6 @@ pub async fn extract_pdf_content(file_path: &str) -> Result<ExtractedContent> {
     let pages = doc.get_pages();
     let page_count = pages.len();
 
-    // Build metadata
     let mut pdf_metadata = HashMap::new();
     pdf_metadata.insert("format".to_string(), "PDF".to_string());
     pdf_metadata.insert("page_count".to_string(), page_count.to_string());
@@ -86,7 +83,6 @@ pub async fn extract_pdf_content(file_path: &str) -> Result<ExtractedContent> {
         reading_time_mins.to_string(),
     );
 
-    // Build metadata JSON
     let metadata = serde_json::json!({
         "format": "PDF",
         "page_count": page_count,
@@ -245,7 +241,6 @@ pub async fn convert_pdf_to_html(file_path: &str) -> Result<String> {
         }
     };
 
-    // Get document metadata using lopdf
     let doc = match lopdf::Document::load_mem(&buffer) {
         Ok(d) => d,
         Err(e) => {
@@ -259,7 +254,6 @@ pub async fn convert_pdf_to_html(file_path: &str) -> Result<String> {
     let pages = doc.get_pages();
     let page_count = pages.len();
 
-    // Extract title from filename
     let title = path
         .file_stem()
         .and_then(|s| s.to_str())

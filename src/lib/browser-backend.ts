@@ -35,7 +35,6 @@ import {
 } from './youtubeDataApi';
 import { providerRequiresApiKey } from '../utils/llmProviderUtils';
 
-// Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
@@ -78,10 +77,8 @@ async function extractEpubText(data: ArrayBuffer): Promise<string> {
         for (let i = 0; i < spineItems.length; i++) {
             const item = spineItems[i];
             try {
-                // Load the chapter content
                 const doc = await book.load(item.href);
                 if (doc) {
-                    // Extract text from the document
                     const container = document.createElement('div');
                     if (typeof doc === 'string') {
                         container.innerHTML = doc;
@@ -89,7 +86,6 @@ async function extractEpubText(data: ArrayBuffer): Promise<string> {
                         container.innerHTML = doc.body?.innerHTML || '';
                     }
 
-                    // Get text content, preserving some structure
                     const text = container.innerText || container.textContent || '';
                     const cleanedText = text
                         .replace(/\s+/g, ' ')
@@ -154,7 +150,6 @@ function toCamelCase(obj: unknown): unknown {
     if (Array.isArray(obj)) {
         return obj.map(v => toCamelCase(v));
     } else if (typeof obj === 'object' && obj !== null) {
-        // Handle both plain objects and IndexedDB result objects
         return Object.keys(obj).reduce((result, key) => {
             const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
             result[camelKey] = toCamelCase((obj as Record<string, unknown>)[key]);
@@ -797,7 +792,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         const filePath = doc.file_path;
         const fileType = doc.file_type?.toLowerCase() || '';
 
-        // Handle browser-file:// and browser-fetched:// paths
         if ((fileType === 'pdf' || fileType === 'epub' || fileType === 'html') &&
             (filePath.startsWith('browser-file://') || filePath.startsWith('browser-fetched://'))) {
             // Try to get from in-memory store first, then from IndexedDB
@@ -821,7 +815,6 @@ const commandHandlers: Record<string, CommandHandler> = {
                         arrayBuffer = await storedFile.blob.arrayBuffer();
                     } catch (blobError) {
                         console.warn('[Browser] File blob is no longer readable, may have been cleared:', blobError);
-                        // Delete the corrupted file entry
                         await db.deleteFile(storedFile.id);
                     }
                 }
@@ -831,17 +824,13 @@ const commandHandlers: Record<string, CommandHandler> = {
                 let extractedContent = '';
 
                 if (fileType === 'html') {
-                    // Extract text from HTML
                     try {
                         const text = new TextDecoder().decode(arrayBuffer);
-                        // Create a temporary DOM element to parse HTML
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(text, 'text/html');
 
-                        // Remove script and style elements
                         doc.querySelectorAll('script, style').forEach(el => el.remove());
 
-                        // Get text content and clean it up
                         extractedContent = doc.body.textContent || doc.body.innerText || '';
                         extractedContent = extractedContent
                             .replace(/\s+/g, ' ')
@@ -896,7 +885,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         const filePath = args.filePath as string;
         let fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'Untitled';
         let fileType = fileName.split('.').pop()?.toLowerCase() || 'pdf';
-        console.log(`[Browser] import_document:`, { filePath, fileName, fileType });
         let extractedContent = '';
         let finalFilePath = filePath;
 
@@ -906,7 +894,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         let sourceFile: File | null = null;
         if (filePath.startsWith('browser-file://')) {
             const file = getBrowserFile(filePath);
-            console.log(`[Browser] Looking up file in browser store:`, file ? `found (${file.size} bytes)` : 'not found');
+            console.error(`[Browser] Looking up file in browser store:`, file ? `found (${file.size} bytes)` : 'not found');
             if (file) sourceFile = file;
         } else if (filePath.startsWith('browser-fetched://')) {
             const stored = await db.getFile(filePath);
@@ -926,7 +914,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             try {
                 const meta = await uploadRoomFile(sourceFile);
                 finalFilePath = createYjsFilePath(meta.room, meta.id, meta.filename);
-                console.log('[Browser] Uploaded file to yjs-sync:', { id: meta.id, room: meta.room, filePath: finalFilePath });
                 await db.storeFile(sourceFile, finalFilePath);
             } catch (e) {
                 console.warn('[Browser] yjs-sync upload failed, falling back to local-only file:', e);
@@ -935,14 +922,12 @@ const commandHandlers: Record<string, CommandHandler> = {
                 finalFilePath = filePath;
             }
 
-            // Extract text content from PDFs and EPUBs
             if (fileType === 'pdf' || fileType === 'epub') {
                 try {
                     const arrayBuffer = await sourceFile.arrayBuffer();
                     extractedContent = fileType === 'epub'
                         ? await extractEpubText(arrayBuffer)
                         : await extractPdfText(arrayBuffer);
-                    console.log(`[Browser] Extracted ${extractedContent.length} characters from ${fileType.toUpperCase()}`);
                 } catch (error) {
                     console.warn(`[Browser] Failed to extract ${fileType.toUpperCase()} text:`, error);
                 }
@@ -958,7 +943,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             content: extractedContent || undefined,
             tags: suggestAutoTags(fileName, extractedContent || ""),
         });
-        console.log(`[Browser] Document created:`, doc.id, doc.file_path, doc.file_type);
         return toCamelCase(doc);
     },
 
@@ -1088,18 +1072,15 @@ const commandHandlers: Record<string, CommandHandler> = {
     read_document_file: async (args) => {
         // In browser mode, return the file from IndexedDB if stored
         const filePath = args.filePath as string;
-        console.log('[Browser] read_document_file:', filePath);
 
         // yjs-file://...: try IndexedDB cache first; otherwise download from yjs-sync and cache it.
         const yjsInfo = parseYjsFilePath(filePath);
         if (yjsInfo) {
             const cached = await db.getFile(filePath);
             if (cached) {
-                console.log('[Browser] Found yjs-file in IndexedDB cache:', cached.filename, 'size:', cached.blob?.size);
                 return await blobToBase64DataUrlPayload(cached.blob);
             }
 
-            console.log('[Browser] yjs-file not cached; downloading:', yjsInfo);
             const blob = await downloadRoomFile(yjsInfo.room, yjsInfo.id);
             const filename = yjsInfo.filename || 'document';
             const contentType = blob.type || 'application/octet-stream';
@@ -1115,29 +1096,24 @@ const commandHandlers: Record<string, CommandHandler> = {
 
             const file = getBrowserFile(filePath);
             if (file) {
-                console.log('[Browser] Found file in memory store:', file.name, 'size:', file.size);
                 const base64 = await blobToBase64DataUrlPayload(file);
-                console.log('[Browser] Read file from memory, base64 length:', base64?.length);
                 return base64;
             }
 
             // If not in memory (page refresh), try IndexedDB by path first, then by filename
-            console.log('[Browser] File not in memory, checking IndexedDB...');
             let storedFile = await db.getFile(filePath);
-            console.log('[Browser] IndexedDB lookup by path result:', storedFile ? `found (${storedFile.blob?.size} bytes)` : 'not found');
+            console.error('[Browser] IndexedDB lookup by path result:', storedFile ? `found (${storedFile.blob?.size} bytes)` : 'not found');
 
             // If not found by path, try by filename (for files stored before path-based storage)
             if (!storedFile) {
                 const filename = filePath.split('/').pop() || '';
-                console.log('[Browser] Trying lookup by filename:', filename);
                 storedFile = await db.getFileByName(filename);
-                console.log('[Browser] IndexedDB lookup by filename result:', storedFile ? `found (${storedFile.blob?.size} bytes)` : 'not found');
+                console.error('[Browser] IndexedDB lookup by filename result:', storedFile ? `found (${storedFile.blob?.size} bytes)` : 'not found');
             }
 
             if (storedFile) {
                 try {
                     const base64 = await blobToBase64DataUrlPayload(storedFile.blob);
-                    console.log('[Browser] Read file from IndexedDB, base64 length:', base64?.length);
                     return base64;
                 } catch (error) {
                     console.warn('[Browser] Failed to read file blob, deleting corrupted entry:', error);
@@ -1153,7 +1129,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             if (storedFile) {
                 try {
                     const base64 = await blobToBase64DataUrlPayload(storedFile.blob);
-                    console.log('[Browser] Read fetched file from IndexedDB, base64 length:', base64?.length);
                     return base64;
                 } catch (error) {
                     console.warn('[Browser] Failed to read fetched file blob, deleting corrupted entry:', error);
@@ -1167,7 +1142,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         return '';
     },
 
-    // Extract commands
     get_extracts: async (args) => {
         const documentId = args.documentId as string | undefined;
         const extracts = documentId
@@ -1391,9 +1365,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         return null;
     },
 
-    // Queue/Review commands
     get_queue: async () => {
-        // Return a flat array of queue items matching Rust format
         const docs = (await db.getDocuments()).filter((doc) => !doc.is_archived);
         const activeDocIds = new Set(docs.map((doc) => doc.id));
         const dueExtracts = await db.getDueExtracts();
@@ -1804,7 +1776,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         const nextDue = new Date(now.getTime() + intervalDays * DAY_MS);
         const nextReviewDateIso = nextDue.toISOString();
 
-        // Update document with new scheduling data
         const newTimeSpent = (doc.total_time_spent || 0) + (request.time_taken || 0);
 
         await db.updateDocument(request.document_id, {
@@ -1846,7 +1817,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         const nextReviewDateIso = nextCard.due.toISOString();
         const intervalDays = intervalFromDue(now, nextCard.due, nextCard.scheduled_days);
 
-        // Update extract with new scheduling data
         await db.updateExtract(request.extract_id, {
             next_review_date: nextReviewDateIso,
             memory_state: { stability: nextCard.stability, difficulty: nextCard.difficulty },
@@ -2088,7 +2058,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         return args.config;
     },
 
-    // Settings
     get_settings: async () => {
         const settings = await db.getSyncState('settings');
         return settings || {};
@@ -2132,7 +2101,6 @@ const commandHandlers: Record<string, CommandHandler> = {
 
         // Try direct fetch first (might work for CORS-enabled feeds)
         try {
-            console.log('[Browser] Trying direct fetch for:', url);
             const response = await fetch(url);
 
             if (response.ok) {
@@ -2146,8 +2114,6 @@ const commandHandlers: Record<string, CommandHandler> = {
 
                 await db.storeFile(file, `browser-fetched://${fileId}`);
 
-                console.log('[Browser] Successfully fetched URL directly');
-
                 return {
                     file_path: `browser-fetched://${fileId}`,
                     file_name: filename,
@@ -2155,7 +2121,7 @@ const commandHandlers: Record<string, CommandHandler> = {
                 };
             }
         } catch (directError) {
-            console.log('[Browser] Direct fetch failed, trying CORS proxies:', directError);
+            console.error('[Browser] Direct fetch failed, trying CORS proxies:', directError);
             lastError = directError as Error;
         }
 
@@ -2164,7 +2130,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             if (!proxy) continue; // Skip null (already tried direct)
 
             try {
-                console.log('[Browser] Trying CORS proxy:', proxy);
                 const proxyUrl = proxy + encodeURIComponent(url);
                 const response = await fetch(proxyUrl);
 
@@ -2179,18 +2144,15 @@ const commandHandlers: Record<string, CommandHandler> = {
 
                     await db.storeFile(file, `browser-fetched://${fileId}`);
 
-                    console.log('[Browser] Successfully fetched feed via proxy:', proxy);
-
                     return {
                         file_path: `browser-fetched://${fileId}`,
                         file_name: filename,
                         content_type: contentType
                     };
                 } else {
-                    console.log('[Browser] Proxy returned status:', response.status);
                 }
             } catch (proxyError) {
-                console.log('[Browser] Proxy failed:', proxy, proxyError);
+                console.error('[Browser] Proxy failed:', proxy, proxyError);
                 lastError = proxyError as Error;
             }
         }
@@ -2221,7 +2183,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             }
         }
 
-        // Create a document with the YouTube URL
         const doc = await db.createDocument({
             title,
             file_path: url,
@@ -2240,9 +2201,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         }
 
         try {
-            console.log('[Browser] Fetching YouTube transcript for:', videoId);
             const result = await fetchYouTubeTranscript(videoId, language);
-            console.log(`[Browser] Successfully fetched ${result.segments.length} transcript segments`);
             return result.segments;
         } catch (error) {
             console.warn('[Browser] Failed to fetch YouTube transcript:', error);
@@ -2272,9 +2231,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         }
 
         try {
-            console.log('[Browser] Fetching YouTube transcript for URL:', url);
             const result = await fetchYouTubeTranscript(url, language);
-            console.log(`[Browser] Successfully fetched ${result.segments.length} transcript segments`);
             return result.segments;
         } catch (error) {
             console.warn('[Browser] Failed to fetch YouTube transcript:', error);
@@ -2295,7 +2252,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             throw new Error('No URL provided');
         }
 
-        // Extract video ID
         const idMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
             || url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/)
             || url.match(/youtube\.com\/v\/([a-zA-Z0-9_-]{11})/)
@@ -2376,13 +2332,10 @@ const commandHandlers: Record<string, CommandHandler> = {
             throw new Error('Invalid YouTube playlist URL');
         }
 
-        // Fetch playlist info from YouTube Data API
         const playlistInfo = await fetchPlaylistInfo(playlistId);
 
-        // Import all videos from the playlist
         const videosToImport = await importPlaylistVideos(playlistInfo, true);
         
-        // Create documents for each video
         const importedDocs = [];
         for (const video of videosToImport) {
             try {
@@ -2435,7 +2388,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             throw new Error('YouTube API key not configured. Please add your YouTube Data API key in Settings > Integrations.');
         }
 
-        // Fetch fresh playlist info
         const playlistInfo = await fetchPlaylistInfo(subscriptionId);
 
         return {
@@ -2446,7 +2398,6 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     import_playlist_video: async () => {
         // In browser mode, this is handled during subscribe_to_playlist
-        // Return a mock document
         throw new Error('Individual video import not supported in browser mode. Please import the entire playlist.');
     },
 
@@ -2456,7 +2407,6 @@ const commandHandlers: Record<string, CommandHandler> = {
     },
 
     get_playlist_settings: async () => {
-        // Return default settings
         return {
             id: 'global',
             enabled: isYouTubeApiEnabled(),
@@ -2488,7 +2438,6 @@ const commandHandlers: Record<string, CommandHandler> = {
     import_anki_package_to_learning_items: async (args) => {
         const filePath = args.apkgPath as string;
 
-        // Get the file from the browser file store
         const file = getBrowserFile(filePath);
         if (!file) {
             throw new Error('File not found. Please select the file again.');
@@ -2501,10 +2450,8 @@ const commandHandlers: Record<string, CommandHandler> = {
         const apkgBytes = args.apkgBytes as number[];
         const uint8Array = new Uint8Array(apkgBytes);
 
-        console.log('[Browser] Starting Anki import, byte array length:', apkgBytes.length);
         try {
             const result = await importAnkiPackage(uint8Array);
-            console.log('[Browser] Anki import successful, result type:', Array.isArray(result) ? 'array' : typeof result, 'length:', Array.isArray(result) ? result.length : 'N/A');
 
             // Verify result is serializable before returning
             let serialized: string;
@@ -2515,7 +2462,6 @@ const commandHandlers: Record<string, CommandHandler> = {
                 throw new Error('Import result is not serializable');
             }
 
-            // Parse back to ensure clean plain objects
             try {
                 return JSON.parse(serialized);
             } catch (e) {
@@ -2556,18 +2502,15 @@ const commandHandlers: Record<string, CommandHandler> = {
             throw new Error('Deck file is empty (no cards found).');
         }
 
-        // Validate first entry to confirm structure
         const firstCard = entries[0][1];
         if (!firstCard || typeof firstCard !== 'object' || !('answer' in firstCard)) {
             throw new Error('File does not match the expected JSON deck format.');
         }
 
-        // Extract deck metadata from first card
         const card0 = firstCard as Record<string, unknown>;
         const deckName = (card0.deck_name as string) || 'Imported Deck';
         const subject = (card0.subject as string) || 'General';
 
-        // Create the parent document
         const doc = await db.createDocument({
             title: deckName,
             file_path: `json-deck://${filePath}`,
@@ -2686,33 +2629,29 @@ const commandHandlers: Record<string, CommandHandler> = {
 
         // Try direct fetch first (might work for CORS-enabled feeds)
         try {
-            console.log('[Browser] Trying direct fetch for:', feedUrl);
             const response = await fetch(feedUrl);
             if (response.ok) {
                 const xmlText = await response.text();
                 return await parseAndReturnFeed(xmlText, feedUrl);
             }
         } catch (directError) {
-            console.log('[Browser] Direct fetch failed, trying CORS proxies:', directError);
+            console.error('[Browser] Direct fetch failed, trying CORS proxies:', directError);
             lastError = directError as Error;
         }
 
         // Try each CORS proxy
         for (const proxy of corsProxies) {
             try {
-                console.log('[Browser] Trying CORS proxy:', proxy);
                 const proxyUrl = proxy + encodeURIComponent(feedUrl);
                 const response = await fetch(proxyUrl);
 
                 if (response.ok) {
                     const xmlText = await response.text();
-                    console.log('[Browser] Successfully fetched feed via proxy:', proxy);
                     return await parseAndReturnFeed(xmlText, feedUrl);
                 } else {
-                    console.log('[Browser] Proxy returned status:', response.status);
                 }
             } catch (proxyError) {
-                console.log('[Browser] Proxy failed:', proxy, proxyError);
+                console.error('[Browser] Proxy failed:', proxy, proxyError);
                 lastError = proxyError as Error;
             }
         }
@@ -2725,8 +2664,6 @@ const commandHandlers: Record<string, CommandHandler> = {
         const { searchLibGen } = await import('../api/libgen');
         const query = args.query as string;
         const limit = (args.limit as number) || 25;
-        
-        console.log('[Browser] Searching LibGen for:', query);
         
         try {
             const books = await searchLibGen({
@@ -2762,10 +2699,7 @@ const commandHandlers: Record<string, CommandHandler> = {
         const bookId = args.bookId as string;
         const format = (args.format as string)?.toLowerCase() || 'pdf';
         
-        console.log('[Browser] Getting download link for book:', bookId);
-        
         try {
-            // Get the download URL
             const downloadUrl = await getDownloadLink(bookId);
             
             // Open the download URL in a new tab
@@ -2833,7 +2767,6 @@ const commandHandlers: Record<string, CommandHandler> = {
 
         const actualModel = model || config.defaultModel;
 
-        // Handle Anthropic separately due to different API format
         if (provider === 'anthropic') {
             const response = await fetch(`${config.url}/messages`, {
                 method: 'POST',
@@ -2965,7 +2898,6 @@ const commandHandlers: Record<string, CommandHandler> = {
             context.contextWindowTokens
         );
 
-        // Build context prompt
         let contextPrompt = '';
         if (context.type === 'document' && normalizedContent) {
             contextPrompt = `You are a helpful assistant analyzing the following document content:\n\n${normalizedContent}\n\nAnswer questions based on this document.`;
@@ -3146,7 +3078,6 @@ const commandHandlers: Record<string, CommandHandler> = {
 
     // MCP commands
     mcp_get_incrementum_tools: async () => {
-        // Return the same tool definitions as the Rust backend
         return [
             {
                 name: 'create_document',
@@ -3580,22 +3511,16 @@ async function parseAndReturnFeed(xmlText: string, feedUrl: string) {
  * Import an Anki package (shared helper)
  */
 async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
-    // Parse the .apkg file
-    console.log('[Browser] Parsing Anki package...');
     const decks = await parseAnkiPackage(fileOrBytes);
-    console.log(`[Browser] Parsed ${decks.length} decks`);
 
     // Convert to Incrementum format
-    console.log('[Browser] Converting to Incrementum format...');
     const { documents, learningItems } = convertAnkiToLearningItems(decks);
     // Don't save dummy documents — Anki imports only produce learning items
-    console.log(`[Browser] Converted: ${documents.length} decks (documents skipped), ${learningItems.length} learning items`);
 
     // documentIdMap is empty since we don't create documents; learning items will use empty docId
 
     // Create learning items in bulk — avoids hammering IndexedDB with
     // hundreds of individual transactions (which kills the backing store on mobile)
-    console.log(`[Browser] Creating ${learningItems.length} learning items in database...`);
     const now = new Date().toISOString();
     const dbItems: any[] = [];
 
@@ -3614,9 +3539,7 @@ async function importAnkiPackage(fileOrBytes: File | Uint8Array) {
 
     // Bulk insert all items in a single transaction
     await db.bulkPutLearningItems(dbItems);
-    console.log(`[Browser] Bulk-inserted ${dbItems.length} learning items`);
 
-    console.log(`[Browser] Successfully imported ${dbItems.length} learning items`);
     return dbItems.map((item) => toCamelCase(item));
 }
 

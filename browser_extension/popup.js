@@ -1,3 +1,4 @@
+/* globals chrome */
 // Popup script for Incrementum Browser Sync
 
 class PopupController {
@@ -10,18 +11,15 @@ class PopupController {
   }
 
   async init() {
-    // Set up event listeners
     this.setupEventListeners();
     this.startKeepAlive();
 
-    // Load initial data
     await this.loadStatus();
     await this.loadStats();
     await this.checkExtractMode();
   }
 
   setupEventListeners() {
-    // Save action buttons
     document.getElementById('save-current-tab').addEventListener('click', () => {
       this.saveCurrentTab();
     });
@@ -30,7 +28,6 @@ class PopupController {
       this.saveAllTabs();
     });
 
-    // Extract mode buttons
     document.getElementById('toggle-extract-mode').addEventListener('click', () => {
       this.toggleExtractMode();
     });
@@ -43,23 +40,19 @@ class PopupController {
       this.toggleHighlights();
     });
 
-    // Connection test
     document.getElementById('test-connection').addEventListener('click', () => {
       this.testConnection();
     });
 
-    // Options link
     document.getElementById('options-link').addEventListener('click', (e) => {
       e.preventDefault();
       chrome.runtime.openOptionsPage();
     });
 
-    // AI Summary functionality
     document.getElementById('generate-summary').addEventListener('click', () => {
       this.generateAISummary();
     });
 
-    // Modal controls
     document.getElementById('modal-close').addEventListener('click', () => {
       this.closeModal();
     });
@@ -95,7 +88,6 @@ class PopupController {
 
   async loadStats() {
     try {
-      // Load extract stats from current page
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.id || this.isInternalUrl(tab.url)) {
         document.getElementById('extracts-count').textContent = '0';
@@ -242,7 +234,6 @@ class PopupController {
     }
   }
 
-  // Check extract mode status
   async checkExtractMode() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -261,7 +252,6 @@ class PopupController {
   async toggleExtractMode() {
     try {
       const button = document.getElementById('toggle-extract-mode');
-      const originalContent = button.innerHTML;
 
       button.disabled = true;
       this.setButtonLoading(button, true);
@@ -270,7 +260,6 @@ class PopupController {
       if (tab && tab.id && !this.isInternalUrl(tab.url)) {
         await chrome.tabs.sendMessage(tab.id, { action: 'toggleExtractMode' });
 
-        // Check the new status
         setTimeout(() => {
           this.checkExtractMode();
         }, 100);
@@ -290,7 +279,6 @@ class PopupController {
   async quickExtract() {
     try {
       const button = document.getElementById('quick-extract');
-      const originalContent = button.innerHTML;
 
       button.disabled = true;
       this.setButtonLoading(button, true);
@@ -339,7 +327,6 @@ class PopupController {
   async toggleHighlights() {
     try {
       const button = document.getElementById('toggle-highlights');
-      const originalContent = button.innerHTML;
 
       button.disabled = true;
       this.setButtonLoading(button, true);
@@ -359,7 +346,6 @@ class PopupController {
     }
   }
 
-  // Update extract mode indicator
   updateExtractModeIndicator(isActive) {
     this.extractMode = isActive;
     const indicator = document.getElementById('extract-mode-indicator');
@@ -502,7 +488,6 @@ class PopupController {
     return result;
   }
 
-  // Generate AI Summary
   async generateAISummary() {
     const modal = document.getElementById('ai-modal');
     const modalContent = document.getElementById('ai-modal-content');
@@ -517,7 +502,6 @@ class PopupController {
     `;
 
     try {
-      // Get page content from content script
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || this.isInternalUrl(tab.url)) {
         throw new Error('Cannot analyze internal browser pages');
@@ -533,7 +517,7 @@ class PopupController {
           content = selectionResponse.text;
         }
       } catch (e) {
-        console.log('Could not get selection, will try page content');
+        console.warn('[Popup] Could not get selection text from content script:', e?.message);
       }
 
       if (!content) {
@@ -543,7 +527,7 @@ class PopupController {
             content = contentResponse.content.slice(0, 10000); // Limit content size
           }
         } catch (e) {
-          console.log('Could not get page content');
+          console.warn('[Popup] Could not get page content from content script:', e?.message);
         }
       }
 
@@ -571,7 +555,6 @@ class PopupController {
       this.currentAIResponse = response;
       await this.persistAISummaryExtract();
 
-      // Render the results
       this.renderAIResults(response);
 
     } catch (error) {
@@ -588,13 +571,11 @@ class PopupController {
     }
   }
 
-  // Render AI Results in modal
   renderAIResults(response) {
     const modalContent = document.getElementById('ai-modal-content');
 
     let html = '';
 
-    // Stats row
     if (response.reading_time_minutes || response.word_count || response.complexity_score) {
       html += `
         <div class="ai-section">
@@ -616,7 +597,6 @@ class PopupController {
       `;
     }
 
-    // Summary
     if (response.summary) {
       html += `
         <div class="ai-section">
@@ -626,7 +606,6 @@ class PopupController {
       `;
     }
 
-    // Key Points
     if (response.key_points && response.key_points.length > 0) {
       html += `
         <div class="ai-section">
@@ -638,7 +617,6 @@ class PopupController {
       `;
     }
 
-    // Questions
     if (response.questions && response.questions.length > 0) {
       html += `
         <div class="ai-section">
@@ -650,7 +628,6 @@ class PopupController {
       `;
     }
 
-    // Flashcards preview
     if (response.flashcards && response.flashcards.length > 0) {
       html += `
         <div class="ai-section">
@@ -672,7 +649,6 @@ class PopupController {
     modalContent.innerHTML = html;
   }
 
-  // Save AI Extract
   async saveAIExtract() {
     if (!this.currentPageInfo || !this.currentAIResponse) {
       this.showNotification('No content to save', 'error');
@@ -700,7 +676,6 @@ class PopupController {
   }
 }
 
-// Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   new PopupController();
 });

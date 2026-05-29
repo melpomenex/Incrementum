@@ -5,10 +5,8 @@ import { Card, createEmptyCard, fsrs, generatorParameters, Rating } from 'ts-fsr
 
 export const videoExtractsRouter = Router();
 
-// Initialize FSRS with default parameters
 const f = fsrs(generatorParameters());
 
-// Get all video extracts for a document
 videoExtractsRouter.get('/document/:documentId', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -35,7 +33,6 @@ videoExtractsRouter.get('/document/:documentId', authMiddleware, async (req: Aut
             ORDER BY start_time ASC
         `, [documentId]);
 
-        // Parse JSON fields
         const extracts = result.rows.map(row => ({
             ...row,
             tags: row.tags ? JSON.parse(row.tags) : [],
@@ -48,7 +45,6 @@ videoExtractsRouter.get('/document/:documentId', authMiddleware, async (req: Aut
     }
 });
 
-// Get a single video extract by ID
 videoExtractsRouter.get('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -117,7 +113,6 @@ videoExtractsRouter.get('/due/before/:timestamp', authMiddleware, async (req: Au
     }
 });
 
-// Create a new video extract
 videoExtractsRouter.post('/', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -133,7 +128,6 @@ videoExtractsRouter.post('/', authMiddleware, async (req: AuthRequest, res, next
             add_to_queue,
         } = req.body;
 
-        // Validate required fields
         if (!document_id || start_time === undefined || end_time === undefined || !title) {
             return res.status(400).json({ error: 'Missing required fields: document_id, start_time, end_time, title' });
         }
@@ -148,7 +142,6 @@ videoExtractsRouter.post('/', authMiddleware, async (req: AuthRequest, res, next
             return res.status(404).json({ error: 'Document not found or not owned by user' });
         }
 
-        // Validate time range
         if (start_time < 0) {
             return res.status(400).json({ error: 'Start time cannot be negative' });
         }
@@ -202,7 +195,6 @@ videoExtractsRouter.post('/', authMiddleware, async (req: AuthRequest, res, next
     }
 });
 
-// Update a video extract
 videoExtractsRouter.put('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -248,7 +240,6 @@ videoExtractsRouter.put('/:id', authMiddleware, async (req: AuthRequest, res, ne
     }
 });
 
-// Delete a video extract
 videoExtractsRouter.delete('/:id', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -283,12 +274,10 @@ videoExtractsRouter.post('/:id/rate', authMiddleware, async (req: AuthRequest, r
         const userId = req.userId!;
         const { rating } = req.body;
 
-        // Validate rating
         if (!rating || rating < 1 || rating > 4) {
             return res.status(400).json({ error: 'Rating must be between 1 (Again) and 4 (Easy)' });
         }
 
-        // Get the extract with document info
         const extractResult = await pool.query(`
             SELECT ve.*
             FROM video_extracts ve
@@ -303,12 +292,10 @@ videoExtractsRouter.post('/:id/rate', authMiddleware, async (req: AuthRequest, r
         const extract = extractResult.rows[0];
         const now = new Date();
 
-        // Create or load a Card from the extract's memory state
         let card: Card;
         const memoryState = extract.memory_state ? JSON.parse(extract.memory_state) : null;
 
         if (memoryState && memoryState.stability !== undefined && memoryState.difficulty !== undefined) {
-            // Load existing card state
             const lastReview = extract.last_review_date ? new Date(extract.last_review_date) : new Date(extract.date_created);
 
             card = {
@@ -322,12 +309,10 @@ videoExtractsRouter.post('/:id/rate', authMiddleware, async (req: AuthRequest, r
                 state: extract.review_count > 0 ? 2 : 0, // 0 = New, 2 = Review
             } as Card;
         } else {
-            // Create new card
             card = createEmptyCard(extract.date_created ? new Date(extract.date_created) : now);
             card.reps = extract.reps;
         }
 
-        // Get the rating enum value
         const grade = rating === 1 ? Rating.Again :
                        rating === 2 ? Rating.Hard :
                        rating === 3 ? Rating.Good : Rating.Easy;
@@ -344,7 +329,6 @@ videoExtractsRouter.post('/:id/rate', authMiddleware, async (req: AuthRequest, r
 
         const newCard = scheduledCard.card;
 
-        // Update the extract with the new FSRS state
         const result = await pool.query(`
             UPDATE video_extracts
             SET memory_state = $2,
@@ -379,7 +363,6 @@ videoExtractsRouter.post('/:id/rate', authMiddleware, async (req: AuthRequest, r
     }
 });
 
-// Get video chapters for a document
 videoExtractsRouter.get('/document/:documentId/chapters', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -431,7 +414,6 @@ videoExtractsRouter.put('/document/:documentId/chapters', authMiddleware, async 
             return res.status(404).json({ error: 'Document not found or not owned by user' });
         }
 
-        // Delete existing chapters
         await pool.query('DELETE FROM video_chapters WHERE document_id = $1', [documentId]);
 
         // Insert new chapters
@@ -448,7 +430,6 @@ videoExtractsRouter.put('/document/:documentId/chapters', authMiddleware, async 
     }
 });
 
-// Get video transcript for a document
 videoExtractsRouter.get('/document/:documentId/transcript', authMiddleware, async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();
@@ -504,7 +485,6 @@ videoExtractsRouter.put('/document/:documentId/transcript', authMiddleware, asyn
             return res.status(404).json({ error: 'Document not found or not owned by user' });
         }
 
-        // Upsert transcript
         await pool.query(`
             INSERT INTO video_transcripts (document_id, transcript, segments)
             VALUES ($1, $2, $3)

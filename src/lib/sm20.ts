@@ -29,10 +29,6 @@ export interface SM20ReviewResult {
   retrievability: number;
 }
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
 const STABILITY_POWER = 2.90396936502257;
 const STABILITY_LOWER = -1.0;
 const STABILITY_CAP = 0.7;
@@ -88,10 +84,6 @@ const MATRIX_STRIDE_R = MATRIX_DIM * MATRIX_DIM; // 441
 const MATRIX_STRIDE_S = MATRIX_DIM; // 21
 const _MATRIX_SIZE = 9261;
 
-// =============================================================================
-// FSRS-FAMILY BRANCH CONSTANTS
-// =============================================================================
-
 /** 35 FSRS-family parameters extracted from runtime memory (PTR_DAT_01125c00). */
 const FSRS_PARAMS: readonly number[] = [
   // Expert 1 (power-law) parameters
@@ -123,7 +115,6 @@ const FSRS_PARAMS: readonly number[] = [
   2.0150955428514656,        // [21] lapse multiplier
   0.2555216135743039,        // [22] lapse retrov correction
   1.9926553104343092,        // [23] lapse retrov weight
-  // Difficulty update
   95.04137758278812,         // [24] d decay param
   42.21989471200275,         // [25] d stability factor
   // Recall stability (grade >= 3)
@@ -138,10 +129,6 @@ const FSRS_PARAMS: readonly number[] = [
   0.12374729387559685,       // [34] recall grade mult
 ];
 
-// =============================================================================
-// LOW-LEVEL HELPERS
-// =============================================================================
-
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -154,10 +141,6 @@ function sigmoidWeight(x: number, y: number): number {
   const s = x + y;
   return s === 0 ? 0 : x / s;
 }
-
-// =============================================================================
-// FSRS-FAMILY EXPERT FUNCTIONS
-// =============================================================================
 
 /** FUN_00af8ac0: Expert 1 — power-law forgetting. */
 function fsrsExpert1(t: number, s: number): number {
@@ -201,10 +184,6 @@ function fsrsExpertMixture(t: number, s: number, d: number): number {
   if (wSum === 0) return 0.0;
   return (w1 * e1 + w2 * e2 + w3 * e3) / wSum;
 }
-
-// =============================================================================
-// FSRS-FAMILY UPDATE FUNCTIONS
-// =============================================================================
 
 /** FUN_00af90f0: Update difficulty based on review outcome. */
 function fsrsDifficultyUpdate(d: number, s: number, a: number, grade: number): number {
@@ -270,20 +249,12 @@ export function fsrsInitItem(grade: number, stability: number, flag: boolean): S
   };
 }
 
-// =============================================================================
-// RETRIEVABILITY
-// =============================================================================
-
 export function sm20Retrievability(stability: number, elapsedDays: number): number {
   if (!Number.isFinite(stability) || stability <= 0) {
     return 0;
   }
   return Math.pow(0.9, Math.max(0, elapsedDays) / stability);
 }
-
-// =============================================================================
-// INDEX CONVERSIONS
-// =============================================================================
 
 /** FUN_00cf7550: Validate and clamp stability. */
 function stabilityPretransform(s: number): number {
@@ -328,10 +299,6 @@ function repetitionToFraction(r: number): number {
   return (r - 1) / 19.0;
 }
 
-// =============================================================================
-// ROUNDING
-// =============================================================================
-
 /** FUN_00ce8dd0: Clamp interval to threshold range. */
 function applyRounding(interval: number, flags: number): number {
   const [upper, lower] = flags >= 4 || (flags & 2) !== 0
@@ -342,10 +309,6 @@ function applyRounding(interval: number, flags: number): number {
   if (interval <= lower && Math.abs(interval - lower) > 1e-15) return lower;
   return interval;
 }
-
-// =============================================================================
-// INTERVAL FORMULAS
-// =============================================================================
 
 /** FUN_00ccf070: Version 2 interval (SM-19 compatible). */
 function intervalV2(repFraction: number, stabilityTransformed: number, difficultyFraction: number): number {
@@ -380,17 +343,9 @@ function intervalInitial(repFraction: number, stabilityTransformed: number, diff
   return Math.max(1.0, applyRounding(result, 4));
 }
 
-// =============================================================================
-// MATRIX HELPERS
-// =============================================================================
-
 function matrixFlatIndex(r: number, s: number, d: number): number {
   return r * MATRIX_STRIDE_R + s * MATRIX_STRIDE_S + d;
 }
-
-// =============================================================================
-// BAYESIAN CORE
-// =============================================================================
 
 /** FUN_00ce1250: Bayesian 3×3×3 neighbor smoothing. */
 function bayesianSmooth(
@@ -466,10 +421,6 @@ export function sm20RecordReview(
   intervalMatrix[idx] = (oldInterval * oldCount + intervalUsed) / (oldCount + 1);
 }
 
-// =============================================================================
-// COMPUTE NEXT INTERVAL (full algorithm)
-// =============================================================================
-
 function computeNextInterval(
   stability: number,
   difficulty: number,
@@ -509,10 +460,6 @@ function computeNextInterval(
 
   return clamp(st * sinc, 1.0, STABILITY_MAX);
 }
-
-// =============================================================================
-// REVIEW & PREVIEW (app-level)
-// =============================================================================
 
 const DEFAULT_STATE: SM20State = {
   version: 2,

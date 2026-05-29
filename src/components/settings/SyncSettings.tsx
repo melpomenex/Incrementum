@@ -51,18 +51,15 @@ export function SyncSettings() {
   const [showQr, setShowQr] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
 
-  // Get settings store for file sync settings
   const { settings, updateSettings } = useSettingsStore();
   const syncSettings = settings.sync;
   const autoDownloadMode = syncSettings?.autoDownloadMode ?? "wifi-only";
 
-  // Settings inputs
   const [endpoint, setEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [autoSync, setAutoSync] = useState(false);
   const [syncInterval, setSyncInterval] = useState(30);
 
-  // Load config on mount
   useEffect(() => {
     loadConfig();
     loadSyncLog();

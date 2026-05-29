@@ -207,6 +207,7 @@ export function Queue() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <input
             type="text"
+            aria-label="Search queue"
             placeholder={t("queueLegacy.searchItems")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -507,6 +508,7 @@ export function Queue() {
                           </div>
                           <input
                             type="range"
+                            aria-label="Priority"
                             min={0}
                             max={100}
                             step={1}

@@ -64,7 +64,6 @@ export function useSwipeGestures(
   // Trigger the appropriate action
   const triggerAction = useCallback(
     (direction: "left" | "right" | "up" | "down", velocity: number) => {
-      // Check velocity threshold to prevent accidental swipes
       if (velocity < velocityThreshold) {
         return false;
       }
@@ -88,7 +87,6 @@ export function useSwipeGestures(
     [actions, velocityThreshold]
   );
 
-  // Handle touch start
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
       if (disabled) return;
@@ -117,7 +115,6 @@ export function useSwipeGestures(
     [disabled]
   );
 
-  // Handle touch move
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (!state.isDragging || disabled) return;
@@ -152,7 +149,6 @@ export function useSwipeGestures(
     [state.isDragging, disabled, threshold, getSwipeDirection, preventDefaultOnSwipe]
   );
 
-  // Handle touch end
   const handleTouchEnd = useCallback(
     () => {
       if (!state.isDragging || disabled) return;
@@ -166,7 +162,6 @@ export function useSwipeGestures(
       const velocity = distance / dt;
       const direction = getSwipeDirection(dx, dy);
 
-      // Check if threshold is met and trigger action
       const actionTriggered = triggerAction(
         direction,
         velocity

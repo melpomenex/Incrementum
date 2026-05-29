@@ -22,10 +22,6 @@ fn decode_optional_text(row: &SqliteRow, column: &str) -> Option<String> {
     }
 }
 
-// ============================================================================
-// Classifier Repository
-// ============================================================================
-
 /// Add a new classifier
 pub async fn add_classifier(
     repo: &Repository,
@@ -68,7 +64,6 @@ pub async fn add_classifier(
 
 /// Remove a classifier by ID
 pub async fn remove_classifier(repo: &Repository, id: &str) -> Result<Option<String>> {
-    // Get feed_id before deleting for invalidation
     let feed_id: Option<String> =
         sqlx::query_scalar("SELECT feed_id FROM rss_classifiers WHERE id = ?")
             .bind(id)
@@ -209,10 +204,6 @@ pub async fn get_classifier_feed_id(repo: &Repository, id: &str) -> Result<Optio
             .flatten();
     Ok(feed_id)
 }
-
-// ============================================================================
-// Reading State Repository
-// ============================================================================
 
 /// Mark an article as unread
 pub async fn mark_article_unread(repo: &Repository, id: &str) -> Result<()> {
@@ -387,10 +378,6 @@ pub async fn get_river_of_news(
     Ok(articles)
 }
 
-// ============================================================================
-// Search Repository
-// ============================================================================
-
 /// Search articles using FTS
 pub async fn search_articles(
     repo: &Repository,
@@ -450,10 +437,6 @@ pub async fn search_articles(
 
     Ok(results)
 }
-
-// ============================================================================
-// Clustering Repository
-// ============================================================================
 
 /// Get recent articles for clustering
 pub async fn get_recent_articles_for_clustering(
@@ -568,10 +551,6 @@ pub async fn invalidate_clusters_for_feed(repo: &Repository, feed_id: &str) -> R
 
     Ok(())
 }
-
-// ============================================================================
-// Tag Repository
-// ============================================================================
 
 /// Get tag by name
 pub async fn get_tag_by_name(repo: &Repository, name: &str) -> Result<Option<RssTag>> {
@@ -766,10 +745,6 @@ pub async fn merge_tags(repo: &Repository, source_tag_id: &str, target_tag_id: &
     Ok(())
 }
 
-// ============================================================================
-// Annotation Repository
-// ============================================================================
-
 /// Create an annotation
 pub async fn create_annotation(
     repo: &Repository,
@@ -904,10 +879,6 @@ pub async fn delete_annotation(repo: &Repository, id: &str) -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// Discovery Repository
-// ============================================================================
-
 /// Get discovered sites
 pub async fn get_discovered_sites(
     repo: &Repository,
@@ -1028,10 +999,6 @@ pub async fn discovered_site_by_feed_url_exists(
 
     Ok(exists)
 }
-
-// ============================================================================
-// Folder Repository
-// ============================================================================
 
 /// Create a folder
 pub async fn create_folder(
@@ -1191,7 +1158,6 @@ pub async fn delete_folder(
         .await
         .ok();
 
-    // Delete the folder
     sqlx::query("DELETE FROM rss_folders WHERE id = ?")
         .bind(id)
         .execute(repo.pool())
@@ -1241,7 +1207,6 @@ pub async fn move_feed_to_folder(
     folder_id: Option<&str>,
     sort_order: i32,
 ) -> Result<()> {
-    // Remove from all folders first
     sqlx::query("DELETE FROM rss_feed_folders WHERE feed_id = ?")
         .bind(feed_id)
         .execute(repo.pool())
@@ -1295,10 +1260,6 @@ pub async fn reorder_folders(repo: &Repository, reorder: &[(String, i32)]) -> Re
     }
     Ok(())
 }
-
-// ============================================================================
-// Feed Preferences Repository
-// ============================================================================
 
 /// Toggle feed active status
 pub async fn toggle_feed_active(repo: &Repository, feed_id: &str) -> Result<bool> {
@@ -1425,10 +1386,6 @@ pub async fn set_feed_view_preferences(
     Ok(())
 }
 
-// ============================================================================
-// Intelligence Score Repository
-// ============================================================================
-
 /// Get articles needing intelligence score recomputation
 pub async fn get_articles_needing_score(
     repo: &Repository,
@@ -1553,10 +1510,6 @@ pub async fn get_articles_with_intelligence(
     Ok(articles)
 }
 
-// ============================================================================
-// Migration Repository
-// ============================================================================
-
 /// Check if a folder exists
 pub async fn folder_exists(repo: &Repository, id: &str) -> Result<bool> {
     let exists: Option<String> = sqlx::query_scalar("SELECT id FROM rss_folders WHERE id = ?")
@@ -1603,10 +1556,6 @@ pub async fn create_feed_folder_association(
         .ok();
     Ok(())
 }
-
-// ============================================================================
-// Curated Feeds Repository
-// ============================================================================
 
 /// Check if a discovered site exists by feed URL
 pub async fn discovered_feed_exists(repo: &Repository, feed_url: &str, site_url: &str) -> Result<bool> {

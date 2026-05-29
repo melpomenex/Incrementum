@@ -13,23 +13,21 @@ import {
   VideoExtractsList,
 } from '../video/VideoExtracts';
 import { TranscriptSearchState, TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
-import { invokeCommand as invoke } from "../../lib/tauri";
+import { invokeCommand as invoke, isTauri, getPlatform } from "../../lib/tauri";
 import { getYouTubeWatchURL, formatDuration } from "../../api/youtube";
 import { fetchYouTubeTranscript } from "../../utils/youtubeTranscriptBrowser";
 import { getDocumentAuto, updateDocument, updateDocumentProgressAuto } from "../../api/documents";
 import { generateYouTubeShareUrl, copyShareLink, parseStateFromUrl } from "../../lib/shareLink";
 import { cn } from "../../utils";
-import { saveDocumentPosition, timePosition } from "../../api/position";
+import { saveDocumentPosition, timePosition, getDocumentPosition } from "../../api/position";
 import { useI18n } from "../../lib/i18n";
-import { getDocumentPosition } from "../../api/position";
-import { isTauri, getPlatform } from "../../lib/tauri";
 import YouTube, { YouTubeProps, YouTubePlayer } from "react-youtube";
 import { 
   fetchSponsorBlockSegments, 
   SponsorBlockSegment, 
   getCategoryDisplayName
 } from "../../api/sponsorblock";
-import { buildYouTubeNoCookieEmbedUrl, extractYouTubeVideoId } from "../../utils/youtubeEmbed";
+import { extractYouTubeVideoId } from "../../utils/youtubeEmbed";
 import { isNetworkDebugEnabled } from "../../debug/networkDebug";
 
 interface YouTubeViewerProps {
@@ -130,7 +128,7 @@ export function YouTubeViewer({
   const [segments, setSegments] = useState<SponsorBlockSegment[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const playerRef = useRef<YouTubePlayer | null>(null);
-  const lastSkippedSegmentIdRef = useRef<string | null>(null);
+  const _lastSkippedSegmentIdRef = useRef<string | null>(null);
 
   // Premium SponsorBlock Skip Notification overlay states and refs
   const [skipNotification, setSkipNotification] = useState<{
@@ -197,10 +195,8 @@ export function YouTubeViewer({
   }, [documentId]);
 
   useEffect(() => {
-    console.log("[YouTubeViewer] initialSeekTime prop:", initialSeekTime, "documentId:", documentId);
   }, [documentId, initialSeekTime]);
 
-  // Update refs when values change
   useEffect(() => {
     documentIdRef.current = documentId;
   }, [documentId]);
@@ -326,7 +322,6 @@ export function YouTubeViewer({
     transcriptError,
   ]);
 
-  // Handle resize start
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -352,7 +347,6 @@ export function YouTubeViewer({
     document.body.style.userSelect = 'none';
   }, [videoFeaturesWidth]);
 
-  // Handle resize move
   useEffect(() => {
     if (!isResizing) return;
 
@@ -410,20 +404,17 @@ export function YouTubeViewer({
       window.removeEventListener('touchend', handleMouseUp);
     };
   }, [isResizingVideoFeatures]);
-  // Load SponsorBlock segments
   useEffect(() => {
     if (!normalizedVideoId) return;
     
     const loadSegments = async () => {
       const fetchedSegments = await fetchSponsorBlockSegments(normalizedVideoId);
-      console.log(`[SponsorBlock] Loaded ${fetchedSegments.length} segments for ${normalizedVideoId}`);
       setSegments(fetchedSegments);
     };
     
     loadSegments();
   }, [normalizedVideoId]);
 
-  // Load transcript from backend
   const loadTranscript = useCallback(async () => {
     if (!normalizedVideoId) return;
 
@@ -462,7 +453,6 @@ export function YouTubeViewer({
         fetchedDuration = segments[segments.length - 1]?.end || 0;
       } else {
         // Use web API for browser app
-        console.log('[YouTubeViewer] Fetching transcript via web API...');
         const result = await fetchYouTubeTranscript(normalizedVideoId);
 
         segments = result.segments.map((seg, i) => ({
@@ -481,7 +471,7 @@ export function YouTubeViewer({
       onTranscriptLoadRef.current?.(segments);
       onLoad?.({ duration: fetchedDuration, title: titleRef.current || "" });
     } catch (error) {
-      console.log("Transcript not available:", error);
+      console.error("Transcript not available:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       setTranscriptError(errorMsg);
       setTranscript([]);
@@ -498,7 +488,6 @@ export function YouTubeViewer({
     }
   }, [documentId, effectiveTranscriptSearchQuery, normalizedVideoId, onLoad]);
 
-  // Handle videoId changes for transcript
   useEffect(() => {
     loadTranscript();
   }, [loadTranscript]);
@@ -526,7 +515,6 @@ export function YouTubeViewer({
     })();
   }, [documentId, normalizedVideoId]);
 
-  // Parse URL fragment to get initial timestamp
   useEffect(() => {
     if (typeof initialSeekTime === "number" && initialSeekTime >= 0) return;
     const state = parseStateFromUrl();
@@ -534,45 +522,35 @@ export function YouTubeViewer({
       setStartTime(state.time);
       desiredStartTimeRef.current = state.time;
       initialSeekAppliedRef.current = false;
-      console.log(`[YouTubeViewer] Restoring timestamp from URL: ${state.time}s`);
     }
   }, [videoId, initialSeekTime]);
 
   // Explicit initial seek (command palette jump)
   useEffect(() => {
-    console.log("[YouTubeViewer] Initial seek effect running:", initialSeekTime);
     if (typeof initialSeekTime !== "number" || initialSeekTime < 0) return;
-    console.log(`[YouTubeViewer] Setting startTime from initialSeekTime: ${initialSeekTime}s`);
     setStartTime(initialSeekTime);
     desiredStartTimeRef.current = initialSeekTime;
     initialSeekAppliedRef.current = false;
     setShowInlinePlayer(true);
   }, [videoId, initialSeekTime]);
 
-  // Load saved position from document
   useEffect(() => {
     if (!documentId) return;
-    console.log("[YouTubeViewer] Document restoration effect check, initialSeekTime:", initialSeekTime);
     if (typeof initialSeekTime === "number" && initialSeekTime >= 0) {
-      console.log("[YouTubeViewer] Skipping document restoration - initialSeekTime provided");
       return;
     }
 
-    console.log("[YouTubeViewer] Loading saved position from document:", documentId);
     (async () => {
       try {
         // Prefer unified position API (works even if legacy current_page isn't being updated yet).
         const position = await getDocumentPosition(documentId);
-        console.log("[YouTubeViewer] Position API returned:", position);
         if (position?.type === "time" && typeof position.seconds === "number" && position.seconds >= 3) {
           const savedTime = position.seconds;
-          console.log(`[YouTubeViewer] Restoring video position from position API: ${savedTime}s`);
           setStartTime(savedTime);
           desiredStartTimeRef.current = savedTime;
           initialSeekAppliedRef.current = false;
           if (playerReadyRef.current && playerRef.current) {
             playerRef.current.seekTo(savedTime, true);
-            console.log(`[YouTubeViewer] Seeked to loaded position: ${savedTime}s`);
           }
           return;
         }
@@ -585,13 +563,11 @@ export function YouTubeViewer({
               const parsed = JSON.parse(raw) as { seconds?: number; updatedAt?: number };
               const seconds = typeof parsed.seconds === "number" ? parsed.seconds : 0;
               if (seconds >= 3) {
-                console.log(`[YouTubeViewer] Restoring video position from localStorage: ${seconds}s`);
                 setStartTime(seconds);
                 desiredStartTimeRef.current = seconds;
                 initialSeekAppliedRef.current = false;
                 if (playerReadyRef.current && playerRef.current) {
                   playerRef.current.seekTo(seconds, true);
-                  console.log(`[YouTubeViewer] Seeked to localStorage position: ${seconds}s`);
                 }
                 return;
               }
@@ -604,28 +580,22 @@ export function YouTubeViewer({
         // Fallback: legacy fields on Document.
         const doc = await getDocumentAuto(documentId);
         const savedTime = doc?.current_page ?? doc?.currentPage;
-        console.log("[YouTubeViewer] Legacy saved position:", {
-          current_page: doc?.current_page,
-          currentPage: doc?.currentPage,
-          savedTime,
-        });
         if (savedTime !== null && savedTime !== undefined && savedTime >= 3) {
-          console.log(`[YouTubeViewer] Restoring video position from legacy field: ${savedTime}s`);
           setStartTime(savedTime);
           desiredStartTimeRef.current = savedTime;
           initialSeekAppliedRef.current = false;
           if (playerReadyRef.current && playerRef.current) {
             playerRef.current.seekTo(savedTime, true);
-            console.log(`[YouTubeViewer] Seeked to loaded position: ${savedTime}s`);
           }
         }
       } catch (error) {
-        console.log("Failed to load saved position:", error);
+        console.error("Failed to load saved position:", error);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- initialSeekTime/localResumeKey intentionally omitted to avoid re-loading position
   }, [documentId]);
 
-  const tryApplyInitialSeek = useCallback(async (reason: string) => {
+  const tryApplyInitialSeek = useCallback(async (_reason: string) => {
     const desired = desiredStartTimeRef.current;
     const player = playerRef.current;
     if (!playerReadyRef.current || !player) return;
@@ -638,11 +608,6 @@ export function YouTubeViewer({
       initialSeekAttemptsRef.current = 0;
     }
     if (initialSeekAttemptsRef.current >= 8) {
-      console.log("[YouTubeViewer] Giving up on initial seek after attempts:", {
-        desired,
-        attempts: initialSeekAttemptsRef.current,
-        reason,
-      });
       // Avoid retry loops; user can still manually seek via transcript/extract actions.
       initialSeekAppliedRef.current = true;
       return;
@@ -661,9 +626,8 @@ export function YouTubeViewer({
     try {
       initialSeekAttemptsRef.current += 1;
       await player.seekTo(desired, true);
-      console.log(`[YouTubeViewer] Applied initial seek (${reason}): ${desired}s`);
     } catch (error) {
-      console.log("[YouTubeViewer] Failed to apply initial seek:", error);
+      console.error("[YouTubeViewer] Failed to apply initial seek:", error);
       return;
     }
 
@@ -677,14 +641,12 @@ export function YouTubeViewer({
   // Seek when startTime changes and player is ready
   // This handles the case where saved position loads after player is ready
   useEffect(() => {
-    console.log("[YouTubeViewer] Seek effect running:", { startTime, playerReady: playerReadyRef.current });
     if (startTime > 0) {
       desiredStartTimeRef.current = startTime;
       void tryApplyInitialSeek("startTimeEffect");
     }
   }, [startTime, tryApplyInitialSeek]);
 
-  // Save current position to document
   const saveCurrentPosition = useCallback(async (time: number) => {
     const currentDocumentId = documentIdRef.current;
     if (!currentDocumentId) return;
@@ -697,9 +659,8 @@ export function YouTubeViewer({
         localStorage.setItem(localResumeKey, JSON.stringify({ seconds: Math.floor(time), updatedAt: Date.now() }));
       }
       lastSavedTimeRef.current = time;
-      console.log(`Saved video position: ${Math.floor(time)}s`);
     } catch (error) {
-      console.log("Failed to save position:", error);
+      console.error("Failed to save position:", error);
     }
   }, [duration, localResumeKey]);
 
@@ -714,13 +675,11 @@ export function YouTubeViewer({
         const time = await playerRef.current.getCurrentTime();
         setCurrentTime(time);
 
-        // Notify parent
         onTimeUpdateRef.current?.(time);
 
         // Save position periodically (throttled inside saveCurrentPosition)
         saveCurrentPosition(time);
 
-        // Check SponsorBlock segments.
         // Important: don't let SponsorBlock seek override a pending resume seek.
         const pendingInitialSeek =
           desiredStartTimeRef.current > 0 &&
@@ -754,7 +713,6 @@ export function YouTubeViewer({
                   setSkipNotification(null);
                 }, 4000);
 
-                console.log(`[SponsorBlock] Auto-skipped ${getCategoryDisplayName(segment.category)} (${start.toFixed(1)}s - ${end.toFixed(1)}s)`);
                 break;
               }
             }
@@ -821,6 +779,7 @@ export function YouTubeViewer({
     }
 
     toast.success(t("viewer.seeking"), t("viewer.startingAt", { time: formatTime(time) }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- resolvedTitle/title unused but harmless in deps; t is i18n stable
   }, [resolvedTitle, title, saveCurrentPosition, toast, showInlinePlayer, segments]);
 
   // Format time for display
@@ -863,7 +822,7 @@ export function YouTubeViewer({
     } finally {
       setIsArchiving(false);
     }
-  }, [documentId, isArchiving, onArchive, toast, updateDocumentInStore]);
+  }, [documentId, isArchiving, onArchive, t, toast, updateDocumentInStore]);
 
   const handleReplay = useCallback(() => {
     setShowArchivePrompt(false);
@@ -909,8 +868,6 @@ export function YouTubeViewer({
         iframe.setAttribute("allowfullscreen", "true");
         iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
         if (networkDebugEnabled) {
-          console.info("[YouTubeViewer] iframe src:", iframe.src);
-          console.info("[YouTubeViewer] expected embed:", buildYouTubeNoCookieEmbedUrl(normalizedVideoId, startTime));
         }
       }
     } catch (error) {

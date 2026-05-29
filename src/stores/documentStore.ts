@@ -7,8 +7,7 @@ import { useSettingsStore } from "./settingsStore";
 import { useCollectionStore } from "./collectionStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
 import { listen, isTauri } from "../lib/tauri";
-import { useToastStore } from "../components/common/Toast";
-import { ToastType } from "../components/common/Toast";
+import { useToastStore, ToastType } from "../components/common/Toast";
 
 interface DocumentState {
   // Data
@@ -161,10 +160,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     }));
 
     try {
-      // Execute server deletion
       await documentsApi.deleteDocument(id);
 
-      // Remove from pending on success
       set((state) => {
         const newPending = new Set(state.pendingDeletions);
         newPending.delete(id);
@@ -227,7 +224,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       ? { ...updates, dateModified: new Date().toISOString() }
       : updates;
 
-    // Optimistically apply update
     set((state) => ({
       documents: state.documents.map((doc) =>
         doc.id === id ? { ...doc, ...resolvedUpdates } : doc
@@ -240,10 +236,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     }));
 
     try {
-      // Execute server update
       await documentsApi.updateDocument(id, { ...currentDoc, ...updates } as Document);
 
-      // Remove from pending on success
       set((state) => {
         const newPending = new Map(state.pendingUpdates);
         newPending.delete(id);
@@ -385,10 +379,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         overlap: segmentation.overlap,
       };
 
-      console.log("[segmentDocument] Segmenting document", documentId, "with config:", config, "fileType:", fileType);
-
       const extractIds = await segmentationApi.autoSegmentAndCreateExtracts(documentId, config);
-      console.log("[segmentDocument] Created", extractIds.length, "extracts");
 
       toast.addToast({
         type: ToastType.Success,
@@ -412,17 +403,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   },
 
   importFromUrl: async (url) => {
-    console.log('[DocumentStore] Starting URL import:', url);
     set({ isImporting: true, error: null, importProgress: { current: 0, total: 1, fileName: `Fetching ${url}...` } });
 
     try {
       // Use existing utility to fetch and create document data
-      console.log('[DocumentStore] Fetching content from URL...');
       const docData = await importFromUrlUtil(url, { preserveImages: true });
-      console.log('[DocumentStore] Got docData:', docData);
 
-      // Create document in backend
-      console.log('[DocumentStore] Creating document in backend...');
       const collectionId = useCollectionStore.getState().activeCollectionId;
       const doc = await documentsApi.createDocument(
         docData.title,
@@ -430,7 +416,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         docData.fileType,
         collectionId
       );
-      console.log('[DocumentStore] Created document:', doc);
 
       // Prepare full update with all document data including FSRS fields
       const fullUpdate: Partial<Document> = {
@@ -459,23 +444,18 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         }
       }
 
-      // Update document with all fields
-      console.log('[DocumentStore] Updating document with full data...');
       try {
         const updatedDoc = await documentsApi.updateDocument(doc.id, fullUpdate as Document);
-        console.log('[DocumentStore] Document updated with full data');
         Object.assign(doc, updatedDoc);
       } catch (updateError) {
         console.warn('[DocumentStore] Failed to update document fully:', updateError);
       }
 
-      console.log('[DocumentStore] Adding to state, current doc count:', get().documents.length);
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
         importProgress: { current: 1, total: 1, fileName: docData.title }
       }));
-      console.log('[DocumentStore] Import complete, new doc count:', get().documents.length);
 
       return doc;
     } catch (error) {
@@ -498,7 +478,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
       set({ importProgress: { current: 1, total: 2, fileName: 'Creating document...' } });
 
-      // Create document in backend
       const collectionId = useCollectionStore.getState().activeCollectionId;
       const doc = await documentsApi.createDocument(
         docData.title,
@@ -523,7 +502,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       throw error;
     }
   },
-
 
   setExtracts: (extracts) => set({ extracts }),
 
@@ -581,7 +559,6 @@ if (isTauri()) {
     (event) => {
       const { title } = event.payload;
 
-      // Show toast notification
       useToastStore.getState().addToast({
         type: ToastType.Success,
         title: "Page saved to Incrementum",

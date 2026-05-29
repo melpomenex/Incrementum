@@ -111,9 +111,7 @@ export async function sendNotification(
     return false;
   }
 
-  // Check quiet hours
   if (isInQuietHours()) {
-    console.log("Notification blocked by quiet hours");
     return false;
   }
 
@@ -188,7 +186,6 @@ async function sendWebNotification(
       data: options.data,
     });
 
-    // Handle click
     notification.onclick = () => {
       window.focus();
       notification.close();
@@ -235,7 +232,6 @@ export async function scheduleNotification(
   // Set timeout to trigger
   setTimeout(() => {
     sendNotification(options);
-    // Remove from scheduled list
     scheduledNotifications = scheduledNotifications.filter(
       (n) => n.id !== scheduled.id
     );
@@ -272,7 +268,6 @@ export function scheduleDailyNotification(
 
   scheduledNotifications.push(scheduled);
 
-  // Schedule first occurrence
   setTimeout(() => {
     sendNotification(options);
     // Reschedule for next day
@@ -405,7 +400,6 @@ export function initializeNotifications(): void {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.type === "NOTIFICATION_CLICKED") {
-        // Handle notification click
         window.focus();
         // Could dispatch a custom event here
         window.dispatchEvent(
@@ -454,7 +448,6 @@ function scheduleStudyReminder(): void {
       minute
     );
 
-    console.log(`[Notifications] Study reminder scheduled for ${hour}:${minute}`);
   } catch (error) {
     console.error("Failed to schedule study reminder:", error);
   }
@@ -502,7 +495,6 @@ export async function sendDueCardsNotification(count: number): Promise<void> {
   const isActive = await areNotificationsActive();
   if (!isActive) return;
 
-  // Check if due date reminders are enabled
   const settings = localStorage.getItem("incrementum-settings");
   if (!settings) return;
 

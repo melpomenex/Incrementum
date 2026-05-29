@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, FileText, PencilLine, Loader2, Eye, Clock } from "lucide-react";
-import type { Extract } from "../../api/extracts";
-import { updateExtract } from "../../api/extracts";
+import { updateExtract, type Extract } from "../../api/extracts";
 import { generateProgressiveSummaries } from "../../api/ai";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
@@ -387,7 +386,6 @@ export function ExtractScrollItem({
                             );
                         }
 
-                        // Loading state while generating AI summary
                         if (isGeneratingSummary && isSummary) {
                             return (
                                 <div className="flex flex-col items-center justify-center min-h-[300px] text-muted-foreground gap-3">
@@ -397,7 +395,6 @@ export function ExtractScrollItem({
                             );
                         }
 
-                        // Error fallback
                         if (summaryError && isSummary) {
                             return (
                                 <div className="p-10">
@@ -414,7 +411,6 @@ export function ExtractScrollItem({
                             );
                         }
 
-                        // Show level badge
                         return (
                             <>
                                 {levelLabel && (

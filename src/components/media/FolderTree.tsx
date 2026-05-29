@@ -88,7 +88,10 @@ function FolderNode({
       {/* Folder header */}
       <div
         className="group flex items-center gap-1 px-2 py-1 hover:bg-muted/50 rounded cursor-pointer"
+        role="button"
+        tabIndex={0}
         onClick={() => setIsExpanded(!isExpanded)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsExpanded(!isExpanded); }}
       >
         <span className="text-muted-foreground">
           {isExpanded && (childFolders.length > 0 || feeds.length > 0) ? (
@@ -121,6 +124,7 @@ function FolderNode({
           {showMenu && (
             <div
               className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-lg py-1 z-20"
+              role="menu"
               onClick={(e) => e.stopPropagation()}
             >
               {onNewSubfolder && (
@@ -170,10 +174,13 @@ function FolderNode({
           {feeds.map((feed) => (
             <div
               key={feed.id}
+              role="button"
+              tabIndex={0}
               className={`px-2 py-1 text-xs hover:bg-muted/50 rounded cursor-pointer flex items-center gap-2 ${
                 selectedFeedId === feed.id ? "bg-muted/60" : ""
               }`}
               onClick={() => onSelectFeed(feed)}
+              onKeyDown={(e) => { if (e.key === 'Enter') onSelectFeed(feed); }}
             >
               <span className="flex-1 truncate text-foreground">{feed.title}</span>
               {feed.unreadCount > 0 && (

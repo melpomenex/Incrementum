@@ -75,7 +75,10 @@ export function RiverOfNewsView({ folderId, folderName, feeds: _feeds, onSelectA
             {articles.map((article) => (
               <div
                 key={article.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectArticle?.(article)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onSelectArticle?.(article); }}
                 className="px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors"
               >
                 <div className="flex items-start gap-2">

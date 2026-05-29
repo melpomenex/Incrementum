@@ -1,12 +1,11 @@
 import { create } from "zustand";
-import { listen } from "../lib/tauri";
+import { listen, isTauri } from "../lib/tauri";
 import {
   getTranscriptionProfiles,
   getTranscript,
   ModelProfile,
   TranscriptSegment,
 } from "../api/transcription";
-import { isTauri } from "../lib/tauri";
 
 interface TranscriptionState {
   profiles: ModelProfile[];

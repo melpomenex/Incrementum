@@ -318,7 +318,6 @@ impl CloudSyncClient {
                     to_upload.push((*local_item).clone());
                 }
             } else {
-                // New item
                 to_upload.push((*local_item).clone());
             }
         }
@@ -330,7 +329,6 @@ impl CloudSyncClient {
                     to_download.push(remote_item.clone());
                 }
             } else {
-                // New remote item
                 to_download.push(remote_item.clone());
             }
         }
@@ -451,7 +449,6 @@ impl SyncScheduler {
             }
         }
 
-        // Run sync
         self.client.sync(vec![])
     }
 
@@ -516,7 +513,6 @@ impl SyncLog {
 
         self.entries.push(entry);
 
-        // Trim old entries
         if self.entries.len() > self.max_entries {
             self.entries.remove(0);
         }

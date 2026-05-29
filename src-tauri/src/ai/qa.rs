@@ -119,7 +119,6 @@ impl QuestionAnswerer {
 
         let response = self.provider.chat_completion(&request).await?;
 
-        // Parse the JSON array of questions
         let json_str = response.content.trim();
         let start = json_str.find('[').ok_or("No JSON array found")?;
         let end = json_str.rfind(']').ok_or("No JSON array end found")?;
@@ -159,7 +158,6 @@ impl ChatSession {
         // Add user message
         self.messages.push(Message::user(message.to_string()));
 
-        // Build prompt with context and conversation history
         let mut prompt = PromptBuilder::new()
             .with_system(
                 "You are a helpful assistant answering questions about the provided document context. \

@@ -90,7 +90,6 @@ impl DropboxProvider {
 
     /// Get the OAuth authorization URL with PKCE
     fn get_auth_url(&mut self) -> Result<String, AppError> {
-        // Validate credentials before attempting OAuth
         if self.config.app_key == "YOUR_APP_KEY" || self.config.app_key.is_empty() {
             return Err(AppError::Internal(
                 "Dropbox OAuth is not configured. Please set the INCREMENTUM_DROPBOX_APP_KEY \
@@ -141,7 +140,7 @@ impl DropboxProvider {
         use std::time::{SystemTime, UNIX_EPOCH};
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system time before UNIX epoch")
             .as_secs();
         let state = format!("dropbox_{}", timestamp);
 
@@ -238,9 +237,9 @@ impl DropboxProvider {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::AUTHORIZATION,
-            format!("Bearer {}", token.access_token).parse().unwrap(),
+            format!("Bearer {}", token.access_token).parse().expect("valid header value"),
         );
-        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().expect("valid header value"));
 
         Ok(headers)
     }
@@ -266,7 +265,6 @@ impl DropboxProvider {
             .await
             .map_err(|e| AppError::Internal(format!("Failed to parse user info: {}", e)))?;
 
-        // Get space quota
         let space_response = self.http_client
             .post(format!("{}/users/get_space_usage", self.api_base_url()))
             .headers(self.get_auth_headers()?)
@@ -318,7 +316,6 @@ impl CloudProvider for DropboxProvider {
     }
 
     async fn handle_callback(&mut self, code: &str, state: &str) -> Result<AuthResult, AppError> {
-        // Validate state parameter
         if let Some(expected_state) = &self.pending_state {
             if state != expected_state {
                 return Ok(AuthResult {
@@ -335,7 +332,6 @@ impl CloudProvider for DropboxProvider {
         // Calculate token expiration (Dropbox tokens are long-lived, ~4 hours)
         let expires_at = Utc::now() + Duration::seconds(token_response.expires_in as i64);
 
-        // Store auth token
         self.auth_token = Some(AuthToken {
             access_token: token_response.access_token.clone(),
             refresh_token: token_response.refresh_token.unwrap_or(token_response.access_token.clone()),
@@ -343,7 +339,6 @@ impl CloudProvider for DropboxProvider {
             token_type: token_response.token_type.unwrap_or("Bearer".to_string()),
         });
 
-        // Fetch account info
         let account_info = self.fetch_account_info().await?;
         self.account_info = Some(account_info.clone());
 
@@ -427,7 +422,7 @@ impl CloudProvider for DropboxProvider {
                 ))
                 .header("Dropbox-API-Arg", upload_path)
                 .header("Content-Type", "application/octet-stream")
-                .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().unwrap().access_token))
+                .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().expect("dropbox not authenticated").access_token))
                 .body(data)
                 .send()
                 .await
@@ -468,7 +463,7 @@ impl CloudProvider for DropboxProvider {
                 self.content_base_url()
             ))
             .header("Dropbox-API-Arg", arg)
-            .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().unwrap().access_token))
+            .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().expect("dropbox not authenticated").access_token))
             .send()
             .await
             .map_err(|e| AppError::Internal(format!("Download failed: {}", e)))?;
@@ -648,7 +643,6 @@ impl DropboxProvider {
     ) -> Result<String, AppError> {
         const CHUNK_SIZE: usize = 8 * 1024 * 1024; // 8MB chunks
 
-        // Start upload session
         let arg = serde_json::json!({
             "path": path,
             "mode": "add"
@@ -658,7 +652,7 @@ impl DropboxProvider {
             .post(format!("{}/files/upload_session/start", self.content_base_url()))
             .header("Dropbox-API-Arg", arg)
             .header("Content-Type", "application/octet-stream")
-            .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().unwrap().access_token))
+            .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().expect("dropbox not authenticated").access_token))
             .send()
             .await
             .map_err(|e| AppError::Internal(format!("Upload session creation failed: {}", e)))?;
@@ -699,7 +693,7 @@ impl DropboxProvider {
                 ))
                 .header("Dropbox-API-Arg", cursor)
                 .header("Content-Type", "application/octet-stream")
-                .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().unwrap().access_token))
+                .header("Authorization", format!("Bearer {}", self.auth_token.as_ref().expect("dropbox not authenticated").access_token))
                 .body(chunk.to_vec())
                 .send()
                 .await
@@ -717,13 +711,10 @@ impl DropboxProvider {
             }
         }
 
-        // Get the final file ID
         let metadata = self.get_metadata(path.trim_start_matches("/Incrementum/")).await?;
         Ok(metadata.id)
     }
 }
-
-// ============ API Response Types ============
 
 #[derive(Debug, Deserialize)]
 struct TokenResponse {

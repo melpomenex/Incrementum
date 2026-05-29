@@ -38,28 +38,17 @@ export interface ExtractedText {
  */
 export function cleanTextForTTS(text: string): string {
   return text
-    // Remove HTML tags
     .replace(/<[^>]*>/g, " ")
-    // Remove markdown links but keep text
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    // Remove markdown images
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, "")
-    // Remove markdown headers markers
     .replace(/^#{1,6}\s+/gm, "")
-    // Remove markdown bold/italic markers
     .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, "$1")
-    // Remove markdown code blocks
     .replace(/```[\s\S]*?```/g, "")
-    // Remove inline code
     .replace(/`([^`]+)`/g, "$1")
-    // Remove markdown horizontal rules
     .replace(/^[-*_]{3,}\s*$/gm, "")
-    // Remove markdown list markers
     .replace(/^[\s]*[-*+]\s+/gm, "")
     .replace(/^[\s]*\d+\.\s+/gm, "")
-    // Remove markdown blockquotes
     .replace(/^>\s+/gm, "")
-    // Normalize whitespace
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -118,10 +107,8 @@ export function extractTextFromEPUBSection(doc: Document): string {
   // Clone the document to avoid modifying the original
   const clone = doc.cloneNode(true) as Document;
 
-  // Remove script and style elements
   clone.querySelectorAll("script, style, nav, header, footer").forEach((el) => el.remove());
 
-  // Get text content
   return clone.body?.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 

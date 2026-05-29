@@ -114,7 +114,6 @@ export function usePdfUrlState(
       const pdfState = fromDocumentState(docState);
 
       if (Object.keys(pdfState).length > 0) {
-        console.log("[usePdfUrlState] Re-applying URL state on enable:", pdfState);
         // Small delay to ensure component is ready
         setTimeout(() => {
           onHashChange(pdfState);
@@ -196,7 +195,6 @@ export function usePdfUrlState(
     };
   }, [enabled, onHashChange, fromDocumentState]);
 
-  // Parse initial state from URL on mount
   const getInitialState = useCallback((): Partial<PdfState> | null => {
     if (!enabled) return null;
 

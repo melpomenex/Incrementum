@@ -36,7 +36,6 @@ export function MobileReadingWrapper({
   const [showControls, setShowControls] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
 
-  // Update device info on resize
   useEffect(() => {
     const handleResize = () => {
       setDeviceInfo(getDeviceInfo());
@@ -246,7 +245,6 @@ export function MobileReadingWrapper({
             <div className="mobile-menu-item">
               <button
                 onClick={() => {
-                  // Table of contents
                   setShowMenu(false);
                 }}
                 className="w-full text-left px-4 py-3 text-foreground hover:bg-muted rounded-lg transition-colors"

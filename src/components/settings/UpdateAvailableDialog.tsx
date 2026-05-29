@@ -5,8 +5,7 @@
 import { useEffect, useRef } from "react";
 import { X, ExternalLink, Clock, Ban } from "lucide-react";
 import { cn } from "../../utils";
-import type { UpdateInfo } from "../../utils/updateChecker";
-import { setSkippedVersion } from "../../utils/updateChecker";
+import { setSkippedVersion, type UpdateInfo } from "../../utils/updateChecker";
 
 interface UpdateAvailableDialogProps {
   update: UpdateInfo;
@@ -68,7 +67,6 @@ function renderReleaseNotes(markdown: string) {
       continue;
     }
 
-    // Regular paragraph
     elements.push(
       <p key={`p-${i}`} className="text-sm text-muted-foreground">
         {inlineMarkdown(line)}

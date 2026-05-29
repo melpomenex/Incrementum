@@ -40,7 +40,6 @@ export function checkForDuplicate(
   documents: Array<{ id: string; title: string; filePath: string; fileType: string }>
 ): DuplicateCheckResult {
   if (urlType === URLType.YouTube) {
-    // Extract video ID
     const videoIdMatch = url.match(
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
     );
@@ -158,7 +157,6 @@ export function useURLMetadata(
       abortControllerRef.current.abort();
     }
 
-    // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
@@ -169,7 +167,6 @@ export function useURLMetadata(
 
         switch (urlType) {
         case URLType.YouTube: {
-          // Extract video ID and fetch metadata
           const videoIdMatch = url.match(
             /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
           );
@@ -183,7 +180,6 @@ export function useURLMetadata(
         }
 
         case URLType.RSSFeed:
-          // Fetch RSS feed metadata
           data = await fetchFeed(url);
           if (!data) {
             throw new Error("Failed to fetch feed metadata");
@@ -191,7 +187,6 @@ export function useURLMetadata(
           break;
 
         case URLType.WebPage:
-          // Fetch web page metadata via backend
           try {
             const response = await fetch("/api/article/preview", {
               method: "POST",
@@ -235,7 +230,6 @@ export function useURLMetadata(
     }
   }, [url, urlType, enabled]);
 
-  // Debounced fetch
   useEffect(() => {
     if (!enabled || !url) {
       setState({ data: null, isLoading: false, error: null });

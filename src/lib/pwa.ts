@@ -50,7 +50,6 @@ export async function enterFullscreen(): Promise<boolean> {
   const doc = document as DocumentWithFullscreen;
   const el = doc.documentElement as HTMLElementWithFullscreen;
   
-  // Check if already fullscreen
   if (isFullscreen()) return true;
   
   // Try standard fullscreen API
@@ -169,10 +168,7 @@ export async function registerServiceWorker(): Promise<boolean> {
       type: 'classic'
     });
 
-    console.log('[PWA] Service worker registered:', registration.scope);
-
     if (registration.waiting) {
-      console.log('[PWA] Waiting service worker detected');
       registration.waiting.postMessage({ action: 'skipWaiting' });
     }
 
@@ -181,9 +177,7 @@ export async function registerServiceWorker(): Promise<boolean> {
       if (!installingWorker) return;
 
       installingWorker.addEventListener('statechange', () => {
-        console.log('[PWA] Service worker state:', installingWorker.state);
         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          console.log('[PWA] New service worker available');
           installingWorker.postMessage({ action: 'skipWaiting' });
         }
       });
@@ -241,7 +235,6 @@ export async function updateServiceWorker(): Promise<void> {
   const registration = await navigator.serviceWorker.getRegistration();
   if (registration) {
     await registration.update();
-    console.log('[PWA] Service worker updated');
   }
 }
 
@@ -280,7 +273,6 @@ export async function clearPWACache(): Promise<void> {
 export function promptInstall(): void {
   // Some browsers support deferred prompts
   // This would be called after user interaction
-  console.log('[PWA] Install prompt requested');
 }
 
 /**
@@ -309,7 +301,6 @@ export function showAddToHomeScreenPrompt(): void {
 
   if (isIOS && !isPWA()) {
     // Show iOS specific instructions
-    console.log('[PWA] iOS add to home screen prompt needed');
   }
 }
 
@@ -370,7 +361,6 @@ export function initializePWA(): void {
 
   registerServiceWorker().then((registered) => {
     if (registered) {
-      console.log('[PWA] PWA initialized successfully');
     }
   });
 
@@ -399,8 +389,6 @@ export function initializePWA(): void {
     });
   }
 
-  // Log initial online status
-  console.log('[PWA] Initial online status:', isOnline() ? 'online' : 'offline');
 }
 
 /**

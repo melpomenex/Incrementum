@@ -112,7 +112,6 @@ function shouldDelayForPlayback(): boolean {
  * Supports automatic chunking for large files
  */
 async function processWithGroq(job: VideoTranscriptionJob): Promise<void> {
-  // Check if API key is configured
   if (!isGroqConfigured()) {
     notify(job.documentId, "needs-api-key");
     throw new Error("Groq API key not configured");
@@ -192,7 +191,6 @@ function showCompletionToast(documentId: string, provider: 'local' | 'groq', suc
     });
   }
   
-  // Clean up stored title
   documentTitles.delete(documentId);
 }
 
@@ -257,12 +255,8 @@ export async function enqueueVideoTranscription(request: VideoTranscriptionReque
   // For local transcription, Tauri is required
   if (provider === 'local' && !isTauri()) return;
   
-  // For Groq with chunking, we need Tauri for ffmpeg
-  // In web/PWA mode without Tauri, direct file upload would be needed
-  // This is currently only supported in desktop mode
   if (!isTauri()) return;
   
-  // Validate provider-specific requirements
   if (provider === 'local') {
     const modelId = await resolveModelId(request.modelId);
     if (!modelId) {

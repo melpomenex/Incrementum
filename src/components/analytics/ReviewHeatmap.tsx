@@ -89,7 +89,6 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
         lastMonth = month;
       }
 
-      // Stats
       total += count;
       if (count > max) max = count;
       if (count > 0) daysWithActivity++;
@@ -98,7 +97,6 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
         daysWithRetention++;
       }
 
-      // Complete week
       if (dayOfWeek === 6) {
         weeksData.push(currentWeek);
         currentWeek = [];

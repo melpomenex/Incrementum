@@ -133,7 +133,6 @@ pub async fn import_document(
     collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
-    // Validate the path exists and is within accessible locations
     let path = PathBuf::from(&file_path);
     if !path.exists() {
         return Err(IncrementumError::NotFound(format!("File not found: {}", file_path)));
@@ -156,7 +155,6 @@ pub async fn import_document(
         _ => FileType::Other,
     };
 
-    // Extract content from the file
     let extracted = processor::extract_content(canonical.to_str().unwrap_or(&file_path), file_type.clone()).await?;
 
     // For media files, copy to app-managed storage to avoid macOS sandbox issues
@@ -172,7 +170,6 @@ pub async fn import_document(
         None
     };
 
-    // Check for duplicate by content hash
     if let Some(ref hash) = content_hash {
         let existing_docs = repo.list_documents().await?;
         if let Some(duplicate) = existing_docs.iter().find(|d| d.content_hash.as_ref() == Some(hash)) {
@@ -192,14 +189,12 @@ pub async fn import_document(
             .to_string()
     });
 
-    // Create metadata from extracted info
     let metadata = Some(DocumentMetadata {
         author: extracted.author,
         page_count: extracted.page_count.map(|p| p as i32),
         ..Default::default()
     });
 
-    // Create the document
     let mut doc = Document::with_collection(title, stored_path, file_type, collection_id.clone());
     doc.content = Some(extracted.text);
     doc.tags = suggest_auto_tags(&doc.title, doc.content.as_deref().unwrap_or(""));
@@ -521,13 +516,11 @@ pub async fn extract_document_text(
     id: String,
     repo: State<'_, Repository>,
 ) -> Result<TextExtractionResult> {
-    // Get the document
     let mut doc = repo.get_document(&id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound(format!(
             "Document not found: {}", id
         )))?;
 
-    // Check if we already have content
     if let Some(content) = &doc.content {
         if !content.trim().is_empty() {
             return Ok(TextExtractionResult {
@@ -545,7 +538,6 @@ pub async fn extract_document_text(
         });
     }
 
-    // Extract content
     let extracted = processor::extract_content(&doc.file_path, doc.file_type.clone()).await?;
     
     if extracted.text.trim().is_empty() {
@@ -698,7 +690,6 @@ pub async fn convert_document_pdf_to_html(
 ) -> Result<PdfToHtmlResult> {
     use std::path::Path;
 
-    // Get the document
     let doc = repo.get_document(&id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound(format!(
             "Document not found: {}", id
@@ -759,7 +750,6 @@ pub async fn fetch_web_page_preview(url: String) -> Result<serde_json::Value> {
     let body = response.text().await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
-    // Extract title
     let title = Regex::new(r"<title[^>]*>([^<]+)</title>")
         .ok()
         .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
@@ -781,7 +771,6 @@ pub async fn fetch_web_page_preview(url: String) -> Result<serde_json::Value> {
         })
         .unwrap_or_default();
 
-    // Extract og:image
     let image = Regex::new(r#"<meta[^>]+property\s*=\s*["']og:image["'][^>]+content\s*=\s*["']([^"']+)["']"#)
         .ok()
         .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
@@ -791,7 +780,6 @@ pub async fn fetch_web_page_preview(url: String) -> Result<serde_json::Value> {
                 .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
         });
 
-    // Extract favicon
     let favicon = Regex::new(r#"<link[^>]+rel\s*=\s*["'][^"']*icon[^"']*["'][^>]+href\s*=\s*["']([^"']+)["']"#)
         .ok()
         .and_then(|re| re.captures(&body).map(|c| c[1].trim().to_string()))
@@ -832,11 +820,9 @@ pub async fn fetch_url_content(url: String) -> Result<FetchedUrlContent> {
     crate::security::validate_url_not_private(&url)
         .map_err(|e| IncrementumError::Internal(format!("URL not allowed: {}", e)))?;
 
-    // Parse URL to determine file name
     let url_parsed = url.parse::<reqwest::Url>()
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Invalid URL: {}", e)))?;
 
-    // Extract filename from URL or generate one
     let file_name = url_parsed
         .path_segments()
         .and_then(|mut segments| segments.next_back())
@@ -857,7 +843,6 @@ pub async fn fetch_url_content(url: String) -> Result<FetchedUrlContent> {
         "unknown"
     };
 
-    // Create a temporary directory for downloads
     let temp_dir = std::env::temp_dir();
     let download_dir = temp_dir.join("incrementum-downloads");
 
@@ -888,7 +873,6 @@ pub async fn fetch_url_content(url: String) -> Result<FetchedUrlContent> {
         )));
     }
 
-    // Get content type from response if unknown
     let final_content_type = if content_type == "unknown" {
         response
             .headers()
@@ -900,7 +884,6 @@ pub async fn fetch_url_content(url: String) -> Result<FetchedUrlContent> {
         content_type.to_string()
     };
 
-    // Save the downloaded content
     let bytes = response
         .bytes()
         .await

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -10,12 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import type { Extract } from "../../api/extracts";
-import { cn } from "../../utils";
 import { useI18n } from "../../lib/i18n";
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface ExtractBrowserPanelProps {
   extracts: Extract[];
@@ -26,10 +21,6 @@ interface ExtractBrowserPanelProps {
   onGenerateCards: (extractId: string) => void;
   onCreateCard: (extract: Extract) => void;
 }
-
-// =============================================================================
-// HELPERS
-// =============================================================================
 
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
@@ -55,10 +46,6 @@ function groupByDocument(
   }
   return groups;
 }
-
-// =============================================================================
-// COMPONENT
-// =============================================================================
 
 export function ExtractBrowserPanel({
   extracts,
@@ -207,10 +194,6 @@ export function ExtractBrowserPanel({
     </div>
   );
 }
-
-// =============================================================================
-// EXTRACT ROW
-// =============================================================================
 
 function ExtractRow({
   extract,

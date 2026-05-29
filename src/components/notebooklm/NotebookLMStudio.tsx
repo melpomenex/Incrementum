@@ -405,6 +405,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                         type="text"
                         value={deckName}
                         onChange={(e) => setDeckName(e.target.value)}
+                        aria-label="Deck name"
                         placeholder={t("notebooklmStudio.deckNamePlaceholder")}
                         className="w-full px-2.5 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                       />
@@ -419,11 +420,13 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                           <input
                             value={item.question}
                             onChange={(e) => updatePreviewItem(idx, "question", e.target.value)}
+                            aria-label={`Question ${idx + 1}`}
                             className="w-full px-2 py-1 text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded"
                           />
                           <textarea
                             value={item.answer}
                             onChange={(e) => updatePreviewItem(idx, "answer", e.target.value)}
+                            aria-label={`Answer ${idx + 1}`}
                             className="w-full px-2 py-1 text-sm text-muted-foreground bg-transparent border-none resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded mt-1"
                             rows={2}
                           />

@@ -1245,9 +1245,6 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_rss_articles_full_content_fetched ON rss_articles(full_content_fetched_at);
         "#,
     ),
-    // Migration 038: Remove foreign key constraint on documents.category
-    // Category should be free-form text, not a reference to categories table.
-    // (Same fix as migration 028 applied to extracts.)
     Migration::new(
         "038_remove_document_category_fk",
         r#"
@@ -1678,9 +1675,7 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
     for line in sql.lines() {
         let trimmed = line.trim();
 
-        // Check if this line starts a CREATE TRIGGER
         if trimmed.to_uppercase().starts_with("CREATE TRIGGER") {
-            // Save any accumulated statement before starting trigger
             if !current_stmt.is_empty() {
                 let stmt = current_stmt.trim();
                 if !stmt.is_empty() {
@@ -1733,7 +1728,6 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
         }
     }
 
-    // Handle any remaining content
     let stmt = current_stmt.trim();
     if !stmt.is_empty() {
         let cleaned: String = stmt.lines()
@@ -1763,7 +1757,6 @@ pub async fn run_migrations(pool: &Pool<Sqlite>) -> Result<()> {
     .await
     .map_err(|e| IncrementumError::Internal(format!("Failed to create migrations table: {}", e)))?;
 
-    // Get applied migrations
     let applied: Vec<String> = sqlx::query_as::<_, (String,)>("SELECT name FROM _schema_migrations ORDER BY applied_at")
         .fetch_all(pool)
         .await
@@ -1780,12 +1773,10 @@ pub async fn run_migrations(pool: &Pool<Sqlite>) -> Result<()> {
 
         eprintln!("Applying migration: {}", migration.name);
 
-        // Start transaction
         let mut tx = pool.begin()
             .await
             .map_err(|e| IncrementumError::Internal(format!("Failed to start transaction: {}", e)))?;
 
-        // Execute migration
         // Split statements while respecting BEGIN...END blocks (for triggers)
         let statements = split_sql_statements(migration.sql);
         eprintln!("  Executing {} statements", statements.len());

@@ -26,7 +26,6 @@ export function MobileDocumentWrapper({
 }: MobileDocumentWrapperProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Check if device is mobile
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
 
@@ -39,10 +38,6 @@ export function MobileDocumentWrapper({
       if (onRefresh) {
         await onRefresh();
       } else {
-        // Default behavior: reload the page data
-        console.log('[Mobile] Refreshing document:', documentId);
-        // In a real implementation, this would trigger a data reload
-        // For now, we just simulate a delay
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {
@@ -79,7 +74,6 @@ export function useMobileDocumentRefresh(documentId: string) {
     try {
       // Trigger document reload via invalidation
       // This would integrate with your data fetching layer
-      console.log('[Mobile] Refreshing document:', documentId);
       await new Promise(resolve => setTimeout(resolve, 1000));
     } finally {
       setIsRefreshing(false);

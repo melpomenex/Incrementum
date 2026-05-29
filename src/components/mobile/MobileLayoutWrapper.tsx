@@ -22,7 +22,6 @@ export function MobileLayoutWrapper({ children }: MobileLayoutWrapperProps) {
   const { items: queueItems } = useQueueStore();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Check if device is mobile
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
 

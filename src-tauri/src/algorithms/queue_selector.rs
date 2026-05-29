@@ -96,7 +96,6 @@ impl QueueSelector {
             .map(|i| decay.powi(i as i32) as f64)
             .collect();
 
-        // Create weighted distribution
         let dist = WeightedIndex::new(&weights).unwrap_or_else(|_| {
             // Fallback to uniform distribution if weights are invalid
             WeightedIndex::new(vec![1.0; window_size]).unwrap()

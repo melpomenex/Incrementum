@@ -10,10 +10,6 @@ use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use sqlx::{sqlite::SqliteRow, Row};
 
-// ============================================================================
-// Data Models
-// ============================================================================
-
 /// Intelligence classifier
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RssClassifier {
@@ -120,10 +116,6 @@ fn decode_optional_text(row: &SqliteRow, column: &str) -> Option<String> {
     }
 }
 
-// ============================================================================
-// 2. Classifier & Intelligence Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn add_rss_classifier(
     feed_id: String,
@@ -174,7 +166,6 @@ pub async fn add_rss_classifier(
 
 #[tauri::command]
 pub async fn remove_rss_classifier(id: String, repo: State<'_, Repository>) -> Result<()> {
-    // Get feed_id before deleting for invalidation
     let feed_id: Option<String> = sqlx::query_scalar("SELECT feed_id FROM rss_classifiers WHERE id = ?")
         .bind(&id)
         .fetch_optional(repo.pool())
@@ -400,7 +391,6 @@ pub async fn compute_intelligence_score(
 /// Batch compute intelligence scores for all articles needing recomputation
 #[tauri::command]
 pub async fn recompute_all_intelligence_scores(repo: State<'_, Repository>) -> Result<i32> {
-    // Get articles that need recomputation
     let article_ids: Vec<String> = sqlx::query_scalar(
         "SELECT id FROM rss_articles WHERE intelligence_score_computed_at IS NULL LIMIT 1000"
     )
@@ -480,10 +470,6 @@ pub async fn get_rss_articles_with_intelligence(
 
     Ok(articles)
 }
-
-// ============================================================================
-// 3. Reading State Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn mark_rss_article_unread(id: String, repo: State<'_, Repository>) -> Result<()> {
@@ -651,10 +637,6 @@ pub async fn get_river_of_news(
     Ok(articles)
 }
 
-// ============================================================================
-// 4. Search & Clustering Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn search_rss_articles(
     query: String,
@@ -728,7 +710,6 @@ fn trigram_similarity(a: &str, b: &str) -> f64 {
         return 1.0;
     }
 
-    // Build trigram sets
     let trigrams_a: std::collections::HashSet<String> = (0..a_lower.len().saturating_sub(1))
         .map(|i| a_lower[i..i + 3.min(a_lower.len() - i)].to_string())
         .filter(|s| s.len() == 3)
@@ -901,13 +882,8 @@ pub async fn invalidate_clusters_for_feed(feed_id: String, repo: State<'_, Repos
     Ok(())
 }
 
-// ============================================================================
-// 5. Tags Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn add_tag(name: String, repo: State<'_, Repository>) -> Result<RssTag> {
-    // Check if tag exists
     let existing: Option<(String, String, String)> = sqlx::query_as(
         "SELECT id, name, created_at FROM rss_tags WHERE name = ?"
     )
@@ -1079,13 +1055,8 @@ pub async fn merge_tags(source_tag_id: String, target_tag_id: String, repo: Stat
     .await
     .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to merge tag associations: {}", e)))?;
 
-    // Delete source tag
     remove_tag(source_tag_id, repo).await
 }
-
-// ============================================================================
-// 5. Annotations Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn create_annotation(
@@ -1209,10 +1180,6 @@ pub async fn delete_annotation(id: String, repo: State<'_, Repository>) -> Resul
     Ok(())
 }
 
-// ============================================================================
-// 5. Discovery Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn get_discovered_sites(
     limit: Option<i32>,
@@ -1256,7 +1223,6 @@ pub async fn delete_discovered_site(id: String, repo: State<'_, Repository>) -> 
 
 #[tauri::command]
 pub async fn refresh_discoveries(repo: State<'_, Repository>) -> Result<i32> {
-    // Extract unique domains from recent article URLs
     let rows: Vec<(String, String)> = sqlx::query_as(
         "SELECT url, feed_id FROM rss_articles WHERE date_added > datetime('now', '-7 days') LIMIT 500"
     )
@@ -1271,7 +1237,6 @@ pub async fn refresh_discoveries(repo: State<'_, Repository>) -> Result<i32> {
         }
     }
 
-    // Remove domains we're already subscribed to
     let subscribed: Vec<String> = sqlx::query_scalar("SELECT url FROM rss_feeds")
         .fetch_all(repo.pool())
         .await
@@ -1285,7 +1250,6 @@ pub async fn refresh_discoveries(repo: State<'_, Repository>) -> Result<i32> {
             continue;
         }
 
-        // Check if already discovered
         let exists: bool = sqlx::query_scalar(
             "SELECT COUNT(*) > 0 FROM rss_discovered_sites WHERE url LIKE ?"
         )
@@ -1359,7 +1323,6 @@ async fn discover_feed_from_site(site_url: &str) -> Option<(String, String, Opti
         if (lower.contains("rel=\"alternate\"") || lower.contains("rel='alternate'"))
             && (lower.contains("application/rss+xml") || lower.contains("application/atom+xml") || lower.contains("text/xml"))
         {
-            // Extract href
             if let Some(href_start) = lower.find("href=\"").or_else(|| lower.find("href='")) {
                 let href_start = href_start + 6;
                 if let Some(href_end) = lower[href_start..].find('"').or_else(|| lower[href_start..].find('\'')) {
@@ -1401,10 +1364,6 @@ async fn discover_feed_from_site(site_url: &str) -> Option<(String, String, Opti
 
     feed_url.map(|f| (f, title.unwrap_or_else(|| site_url.to_string()), description))
 }
-
-// ============================================================================
-// 6. Folder Management Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn create_rss_folder(
@@ -1543,7 +1502,6 @@ pub async fn delete_rss_folder(
         .await
         .ok();
 
-    // Delete the folder
     sqlx::query("DELETE FROM rss_folders WHERE id = ?")
         .bind(&id)
         .execute(repo.pool())
@@ -1593,7 +1551,6 @@ pub async fn move_feed_to_folder(
     sort_order: Option<i32>,
     repo: State<'_, Repository>,
 ) -> Result<()> {
-    // Remove from all folders first
     sqlx::query("DELETE FROM rss_feed_folders WHERE feed_id = ?")
         .bind(&feed_id)
         .execute(repo.pool())
@@ -1758,10 +1715,6 @@ pub async fn set_feed_view_preferences(
     Ok(())
 }
 
-// ============================================================================
-// HTTP API Helper Functions (for browser_sync_server)
-// ============================================================================
-
 /// Search articles (HTTP API version)
 pub async fn search_rss_articles_http(
     query: String,
@@ -1852,10 +1805,6 @@ pub async fn add_rss_classifier_http(
     Ok(RssClassifier { id, feed_id: feed_id.to_string(), classifier_type: classifier_type.to_string(), value: value.to_string(), sentiment: sentiment.to_string(), scope: "feed".to_string(), created_at: now.clone(), updated_at: now })
 }
 
-// ============================================================================
-// HTTP API Helper Functions (take &Repository, for browser_sync_server)
-// ============================================================================
-
 pub async fn remove_rss_classifier_http(id: &str, repo: &Repository) -> Result<()> {
     let feed_id: Option<String> = sqlx::query_scalar("SELECT feed_id FROM rss_classifiers WHERE id = ?")
         .bind(id).fetch_optional(repo.pool()).await
@@ -1942,10 +1891,6 @@ pub async fn get_feed_statistics_http(feed_id: &str, repo: &Repository) -> Resul
     Ok(RssFeedStatistics { feed_id: feed_id.to_string(), total_articles: total, unread_count: unread, articles_per_week: apw, estimated_frequency: freq.to_string(), last_fetched, date_added })
 }
 
-// Generic helper: create a Tauri State from Arc<Repository>
-// This allows HTTP handlers to reuse Tauri command functions
-// Helper macro to generate _http variants that delegate to the Tauri command logic.
-// These avoid code duplication while accepting &Repository instead of State<'_, Repository>.
 macro_rules! http_variant {
     ($name:ident, |$repo:ident, $($arg:ident: $ty:ty),*| $body:expr) => {
         pub async fn $name($($arg: $ty,)* $repo: &Repository) -> Result<serde_json::Value> {
@@ -2243,7 +2188,6 @@ pub async fn migrate_folders_from_localstorage(
             continue;
         }
 
-        // Check if already migrated
         let exists: Option<String> = sqlx::query_scalar("SELECT id FROM rss_folders WHERE id = ?")
             .bind(&id)
             .fetch_optional(repo.pool())
@@ -2264,7 +2208,6 @@ pub async fn migrate_folders_from_localstorage(
             .await
             .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create folder: {}", e)))?;
 
-        // Migrate feed associations
         if let Some(feeds) = folder.get("feeds").and_then(|v| v.as_array()) {
             for (feed_idx, feed_id_val) in feeds.iter().enumerate() {
                 if let Some(feed_id) = feed_id_val.as_str() {

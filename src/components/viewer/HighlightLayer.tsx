@@ -1,13 +1,3 @@
-/**
- * HighlightLayer - Renders persistent highlights for a PDF page.
- *
- * This is Layer 2 (z-index: 2) in the 3-layer architecture.
- * It sits between the canvas layer (1) and text layer (3).
- *
- * Highlights are stored as PDF coordinates and converted to
- * viewport coordinates for rendering. This ensures highlights
- * persist correctly when zooming/resizing.
- */
 
 import React, { useMemo, useCallback } from "react";
 import type { PageViewport } from "pdfjs-dist";
@@ -71,7 +61,6 @@ function pdfRectToViewportRect(
     const width = Math.abs(x2 - x1);
     const height = Math.abs(y2 - y1);
 
-    // Validate the result
     if (!Number.isFinite(left) || !Number.isFinite(top) ||
         !Number.isFinite(width) || !Number.isFinite(height)) {
       return null;
@@ -84,16 +73,6 @@ function pdfRectToViewportRect(
   }
 }
 
-/**
- * HighlightLayer component - renders persistent highlights for a PDF page.
- *
- * This component:
- * 1. Takes highlights stored in PDF coordinates
- * 2. Converts them to viewport coordinates using the current scale
- * 3. Renders them as absolutely positioned divs
- *
- * The conversion happens on every render to handle zoom changes.
- */
 export const HighlightLayer: React.FC<HighlightLayerProps> = ({
   pageIndex: _pageIndex,
   viewport,
@@ -122,7 +101,6 @@ export const HighlightLayer: React.FC<HighlightLayerProps> = ({
       .filter((h) => h.viewportRects.length > 0);
   }, [viewport, highlights]);
 
-  // Handle click on a highlight
   const handleClick = useCallback(
     (highlight: StoredHighlight) => (e: React.MouseEvent) => {
       if (interactive && onHighlightClick) {
@@ -160,6 +138,12 @@ export const HighlightLayer: React.FC<HighlightLayerProps> = ({
             title={interactive ? highlight.text : undefined}
             role={interactive ? "button" : undefined}
             tabIndex={interactive ? 0 : undefined}
+            onKeyDown={interactive ? (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onHighlightClick?.(highlight);
+              }
+            } : undefined}
           />
         ))
       )}

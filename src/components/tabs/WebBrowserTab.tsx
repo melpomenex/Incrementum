@@ -376,7 +376,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     return currentUrl ? { type: "web", url: currentUrl } : { type: "web" };
   }, [currentUrl]);
 
-  // Handle navigation
   const handleNavigate = useCallback(async (inputUrl: string) => {
     if (!inputUrl.trim()) return;
 
@@ -482,6 +481,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
     try {
       // Try to get selection data from the webview's localStorage via evaluateJavaScript
+   
       const result = await (webviewRef.current as any).evaluateJavaScript(`
         (function() {
           const data = localStorage.getItem('${SELECTION_STORAGE_KEY}');
@@ -497,12 +497,11 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         return JSON.parse(result);
       }
     } catch (error) {
-      console.log("Could not poll webview selection:", error);
+      console.error("Could not poll webview selection:", error);
     }
     return null;
   }, []);
 
-  // Extract creation - handles cross-origin iframe limitations
   const handleCreateExtract = useCallback(async () => {
     // Try to get selection from the iframe if same-origin, otherwise from main window
     let selectedText = "";
@@ -512,6 +511,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     if (isTauri() && webviewRef.current) {
       try {
         // Ask the bridge to save the current selection immediately
+   
         await (webviewRef.current as any).evaluateJavaScript(`
           (function(){
             var sel = window.getSelection();
@@ -545,6 +545,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         
         // Fallback: try direct selection access
         if (!selectedText) {
+   
           const result = await (webviewRef.current as any).evaluateJavaScript(`
             (function() {
               const selection = window.getSelection()?.toString() || '';
@@ -554,7 +555,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
           selectedText = result?.trim() || "";
         }
       } catch (error) {
-        console.log("Could not get selection from webview:", error);
+        console.error("Could not get selection from webview:", error);
       }
     }
     
@@ -567,7 +568,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
           selectedText = iframeSelection?.trim() || "";
         } catch {
           // Cross-origin restriction - can't access iframe content
-          console.log("Cross-origin iframe - using fallback method");
         }
       }
     }
@@ -612,10 +612,8 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     });
   }, [currentUrl, pageTitle, pollWebviewSelection]);
 
-  // Save extract with proper document creation
   const handleSaveExtract = async (data: { content: string; htmlContent?: string; note: string; tags: string[] }) => {
     try {
-      // Create or get a document for this web page
       const docTitle = pageTitle || new URL(currentUrl).hostname;
       let documentId: string;
 
@@ -633,7 +631,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         documentId = `web-${Date.now()}`;
       }
 
-      // Create the extract
       const extractInput: CreateExtractInput = {
         document_id: documentId,
         content: data.content,
@@ -678,7 +675,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     }
   };
 
-  // Delete an extract
   const handleDeleteExtract = (index: number) => {
     setSavedExtracts((prev) => prev.filter((_, i) => i !== index));
     toast.success("Extract removed");
@@ -707,7 +703,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       // On Linux/Wayland, outerWidth - innerWidth is unreliable and often
       // produces incorrect values. WebKitGTK doesn't need this offset anyway.
       nativeOffsetRef.current = { x: 0, y: 0 };
-      console.log("[WebBrowserTab] Native offset skipped on Linux (Wayland-safe)");
       return;
     }
 
@@ -715,9 +710,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     const dx = window.outerWidth - window.innerWidth;
     const dy = window.outerHeight - window.innerHeight;
     nativeOffsetRef.current = { x: dx, y: dy };
-    console.log("[WebBrowserTab] Native offset detected:", { dx, dy,
-      outer: `${window.outerWidth}x${window.outerHeight}`,
-      inner: `${window.innerWidth}x${window.innerHeight}` });
   }, []);
 
   const updateWebviewBounds = useCallback(async () => {
@@ -744,11 +736,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
           const width = Math.round(rect.width);
           const height = Math.round(rect.height);
 
-          console.log("[WebBrowserTab] updateWebviewBounds:", {
-            rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-            offset, dpr: window.devicePixelRatio, native: { x, y, width, height },
-          });
-
           if (width > 0 && height > 50) {
             try {
               if (isTauri()) {
@@ -766,7 +753,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     });
   }, [detectNativeOffset]);
 
-  // Initialize
   useEffect(() => {
     if (initialUrl) {
       void handleNavigate(initialUrl);
@@ -779,7 +765,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     };
   }, []);
 
-  // Create webview for Tauri
   useEffect(() => {
     if (!currentUrl) {
       if (webviewRef.current) {
@@ -846,11 +831,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         const width = Math.round(rect.width);
         const height = Math.round(rect.height);
 
-        console.log("[WebBrowserTab] createWebview:", {
-          rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-          offset, dpr: window.devicePixelRatio, native: { x, y, width, height },
-        });
-
         const webview = new Webview(appWindow, "web-browser", {
           url: currentUrl,
           x,
@@ -879,7 +859,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             await (webview as any).evaluateJavaScript(
               "(function(){" + WEBVIEW_EXTRACT_BRIDGE_SCRIPT + "})();"
             );
-            console.log("[WebBrowserTab] Extract bridge injected");
           } catch (e) {
             console.warn("[WebBrowserTab] Failed to inject extract bridge:", e);
           }
@@ -904,7 +883,9 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         // Re-inject on navigation (when URL changes)
         // Note: embedded Webview may not have .on() in some Tauri v2 versions;
         // guard to avoid crashing webview creation.
+   
         if (typeof (webview as any).on === 'function') {
+   
           (webview as any).on("tauri://url-changed", () => {
             lastInjectedUrl = ""; // Reset so script will be injected on new page
             setTimeout(injectBridgeScript, 1500);
@@ -917,6 +898,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         webview.once("tauri://error", (event: unknown) => {
           if (!isCancelled) {
             setIsLoading(false);
+   
             const errorMessage = (event as any)?.payload?.message || String(event);
             setWebviewError(`Failed to load: ${errorMessage}`);
           }
@@ -946,11 +928,9 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
-      // Clean up event listeners
       unlistenFns.forEach((unlisten) => {
         try {
           const result = unlisten();
-          // Handle if unlisten returns a promise
           if (result && typeof result.then === 'function') {
             result.catch(() => {
               // Ignore errors during cleanup - listener may already be removed
@@ -977,9 +957,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     const observer = new ResizeObserver(triggerUpdate);
     observer.observe(webviewContainerRef.current);
 
-    // On Wayland compositors (Hyprland, Sway, etc.), window resize events from
-    // the compositor may not trigger the ResizeObserver on the container div.
-    // Listen for window resize events as a fallback to keep the webview in sync.
     window.addEventListener('resize', triggerUpdate);
 
     return () => {
@@ -1013,8 +990,8 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     
     return () => clearInterval(pollInterval);
   }, [isTauri, currentUrl, pageTitle, pollWebviewSelection]);
-
-  // Cleanup on unmount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     return () => {
       if (webviewRef.current) {
@@ -1052,10 +1029,8 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
             if (webviewRef.current) {
               if (isVisible) {
-                console.log("[WebBrowserTab] Webview becoming visible, showing");
                 void webviewRef.current.show().catch(() => {});
               } else {
-                console.log("[WebBrowserTab] Webview becoming hidden, hiding");
                 void webviewRef.current.hide().catch(() => {});
               }
             }
@@ -1072,29 +1047,25 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       observer?.disconnect();
     };
   }, [isTauri]);
-
-  // When the extract dialog opens, hide the native webview so the React modal
-  // (which renders in the webview window, behind the native webview widget)
-  // becomes visible. Restore bounds when the dialog closes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     if (!isTauri()) return;
 
     if (extractDialog) {
       // Hide the native webview while the dialog is open
       if (webviewRef.current && webviewIsVisibleRef.current) {
-        console.log("[WebBrowserTab] Extract dialog open, hiding webview");
         void webviewRef.current.hide().catch(() => {});
       }
     } else {
       // Show the native webview when the dialog closes (only if tab is visible)
       if (webviewRef.current && webviewIsVisibleRef.current) {
-        console.log("[WebBrowserTab] Extract dialog closed, showing webview");
         void webviewRef.current.show().catch(() => {});
       }
     }
   }, [extractDialog, isTauri]);
-
-  // Load bookmarks and extracts from localStorage
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     const saved = localStorage.getItem("web-browser-bookmarks");
     if (saved) setBookmarks(JSON.parse(saved));
@@ -1112,10 +1083,6 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     localStorage.setItem("web-browser-extracts", JSON.stringify(savedExtracts));
   }, [savedExtracts]);
 
-  // Keyboard shortcut: respond to both the app-wide 'extract-text' event
-  // (dispatched by the configurable shortcut system) and the hardcoded
-  // Ctrl/Cmd+Shift+E fallback. When triggered, attempt to pull selection
-  // from the webview bridge (Tauri) or iframe (web).
   useEffect(() => {
     const handleExtractTextEvent = () => {
       handleCreateExtract();
@@ -1149,6 +1116,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       meta: combo.meta || false,
       key: combo.key,
     });
+   
     (webviewRef.current as any)
       .evaluateJavaScript(`
         (function(){
@@ -1158,7 +1126,8 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       `)
       .catch(() => {});
   }, [isTauri, currentUrl]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   // Push shortcut after webview is created / URL changes
   useEffect(() => {
     pushShortcutToWebview();

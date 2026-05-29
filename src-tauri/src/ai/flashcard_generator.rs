@@ -77,7 +77,6 @@ impl FlashcardGenerator {
 
         let response = self.provider.chat_completion(&request).await?;
 
-        // Parse the response
         self.parse_flashcards(&response.content, options)
     }
 

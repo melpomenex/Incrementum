@@ -241,12 +241,10 @@ export function TranscriptSync({
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  // Handle segment click
   const handleSegmentClick = (segment: TranscriptSegment) => {
     onSeek?.(segment.start);
   };
 
-  // Handle text selection
   const handleSelection = () => {
     if (!onSelectionChange) return;
     
@@ -264,7 +262,6 @@ export function TranscriptSync({
     }, 500);
   };
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (selectionTimeoutRef.current) {
@@ -290,7 +287,6 @@ export function TranscriptSync({
     onExport?.();
   };
 
-  // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && activeIndex !== -1 && onSeek) {
       e.preventDefault();
@@ -409,6 +405,7 @@ export function TranscriptSync({
                     : "bg-transparent hover:bg-muted/40 border-l-4 border-l-transparent border-y border-r border-transparent"
                 } ${isParagraphStart ? "mt-4 first:mt-0" : ""}`}
                 role="option"
+                tabIndex={0}
                 aria-selected={isActive}
               >
                 <div className="flex items-start gap-3 p-3">
@@ -562,7 +559,6 @@ export function parseWebVTT(vttContent: string): TranscriptSegment[] {
     const end = parseVTTTime(timeMatch[2]);
     const id = `cue-${i}`;
 
-    // Collect text lines
     i++;
     let text = "";
     while (i < lines.length && lines[i].trim() && !lines[i].includes("-->")) {

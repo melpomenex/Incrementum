@@ -41,7 +41,6 @@ export const useLLMProvidersStore = create<LLMProvidersState>()(
           temperature: provider.temperature ?? 0.7,
           maxTokens: provider.maxTokens ?? 4096,
         };
-        console.log("Adding provider:", { ...newProvider, apiKey: newProvider.apiKey ? "***" : "EMPTY" });
         set((state) => ({
           providers: [...state.providers, newProvider],
         }));
@@ -67,13 +66,6 @@ export const useLLMProvidersStore = create<LLMProvidersState>()(
 
       getEnabledProviders: () => {
         const enabled = get().providers.filter((p) => p.enabled);
-        console.log("getEnabledProviders called:", enabled.map((p) => ({
-          id: p.id,
-          provider: p.provider,
-          name: p.name,
-          hasApiKey: p.apiKey ? p.apiKey.trim().length > 0 : false,
-          enabled: p.enabled,
-        })));
         return enabled;
       },
 
@@ -103,7 +95,6 @@ export const useLLMProvidersStore = create<LLMProvidersState>()(
         );
         const removed = persisted.providers.length - cleanedProviders.length;
         if (removed > 0) {
-          console.log(`Cleaned up ${removed} provider(s) with empty API keys`);
         }
         return {
           ...currentState,

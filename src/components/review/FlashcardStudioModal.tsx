@@ -93,10 +93,6 @@ import type { ImageOcclusionRegion, MultipleChoiceOption } from "../../types/lea
 import { ImageRegistryLibrary } from "../image-registry/ImageRegistryLibrary";
 import { ExtractBrowserPanel } from "./ExtractBrowserPanel";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 type DraftCardType = "qa" | "cloze" | "multiple-choice" | "image-occlusion";
 type ViewMode = "chat" | "templates" | "history" | "extracts";
 type ContextMode = "full" | "chapters" | "pages" | "excerpt" | "search";
@@ -201,10 +197,6 @@ function normalizeContextSelection(value: unknown): ContextSelection {
     searchResults: Array.isArray(raw.searchResults) ? raw.searchResults : [],
   };
 }
-
-// =============================================================================
-// CONSTANTS
-// =============================================================================
 
 const STORAGE_KEY = "flashcard-studio-state-v3";
 const HISTORY_KEY = "flashcard-studio-history";
@@ -341,10 +333,6 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
     prompt: "Extract important formulas, equations, or mathematical expressions. Create cards that show the formula and test understanding of when and how to apply it.",
   },
 ];
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
 
 function normalizeCardType(value?: string): DraftCardType | null {
   if (!value) return null;
@@ -938,10 +926,6 @@ function formatModelPrice(price?: number): string {
   if (price < 0.001) return `$${(price * 1000000).toFixed(0)} per 1M`;
   return `$${price.toFixed(4)}`;
 }
-
-// =============================================================================
-// SUB-COMPONENTS
-// =============================================================================
 
 function CostEstimator({ 
   inputText, 
@@ -2781,10 +2765,6 @@ function DeckSelector({
   );
 }
 
-// =============================================================================
-// MAIN COMPONENT
-// =============================================================================
-
 export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioModalProps) {
   const { t } = useI18n();
   const toast = useToast();
@@ -2834,7 +2814,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const shouldAutoScrollRef = useRef(true);
   const saveInFlightRef = useRef(false);
 
-  // Initialize provider
   useEffect(() => {
     if (!isOpen) return;
     if (selectedProviderId) return;
@@ -2874,7 +2853,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     }
   }, [notebookLmEnabled, selectedProviderId, enabledProviders]);
 
-  // Load documents
   useEffect(() => {
     if (!isOpen) return;
     if (documents.length === 0) {
@@ -2896,7 +2874,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     void refreshImageAssets();
   }, [isOpen, refreshImageAssets]);
 
-  // Load extracts for the extract browser
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
@@ -2914,7 +2891,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  // Load saved state
   useEffect(() => {
     if (!isOpen) return;
     
@@ -2950,7 +2926,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     }
   }, [isOpen, activeDeckIds[0]]);
 
-  // Save state
   useEffect(() => {
     if (!isOpen) return;
     const payload = {
@@ -2997,7 +2972,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     });
   }, [draftCards.length, isOpen]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (!isOpen) return;
 
@@ -3056,7 +3030,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     [currentProvider]
   );
 
-  // Get pricing for current provider's selected model
   const currentModelPricing = useMemo(() => {
     if (!currentProvider?.model || !currentProvider?.modelPricing) return undefined;
     const modelInfo = currentProvider.modelPricing[currentProvider.model];
@@ -3138,7 +3111,6 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     return selectedDeck.tagFilters.length > 0 ? selectedDeck.tagFilters : [selectedDeck.name];
   }, [selectedDeck]);
 
-  // Build context content based on selection
   const contextContent = useMemo(() => {
     if (!selectedDocumentText) return undefined;
     const selectedChapters = Array.isArray(contextSelection.chapters) ? contextSelection.chapters : [];

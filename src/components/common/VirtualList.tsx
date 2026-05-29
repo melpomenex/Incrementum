@@ -41,7 +41,6 @@ export function VirtualList<T>({
   const endIndex = Math.min(items.length, startIndex + visibleCount);
   const visibleItems = items.slice(startIndex, endIndex);
 
-  // Update container height on resize
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -65,7 +64,6 @@ export function VirtualList<T>({
     };
   }, []);
 
-  // Handle scroll
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const newScrollTop = e.currentTarget.scrollTop;
@@ -224,7 +222,6 @@ export function DynamicVirtualList<T>({
   const itemHeightsRef = useRef<Map<number, number>>(new Map());
   const [_, forceUpdate] = useState({});
 
-  // Update container height on resize
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { GlobalSearch, SearchResult, SearchQuery, SearchResultType } from "./GlobalSearch";
 import { useDocumentStore } from "../../stores/documentStore";
-import { useTabsStore } from "../../stores/tabsStore";
+import { useTabsStore, type TabsState } from "../../stores/tabsStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useUIStore } from "../../stores/uiStore";
 import { useExtractStore } from "../../stores/extractStore";
@@ -27,10 +27,8 @@ import {
   Moon,
   Images,
 } from "lucide-react";
-import type { Document } from "../../types/document";
+import type { Document, Extract } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
-import type { TabsState } from "../../stores/tabsStore";
-import type { Extract } from "../../types/document";
 import { fetchYouTubeTranscript } from "../../api/youtube";
 import { getTranscript, type TranscriptSegment as WhisperTranscriptSegment } from "../../api/transcription";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -221,7 +219,7 @@ export function CommandCenter() {
   const commandPaletteOpen = useUIStore(selectCommandPaletteOpen);
   const setCommandPaletteOpen = useUIStore(selectSetCommandPaletteOpen);
   const extracts = useExtractStore(selectExtracts);
-  const extractsLoading = useExtractStore(selectExtractsLoading);
+  const _extractsLoading = useExtractStore(selectExtractsLoading);
   const loadExtracts = useExtractStore(selectLoadExtracts);
   const extractsLoadedRef = useRef(false);
   const documentsSnapshotRef = useRef<Document[]>([]);
@@ -302,7 +300,7 @@ export function CommandCenter() {
     const maxDocsToScan = 500;
     const maxExtractsToScan = 500;
     const maxTranscriptFetches = 3;
-    let transcriptFetches = 0;
+    let _transcriptFetches = 0;
 
     const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -787,7 +785,7 @@ export function CommandCenter() {
           for (const t of searchTerms) {
             if (hits.length >= 6) break;
             const occ = findAllOccurrences(contentLower, t, 6 - hits.length);
-            occ.forEach((index, occIndex) => {
+            occ.forEach((index, _occIndex) => {
               if (doc.fileType === "pdf") {
                 const pageNum = buildPdfPageFromIndex(doc, index, Math.max(1, contentLower.length));
                 hits.push({
@@ -939,6 +937,7 @@ export function CommandCenter() {
 
     return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
   }, [loadExtracts, activeDeck, shouldFilterByDeck, theme.id, theme.name, theme.variant, themes, setTheme]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleResultClick = useCallback((result: SearchResult) => {
     if (result.type === SearchResultType.Command) {
@@ -955,6 +954,7 @@ export function CommandCenter() {
       });
     }
   }, [addTab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const openDocumentInTab = useCallback((documentId: string, options?: { highlightQuery?: string; initialJump?: ExactSearchHitLocation }) => {
     const doc = documentsRef.current.find(d => d.id === documentId);

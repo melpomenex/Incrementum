@@ -29,7 +29,6 @@ fn main() {
     install_early_panic_hook();
     early_log("startup: main begin");
 
-    // Linux WebKitGTK workarounds
     #[cfg(target_os = "linux")]
     {
         // Disable sandbox (required for YouTube iframe playback on WebKitGTK 2.44+)

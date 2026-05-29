@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import pg from 'pg';
 import { getPool } from '../db/connection.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
@@ -34,7 +35,6 @@ syncRouter.get('/pull', async (req: AuthRequest, res, next) => {
         const tier = REQUIRE_PAID_FILE_SYNC ? await getSubscriptionTier(userId) : 'paid';
         const includeFiles = !REQUIRE_PAID_FILE_SYNC || tier === 'paid';
 
-        // Get current max sync version
         const versionResult = await pool.query(includeFiles ? `
       SELECT GREATEST(
         COALESCE((SELECT MAX(sync_version) FROM documents WHERE user_id = $1), 0),
@@ -51,21 +51,18 @@ syncRouter.get('/pull', async (req: AuthRequest, res, next) => {
     `, [userId]);
         const currentVersion = versionResult.rows[0].max_version || 0;
 
-        // Get changed documents
         const documents = await pool.query(`
       SELECT * FROM documents 
       WHERE user_id = $1 AND sync_version > $2
       ORDER BY sync_version
     `, [userId, since]);
 
-        // Get changed extracts
         const extracts = await pool.query(`
       SELECT * FROM extracts 
       WHERE user_id = $1 AND sync_version > $2
       ORDER BY sync_version
     `, [userId, since]);
 
-        // Get changed learning items
         const learningItems = await pool.query(`
       SELECT * FROM learning_items 
       WHERE user_id = $1 AND sync_version > $2
@@ -94,13 +91,91 @@ syncRouter.get('/pull', async (req: AuthRequest, res, next) => {
     }
 });
 
-interface SyncPushPayload {
-    documents?: unknown[];
-    extracts?: unknown[];
-    learningItems?: unknown[];
+interface DocumentSyncRow {
+    id: string;
+    title?: string;
+    file_id?: string | null;
+    file_path?: string;
+    file_type?: string;
+    content?: string;
+    content_hash?: string;
+    total_pages?: number;
+    current_page?: number;
+    category?: string;
+    tags?: string[];
+    date_added?: string;
+    date_modified?: string;
+    date_last_reviewed?: string;
+    extract_count?: number;
+    learning_item_count?: number;
+    priority_rating?: number;
+    priority_slider?: number;
+    priority_score?: number;
+    is_archived?: boolean;
+    is_favorite?: boolean;
+    metadata?: Record<string, unknown>;
+    next_reading_date?: string;
+    reading_count?: number;
+    stability?: number;
+    difficulty?: number;
+    reps?: number;
+    total_time_spent?: number;
+    deleted_at?: string | null;
 }
 
-async function allocateSyncVersions(client: any, userId: string, count: number): Promise<{ startVersion: number, endVersion: number }> {
+interface ExtractSyncRow {
+    id: string;
+    document_id?: string;
+    content?: string;
+    page_title?: string;
+    page_number?: number;
+    highlight_color?: string;
+    notes?: string;
+    progressive_disclosure_level?: number;
+    max_disclosure_level?: number;
+    date_created?: string;
+    date_modified?: string;
+    tags?: string[];
+    category?: string;
+    memory_state?: { stability?: number; difficulty?: number };
+    next_review_date?: string;
+    last_review_date?: string;
+    review_count?: number;
+    reps?: number;
+    deleted_at?: string | null;
+}
+
+interface LearningItemSyncRow {
+    id: string;
+    extract_id?: string;
+    document_id?: string;
+    item_type?: string;
+    question?: string;
+    answer?: string;
+    cloze_text?: string;
+    difficulty?: number;
+    interval?: number;
+    ease_factor?: number;
+    due_date?: string;
+    date_created?: string;
+    date_modified?: string;
+    last_review_date?: string;
+    review_count?: number;
+    lapses?: number;
+    state?: number;
+    is_suspended?: boolean;
+    tags?: string[];
+    memory_state?: { stability?: number; difficulty?: number };
+    deleted_at?: string | null;
+}
+
+interface SyncPushPayload {
+    documents?: DocumentSyncRow[];
+    extracts?: ExtractSyncRow[];
+    learningItems?: LearningItemSyncRow[];
+}
+
+async function allocateSyncVersions(client: pg.PoolClient, userId: string, count: number): Promise<{ startVersion: number, endVersion: number }> {
     // Ensure cursor row exists, then atomically allocate a contiguous block of versions.
     await client.query(`
       INSERT INTO sync_cursors (user_id, last_sync_version, last_sync_at)
@@ -143,9 +218,8 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
 
             let nextVersion = startVersion;
 
-            // Upsert documents
             if (payload.documents?.length) {
-                for (const doc of payload.documents as any[]) {
+                for (const doc of payload.documents) {
                     await client.query(`
             INSERT INTO documents (
               id, user_id, title, file_id, file_path, file_type, content, content_hash,
@@ -200,9 +274,8 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
                 }
             }
 
-            // Upsert extracts
             if (payload.extracts?.length) {
-                for (const ext of payload.extracts as any[]) {
+                for (const ext of payload.extracts) {
                     await client.query(`
             INSERT INTO extracts (
               id, user_id, document_id, content, page_title, page_number,
@@ -243,9 +316,8 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
                 }
             }
 
-            // Upsert learning items
             if (payload.learningItems?.length) {
-                for (const item of payload.learningItems as any[]) {
+                for (const item of payload.learningItems) {
                     await client.query(`
             INSERT INTO learning_items (
               id, user_id, extract_id, document_id, item_type, question, answer,
@@ -323,7 +395,6 @@ syncRouter.post('/push', async (req: AuthRequest, res, next) => {
     }
 });
 
-// Get sync status
 syncRouter.get('/status', async (req: AuthRequest, res, next) => {
     try {
         const pool = getPool();

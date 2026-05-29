@@ -1,3 +1,4 @@
+/* globals chrome */
 // Options page script for Incrementum Browser Sync
 
 class OptionsController {
@@ -26,7 +27,6 @@ class OptionsController {
     }
 
     setupEventListeners() {
-        // Save settings button
         document.getElementById('save-settings').addEventListener('click', () => {
             this.saveSettings();
         });
@@ -36,19 +36,18 @@ class OptionsController {
             this.resetSettings();
         });
 
-        // Test connection button
         document.getElementById('test-connection').addEventListener('click', () => {
             this.testConnection(true);
         });
 
         // Live connection testing for server URL changes
-        document.getElementById('server-url').addEventListener('input', (e) => {
+        document.getElementById('server-url').addEventListener('input', (_e) => {
             this.debounceConnectionTest(() => {
                 this.testConnection(false);
             }, 1000);
         });
 
-        document.getElementById('port').addEventListener('input', (e) => {
+        document.getElementById('port').addEventListener('input', (_e) => {
             this.debounceConnectionTest(() => {
                 this.testConnection(false);
             }, 1000);
@@ -73,7 +72,6 @@ class OptionsController {
         try {
             const settings = await chrome.storage.sync.get(this.defaultSettings);
 
-            // Update form fields with loaded settings
             let serverUrl = settings.serverUrl || this.defaultSettings.serverUrl;
             // Display URL without protocol for cleaner UI
             if (serverUrl.startsWith('http://')) {
@@ -104,7 +102,6 @@ class OptionsController {
         try {
             let serverUrl = document.getElementById('server-url').value.trim();
 
-            // Remove any port from the server URL to avoid confusion
             serverUrl = serverUrl.replace(/:\d+/, '');
 
             // Normalize server URL - ensure it has protocol
@@ -126,7 +123,6 @@ class OptionsController {
                 syncFrequency: document.getElementById('sync-frequency').value
             };
 
-            // Validate settings
             if (!this.validateSettings(settings)) {
                 return;
             }
@@ -147,7 +143,6 @@ class OptionsController {
     }
 
     validateSettings(settings) {
-        // Validate server URL - be more lenient
         const url = settings.serverUrl.trim();
         if (!url) {
             this.showNotification('Please enter a server URL', 'error');
@@ -159,12 +154,11 @@ class OptionsController {
             // If no protocol specified, add http://
             const testUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `http://${url}`;
             new URL(testUrl);
-        } catch (error) {
+        } catch (_error) {
             this.showNotification('Invalid server address format', 'error');
             return false;
         }
 
-        // Validate port
         if (settings.browserSyncPort < 1 || settings.browserSyncPort > 65535) {
             this.showNotification('Port must be between 1 and 65535', 'error');
             return false;
@@ -197,13 +191,11 @@ class OptionsController {
             return;
         }
 
-        // Check if the server URL already includes a port
         const urlHasPort = /:\d+/.test(serverUrl);
         if (urlHasPort && showLoading) {
             this.showNotification('Note: Server address includes a port. Using the separate port field instead.', 'info');
         }
 
-        // Normalize URL format
         if (!serverUrl.startsWith('http://') && !serverUrl.startsWith('https://')) {
             serverUrl = `http://${serverUrl}`;
         }
@@ -216,7 +208,6 @@ class OptionsController {
         url.port = port;
 
         const fullUrl = url.toString();
-        console.log('Options page testing URL:', fullUrl);
 
         if (showLoading) {
             document.getElementById('loading').classList.add('show');
@@ -238,7 +229,6 @@ class OptionsController {
                 signal: AbortSignal.timeout(5000) // Modern timeout approach
             });
 
-            console.log('Options page response:', response.status, response.ok);
             // Any response (including 200, 400, etc.) means the server is running
             // The BrowserSyncServer always returns a response for POST requests
             this.updateConnectionStatus(true, `Connected to BrowserSync server (status: ${response.status})`);
@@ -311,12 +301,10 @@ class OptionsController {
     }
 }
 
-// Initialize options page when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new OptionsController();
 });
 
-// Handle keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     // Ctrl/Cmd + S to save settings
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {

@@ -5,18 +5,16 @@ import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { bulkGenerateCards } from "../../api/extract-bulk";
 import { useUndoableOperations } from "../../api/undoable";
 import { cn } from "../../utils";
-import { sanitizeHtml } from "../common/RichContentRenderer";
+import { sanitizeHtml, RichContentRenderer } from "../common/RichContentRenderer";
 import { EditExtractDialog } from "./EditExtractDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { GeneratedCardsPopover } from "../common/GeneratedCardsPopover";
-import { RichContentRenderer } from "../common/RichContentRenderer";
 import { useI18n } from "../../lib/i18n";
 import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
 import { EditableContentPalette } from "../common/EditableContentPalette";
 import { CreateExtractDialog } from "./CreateExtractDialog";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
 import type { TextSelectionContext } from "../../types/selection";
-import { normalizeHighlightColor } from "../../utils/highlightColors";
 import type { ExtractSourceContext } from "../../types/extractNavigation";
 
 interface ExtractsListProps {
@@ -187,7 +185,6 @@ export function ExtractsList({
     try {
       const items = await generateLearningItemsFromExtract(extractId);
       setGeneratedCounts(prev => ({ ...prev, [extractId]: items.length }));
-      console.log(`Generated ${items.length} learning items from extract ${extractId}`);
     } catch (error) {
       console.error("Failed to generate learning items:", error);
     } finally {
@@ -317,7 +314,6 @@ export function ExtractsList({
       const result = await bulkGenerateCards(Array.from(selectedIds));
       setBulkOperationResult(result);
 
-      // Update generated counts for successfully processed extracts
       if (result.succeeded.length > 0) {
         setGeneratedCounts(prev => {
           const next = { ...prev };

@@ -123,7 +123,6 @@ export async function getDueDocumentsOnly(collectionId?: string): Promise<QueueI
  * Get due queue items only (includes documents, extracts, and learning items)
  */
 export async function getDueQueueItems(randomness?: number, collectionId?: string): Promise<QueueItem[]> {
-  console.log("[queue API] getDueQueueItems called with:", { randomness, collectionId });
   const items = await invokeCommand<RustQueueItem[] | null>("get_due_queue_items", { randomness, collectionId });
   if (!Array.isArray(items)) {
     console.warn("[queue] get_due_queue_items returned non-array result", items);

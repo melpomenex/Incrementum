@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ClipboardPaste, X, Loader2, Save, Tag, FileText, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { ClipboardPaste, X, Loader2, Save, Tag, FileText, Image as ImageIcon } from "lucide-react";
 import { createLearningItem } from "../../api/learning-items";
 import { importDocument } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
@@ -222,7 +222,6 @@ export function GlobalPasteHandler() {
       e.stopPropagation();
 
       try {
-        // Check for files first
         const clipboardFiles = Array.from(e.clipboardData?.files ?? []);
         if (clipboardFiles.length > 0) {
           // Support files by MIME type OR by extension (Tauri often gives generic MIME types)
@@ -265,7 +264,6 @@ export function GlobalPasteHandler() {
             const blobs: { blob: Blob; name: string; mimeType: string }[] = [];
 
             for (const item of items) {
-              // Check for images
               const imageType = item.types.find((type) => type.startsWith("image/"));
               if (imageType) {
                 const blob = await item.getType(imageType);
@@ -313,7 +311,6 @@ export function GlobalPasteHandler() {
     };
   }, [t, toast, resetProcessing]);
 
-  // Handle creating a card from pasted text
   const handleSaveCard = useCallback(
     async ({ question, answer, tags }: { question: string; answer: string; tags: string[] }) => {
       try {
@@ -334,7 +331,6 @@ export function GlobalPasteHandler() {
     [t, toast]
   );
 
-  // Handle importing files from clipboard
   const handleImportFiles = useCallback(async () => {
     if (!pastedContent || pastedContent.type !== "files" || !pastedContent.files) return;
 
@@ -385,7 +381,6 @@ export function GlobalPasteHandler() {
     }
   }, [pastedContent, t, toast]);
 
-  // Handle dismiss
   const handleDismiss = useCallback(() => {
     setPastedContent(null);
   }, []);

@@ -226,7 +226,6 @@ pub fn compute_rating_history_signal(
     let mut total_negative = 0_i32;
     let mut matched = false;
 
-    // Match by author
     if let Some(author) = &item.author {
         if let Some(summary) = source_summaries.get(&format!("author:{}", author.to_lowercase())) {
             total_positive += summary.positive_count;
@@ -244,7 +243,6 @@ pub fn compute_rating_history_signal(
         }
     }
 
-    // Match by category
     if let Some(category) = &item.category {
         if let Some(summary) = source_summaries.get(&format!("category:{}", category.to_lowercase())) {
             total_positive += summary.positive_count;

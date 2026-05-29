@@ -59,7 +59,6 @@ export function ReviewDecksModal({
     };
   }, [isOpen]);
 
-  // Clean up long-press timer on unmount
   useEffect(() => {
     return () => {
       if (longPressTimer.current) clearTimeout(longPressTimer.current);

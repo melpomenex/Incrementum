@@ -122,6 +122,7 @@ export function PriorityControl({
           <>
             <div 
               className="fixed inset-0 z-40"
+              role="presentation"
               onClick={() => setIsExpanded(false)}
             />
             <div className="absolute top-full right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg z-50 p-3 animate-in fade-in zoom-in-95 duration-100">
@@ -173,6 +174,7 @@ export function PriorityControl({
                     max="100"
                     value={slider}
                     onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+                    aria-label={t("priority.fineTune")}
                     className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                     style={{ accentColor: currentInfo.color }}
                   />
@@ -190,7 +192,6 @@ export function PriorityControl({
     );
   }
 
-  // Full variant
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center gap-2">
@@ -239,6 +240,7 @@ export function PriorityControl({
           max="100"
           value={slider}
           onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+          aria-label={t("priority.adjust")}
           className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
           style={{ accentColor: currentInfo.color }}
         />

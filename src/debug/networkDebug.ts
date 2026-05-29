@@ -51,11 +51,6 @@ export function installNetworkDebugInstrumentation(): void {
   if ((window as any).__incrementumNetworkDebugInstalled) return;
   (window as any).__incrementumNetworkDebugInstalled = true;
 
-  console.info("[NetworkDebug] Enabled");
-  console.info("[NetworkDebug] navigator.userAgent =", navigator.userAgent);
-  console.info("[NetworkDebug] origin =", window.location.origin);
-  console.info("[NetworkDebug] referrer =", document.referrer || "(none)");
-
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = input instanceof Request ? input : new Request(input, init);
@@ -162,4 +157,3 @@ export function installNetworkDebugInstrumentation(): void {
     true
   );
 }
-

@@ -101,7 +101,6 @@ impl LearningItemGenerator {
         let hidden_word = words.get(cloze_idx)?;
         let _hint = self.generate_cloze_hint(sentence, cloze_idx);
 
-        // Build the clozed question
         let question = words.iter()
             .enumerate()
             .map(|(i, w)| {

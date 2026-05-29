@@ -53,7 +53,6 @@ if (typeof window !== 'undefined') {
     }
 
     // Only replace the app UI during initial bootstrap. After React mounts,
-    // log the error but don't clobber the DOM.
     const isMounted = root?.getAttribute("data-incrementum-mounted") === "true";
     console.error("[Global Error]", e.error ?? message);
     if (root && !isMounted) {
@@ -101,17 +100,14 @@ import { isPWA, isTauri } from "./lib/tauri";
 import { initLocalStorageSync } from "./lib/localStorageSync";
 import { installNetworkDebugInstrumentation, isNetworkDebugEnabled } from "./debug/networkDebug";
 
-// Layout
 import { MainLayout } from "./components/layout/MainLayout";
 import { DevPerformanceMonitor } from "./components/common/PerformanceMonitor";
 import { Analytics } from "@vercel/analytics/react";
 import { BatteryProvider } from "./contexts/BatteryContext";
 
-// Auth callback route
 import AuthCallback from "./routes/auth-callback";
 import ScreenshotOverlay from "./routes/screenshot-overlay";
 
-// Loading fallback component
 function PageLoader() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0a0a', color: '#fff' }}>
@@ -144,7 +140,6 @@ export const queryKeys = {
   settings: ["settings"] as const,
 };
 
-// Create query client for API calls with enhanced caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -196,7 +191,6 @@ if (isNetworkDebugEnabled()) {
 // Initialize PWA (works in both Tauri and Web)
 initializePWA();
 
-// Load collections from database
 import { useCollectionStore } from "./stores/collectionStore";
 useCollectionStore.getState().loadCollections();
 
@@ -238,19 +232,16 @@ if ((import.meta.env.DEV || isTauri()) && "caches" in window) {
 if (!isTauri()) {
   import('./lib/demoContent').then(({ checkAndImportDemoContent }) => {
     checkAndImportDemoContent(null, null).catch((error) => {
-      console.log('[Demo Content] Auto-import check failed or skipped:', error);
+      console.error('[Demo Content] Auto-import check failed or skipped:', error);
     });
   }).catch(() => {
     // Module may not be available in all build configurations
-    console.log('[Demo Content] Module not available');
   });
 
-  // Initialize browser extension bridge for PWA mode
   import('./lib/extension-bridge').then(({ initExtensionBridge }) => {
     initExtensionBridge();
-    console.log('[Extension Bridge] Initialized for PWA mode');
   }).catch((error) => {
-    console.log('[Extension Bridge] Module not available:', error);
+    console.error('[Extension Bridge] Module not available:', error);
   });
 }
 

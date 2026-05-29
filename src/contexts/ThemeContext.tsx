@@ -62,7 +62,6 @@ function applyThemeToDOM(theme: Theme, fontFamilyOverride?: string | null): void
     root.style.setProperty(`--color-${key}`, value);
   });
 
-  // Map theme colors to shared UI tokens used by Tailwind classes.
   root.style.setProperty("--color-foreground", theme.colors.onBackground || theme.colors.text);
   root.style.setProperty("--color-muted", theme.colors.surfaceVariant || theme.colors.surface);
   root.style.setProperty(
@@ -101,7 +100,6 @@ function applyThemeToDOM(theme: Theme, fontFamilyOverride?: string | null): void
     root.style.setProperty(`--font-weight-${key}`, value.toString());
   });
 
-  // Map theme colors to shared UI tokens used by Tailwind classes.
   root.style.setProperty("--color-foreground", theme.colors.onBackground || theme.colors.text);
   root.style.setProperty("--color-muted", theme.colors.surfaceVariant || theme.colors.surface);
   root.style.setProperty(
@@ -293,15 +291,12 @@ export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps) {
     try {
       const theme = JSON.parse(themeJson) as Theme;
 
-      // Validate theme structure
       if (!theme.id || !theme.name || !theme.colors) {
         throw new Error("Invalid theme structure");
       }
 
-      // Check if theme already exists
       const existing = themes.find((t) => t.id === theme.id);
       if (existing) {
-        // Update existing theme
         const newThemes = themes.map((t) => (t.id === theme.id ? theme : t));
         setThemes(newThemes);
       } else {

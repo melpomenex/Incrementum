@@ -565,7 +565,6 @@ pub async fn extract_audio_cover_art(
         )));
     }
 
-    // Create temp directory for cover extraction
     let temp_dir = app_handle.path().app_cache_dir()
         .map_err(|e| IncrementumError::Internal(format!("Failed to get cache dir: {}", e)))?
         .join("cover_art");
@@ -587,7 +586,7 @@ pub async fn extract_audio_cover_art(
             "-vcodec", "copy",  // copy the video stream (cover art)
             "-f", "image2",     // output as image
             "-y",               // overwrite
-            cover_path.to_str().unwrap()
+            cover_path.to_str().expect("cover path is valid UTF-8")
         ])
         .spawn()
         .map_err(|e| IncrementumError::Internal(format!("Failed to spawn ffmpeg: {}", e)))?;
@@ -599,7 +598,6 @@ pub async fn extract_audio_cover_art(
         }
     }
 
-    // Check if the output file was created and has content
     if cover_path.exists() {
         let file_size = std::fs::metadata(&cover_path)
             .map(|m| m.len())

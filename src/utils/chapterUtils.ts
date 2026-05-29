@@ -29,7 +29,6 @@ export function detectChapterReference(query: string): ChapterReference | null {
   // Normalize the query
   const normalizedQuery = query.toLowerCase().trim();
   
-  // Check for chapter patterns
   const chapterMatch = normalizedQuery.match(/(?:chapter|ch\.?|chap\.?)\s*(\d+|[\w-]+)/i);
   if (chapterMatch) {
     const number = parseChapterNumber(chapterMatch[1]);
@@ -40,7 +39,6 @@ export function detectChapterReference(query: string): ChapterReference | null {
     };
   }
   
-  // Check for section patterns
   const sectionMatch = normalizedQuery.match(/(?:section|part)\s*(\d+|[\w-]+)/i);
   if (sectionMatch) {
     const number = parseChapterNumber(sectionMatch[1]);
@@ -51,7 +49,6 @@ export function detectChapterReference(query: string): ChapterReference | null {
     };
   }
   
-  // Check for appendix patterns
   const appendixMatch = normalizedQuery.match(/appendix\s*([A-Z]|\d+)/i);
   if (appendixMatch) {
     return {
@@ -68,13 +65,11 @@ export function detectChapterReference(query: string): ChapterReference | null {
  * Parse chapter number from string (handles digits and roman numerals)
  */
 function parseChapterNumber(numStr: string): number {
-  // Check if it's a roman numeral
   const romanMatch = numStr.match(/^[IVX]+$/i);
   if (romanMatch) {
     return romanToInt(numStr.toUpperCase());
   }
   
-  // Check for word numbers
   const wordNumbers: Record<string, number> = {
     'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
     'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
@@ -131,7 +126,6 @@ export function extractChapters(content: string): Chapter[] {
     const chapterInfo = parseChapterHeader(line);
     
     if (chapterInfo) {
-      // Save previous chapter if exists
       if (currentChapter && currentChapter.number !== undefined) {
         chapters.push({
           number: currentChapter.number,
@@ -142,7 +136,6 @@ export function extractChapters(content: string): Chapter[] {
         });
       }
       
-      // Start new chapter
       currentChapter = {
         number: chapterInfo.number,
         title: chapterInfo.title,
@@ -156,7 +149,6 @@ export function extractChapters(content: string): Chapter[] {
     lineIndex += line.length + 1; // +1 for newline
   }
   
-  // Save last chapter
   if (currentChapter && currentChapter.number !== undefined) {
     chapters.push({
       number: currentChapter.number,
@@ -232,7 +224,6 @@ function looksLikeChapterTitle(title: string): boolean {
   
   const lower = title.toLowerCase();
   
-  // Check if it contains chapter-like words
   return chapterIndicators.some(indicator => lower.includes(indicator)) ||
          // Or if it's relatively short (likely a heading)
          title.length < 100;
@@ -254,7 +245,6 @@ function extractChaptersByPattern(content: string): Chapter[] {
   
   while ((match = chapterRegex.exec(content)) !== null) {
     if (lastIndex > 0) {
-      // Save previous chapter
       const chapterContent = content.slice(lastIndex, match.index).trim();
       if (chapterContent.length > 100) { // Minimum content threshold
         chapters.push({
@@ -272,7 +262,6 @@ function extractChaptersByPattern(content: string): Chapter[] {
     lastIndex = match.index + match[0].length;
   }
   
-  // Save last chapter
   if (lastIndex > 0 && lastNumber > 0) {
     const finalContent = content.slice(lastIndex).trim();
     if (finalContent.length > 100) {

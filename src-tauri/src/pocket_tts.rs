@@ -105,7 +105,6 @@ pub async fn check_pocket_tts_available(app_handle: &AppHandle) -> Result<Pocket
 
     match sidecar_result {
         Ok(cmd) => {
-            // Clean environment to avoid AppImage LD contamination
             let home = std::env::var("HOME").unwrap_or_default();
             let user = std::env::var("USER").unwrap_or_default();
             let path = std::env::var("PATH").unwrap_or_else(|_| {
@@ -235,7 +234,6 @@ pub async fn generate_pocket_speech(
             }
             CommandEvent::Terminated(payload) => {
                 success = payload.code == Some(0);
-                // Clean up text file if the wrapper didn't consume it
                 let _ = std::fs::remove_file(&text_file);
                 break;
             }
@@ -255,7 +253,6 @@ pub async fn generate_pocket_speech(
     let audio_data = std::fs::read(&output_path)?;
     let audio_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &audio_data);
 
-    // Clean up temp file
     let _ = std::fs::remove_file(&output_path);
 
     // Estimate duration (assuming 24kHz sample rate, 16-bit mono)
@@ -278,7 +275,6 @@ pub async fn stop_pocket_tts(app_handle: &AppHandle) -> Result<()> {
 
     // Just clear the reference - the sidecar process will terminate when the app closes
     // Note: We don't need to explicitly kill the process since tauri-plugin-shell
-    // handles process lifecycle management
     *current = None;
 
     Ok(())

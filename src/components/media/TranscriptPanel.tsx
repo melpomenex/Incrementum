@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { ScrollText, Loader2, PlayCircle, Search } from "lucide-react";
 import { cn } from "../../utils";
@@ -134,7 +134,10 @@ export function TranscriptPanel({
             <div
               key={index}
               ref={isActive ? activeSegmentRef : null}
+              role="button"
+              tabIndex={0}
               onClick={() => onSeek(segment.start_ms)}
+              onKeyDown={(e) => { if (e.key === 'Enter') onSeek(segment.start_ms); }}
               className={cn(
                 "group p-3 rounded-lg transition-all cursor-pointer border border-transparent hover:border-border",
                 isActive ? "bg-primary/10 border-primary/20 shadow-sm" : "hover:bg-muted/50"

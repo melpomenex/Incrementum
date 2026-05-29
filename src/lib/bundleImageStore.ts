@@ -1,9 +1,3 @@
-/**
- * Bundle Image Store for Browser/PWA
- *
- * Stores images from markdown bundles in IndexedDB for offline access.
- * Used when running in browser mode (non-Tauri).
- */
 
 const DB_NAME = 'incrementum-bundle-images';
 const DB_VERSION = 1;
@@ -40,7 +34,6 @@ async function getDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = (event) => {
       const database = (event.target as IDBOpenDBRequest).result;
 
-      // Create object store with composite key
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         const store = database.createObjectStore(STORE_NAME, { keyPath: ['docId', 'imageName'] });
         store.createIndex('docId', 'docId', { unique: false });
@@ -74,7 +67,6 @@ export async function storeImage(docId: string, imageName: string, blob: Blob): 
     const request = store.put(image);
 
     request.onsuccess = () => {
-      console.log(`[bundleImageStore] Stored image: ${docId}/${imageName}`);
       resolve();
     };
 
@@ -167,7 +159,6 @@ export async function deleteBundleImages(docId: string): Promise<void> {
         cursor.delete();
         cursor.continue();
       } else {
-        console.log(`[bundleImageStore] Deleted all images for doc: ${docId}`);
         resolve();
       }
     };
@@ -268,7 +259,6 @@ export async function clearAllImages(): Promise<void> {
     const request = store.clear();
 
     request.onsuccess = () => {
-      console.log('[bundleImageStore] Cleared all images');
       resolve();
     };
 

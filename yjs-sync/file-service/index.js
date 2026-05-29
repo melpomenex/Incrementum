@@ -102,7 +102,6 @@ const upload = multer({
   },
 });
 
-// Upload
 app.post("/files/:room", upload.single("file"), async (req, res) => {
   const room = req.params.room;
   if (!isSafeRoom(room)) return res.status(400).json({ error: "Invalid room" });
@@ -147,7 +146,6 @@ app.get("/files/:room", async (req, res) => {
   }
 });
 
-// Download
 app.get("/files/:room/:id", async (req, res) => {
   const room = req.params.room;
   const id = req.params.id;
@@ -160,7 +158,7 @@ app.get("/files/:room/:id", async (req, res) => {
 
   // Use absolute path for sendFile.
   res.setHeader("Content-Type", m.contentType || "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="${(m.filename || "file").replace(/\"/g, "")}"`);
+  res.setHeader("Content-Disposition", `attachment; filename="${(m.filename || "file").replace(/"/g, "")}"`);
   res.sendFile(path.resolve(blob), (err) => {
     if (err) res.status(404).end();
   });
@@ -189,6 +187,4 @@ app.delete("/files/:room/:id", async (req, res) => {
 
 app.listen(PORT, async () => {
   await fs.mkdir(DATA_DIR, { recursive: true });
-  console.log(`file-service listening on ${PORT}`);
 });
-

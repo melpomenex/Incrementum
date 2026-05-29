@@ -5,7 +5,6 @@ import { migrate } from './schema.js';
 async function main() {
     await initDatabase();
     await migrate();
-    console.log('Migration completed successfully');
     process.exit(0);
 }
 

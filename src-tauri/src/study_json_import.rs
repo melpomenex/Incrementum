@@ -16,10 +16,6 @@ use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
 use crate::models::{Document, FileType, ItemState, ItemType, LearningItem};
 
-// ---------------------------------------------------------------------------
-// Data structures matching the Study JSON format
-// ---------------------------------------------------------------------------
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StudyJsonCard {
     pub answer: String,
@@ -87,10 +83,6 @@ pub struct StudyJsonImportResult {
     pub cards_skipped: usize,
 }
 
-// ---------------------------------------------------------------------------
-// Parsing
-// ---------------------------------------------------------------------------
-
 /// Parse a Study JSON file into a `StudyJsonDeck`.
 ///
 /// The file must be a flat JSON object where every key is a question string and
@@ -131,7 +123,6 @@ pub fn parse_study_json_file(path: &str) -> Result<StudyJsonDeck> {
                 ))
             })?;
 
-        // Validate required fields
         if card.answer.is_empty() && card.deck_name.is_empty() {
             return Err(IncrementumError::InvalidInput(format!(
                 "Card for question \"{}\" is missing required fields (answer, deck_name, subject)",
@@ -177,10 +168,6 @@ pub fn validate_study_json(path: &str) -> Result<StudyJsonValidation> {
     })
 }
 
-// ---------------------------------------------------------------------------
-// Import
-// ---------------------------------------------------------------------------
-
 fn hex_sha256(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
@@ -206,14 +193,12 @@ fn build_learning_item(
     item.document_id = Some(document_id.to_string());
     item.answer = Some(card.answer.clone());
 
-    // Scheduling fields
     item.ease_factor = card.ease_factor;
     item.interval = card.interval_days as f64;
     item.review_count = card.repetitions;
     item.lapses = card.lapse_count;
     item.algorithm_type = "sm2".to_string();
 
-    // State derivation
     if card.known_pile {
         item.is_suspended = true;
         item.state = ItemState::Review;
@@ -246,7 +231,6 @@ fn build_learning_item(
     }
     item.interaction_metadata = Some(serde_json::Value::Object(metadata));
 
-    // Tags
     item.tags = vec![
         "study-json-import".to_string(),
         card.subject.clone(),
@@ -267,7 +251,6 @@ pub async fn import_study_json_file(
 ) -> Result<StudyJsonImportResult> {
     let deck = parse_study_json_file(&file_path)?;
 
-    // Create the parent Document
     let filename = Path::new(&file_path)
         .file_name()
         .and_then(|n| n.to_str())
@@ -324,10 +307,6 @@ pub async fn import_study_json_file(
 pub fn validate_study_json_file(file_path: String) -> Result<StudyJsonValidation> {
     validate_study_json(&file_path)
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -406,7 +385,7 @@ mod tests {
     #[test]
     fn test_parse_invalid_json() {
         let f = write_temp_json("not json {{{");
-        let result = parse_study_json_file(f.path().to_str().unwrap());
+        let result = parse_study_json_file(f.path().to_str().expect("temp path is valid UTF-8"));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Invalid JSON"));
     }
@@ -463,10 +442,8 @@ mod tests {
         assert_eq!(item.algorithm_type, "sm2");
         assert!(item.last_review_date.is_some());
 
-        // Check deterministic ID
         assert_eq!(item.id, hex_sha256("What is DNA synthesis?"));
 
-        // Check interaction_metadata
         let meta = item.interaction_metadata.unwrap();
         assert_eq!(meta["correct_count"], 3);
         assert_eq!(meta["missed_count"], 1);

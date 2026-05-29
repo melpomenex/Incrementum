@@ -82,6 +82,9 @@ export function FileSyncStatusIndicator({
       }`}
       onClick={handleClick}
       title={error || config.label}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(e as unknown as React.MouseEvent); }}
     >
       <Icon
         className={`${iconSize} ${config.color} ${status === "downloading" ? "animate-spin" : ""}`}

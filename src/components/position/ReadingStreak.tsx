@@ -27,6 +27,7 @@ export function ReadingStreak({
   useEffect(() => {
     loadStats();
   }, [days]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadStats = async () => {
     try {
@@ -120,7 +121,6 @@ export function ActivityHeatmap({ stats }: ActivityHeatmapProps) {
     return 4;
   };
 
-  // Get color for activity level
   const getActivityColor = (level: number): string => {
     const colors = [
       'bg-gray-100 dark:bg-gray-800', // 0: no activity

@@ -10,7 +10,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
 (function() {
   'use strict';
   
-  // Prevent multiple injections
   if (window.__incrementumExtractBridge) {
     return;
   }
@@ -30,7 +29,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
   let lastSelectionHtml = '';
   let hideTimeout = null;
   
-  // Create the floating extract button
   function createFloatingButton() {
     if (floatingButton) {
       return floatingButton;
@@ -45,7 +43,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
       <span>Extract</span>
     \`;
     
-    // Styles
     button.style.cssText = \`
       position: fixed;
       z-index: 2147483647;
@@ -65,7 +62,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
       pointer-events: auto;
     \`;
     
-    // Hover effects
     button.addEventListener('mouseenter', () => {
       button.style.transform = 'scale(1.05)';
       clearTimeout(hideTimeout);
@@ -75,7 +71,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
       button.style.transform = 'scale(1)';
     });
     
-    // Click handler
     button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -88,7 +83,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     return button;
   }
   
-  // Get selected HTML content
   function getSelectedHtml() {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return '';
@@ -100,7 +94,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     return div.innerHTML;
   }
   
-  // Save selection to localStorage for parent to retrieve
   function saveSelectionAndNotify() {
     const selection = window.getSelection();
     const text = selection ? selection.toString().trim() : '';
@@ -119,7 +112,7 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
       // Also try to notify via custom event (for same-origin iframes)
       try {
         window.dispatchEvent(new CustomEvent('__incrementum:extract', { detail: data }));
-      } catch (e) {}
+      } catch (_e) { /* cross-origin dispatch may fail */ }
       
       // Try to notify parent window
       try {
@@ -129,7 +122,7 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
             data: data
           }, '*');
         }
-      } catch (e) {}
+      } catch (_e) { /* postMessage may fail in restricted contexts */ }
     }
   }
   
@@ -147,15 +140,12 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
       return;
     }
     
-    // Save the selection
     lastSelection = text;
     lastSelectionHtml = getSelectedHtml();
     
-    // Get position
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     
-    // Create and position button
     const button = createFloatingButton();
     
     // Calculate position (above the selection, centered)
@@ -196,7 +186,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     }
   }
   
-  // Handle selection change
   function handleSelectionChange() {
     // Small delay to let selection settle
     setTimeout(() => {
@@ -279,7 +268,6 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     }
   });
   
-  // Set up event listeners
   document.addEventListener('selectionchange', handleSelectionChange);
   document.addEventListener('mouseup', handleMouseUp);
   document.addEventListener('mousedown', handleMouseDown);
@@ -321,13 +309,9 @@ export const WEBVIEW_EXTRACT_BRIDGE_SCRIPT = `
     },
   };
   
-  console.log('[Incrementum] Extract bridge initialized');
 })();
 `;
 
-/**
- * Get the storage key used by the bridge script
- */
 export const SELECTION_STORAGE_KEY = '__incrementum_selection_data';
 
 /**

@@ -17,8 +17,7 @@
  * @see https://console.groq.com/docs/speech-to-text
  */
 
-import { invokeCommand } from '../lib/tauri';
-import { isTauri } from '../lib/tauri';
+import { invokeCommand, isTauri } from "../lib/tauri";
 import { useSettingsStore } from '../stores/settingsStore';
 
 const GROQ_API_BASE = 'https://api.groq.com/openai/v1';
@@ -208,7 +207,6 @@ export function getUsageStats(): UsageStats {
   const { groq } = state.settings.audioTranscription;
   const model = groq.model;
   
-  // Check if we need to reset
   const now = new Date();
   const lastReset = new Date(groq.usage.lastResetDate);
   let audioSeconds = groq.usage.audioSecondsProcessed;
@@ -347,7 +345,6 @@ async function transcribeChunk(
   
   const result: GroqTranscriptionResponse = await response.json();
   
-  // Update usage stats
   if (result.duration) {
     updateUsageStats(result.duration);
   }
@@ -369,7 +366,6 @@ async function transcribeChunk(
 export async function transcribeWithGroq(
   options: GroqTranscriptionOptions
 ): Promise<GroqTranscriptionResponse> {
-  // Check rate limits before making request
   const rateLimitStatus = getRateLimitStatus();
   if (rateLimitStatus.isLimited) {
     throw new GroqTranscriptionError(
@@ -384,7 +380,6 @@ export async function transcribeWithGroq(
     return transcribeUrl(options);
   }
   
-  // Handle file transcription
   if (options.file && options.filePath) {
     throw new GroqTranscriptionError(
       'Cannot provide both file and filePath. Use one or the other.',
@@ -574,7 +569,6 @@ async function transcribeWithChunking(
     // Only one chunk, transcribe it directly
     const result = await transcribeChunk(chunks[0].path, options.language, options.prompt);
     
-    // Clean up
     await invokeCommand('cleanup_audio_chunks').catch(() => {});
     
     return result;
@@ -589,7 +583,6 @@ async function transcribeWithChunking(
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     
-    // Report progress
     if (options.onProgress) {
       options.onProgress(Math.round((i / chunks.length) * 100));
     }
@@ -626,18 +619,15 @@ async function transcribeWithChunking(
       }
       
     } catch (error) {
-      // Clean up on error
       await invokeCommand('cleanup_audio_chunks').catch(() => {});
       throw error;
     }
   }
   
-  // Final progress
   if (options.onProgress) {
     options.onProgress(100);
   }
   
-  // Clean up chunks
   await invokeCommand('cleanup_audio_chunks').catch(() => {});
   
   return {

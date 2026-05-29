@@ -70,7 +70,7 @@ export async function importReferenceItems(items: ReferenceImportItem[]): Promis
     const doc = await createDocument(item.title, item.url || `reference://${item.source}/${encodeURIComponent(item.title)}`, "markdown");
 
     const metadata = {
-      ...(doc.metadata || {}),
+      ...doc.metadata,
       author: item.author,
       createdAt: item.year ? `${item.year}-01-01T00:00:00.000Z` : doc.metadata?.createdAt,
       subject: item.venue,

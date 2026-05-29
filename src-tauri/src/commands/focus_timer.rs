@@ -122,9 +122,9 @@ impl FocusTimer {
 
     /// Start the timer
     pub fn start(&self) -> FocusTimerState {
-        let mut state = self.state.lock().unwrap();
-        let mut start_time = self.start_time.lock().unwrap();
-        let mut paused_at = self.paused_at.lock().unwrap();
+        let mut state = self.state.lock().expect("focus timer mutex poisoned");
+        let mut start_time = self.start_time.lock().expect("focus timer mutex poisoned");
+        let mut paused_at = self.paused_at.lock().expect("focus timer mutex poisoned");
 
         if state.state == TimerState::Running {
             return state.clone();
@@ -144,9 +144,9 @@ impl FocusTimer {
 
     /// Pause the timer
     pub fn pause(&self) -> FocusTimerState {
-        let mut state = self.state.lock().unwrap();
-        let mut start_time = self.start_time.lock().unwrap();
-        let mut paused_at = self.paused_at.lock().unwrap();
+        let mut state = self.state.lock().expect("focus timer mutex poisoned");
+        let mut start_time = self.start_time.lock().expect("focus timer mutex poisoned");
+        let mut paused_at = self.paused_at.lock().expect("focus timer mutex poisoned");
 
         if state.state != TimerState::Running {
             return state.clone();
@@ -170,9 +170,9 @@ impl FocusTimer {
 
     /// Reset the timer
     pub fn reset(&self) -> FocusTimerState {
-        let mut state = self.state.lock().unwrap();
-        let mut start_time = self.start_time.lock().unwrap();
-        let mut paused_at = self.paused_at.lock().unwrap();
+        let mut state = self.state.lock().expect("focus timer mutex poisoned");
+        let mut start_time = self.start_time.lock().expect("focus timer mutex poisoned");
+        let mut paused_at = self.paused_at.lock().expect("focus timer mutex poisoned");
 
         state.state = TimerState::Idle;
         state.remaining_seconds = state.total_seconds;
@@ -183,11 +183,10 @@ impl FocusTimer {
 
     /// Skip to next phase
     pub fn skip(&self) -> FocusTimerState {
-        let mut state = self.state.lock().unwrap();
-        let mut start_time = self.start_time.lock().unwrap();
-        let mut paused_at = self.paused_at.lock().unwrap();
+        let mut state = self.state.lock().expect("focus timer mutex poisoned");
+        let mut start_time = self.start_time.lock().expect("focus timer mutex poisoned");
+        let mut paused_at = self.paused_at.lock().expect("focus timer mutex poisoned");
 
-        // Update session count and focus time if completing work
         if state.phase == TimerPhase::Work && state.state == TimerState::Running {
             if let Some(start) = *start_time {
                 let elapsed = start.elapsed().as_secs();
@@ -225,10 +224,9 @@ impl FocusTimer {
 
     /// Update configuration
     pub fn update_config(&self, config: FocusTimerConfig) -> FocusTimerState {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().expect("focus timer mutex poisoned");
         state.config = config;
 
-        // Update total seconds if idle
         if state.state == TimerState::Idle {
             state.total_seconds = match state.phase {
                 TimerPhase::Work => state.config.work_duration * 60,
@@ -243,8 +241,8 @@ impl FocusTimer {
 
     /// Tick the timer (called periodically)
     pub fn tick(&self) -> Option<FocusTimerState> {
-        let mut state = self.state.lock().unwrap();
-        let start_time = self.start_time.lock().unwrap();
+        let mut state = self.state.lock().expect("focus timer mutex poisoned");
+        let start_time = self.start_time.lock().expect("focus timer mutex poisoned");
 
         if state.state != TimerState::Running {
             return None;
@@ -253,11 +251,9 @@ impl FocusTimer {
         if let Some(start) = *start_time {
             let elapsed = start.elapsed().as_secs() as u32;
             if elapsed >= state.remaining_seconds {
-                // Timer completed
                 state.state = TimerState::Completed;
                 state.remaining_seconds = 0;
 
-                // Update focus time if work session
                 if state.phase == TimerPhase::Work {
                     state.total_focus_time += state.total_seconds as u64;
                     state.completed_sessions += 1;
@@ -272,8 +268,8 @@ impl FocusTimer {
 
     /// Get remaining seconds (calculated from start time)
     pub fn get_remaining_seconds(&self) -> u32 {
-        let state = self.state.lock().unwrap();
-        let start_time = self.start_time.lock().unwrap();
+        let state = self.state.lock().expect("focus timer mutex poisoned");
+        let start_time = self.start_time.lock().expect("focus timer mutex poisoned");
 
         if state.state != TimerState::Running {
             return state.remaining_seconds;
@@ -297,8 +293,6 @@ impl FocusTimer {
     }
 }
 
-// Tauri Commands
-
 /// Get the current focus timer state
 #[tauri::command]
 pub fn get_focus_timer_state(app: AppHandle) -> FocusTimerState {
@@ -312,7 +306,6 @@ pub fn start_focus_timer(app: AppHandle) -> FocusTimerState {
     let timer = app.state::<FocusTimer>();
     let state = timer.start();
 
-    // Emit event
     let _ = app.emit("focus-timer-started", &state);
 
     state
@@ -324,7 +317,6 @@ pub fn pause_focus_timer(app: AppHandle) -> FocusTimerState {
     let timer = app.state::<FocusTimer>();
     let state = timer.pause();
 
-    // Emit event
     let _ = app.emit("focus-timer-paused", &state);
 
     state
@@ -336,7 +328,6 @@ pub fn reset_focus_timer(app: AppHandle) -> FocusTimerState {
     let timer = app.state::<FocusTimer>();
     let state = timer.reset();
 
-    // Emit event
     let _ = app.emit("focus-timer-reset", &state);
 
     state
@@ -348,7 +339,6 @@ pub fn skip_focus_timer_phase(app: AppHandle) -> FocusTimerState {
     let timer = app.state::<FocusTimer>();
     let state = timer.skip();
 
-    // Emit event
     let _ = app.emit("focus-timer-phase-changed", &state);
 
     state
@@ -378,7 +368,6 @@ pub fn tick_focus_timer(app: AppHandle) -> Option<FocusTimerState> {
         let _ = app.emit("focus-timer-completed", &state);
         Some(state)
     } else {
-        // Return current state with updated remaining time
         let mut state = timer.get_state();
         state.remaining_seconds = timer.get_remaining_seconds();
         Some(state)

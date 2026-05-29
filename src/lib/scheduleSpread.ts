@@ -1,12 +1,3 @@
-/**
- * Schedule Spread Utility
- *
- * Uses the postpone engine in-memory to compute a projected distribution
- * of items across a future horizon. Does NOT persist changes — used for
- * preview in the SpreadModal.
- *
- * Supports both learning items and documents.
- */
 
 import {
   postponeAll,
@@ -44,7 +35,6 @@ export function computeSpreadProjection(
 
   const now = new Date();
 
-  // Build PostponeInput for learning items and documents
   const inputs: PostponeInput[] = [];
   const skippedIds: string[] = [];
 
@@ -81,15 +71,12 @@ export function computeSpreadProjection(
         daysSinceReview,
       });
     } else {
-      // Extracts and other types: use simple even spread
       skippedIds.push(item.id);
     }
   }
 
-  // Run postpone engine in-memory
   const { results, stats } = postponeAll(inputs, defaultPostponeConfig);
 
-  // Build daily distribution from results
   const dailyDistribution = new Map<string, number>();
 
   for (const result of results) {

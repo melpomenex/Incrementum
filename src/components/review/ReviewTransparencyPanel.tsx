@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { FlaskConical, Info } from "lucide-react";
-import type { LearningItem, PreviewIntervals } from "../../api/review";
-import { formatInterval } from "../../api/review";
-import { parseSm18State, sm18Retrievability } from "../../lib/sm18";
-import { parseSm20State, sm20Retrievability } from "../../lib/sm20";
-import type { SM18State } from "../../lib/sm18";
-import type { SM20State } from "../../lib/sm20";
+import { formatInterval, type LearningItem, type PreviewIntervals } from "../../api/review";
+import { parseSm18State, sm18Retrievability, type SM18State } from "../../lib/sm18";
+import { parseSm20State, sm20Retrievability, type SM20State } from "../../lib/sm20";
 import { useSettingsStore } from "../../stores/settingsStore";
 
 interface ReviewTransparencyPanelProps {

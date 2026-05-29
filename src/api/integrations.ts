@@ -5,10 +5,6 @@
 
 import { invokeCommand } from "../lib/tauri";
 
-// ============================================================================
-// OBSIDIAN INTEGRATION
-// ============================================================================
-
 /**
  * Obsidian vault configuration
  */
@@ -235,10 +231,6 @@ export async function deleteFromObsidian(
   });
 }
 
-// ============================================================================
-// ANKI INTEGRATION
-// ============================================================================
-
 /**
  * AnkiConnect configuration
  */
@@ -436,10 +428,6 @@ export async function triggerAnkiSync(url: string = "http://localhost:8765"): Pr
   }
 }
 
-// ============================================================================
-// BROWSER EXTENSION INTEGRATION
-// ============================================================================
-
 /**
  * Browser extension server status
  */
@@ -602,10 +590,6 @@ export async function processExtensionPage(page: SavedPage): Promise<{
 }> {
   return await invokeCommand("process_extension_page", { page });
 }
-
-// ============================================================================
-// NOTEBOOKLM INTEGRATION
-// ============================================================================
 
 export interface NotebookLMSettings {
   enabled: boolean;
@@ -864,10 +848,6 @@ export async function notebooklmExportJobArtifact(
   });
 }
 
-// ============================================================================
-// NOTEBOOKLM CLI AUTHENTICATION
-// ============================================================================
-
 export interface CLIStatus {
   installed: boolean;
   version?: string;
@@ -916,10 +896,6 @@ export async function notebooklmCLILogout(): Promise<CLILoginResult> {
 export async function notebooklmCLIStatus(): Promise<CLIAuthStatus> {
   return await invokeCommand<CLIAuthStatus>("notebooklm_cli_status");
 }
-
-// ============================================================================
-// CONFIG STORAGE
-// ============================================================================
 
 /**
  * Integration settings

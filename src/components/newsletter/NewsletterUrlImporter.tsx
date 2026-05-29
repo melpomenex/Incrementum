@@ -120,7 +120,6 @@ export function NewsletterUrlImporter({
     }
   }, [autoFocus]);
 
-  // Debounced URL detection
   useEffect(() => {
     if (!url.trim() || !isValidUrl(url)) {
       setState({ status: "idle" });
@@ -157,7 +156,6 @@ export function NewsletterUrlImporter({
     setState({ status: "detecting", url: normalizedUrl, progress: 0 });
 
     try {
-      // Step 1: Discover feed URL (30% progress)
       setState(prev => prev.status === "detecting" ? { ...prev, progress: 30 } : prev);
       
       const discovery = await discoverNewsletterFeedUrl(normalizedUrl);
@@ -175,7 +173,6 @@ export function NewsletterUrlImporter({
         return;
       }
 
-      // Step 2: Fetch feed (60% progress)
       setState(prev => prev.status === "detecting" ? { ...prev, progress: 60 } : prev);
       
       const feed = await fetchFeed(discovery.feedUrl);
@@ -192,7 +189,6 @@ export function NewsletterUrlImporter({
         return;
       }
 
-      // Step 3: Process and preview (100% progress)
       setState(prev => prev.status === "detecting" ? { ...prev, progress: 100 } : prev);
       
       // Small delay for smooth transition

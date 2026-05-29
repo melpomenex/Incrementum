@@ -338,8 +338,7 @@ export function playFeedback(type: FeedbackType, volume = 1): void {
       playFile(url, volume);
     }
   } catch {
-    // Settings may be unavailable
-  }
+  /* Audio context may be unavailable */ }
 }
 
 /**
@@ -362,8 +361,7 @@ export function playNotificationGatedFeedback(type: FeedbackType): void {
       playFile(url, volume);
     }
   } catch {
-    // Settings may be unavailable
-  }
+  /* Audio playback cleanup may fail */ }
 }
 
 /**
@@ -389,8 +387,7 @@ export function playNotificationSound(): void {
       playNotificationDefaultTone(volume);
     }
   } catch {
-    // Settings may be unavailable
-  }
+  /* Audio resource release may fail */ }
 }
 
 /**

@@ -105,11 +105,6 @@ export function ClozeCreatorPopup({ extractId, selectedText, extractContent, sel
             const ranges: [number, number][] = [];
             let cleanText = "";
 
-            // We need to construct the clean text (without {{}}) and track where the content was
-            // This is a bit complex.
-            // Simpler approach: Just send the text with {{}} and let backend handle?
-            // No, backend expects ranges.
-
             // Let's reconstruct manually
             const parts = text.split(/(\{\{.*?\}\})/);
             let runningLength = 0;

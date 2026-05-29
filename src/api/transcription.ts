@@ -1,5 +1,4 @@
-import { invokeCommand } from "../lib/tauri";
-import { isTauri } from "../lib/tauri";
+import { invokeCommand, isTauri } from "../lib/tauri";
 
 export interface ModelProfile {
   id: string;

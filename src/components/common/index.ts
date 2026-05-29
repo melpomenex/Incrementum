@@ -8,7 +8,6 @@ export { Toast, ToastProvider, useToast, ToastType } from "./Toast";
 // Note: ReviewFeedback is in ../review/ReviewFeedback, import from there
 // export { ReviewFeedback, useReviewFeedback } from "../review/ReviewFeedback";
 
-// Loading States
 export {
   Skeleton,
   DocumentCardSkeleton,
@@ -19,7 +18,6 @@ export {
   QueueListSkeleton,
 } from "./Skeleton";
 
-// Empty States
 export {
   EmptyState,
   EmptyDocuments,
@@ -34,7 +32,6 @@ export {
 export { Breadcrumb, useBreadcrumb } from "./Breadcrumb";
 export { KeyboardShortcutsHelp } from "./KeyboardShortcutsHelp";
 
-// Performance
 export { VirtualList, useVirtualList, DynamicVirtualList } from "./VirtualList";
 
 // Modals & Overlays
@@ -47,7 +44,6 @@ export {
   ModalType,
 } from "./Modal";
 
-// Command Palette
 export {
   CommandPalette,
   CommandPaletteProvider,

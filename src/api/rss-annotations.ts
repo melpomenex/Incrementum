@@ -5,10 +5,6 @@
 
 import { invokeCommand, isTauri } from "../lib/tauri";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface RssAnnotation {
   id: string;
   article_id: string;
@@ -41,10 +37,6 @@ function shouldUseHttp(): boolean {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";
 }
-
-// ============================================================================
-// Auto functions
-// ============================================================================
 
 export async function createAnnotationAuto(payload: CreateAnnotationPayload): Promise<RssAnnotation> {
   if (shouldUseHttp()) {

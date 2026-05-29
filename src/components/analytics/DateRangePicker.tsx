@@ -516,7 +516,6 @@ export function useAnalyticsDateRange() {
       const newRange = preset.range();
       setPrimaryRange(newRange);
 
-      // Update comparison range to match duration
       const duration = newRange.end.getTime() - newRange.start.getTime();
       setComparisonRange({
         start: new Date(newRange.start.getTime() - duration),

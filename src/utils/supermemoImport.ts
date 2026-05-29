@@ -96,7 +96,6 @@ export async function convertSuperMemoCollectionToDocuments(
     metadata: Record<string, any>;
   }> = [];
 
-  // Create a document for each item
   for (const item of collection.items) {
     const content = item.question && item.answer
       ? `Question:\n${item.question}\n\nAnswer:\n${item.answer}`
@@ -152,7 +151,6 @@ export async function convertSuperMemoItemsToLearningItems(
     metadata: Record<string, any>;
   }> = [];
 
-  // Create learning items for items with Q&A
   for (const smItem of collection.items) {
     if (!smItem.question || !smItem.answer) continue;
 

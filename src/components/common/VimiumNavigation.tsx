@@ -140,7 +140,6 @@ export function useVimiumNavigation(
   const [commandQuery, setCommandQuery] = useState("");
   const [showHelp, setShowHelp] = useState(false);
 
-  // Create hints container
   useEffect(() => {
     if (enabled && !hintsContainerRef.current) {
       const container = document.createElement("div");
@@ -166,7 +165,6 @@ export function useVimiumNavigation(
     };
   }, [enabled]);
 
-  // Get all clickable elements
   const getClickableElements = useCallback((): HTMLElement[] => {
     const selectors = [
       "a[href]",
@@ -196,7 +194,6 @@ export function useVimiumNavigation(
     });
   }, []);
 
-  // Check if element is visible
   const isElementVisible = (el: HTMLElement): boolean => {
     const rect = el.getBoundingClientRect();
     const style = window.getComputedStyle(el);
@@ -275,7 +272,6 @@ export function useVimiumNavigation(
     setMode(NavigationMode.Normal);
   }, []);
 
-  // Handle hint key press
   const handleHintKeyPress = useCallback((key: string, newTab: boolean = false) => {
     const container = hintsContainerRef.current;
     if (!container) return;
@@ -298,7 +294,6 @@ export function useVimiumNavigation(
       }
     });
 
-    // Check for exact match
     const exactMatch = Array.from(hints).find((h) => h.textContent === prefix);
     if (exactMatch) {
       const hintElement = exactMatch as HTMLElement;
@@ -456,7 +451,6 @@ export function useVimiumNavigation(
     }
   }, [commands]);
 
-  // Handle keyboard event
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!enabled) return;
@@ -477,7 +471,6 @@ export function useVimiumNavigation(
         return;
       }
 
-      // Handle hint mode
       if (stateRef.current.mode === NavigationMode.Hints) {
         if (e.key === "Escape") {
           hideHints();
@@ -495,7 +488,6 @@ export function useVimiumNavigation(
         return;
       }
 
-      // Handle command mode
       if (stateRef.current.mode === NavigationMode.Command) {
         if (e.key === "Escape") {
           closeCommandBar();
@@ -513,7 +505,6 @@ export function useVimiumNavigation(
         return; // Let input handle the key
       }
 
-      // Handle find mode
       if (stateRef.current.mode === NavigationMode.Find) {
         if (e.key === "Escape") {
           stateRef.current.mode = NavigationMode.Normal;
@@ -547,14 +538,12 @@ export function useVimiumNavigation(
         return;
       }
 
-      // Hints
       if (keyBindings.toggleHints.includes(key)) {
         showHints();
         e.preventDefault();
         return;
       }
 
-      // Scrolling
       if (keyBindings.scrollDown.includes(key)) {
         scroll("down");
         e.preventDefault();
@@ -609,7 +598,6 @@ export function useVimiumNavigation(
         return;
       }
 
-      // Input focus
       if (keyBindings.goToInput.includes(key)) {
         focusFirstInput();
         e.preventDefault();
@@ -636,7 +624,6 @@ export function useVimiumNavigation(
         return;
       }
 
-      // Marks
       if (key === "m") {
         stateRef.current.mode = NavigationMode.Mark;
         setMode(NavigationMode.Mark);
@@ -828,7 +815,6 @@ export function useVimiumNavigation(
     ]
   );
 
-  // Set up keyboard listener
   useEffect(() => {
     if (enabled) {
       window.addEventListener("keydown", handleKeyDown);

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Zap } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem, ForecastPoint } from "../../types/queue";
@@ -87,7 +86,6 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
     localStorage.setItem("incrementum_schedule_dashboard_collapsed", String(isDashboardCollapsed));
   }, [isDashboardCollapsed]);
 
-  // Load data
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -173,7 +171,6 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
     [scheduleItems],
   );
 
-  // Handle postpone
   const handlePostpone = useCallback(
     async (itemId: string, days: number, itemType?: string) => {
       try {
@@ -241,7 +238,6 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
     }
   }, [reloadItems, toast, t]);
 
-  // Handle spread from toolbar
   const handleSpreadToolbar = useCallback(() => {
     if (selectedDate) {
       setSpreadSourceDate(selectedDate);
@@ -260,7 +256,6 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
     }
   }, [forecast]);
 
-  // Handle spread from timeline date
   const handleSpreadDate = useCallback(
     (date: string) => {
       setSpreadSourceDate(date);
@@ -269,7 +264,6 @@ export function ScheduleView({ isMobile = false, onStartReview, onOpenDocument }
     [],
   );
 
-  // Handle spread confirm
   const handleSpreadConfirm = useCallback(
     async (itemIds: string[], horizonDays: number) => {
       const items = getItemsForDate(spreadSourceDate);

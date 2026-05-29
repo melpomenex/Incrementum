@@ -128,7 +128,6 @@ pub async fn backup_delete(
     // Instead, call the provider directly since delete is simple.
     let provider = provider_arc.read().await;
 
-    // Delete manifest
     let manifest_path = format!("/backups/{}.manifest.json", backup_id);
     if let Err(e) = provider.delete_file(&manifest_path).await {
         tracing::warn!("Failed to delete backup manifest: {}", e);

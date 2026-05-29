@@ -32,10 +32,11 @@ export const ScrollQueueSettings = React.memo(function ScrollQueueSettings({
         <div className="space-y-6">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-medium text-foreground">Flashcard Percentage</label>
+              <label htmlFor="flashcard-pct" className="text-sm font-medium text-foreground">Flashcard Percentage</label>
               <span className="text-sm font-mono text-primary">{flashcardPercentage}%</span>
             </div>
             <input
+              id="flashcard-pct"
               type="range"
               min="0"
               max="100"
@@ -51,12 +52,13 @@ export const ScrollQueueSettings = React.memo(function ScrollQueueSettings({
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium text-foreground">Extracts count as flashcards</label>
+              <label htmlFor="extracts-toggle" className="text-sm font-medium text-foreground">Extracts count as flashcards</label>
               <p className="text-xs text-muted-foreground mt-1">
                 Include extracts in the flashcard percentage calculation
               </p>
             </div>
             <button
+              id="extracts-toggle"
               onClick={() => onUpdateSetting("extractsCountAsFlashcards", !extractsCountAsFlashcards)}
               className={cn(
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",

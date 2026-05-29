@@ -113,7 +113,6 @@ export function useContextMenu(menuId: string) {
     setState((prev) => ({ ...prev, visible: false }));
   }, [menuId]);
 
-  // Handle click outside
   useEffect(() => {
     const handleClick = () => {
       if (state.visible) {
@@ -127,7 +126,6 @@ export function useContextMenu(menuId: string) {
     }
   }, [state.visible, hideMenu]);
 
-  // Handle escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && state.visible) {
@@ -192,7 +190,6 @@ export function ContextMenu({
     return { x, y };
   }, [position]);
 
-  // Handle keyboard navigation
   useEffect(() => {
     if (!visible) return;
 
@@ -259,10 +256,9 @@ export function ContextMenu({
         {items.map((item, index) => {
           if (item.type === ContextMenuItemType.Separator) {
             return (
-              <div
+              <hr
                 key={`separator-${index}`}
                 className="my-1 border-t border-border"
-                role="separator"
               />
             );
           }

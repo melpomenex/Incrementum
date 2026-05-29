@@ -237,7 +237,6 @@ export function ReaderTTSControls({
           if (normChunk.length < 3) continue;
 
           if (normChunk.includes(normEl) || normEl.includes(normChunk)) {
-            console.log(`TTS: Found starting chunk index ${i} matching visible text: "${text.slice(0, 40)}..."`);
             return i;
           }
         }
@@ -340,7 +339,6 @@ export function ReaderTTSControls({
     }
   }, [textFingerprint]);
 
-  // Stop audio helper
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -431,7 +429,6 @@ export function ReaderTTSControls({
     onChunkStart?.(index, chunk);
     onChunkChangeRef.current?.(index, positionIndexRef.current.getScrollPercent(index));
 
-    // Check buffer
     let buffered = audioBufferRef.current.get(index);
 
     if (!buffered) {
@@ -455,10 +452,8 @@ export function ReaderTTSControls({
       return;
     }
 
-    // Stop any currently playing audio
     stopAudio();
 
-    // Create and play new audio
     const audio = new Audio(buffered.audioUrl);
     audio.playbackRate = playbackRate;
     audioRef.current = audio;
@@ -500,7 +495,6 @@ export function ReaderTTSControls({
 
     try {
       await audio.play();
-      // Start pre-buffering next chunks
       preBufferChunks(index + 1);
     } catch (error) {
       console.error("Failed to play audio:", error);
@@ -509,7 +503,6 @@ export function ReaderTTSControls({
   }, [chunks, playbackRate, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart]);
   playChunkAtIndexRef.current = playChunkAtIndex;
 
-  // Start pre-buffering when component mounts or text changes
   useEffect(() => {
     if (chunks.length > 0 && ttsEnabled) {
       const startIdx = initialChunkRef.current ?? 0;
@@ -517,7 +510,6 @@ export function ReaderTTSControls({
     }
   }, [chunks.length, ttsEnabled, preBufferChunks]);
 
-  // Clean up and stop audio when the component unmounts
   useEffect(() => {
     return () => {
       mountedRef.current = false;
@@ -526,7 +518,7 @@ export function ReaderTTSControls({
         try {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
-        } catch (e) {
+        } catch {
           // Ignore errors from already paused or ended audio elements
         }
         audioRef.current = null;
@@ -545,7 +537,6 @@ export function ReaderTTSControls({
     setIsAutoPlaying(true);
     intentionalStopRef.current = false;
 
-    // Check if we are resuming from a paused audio
     if (isPaused && audioRef.current) {
       // If user scrolled to a different chunk/page while paused, start fresh from there!
       const targetIdx = findVisibleChunkIndex();

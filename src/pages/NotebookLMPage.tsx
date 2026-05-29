@@ -55,10 +55,10 @@ export function NotebookLMPage() {
   const [viewingArtifact, setViewingArtifact] = useState<NotebookLMJob | null>(null);
   const [artifactContent, setArtifactContent] = useState<string | null>(null);
 
-  // Check connection on mount
   useEffect(() => {
     checkConnection();
   }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
     return new Promise<T>((resolve, reject) => {
@@ -180,7 +180,6 @@ export function NotebookLMPage() {
     }
   };
 
-
   const handleSelectNotebook = async (notebook: NotebookSummary) => {
     setSelectedNotebook(notebook);
     try {
@@ -217,15 +216,7 @@ export function NotebookLMPage() {
     setViewingArtifact(job);
 
     // Debug logging
-    console.log("Viewing artifact:", {
-      type: job.artifactType,
-      payload: job.payload,
-      hasJsonContent: !!job.payload?.jsonContent,
-      hasMediaUrl: !!job.payload?.mediaUrl,
-      hasRawText: !!job.payload?.rawText,
-    });
 
-    // Get the content based on artifact type
     let content: string;
 
     // Check if this is a structured artifact type that needs jsonContent
@@ -275,7 +266,6 @@ export function NotebookLMPage() {
         }
       }
     } else if (job.payload?.mediaUrl) {
-      // For media artifacts
       content = JSON.stringify({
         url: job.payload.mediaUrl,
         description: job.payload.rawText || `${job.artifactType} overview`,
@@ -284,7 +274,6 @@ export function NotebookLMPage() {
       // For text-based artifacts like reports
       content = job.payload.rawText;
     } else {
-      // Fallback
       content = JSON.stringify({
         flashcards: job.payload?.flashcards || [],
         quizItems: job.payload?.quizItems || [],
@@ -299,7 +288,6 @@ export function NotebookLMPage() {
     setViewingArtifact(null);
   };
 
-  // Connection Overlay
   if (connectionState === "checking") {
     return (
       <div className="h-full flex items-center justify-center bg-background">
@@ -311,7 +299,6 @@ export function NotebookLMPage() {
     );
   }
 
-  // Not Connected State
   if (connectionState === "disconnected" || connectionState === "error") {
     return (
       <div className="h-full flex flex-col bg-background">
@@ -410,7 +397,6 @@ export function NotebookLMPage() {
     );
   }
 
-  // Main Connected UI
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}

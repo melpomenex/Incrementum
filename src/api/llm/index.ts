@@ -160,7 +160,6 @@ export async function streamChatWithLLM(
   const unlisteners: UnlistenFn[] = [];
 
   try {
-    // Set up event listeners
     const chunkUnlisten = await listen<{ content: string; done: boolean }>(
       "llm:stream:chunk",
       (event) => {
@@ -182,7 +181,6 @@ export async function streamChatWithLLM(
     );
     unlisteners.push(errorUnlisten);
 
-    // Start the streaming
     await invokeCommand("llm_stream_chat", {
       provider: request.provider,
       model: request.model,

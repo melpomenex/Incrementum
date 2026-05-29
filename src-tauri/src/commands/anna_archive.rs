@@ -131,7 +131,6 @@ impl AnnaArchiveClient {
         let mut last_error = None;
         let mut client = self.clone();
 
-        // Try each mirror
         loop {
             let mirror = client.get_current_mirror();
             let search_url = format!("{}/search?q={}", mirror, encoded_query);
@@ -144,7 +143,6 @@ impl AnnaArchiveClient {
                 Err(e) => last_error = Some(e),
             }
 
-            // Try next mirror
             if client.try_next_mirror().is_none() {
                 break;
             }
@@ -220,13 +218,13 @@ impl AnnaArchiveClient {
         
         // Anna's Archive uses <a> tags with class "js-vim-focus" for results
         // Use a more robust item matching that handles varying attribute order and multiple items
-        let item_re = Regex::new(r#"(?s)<a\s+[^>]*?class="[^"]*js-vim-focus[^"]*"[^>]*?>(.*?)</a>"#).unwrap();
-        let href_re = Regex::new(r#"href="([^"]+?)""#).unwrap();
-        let title_re = Regex::new(r#"(?s)<h3[^>]*?>(.*?)</h3>"#).unwrap();
+        let item_re = Regex::new(r#"(?s)<a\s+[^>]*?class="[^"]*js-vim-focus[^"]*"[^>]*?>(.*?)</a>"#).expect("valid regex");
+        let href_re = Regex::new(r#"href="([^"]+?)""#).expect("valid regex");
+        let title_re = Regex::new(r#"(?s)<h3[^>]*?>(.*?)</h3>"#).expect("valid regex");
         // Look for metadata div first (has more distinct structure)
-        let meta_div_re = Regex::new(r#"(?s)<div\s+[^>]*?class="[^"]*?text-gray-500[^"]*?"[^>]*?>(.*?)</div>"#).unwrap();
+        let meta_div_re = Regex::new(r#"(?s)<div\s+[^>]*?class="[^"]*?text-gray-500[^"]*?"[^>]*?>(.*?)</div>"#).expect("valid regex");
         // Author is typically an italic div or a div right after title
-        let italic_div_re = Regex::new(r#"(?s)<div\s+[^>]*?class="[^"]*?italic[^"]*?"[^>]*?>(.*?)</div>"#).unwrap();
+        let italic_div_re = Regex::new(r#"(?s)<div\s+[^>]*?class="[^"]*?italic[^"]*?"[^>]*?>(.*?)</div>"#).expect("valid regex");
         
         for caps in item_re.captures_iter(html) {
             let full_match = caps.get(0).map(|m| m.as_str()).unwrap_or("");
@@ -292,7 +290,6 @@ impl AnnaArchiveClient {
                 self.parse_metadata_string(&stripped_content, &mut result);
             }
 
-            // Cover URL fallback
             if result.cover_url.is_none() {
                 if let Some(ref md5_val) = result.md5 {
                     result.cover_url = Some(format!("{}/covers/{}.jpg", self.get_current_mirror(), md5_val));
@@ -431,7 +428,6 @@ fn get_download_script_path() -> Result<std::path::PathBuf> {
         return Ok(dev_path);
     }
 
-    // Try executable directory
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             let candidate = exe_dir.join("scripts").join(script_name);

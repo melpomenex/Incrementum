@@ -389,7 +389,6 @@ export function TTSSettings() {
     error?: string;
   }>({ available: false, downloading: false, downloadProgress: 0 });
 
-  // Check Pocket TTS availability on mount
   useEffect(() => {
     if (!isTauri()) {
       setPocketStatus({ available: false, downloading: false, downloadProgress: 0 });

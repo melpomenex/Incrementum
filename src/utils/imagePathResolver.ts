@@ -23,10 +23,8 @@ export function resolveRelativeImagePath(path: string, docId: string): string {
     return path;
   }
 
-  // Clean up the path
   let cleanPath = path;
 
-  // Remove leading ./ if present
   if (cleanPath.startsWith('./')) {
     cleanPath = cleanPath.slice(2);
   }
@@ -41,7 +39,6 @@ export function resolveRelativeImagePath(path: string, docId: string): string {
   // URL-encode the path for special characters
   const encodedPath = encodeURI(cleanPath);
 
-  // Return the bundle image URL
   return `/api/documents/${docId}/images/${encodedPath}`;
 }
 
@@ -93,12 +90,9 @@ export function rewriteImagePaths(
 ): string {
   let result = markdown;
 
-  // Get all image references
   const references = collectImageReferences(markdown);
 
-  // Rewrite each reference
   for (const originalPath of references) {
-    // Check if we have a manifest mapping
     const storedName = imageManifest?.[originalPath];
     const pathToUse = storedName || originalPath;
 
@@ -126,7 +120,6 @@ export function rewriteImagePaths(
  * Extract the filename from an image path
  */
 export function getImageFilename(path: string): string {
-  // Handle various path formats
   const cleanPath = path.replace(/^\.?\//, '').replace(/\.\.\//g, '');
   const parts = cleanPath.split('/');
   return parts[parts.length - 1];
@@ -143,7 +136,6 @@ export function isRelativeImagePath(path: string): boolean {
     return false;
   }
 
-  // Check for common image extensions
   const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
   return imageExtensions.some(ext => path.toLowerCase().endsWith(ext));
 }

@@ -168,7 +168,6 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const [clipboardWatcherEnabled, setClipboardWatcherEnabledState] = useState(false);
   const [kindleFilePath, setKindleFilePath] = useState<string | null>(null);
 
-  // Load demo content status on mount
   useEffect(() => {
     const loadDemoStatus = async () => {
       try {
@@ -185,7 +184,6 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const handleExport = async (format: "json" | "csv" | "incrementum") => {
     setIsProcessing(true);
     try {
-      // Build export data based on options
       const exportData = {
         version: "1.0",
         exportedAt: new Date().toISOString(),
@@ -195,7 +193,6 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
 
       const filename = `incrementum-export-${new Date().toISOString().split("T")[0]}.${format}`;
 
-      // Create and download file
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: format === "csv" ? "text/csv" : "application/json",
       });
@@ -307,7 +304,6 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
           reviewResults: number;
         }>("import_legacy_archive", { archivePath: filePath });
 
-
         alert(
           `Legacy import complete:\n` +
           `Documents: ${summary.documents}\n` +
@@ -323,12 +319,10 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       const text = await importFile.text();
       const data = JSON.parse(text);
 
-      // Validate import data
       if (!data.version) {
         throw new Error("Invalid import file format");
       }
 
-      // Process import
       // This would trigger actual import logic
       alert(`Import would process:\n${JSON.stringify(data.options, null, 2)}`);
 

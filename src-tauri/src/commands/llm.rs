@@ -18,7 +18,6 @@ fn emit_stream_event(app: &AppHandle, event: &str, payload: impl Serialize + Clo
     }
 }
 
-// OpenAI API Types
 #[derive(Debug, Serialize)]
 struct OpenAIRequest {
     model: String,
@@ -79,7 +78,6 @@ struct OpenAIUsage {
     total_tokens: usize,
 }
 
-// OpenAI Streaming Types
 #[derive(Debug, Deserialize)]
 struct OpenAIStreamChunk {
     id: Option<String>,
@@ -97,7 +95,6 @@ struct OpenAIStreamDelta {
     content: Option<String>,
 }
 
-// Anthropic API Types
 #[derive(Debug, Serialize)]
 struct AnthropicRequest {
     model: String,
@@ -157,7 +154,6 @@ struct AnthropicUsage {
     output_tokens: usize,
 }
 
-// Anthropic Streaming Types
 #[derive(Debug, Deserialize)]
 struct AnthropicStreamChunk {
     #[serde(rename = "type")]
@@ -196,7 +192,6 @@ struct OllamaResponse {
     eval_count: Option<usize>,
 }
 
-// Ollama Streaming Types
 #[derive(Debug, Deserialize)]
 struct OllamaStreamChunk {
     done: bool,
@@ -243,13 +238,13 @@ pub async fn llm_chat(
             call_openai_with_key(&client, &model, messages, temperature, max_tokens, api_key.as_deref(), &base_url).await?
         }
         "anthropic" => {
-            call_anthropic_with_key(&client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
+            call_anthropic_with_key(&client, &model, messages, temperature, max_tokens, &api_key.expect("anthropic API key required"), &base_url).await?
         }
         "ollama" => {
             call_ollama_with_url(&client, &model, messages, temperature, max_tokens, &base_url).await?
         }
         "openrouter" => {
-            call_openrouter_with_key(&client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
+            call_openrouter_with_key(&client, &model, messages, temperature, max_tokens, &api_key.expect("openrouter API key required"), &base_url).await?
         }
         _ => return Err(format!("Unknown provider: {}", provider)),
     };
@@ -276,7 +271,6 @@ pub async fn llm_chat_with_context(
 
     let requested_max_tokens = context.context_window_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
     
-    // Build context prompt
     let mut context_prompt = build_context_prompt(&context, latest_user_message.as_deref());
 
     // Inject long-term memory if enabled
@@ -405,13 +399,13 @@ pub async fn llm_stream_chat(
             stream_openai(&app, &client, &model, messages, temperature, max_tokens, api_key.as_deref(), &base_url).await?
         }
         "anthropic" => {
-            stream_anthropic(&app, &client, &model, messages, temperature, max_tokens, &api_key.unwrap(), &base_url).await?
+            stream_anthropic(&app, &client, &model, messages, temperature, max_tokens, &api_key.expect("anthropic API key required"), &base_url).await?
         }
         "ollama" => {
             stream_ollama(&app, &client, &model, messages, temperature, max_tokens, &base_url).await?
         }
         "openrouter" => {
-            stream_openai(&app, &client, &model, messages, temperature, max_tokens, Some(api_key.as_deref().unwrap()), &base_url).await?
+            stream_openai(&app, &client, &model, messages, temperature, max_tokens, Some(api_key.as_deref().expect("openrouter API key required")), &base_url).await?
         }
         _ => {
             emit_stream_event(&app, LLM_STREAM_ERROR, serde_json::json!({
@@ -424,7 +418,6 @@ pub async fn llm_stream_chat(
     Ok(())
 }
 
-// Streaming implementations
 #[allow(clippy::too_many_arguments)]
 async fn stream_openai(
     app: &AppHandle,
@@ -469,7 +462,6 @@ async fn stream_openai(
         return Err(format!("OpenAI API error ({}): {}", status, error_text));
     }
 
-    // Process streaming response
     let mut stream = response.bytes_stream();
     let mut buffer = Vec::new();
 
@@ -484,7 +476,6 @@ async fn stream_openai(
         buffer.extend_from_slice(&chunk);
         let data = String::from_utf8_lossy(&buffer);
 
-        // Process SSE lines
         for line in data.lines() {
             let line = line.trim();
             if line.is_empty() || line == "data: [DONE]" {
@@ -568,7 +559,6 @@ async fn stream_anthropic(
         return Err(format!("Anthropic API error ({}): {}", status, error_text));
     }
 
-    // Process streaming response
     let mut stream = response.bytes_stream();
     let mut buffer = Vec::new();
 
@@ -583,7 +573,6 @@ async fn stream_anthropic(
         buffer.extend_from_slice(&chunk);
         let data = String::from_utf8_lossy(&buffer);
 
-        // Process SSE lines
         for line in data.lines() {
             let line = line.trim();
             if line.is_empty() || !line.starts_with("data: ") {
@@ -665,7 +654,6 @@ async fn stream_ollama(
         return Err(format!("Ollama API error ({}): {}", status, error_text));
     }
 
-    // Process streaming response
     let mut stream = response.bytes_stream();
     let mut buffer = Vec::new();
 
@@ -680,7 +668,6 @@ async fn stream_ollama(
         buffer.extend_from_slice(&chunk);
         let data = String::from_utf8_lossy(&buffer);
 
-        // Process SSE lines
         for line in data.lines() {
             let line = line.trim();
             if line.is_empty() || line == "data: [DONE]" {
@@ -771,7 +758,6 @@ pub async fn llm_get_models(provider: String, api_key: Option<String>, base_url:
             fetch_ollama_models(&client, &tags_url).await
         }
         "openrouter" => {
-            // Fetch from OpenRouter API if API key is provided
             let api_key = normalize_api_key(api_key);
             if let Some(key) = api_key {
                 let client = Client::new();
@@ -1132,7 +1118,6 @@ async fn test_openrouter_connection(
     Ok(true)
 }
 
-// Model pricing information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelPricing {
     pub prompt: Option<f64>,

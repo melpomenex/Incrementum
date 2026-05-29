@@ -33,7 +33,6 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
 
-  // Check for cached content on mount
   useEffect(() => {
     const loadCachedContent = async () => {
       if (!content && !item.fullContent) {
@@ -47,14 +46,12 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
     loadCachedContent();
   }, [item.id, content, item.fullContent]);
 
-  // Check if content is stale
   useEffect(() => {
     if (fetchedAt) {
       setIsStale(isContentStale(fetchedAt));
     }
   }, [fetchedAt]);
 
-  // Fetch full content
   const handleFetchContent = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -86,7 +83,6 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
     window.open(item.link, "_blank", "noopener,noreferrer");
   }, [item.link]);
 
-  // Render loading state
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -96,7 +92,6 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
     );
   }
 
-  // Render error state with retry option
   if (error && !content) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4 p-6">
@@ -127,7 +122,6 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
     );
   }
 
-  // Render content or fallback to summary
   return (
     <div className="h-full flex flex-col">
       {/* Header with actions */}

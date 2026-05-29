@@ -89,7 +89,6 @@ impl ReadingGoalService {
         let mut new_achievements = vec![];
         let streak = self.get_streak()?;
 
-        // Check streak milestones
         if streak.current_streak >= 7 && streak.current_streak < 30 {
             // TODO: Check if already unlocked
             new_achievements.push(Achievement::week_warrior());

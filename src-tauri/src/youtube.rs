@@ -207,7 +207,6 @@ pub async fn setup_ytdlp() -> Result<String, String> {
         .await
         .map_err(|e| format!("Failed to read download data: {}", e))?;
     
-    // Write the binary
     std::fs::write(&install_path, bytes)
         .map_err(|e| format!("Failed to write yt-dlp binary: {}", e))?;
     
@@ -391,15 +390,13 @@ pub async fn download_video(
     output_dir: PathBuf,
     options: &DownloadOptions,
 ) -> Result<PathBuf, String> {
-    // Create output directory if it doesn't exist
     std::fs::create_dir_all(&output_dir)
         .map_err(|e| format!("Failed to create output directory: {}", e))?;
 
     let output_path = output_dir.join(&options.output_template);
 
-    // Get the exact downloaded filename from yt-dlp first
     let mut name_cmd = ytdlp_command()?;
-    name_cmd.args(["--get-filename", "-o", output_path.to_str().unwrap(), url]);
+    name_cmd.args(["--get-filename", "-o", output_path.to_str().expect("output path is valid UTF-8"), url]);
     let name_output = name_cmd.output().map_err(|e| format!("Failed to run yt-dlp to get filename: {}", e))?;
     if !name_output.status.success() {
         let err = String::from_utf8_lossy(&name_output.stderr);
@@ -408,7 +405,6 @@ pub async fn download_video(
     let final_filepath_str = String::from_utf8_lossy(&name_output.stdout).trim().to_string();
     let final_filepath = PathBuf::from(&final_filepath_str);
 
-    // Check SponsorBlock cuts
     let video_id = extract_video_id(url);
     let mut segments = Vec::new();
     if let Some(ref vid) = video_id {
@@ -426,7 +422,7 @@ pub async fn download_video(
 
     let mut cmd = ytdlp_command()?;
     cmd.arg("-f").arg(&options.format);
-    cmd.arg("-o").arg(download_filepath.to_str().unwrap());
+    cmd.arg("-o").arg(download_filepath.to_str().expect("download path is valid UTF-8"));
 
     if options.subtitles {
         cmd.arg("--write-subs");
@@ -520,7 +516,6 @@ fn try_with_browser_cookies(url: &str, args: &[&str]) -> Result<std::process::Ou
         }
     }
     
-    // Return original output if all cookie attempts failed
     if !output.status.success() || stderr.contains("Sign in to confirm") {
         return Err(
             "YouTube is requiring sign-in to access this video.\n\n\
@@ -537,7 +532,6 @@ fn try_with_browser_cookies(url: &str, args: &[&str]) -> Result<std::process::Ou
 
 /// Extract transcript using yt-dlp
 pub fn extract_transcript(url: &str, language: Option<&str>) -> Result<Vec<TranscriptSegment>, String> {
-    // Create temp directory for subtitle download
     let temp_dir = std::env::temp_dir();
     let lang = language.unwrap_or("en");
 
@@ -563,7 +557,6 @@ pub fn extract_transcript(url: &str, language: Option<&str>) -> Result<Vec<Trans
     
     let output = try_with_browser_cookies(url, &subtitle_args)?;
 
-    // Check stderr for warnings
     let stderr = String::from_utf8_lossy(&output.stderr);
     // If subtitles aren't available, return empty rather than error
     if !output.status.success() && (
@@ -581,7 +574,6 @@ pub fn extract_transcript(url: &str, language: Option<&str>) -> Result<Vec<Trans
         format!("{}.vtt", video_id),
     ];
 
-    // Check for subtitle files
     for pattern in &subtitle_patterns {
         let path = temp_dir.join(pattern);
         if path.exists() {
@@ -602,7 +594,6 @@ pub fn extract_transcript(url: &str, language: Option<&str>) -> Result<Vec<Trans
     for entry in subtitle_files.flatten() {
         let path = entry.path();
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            // Check if file starts with video_id and is a subtitle file
             if name.starts_with(&video_id) && (name.ends_with(".vtt") || name.ends_with(".srt")) {
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     let parsed = if name.ends_with(".vtt") {
@@ -611,7 +602,6 @@ pub fn extract_transcript(url: &str, language: Option<&str>) -> Result<Vec<Trans
                         parse_srt(&content)
                     };
                     
-                    // Clean up the subtitle file
                     let _ = std::fs::remove_file(&path);
 
                     if !parsed.is_empty() {
@@ -650,7 +640,6 @@ fn parse_vtt(content: &str) -> Vec<TranscriptSegment> {
             while i < lines.len() && !lines[i].trim().is_empty() && !lines[i].contains("-->") {
                 let text_line = lines[i].trim();
                 if !text_line.starts_with("NOTE") && !text_line.starts_with("STYLE") {
-                    // Remove VTT formatting tags
                     let clean = clean_vtt_text(text_line);
                     if !clean.is_empty() {
                         text_lines.push(clean);
@@ -713,7 +702,6 @@ fn parse_vtt_timestamp(ts: &str) -> Option<f64> {
 fn clean_vtt_text(text: &str) -> String {
     let cleaned = text.to_string();
 
-    // Remove XML-like tags by iterating through the string
     let mut result = String::new();
     let mut in_tag = false;
     let mut tag_chars = Vec::new();
@@ -732,7 +720,6 @@ fn clean_vtt_text(text: &str) -> String {
         }
     }
 
-    // Clean up extra whitespace
     result.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -862,7 +849,6 @@ pub fn get_playlist_info(url: &str) -> Result<serde_json::Value, String> {
             eprintln!("[yt-dlp] Success without cookies, output size: {} bytes", output.stdout.len());
             let stdout_str = String::from_utf8_lossy(&output.stdout);
             
-            // Parse all lines into a vector of videos
             let mut entries = Vec::new();
             for line in stdout_str.lines() {
                 if line.trim().is_empty() {
@@ -996,7 +982,6 @@ pub fn extract_video_id(url: &str) -> Option<String> {
 /// Tauri command: Check if yt-dlp is available
 #[tauri::command]
 pub async fn check_ytdlp() -> Result<bool, String> {
-    // Check both system PATH and app directory
     if check_ytdlp_installed()? {
         return Ok(true);
     }
@@ -1152,14 +1137,11 @@ pub async fn import_youtube_video(
         return Err("yt-dlp is not installed. Please install it to import YouTube videos.".to_string());
     }
 
-    // Extract video info
     let info = extract_video_info(&url)
         .map_err(|e| format!("Failed to fetch video info: {}", e))?;
 
-    // Extract video ID for the file path
     let video_id = &info.id;
 
-    // Create document record for YouTube video
     let mut doc = Document::with_collection(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube, collection_id);
 
     // Set YouTube-specific fields
@@ -1195,7 +1177,6 @@ pub async fn import_youtube_video(
         ..Default::default()
     });
 
-    // Save to database
     let created = repo.create_document(&doc).await
         .map_err(|e| format!("Failed to save document to database: {}", e))?;
 
@@ -1394,9 +1375,7 @@ pub async fn get_youtube_chapters(
         });
     }
 
-    // Save to database if document_id is provided
     if let Some(doc_id) = document_id {
-        // Check if chapters already exist for this document
         let existing = repo.get_video_chapters(&doc_id).await.ok();
         if let Some(chapters) = existing {
             if !chapters.is_empty() {
@@ -1405,7 +1384,6 @@ pub async fn get_youtube_chapters(
             }
         }
 
-        // Save chapters to database
         repo.set_video_chapters(&doc_id, &video_chapters).await
             .map_err(|e| format!("Failed to save chapters: {}", e))?;
     }

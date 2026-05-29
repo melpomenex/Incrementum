@@ -125,19 +125,16 @@ export function DragDropUpload({
     }
   }, []);
 
-  // Handle drag enter
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current++;
 
-    // Check if files are being dragged
     if (e.dataTransfer?.types.includes("Files")) {
       setIsDragging(true);
     }
   }, []);
 
-  // Handle drag leave
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -149,24 +146,20 @@ export function DragDropUpload({
     }
   }, []);
 
-  // Handle drag over
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
   }, []);
 
-  // Validate and process dropped files
   const processFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
 
-    // Check for markdown bundles first
     if (onBundleDetectedRef.current) {
       const bundleResult = await detectMarkdownBundle(fileArray);
       if (bundleResult.isBundle && bundleResult.bundle) {
-        console.log("[DragDropUpload] Markdown bundle detected:", bundleResult.bundle);
         onBundleDetectedRef.current(bundleResult.bundle, fileArray);
         return;
       }
@@ -196,12 +189,10 @@ export function DragDropUpload({
       setUploadQueue((prev) => [...prev, ...newUploads]);
       setShowUploadPanel(true);
 
-      // Process the files
       processUploadQueue(newUploads);
     }
   }, []);
 
-  // Process upload queue
   const processUploadQueue = async (files: UploadFile[]) => {
     const successfulPaths: string[] = [];
 
@@ -209,7 +200,6 @@ export function DragDropUpload({
       try {
         updateFileStatus(uploadFile.id, "uploading", 50);
 
-        // Handle Anki packages separately
         if (uploadFile.type === "apkg") {
           if (isTauri()) {
             const filePath = (uploadFile.file as any).path;
@@ -227,7 +217,6 @@ export function DragDropUpload({
           continue;
         }
 
-        // Handle JSON deck files
         if (uploadFile.type === "json") {
           if (isTauri()) {
             const filePath = (uploadFile.file as any).path;
@@ -245,7 +234,6 @@ export function DragDropUpload({
           continue;
         }
 
-        // Handle regular documents
         if (isTauri()) {
           const filePath = (uploadFile.file as any).path;
           if (filePath) {
@@ -276,7 +264,6 @@ export function DragDropUpload({
     }
   };
 
-  // Update file status in queue
   const updateFileStatus = (
     id: string,
     status: UploadFile["status"],
@@ -324,7 +311,6 @@ export function DragDropUpload({
     return files;
   };
 
-  // Handle drop with folder support
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
@@ -367,7 +353,6 @@ export function DragDropUpload({
         }
         
         if (allFiles.length > 0) {
-          // Create a mock FileList-like object
           const fileList = {
             length: allFiles.length,
             item: (index: number) => allFiles[index],
@@ -401,7 +386,6 @@ export function DragDropUpload({
     [processFiles]
   );
 
-  // Handle file input change
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       processFiles(e.target.files);
@@ -410,12 +394,10 @@ export function DragDropUpload({
     [processFiles]
   );
 
-  // Handle click to upload
   const handleClickUpload = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
-  // Remove file from queue
   const removeFromQueue = useCallback((id: string) => {
     setUploadQueue((prev) => prev.filter((f) => f.id !== id));
   }, []);
@@ -429,7 +411,6 @@ export function DragDropUpload({
     }
   }, [uploadQueue]);
 
-  // Set up global drag and drop listeners
   useEffect(() => {
     // Check if a drag event is an internal tab drag (not a file drop)
     const isTabDrag = (types: readonly string[] | DOMStringList) =>
@@ -438,7 +419,6 @@ export function DragDropUpload({
     // For browser mode - use HTML5 drag and drop
     const handleGlobalDragEnter = (e: globalThis.DragEvent) => {
       const types = e.dataTransfer?.types || [];
-      console.log("[DragDropUpload] Global dragenter:", types);
 
       // Ignore internal tab drags — let the tab/split-view system handle them
       if (isTabDrag(types)) return;
@@ -449,19 +429,16 @@ export function DragDropUpload({
       );
 
       if (hasFiles || types.length === 0) {
-        console.log("[DragDropUpload] Files detected (types:", types, "), showing overlay");
         setIsDragging(true);
       }
     };
 
     const handleGlobalDragLeave = (e: globalThis.DragEvent) => {
-      console.log("[DragDropUpload] Global dragleave");
       e.preventDefault();
       e.stopPropagation();
     };
 
     const handleGlobalDragOver = (e: globalThis.DragEvent) => {
-      console.log("[DragDropUpload] Global dragover");
 
       // Ignore internal tab drags
       if (isTabDrag(e.dataTransfer?.types || [])) return;
@@ -472,7 +449,6 @@ export function DragDropUpload({
     };
 
     const handleGlobalDrop = async (e: globalThis.DragEvent) => {
-      console.log("[DragDropUpload] Global drop:", e.dataTransfer?.files?.length, "files");
 
       // Ignore internal tab drags — don't consume the event
       if (isTabDrag(e.dataTransfer?.types || [])) return;
@@ -551,7 +527,6 @@ export function DragDropUpload({
           if (!isMountedRef.current) return;
 
           const unlistenDragEnter = await appWindow.listen("tauri://drag-enter", () => {
-            console.log("[DragDropUpload] Tauri drag-enter");
             setIsDragging(true);
           });
           if (!isMountedRef.current) {
@@ -563,7 +538,6 @@ export function DragDropUpload({
           }
 
           const unlistenDragOver = await appWindow.listen("tauri://drag-over", () => {
-            console.log("[DragDropUpload] Tauri drag-over");
             setIsDragOver(true);
           });
           if (!isMountedRef.current) {
@@ -575,7 +549,6 @@ export function DragDropUpload({
           }
 
           const unlistenDragLeave = await appWindow.listen("tauri://drag-leave", () => {
-            console.log("[DragDropUpload] Tauri drag-leave");
             dragCounter.current = 0;
             setIsDragging(false);
             setIsDragOver(false);
@@ -589,7 +562,6 @@ export function DragDropUpload({
           }
 
           const unlistenDrop = await appWindow.listen("tauri://drop", (event: any) => {
-            console.log("[DragDropUpload] Tauri drop:", event.payload);
             dragCounter.current = 0;
             setIsDragging(false);
             setIsDragOver(false);
@@ -597,7 +569,6 @@ export function DragDropUpload({
             // Tauri sends file paths in the payload
             const paths: string[] = event.payload?.paths || [];
             if (paths.length > 0) {
-              console.log("[DragDropUpload] Tauri dropped files:", paths);
               // Route .json files to deck import, everything else to regular import
               const jsonPaths = paths.filter(p => p.toLowerCase().endsWith('.json'));
               const regularPaths = paths.filter(p => !p.toLowerCase().endsWith('.json'));
@@ -617,7 +588,6 @@ export function DragDropUpload({
             unlistenFnsRef.current.push(unlistenDrop);
           }
 
-          console.log("[DragDropUpload] Tauri drag-drop listeners registered");
         } catch (err) {
           console.error("[DragDropUpload] Failed to setup Tauri listeners:", err);
         }
@@ -635,7 +605,6 @@ export function DragDropUpload({
         window.removeEventListener("drop", handleGlobalDrop);
       }
 
-      // Clean up all Tauri listeners that were actually registered
       // Capture the current array and clear the ref before calling unlisten
       // to prevent double-cleanup if the effect runs again
       const listenersToCleanup = [...unlistenFnsRef.current];
@@ -654,7 +623,6 @@ export function DragDropUpload({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Get file icon and color
   const getFileIcon = (type: string) => {
     const info = FILE_TYPE_MAP[type] || FILE_TYPE_MAP["txt"];
     return info;
@@ -665,7 +633,6 @@ export function DragDropUpload({
 
   // Debug: log drag state changes
   useEffect(() => {
-    console.log("[DragDropUpload] Drag state changed - isDragging:", isDragging, "isDragOver:", isDragOver);
   }, [isDragging, isDragOver]);
 
   return (

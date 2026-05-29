@@ -27,7 +27,6 @@ export class DeleteDocumentCommand extends UndoableCommandBase {
   }
 
   async execute(): Promise<void> {
-    // Get the document before deleting
     this.deletedDocument = await invoke<Document>("get_document", {
       id: this.documentId,
     });
@@ -74,7 +73,6 @@ export class DeleteExtractCommand extends UndoableCommandBase {
   }
 
   async execute(): Promise<void> {
-    // Get the extract before deleting
     this.deletedExtract = await invoke<Extract>("get_extract", {
       id: this.extractId,
     });
@@ -124,7 +122,6 @@ export class BulkDeleteExtractsCommand extends UndoableCommandBase {
   }
 
   async execute(): Promise<void> {
-    // Get all extracts before deleting
     for (const id of this.extractIds) {
       try {
         const extract = await invoke<Extract>("get_extract", { id });
@@ -176,7 +173,6 @@ export class DeleteLearningItemCommand extends UndoableCommandBase {
   }
 
   async execute(): Promise<void> {
-    // Get the item before deleting
     this.deletedItem = await invoke<LearningItem | null>("get_learning_item", {
       itemId: this.itemId,
     });
@@ -221,7 +217,6 @@ export class BulkDeleteItemsCommand extends UndoableCommandBase {
   }
 
   async execute(): Promise<void> {
-    // Get all items before deleting
     const allItems = await invoke<LearningItem[]>("get_all_learning_items");
     this.deletedItems = allItems.filter((i) => this.itemIds.includes(i.id));
 

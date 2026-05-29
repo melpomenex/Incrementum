@@ -102,7 +102,6 @@ export const ReviewCard = React.memo(function ReviewCard({
 
   const itemType = getItemType();
 
-  // Get plain text for TTS
   const getPlainText = (html: string): string => {
     const doc = new DOMParser().parseFromString(html, "text/html");
     return doc.body.textContent || "";
@@ -255,7 +254,6 @@ export const ReviewCard = React.memo(function ReviewCard({
       rawClozePattern.lastIndex = 0;
 
       if (hasRawCloze) {
-        // Render using parsed raw cloze syntax
         const parts: React.ReactNode[] = [];
         let lastIndex = 0;
         let match;
@@ -470,7 +468,7 @@ export const ReviewCard = React.memo(function ReviewCard({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-2 md:px-0" role="article" aria-label={`${getItemTypeLabel(itemType)} card`}>
+    <article className="w-full max-w-2xl mx-auto px-2 md:px-0" aria-label={`${getItemTypeLabel(itemType)} card`}>
       {/* Card Type Badge */}
       <div className="flex items-center gap-2 mb-3 md:mb-4">
         <span className="text-xl md:text-2xl" aria-hidden="true">{getItemIcon(itemType)}</span>
@@ -589,6 +587,6 @@ export const ReviewCard = React.memo(function ReviewCard({
           </button>
         </div>
       )}
-    </div>
+    </article>
   );
 });

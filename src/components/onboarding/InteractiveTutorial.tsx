@@ -110,7 +110,6 @@ export function InteractiveTutorial({
   const isLastStep = currentStep === tutorialSteps.length - 1;
   const progress = ((currentStep + 1) / tutorialSteps.length) * 100;
 
-  // Handle spotlight positioning
   useEffect(() => {
     if (step.targetSelector && step.spotlight) {
       const element = document.querySelector(step.targetSelector) as HTMLElement;
@@ -129,8 +128,8 @@ export function InteractiveTutorial({
       }
     };
   }, [step.targetSelector, step.spotlight]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       document.querySelectorAll(".tutorial-spotlight-highlight").forEach((el) => {
@@ -200,7 +199,6 @@ export function InteractiveTutorial({
         break;
     }
 
-    // Keep within viewport
     left = Math.max(16, Math.min(left, window.innerWidth - tooltipWidth - 16));
     top = Math.max(16, Math.min(top, window.innerHeight - tooltipHeight - 16));
 
@@ -221,6 +219,9 @@ export function InteractiveTutorial({
           step.spotlight ? "bg-black/60" : "bg-black/50"
         }`}
         onClick={handleSkip}
+        onKeyDown={(e) => { if (e.key === 'Escape') handleSkip(); }}
+        role="dialog"
+        aria-label="Tutorial overlay"
       />
 
       {/* Spotlight cutout effect */}
@@ -242,6 +243,9 @@ export function InteractiveTutorial({
             isCentered ? "max-w-2xl w-full" : "w-[400px]"
           } bg-card border border-border rounded-2xl shadow-2xl overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => { if (e.key === 'Escape') handleSkip(); }}
+          role="dialog"
+          aria-label="Tutorial step"
         >
           {/* Header */}
           <div className="relative bg-gradient-to-r from-primary/20 to-primary/5 p-6">
@@ -572,8 +576,8 @@ export function FeatureSpotlight({
   const padding = 16;
   const tooltipWidth = 320;
 
-  let top = 0;
-  let left = 0;
+  let top: number;
+  let left: number;
 
   switch (position) {
     case "bottom":
@@ -589,7 +593,6 @@ export function FeatureSpotlight({
       left = rect.left;
   }
 
-  // Keep within viewport
   left = Math.max(16, Math.min(left, window.innerWidth - tooltipWidth - 16));
 
   return (

@@ -154,7 +154,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     for (const proxy of corsProxies) {
       try {
         const fetchUrl = proxy ? proxy + encodeURIComponent(targetUrl) : targetUrl;
-        console.log(`[WebArticleImport] Trying fetch:`, proxy || 'direct');
         
         const response = await fetch(fetchUrl, {
           headers: {
@@ -172,20 +171,15 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
           throw new Error('Response too short, likely an error page');
         }
 
-        // Parse the HTML to extract title and text
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Extract title
         const title = doc.querySelector('title')?.textContent?.trim() || 
                       doc.querySelector('h1')?.textContent?.trim() || 
                       extractSiteName(targetUrl);
 
-        // Extract text content
         const text = doc.body?.textContent?.trim() || '';
 
-        console.log(`[WebArticleImport] Successfully fetched via ${proxy || 'direct'}`);
-        
         return {
           html,
           title,
@@ -193,7 +187,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
           fetchMethod: proxy ? 'proxy' : 'direct',
         };
       } catch (err) {
-        console.log(`[WebArticleImport] Fetch failed:`, proxy || 'direct', err);
+        console.error(`[WebArticleImport] Fetch failed:`, proxy || 'direct', err);
         lastError = err as Error;
         continue;
       }
@@ -215,7 +209,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     const parser = new DOMParser();
     const doc = parser.parseFromString(rawHtml, 'text/html');
     
-    // Remove dangerous elements
     const dangerousSelectors = [
       'script',
       'iframe',
@@ -229,7 +222,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     
     dangerousSelectors.forEach(selector => {
       doc.querySelectorAll(selector).forEach(el => {
-        console.log(`[WebArticleImport] Removing dangerous element:`, el.tagName);
         el.remove();
       });
     });
@@ -243,7 +235,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       });
     }
 
-    // Remove event handlers from all elements
     const allElements = doc.querySelectorAll('*');
     allElements.forEach(el => {
       const attributes = Array.from(el.attributes);
@@ -327,7 +318,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     setShowCorsWarning(false);
 
     try {
-      // Validate URL format
       new URL(processedUrl);
 
       if (importFormat === 'pdf') {
@@ -341,7 +331,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
           if (lastPart) {
             fileName = decodeURIComponent(lastPart);
           }
-        } catch {}
+        } catch { /* URL parsing may fail for malformed URLs */ }
 
         setPreview({
           url: processedUrl,
@@ -357,10 +347,8 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
         return;
       }
 
-      // Fetch article content
       const { html, title, text, fetchMethod } = await fetchArticleContent(processedUrl);
       
-      // Process HTML for display
       const processedHtml = processHtmlForDisplay(
         html,
         processedUrl,
@@ -370,7 +358,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
       // Calculate metadata
       const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
       
-      // Extract author if available
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
       const author = 
@@ -379,19 +366,16 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
         doc.querySelector('[rel="author"]')?.textContent ||
         undefined;
 
-      // Extract description
       const description = 
         doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
         doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
         undefined;
 
-      // Extract favicon
       const favicon = 
         doc.querySelector('link[rel="icon"]')?.getAttribute('href') ||
         doc.querySelector('link[rel="shortcut icon"]')?.getAttribute('href') ||
         `${new URL(processedUrl).origin}/favicon.ico`;
 
-      // Extract main image
       const image = 
         doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
         doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content') ||
@@ -467,7 +451,6 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
     setError(null);
 
     try {
-      // Import the document using the store
       const doc = await importFromUrl(preview.url);
       
       setImportedDoc(doc);

@@ -69,7 +69,6 @@ impl BackupManager {
         let device_id = self.get_device_id();
         let app_version = env!("CARGO_PKG_VERSION").to_string();
 
-        // Create temporary directory for this backup
         let backup_dir = self.temp_dir.join(&backup_id);
         fs::create_dir_all(&backup_dir)
             .await
@@ -178,7 +177,6 @@ impl BackupManager {
             .await
             .map_err(|e| AppError::Internal(format!("Failed to read zip file: {}", e)))?;
 
-        // Remove uncompressed folder and zip temp file
         let _ = tokio::fs::remove_dir_all(&backup_dir).await;
 
         // Capture values needed for BackupInfo before encryption block may move manifest
@@ -188,7 +186,7 @@ impl BackupManager {
         // 7. Encrypt the ZIP if requested
         let encrypted = options.encrypt && options.password.is_some();
         if encrypted {
-            let password = options.password.as_deref().unwrap();
+            let password = options.password.as_deref().expect("password confirmed as Some above");
             let salt = rand::random::<[u8; 16]>();
             let (ciphertext, nonce_bytes) = encrypt_data(&backup_data, password, &salt)?;
 
@@ -373,7 +371,6 @@ impl BackupManager {
             }
         }
 
-        // Clean up extracted files
         let _ = fs::remove_dir_all(&extract_dir).await;
 
         Ok(RestoreResult {
@@ -432,7 +429,6 @@ impl BackupManager {
         provider: &dyn CloudProvider,
         backup_id: &str,
     ) -> Result<(), AppError> {
-        // Delete the manifest
         let manifest_path = format!("/backups/{}.manifest.json", backup_id);
         if let Err(e) = provider.delete_file(&manifest_path).await {
             tracing::warn!("Failed to delete backup manifest: {}", e);
@@ -483,15 +479,12 @@ impl BackupManager {
         let mut total_size: u64 = 0;
 
         for row in rows {
-            // Parse file_type string
             let file_type_str: String = row.get("file_type");
             let file_type = parse_file_type(&file_type_str);
 
-            // Parse tags JSON
             let tags_json: String = row.get("tags");
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
-            // Parse metadata JSON
             let metadata_json: Option<String> = row.try_get("metadata").ok();
             let metadata: Option<DocumentMetadata> =
                 metadata_json.and_then(|json| serde_json::from_str(&json).ok());
@@ -561,7 +554,6 @@ impl BackupManager {
                 .await
                 .map_err(|e| AppError::Internal(format!("Failed to copy file: {}", e)))?;
 
-            // Write metadata alongside the file
             let metadata_bytes = serde_json::to_vec_pretty(&doc)
                 .map_err(|e| AppError::Internal(format!("Failed to serialize metadata: {}", e)))?;
             fs::write(doc_dest_dir.join("metadata.json"), metadata_bytes)
@@ -890,8 +882,6 @@ fn parse_file_type(s: &str) -> FileType {
         _ => FileType::Other,
     }
 }
-
-// ============ Backup Manifest Types ============
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BackupManifest {

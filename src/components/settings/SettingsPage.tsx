@@ -44,8 +44,7 @@ import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
-import { checkForUpdates } from "../../utils/updateChecker";
-import type { UpdateInfo } from "../../utils/updateChecker";
+import { checkForUpdates, type UpdateInfo } from "../../utils/updateChecker";
 import { useSettingsStore } from "../../stores";
 import { UpdateAvailableDialog } from "./UpdateAvailableDialog";
 import { loadGoogleFont } from "../../utils/fonts";
@@ -444,7 +443,6 @@ export function SettingsPage() {
               </div>
             )
           ) : (
-            // Normal Tab List
             SETTINGS_TABS.map((tab) => {
               return (
                 <SettingsMenuItem

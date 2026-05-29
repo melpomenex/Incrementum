@@ -72,7 +72,6 @@ export function VideoPlayer({
     };
   }, [controlsTimeout]);
 
-  // Update time
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       const time = videoRef.current.currentTime;
@@ -184,7 +183,6 @@ export function VideoPlayer({
     }
   };
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {

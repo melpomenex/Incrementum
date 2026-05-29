@@ -68,10 +68,6 @@ export function scoreRssRelevance(
   return clamp(total, 0, 1);
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 /**
  * Determine whether a classifier applies to the given feed.
  *

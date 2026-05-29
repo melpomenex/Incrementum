@@ -58,14 +58,12 @@ impl OCRProcessor {
     pub fn get_available_providers(&self) -> Vec<OCRProviderType> {
         let mut available = vec![];
 
-        // Check Tesseract
         if let Ok(provider) = create_provider(OCRProviderType::Tesseract, &self.config) {
             if provider.is_available() {
                 available.push(OCRProviderType::Tesseract);
             }
         }
 
-        // Check Google Document AI
         if self.config.google_document_ai.is_some() {
             if let Ok(provider) = create_provider(OCRProviderType::GoogleDocumentAI, &self.config) {
                 if provider.is_available() {
@@ -74,7 +72,6 @@ impl OCRProcessor {
             }
         }
 
-        // Check AWS Textract
         if self.config.aws_textract.is_some() {
             if let Ok(provider) = create_provider(OCRProviderType::AWSTextract, &self.config) {
                 if provider.is_available() {
@@ -83,7 +80,6 @@ impl OCRProcessor {
             }
         }
 
-        // Check Azure Vision
         if self.config.azure_vision.is_some() {
             if let Ok(provider) = create_provider(OCRProviderType::AzureVision, &self.config) {
                 if provider.is_available() {
@@ -92,21 +88,18 @@ impl OCRProcessor {
             }
         }
 
-        // Check Marker
         if let Ok(provider) = create_provider(OCRProviderType::Marker, &self.config) {
             if provider.is_available() {
                 available.push(OCRProviderType::Marker);
             }
         }
 
-        // Check Nougat
         if let Ok(provider) = create_provider(OCRProviderType::Nougat, &self.config) {
             if provider.is_available() {
                 available.push(OCRProviderType::Nougat);
             }
         }
 
-        // Check GLM-OCR
         if self.config.glm_ocr.is_some() {
             if let Ok(provider) = create_provider(OCRProviderType::Glmocr, &self.config) {
                 if provider.is_available() {

@@ -47,7 +47,6 @@ export function useOfflineStatus() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Check for pending sync data in localStorage
     const checkPendingSync = () => {
       const pendingData = localStorage.getItem("pending-sync");
       if (pendingData) {
@@ -432,8 +431,7 @@ export function useServiceWorkerStatus() {
           // Document may be in invalid state after backgrounding
         });
       } catch {
-        // Synchronous InvalidStateError
-      }
+      /* Service worker check may fail */ }
     };
 
     const tryGetRegistration = () => {
@@ -446,8 +444,7 @@ export function useServiceWorkerStatus() {
           // Document may be in invalid state after backgrounding
         });
       } catch {
-        // Synchronous InvalidStateError
-      }
+      /* Cache status check may fail */ }
     };
 
     tryReady();
@@ -497,7 +494,7 @@ export function useServiceWorkerStatus() {
           if (reloaded) return;
           try {
             navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-          } catch {}
+          } catch { /* non-critical */ }
           setHasUpdate(false);
           window.location.reload();
           resolve();

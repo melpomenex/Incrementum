@@ -133,7 +133,6 @@ export function useOptimisticUpdate() {
         data: result,
       };
     } catch (error) {
-      // Get the stored operation for rollback
       const pendingOp = pendingOperationsRef.current.get(operationId);
 
       // Rollback the optimistic update
@@ -148,12 +147,10 @@ export function useOptimisticUpdate() {
 
       const err = error instanceof Error ? error : new Error(String(error));
 
-      // Handle error
       if (onError) {
         onError(err);
       }
 
-      // Show error toast
       toast.error(
         errorMessage || 'Operation failed',
         err.message
@@ -193,7 +190,6 @@ export function useOptimisticUpdate() {
       updates[i].applyOptimistic(snapshots[i]);
     }
 
-    // Execute all operations
     for (let i = 0; i < updates.length; i++) {
       try {
         await updates[i].execute();
@@ -258,7 +254,6 @@ export function createOptimisticAction<TState, TPayload, TResult>(
       const optimisticState = options.optimisticUpdater(currentState, payload);
       setState(optimisticState);
 
-      // Execute server action
       const result = await options.serverAction(payload);
 
       return { success: true, result };

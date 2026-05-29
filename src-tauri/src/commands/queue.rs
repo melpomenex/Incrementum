@@ -72,7 +72,6 @@ async fn get_queue_items_from_repo(
     let mut queue_items = Vec::new();
     let now = Utc::now();
 
-    // Get learning items
     let learning_items = repo.get_all_learning_items().await?;
 
     // Collect all unique document IDs upfront for batch lookup
@@ -83,7 +82,6 @@ async fn get_queue_items_from_repo(
         }
     }
 
-    // Get extracts for incremental reading processing
     let due_extracts = repo.get_due_extracts(&now).await?;
     let new_extracts = repo.get_new_extracts().await?;
     let extracts: Vec<_> = due_extracts.into_iter().chain(new_extracts.into_iter()).collect();
@@ -91,7 +89,6 @@ async fn get_queue_items_from_repo(
         all_doc_ids.insert(extract.document_id.clone());
     }
 
-    // Get video extracts for spaced repetition review
     let due_video_extracts = repo.get_due_video_extracts(&now).await?;
     let new_video_extracts = repo.get_new_video_extracts().await.unwrap_or_default();
     let video_extracts: Vec<_> = due_video_extracts.into_iter().chain(new_video_extracts.into_iter()).collect();
@@ -529,10 +526,8 @@ pub async fn get_queue_with_playlist_intersperse(
     collection_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<QueueItem>> {
-    // Get the base queue
     let mut queue = get_queue_items_from_repo(repo.inner(), collection_id.as_deref()).await?;
     
-    // Get playlist settings
     let settings = match repo.get_playlist_settings().await {
         Ok(s) => s,
         Err(_) => return Ok(queue), // Return base queue if settings fail
@@ -543,7 +538,6 @@ pub async fn get_queue_with_playlist_intersperse(
         return Ok(queue);
     }
     
-    // Get playlist videos that are ready for queue interspersion
     let playlist_videos = match repo.get_videos_for_queue_interspersion().await {
         Ok(v) => v,
         Err(_) => return Ok(queue),
@@ -630,7 +624,6 @@ pub async fn get_queue_with_playlist_intersperse(
         // Add the regular queue item
         result.push(item.clone());
         
-        // Check if we should insert a playlist video
         // We try to insert at positions that are multiples of the interval
         if playlist_idx < playlist_queue_items.len() {
             let playlist_video = &playlist_queue_items[playlist_idx];
@@ -648,7 +641,6 @@ pub async fn get_queue_with_playlist_intersperse(
                     // Mark this video as added to queue
                     let _ = repo.mark_video_added_to_queue(&playlist_video.id, idx as i32).await;
                     
-                    // Stop if we've added all playlist videos
                     if playlist_idx >= playlist_queue_items.len() {
                         break;
                     }

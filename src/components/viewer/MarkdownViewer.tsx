@@ -56,11 +56,9 @@ export function MarkdownViewer({
   const hasRestoredRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedText: string } | null>(null);
 
-  // Render markdown with bundle image support
   const html = useMemo(() => {
     if (!content) return "";
 
-    // Check if this document has bundle images
     const hasBundleImages = document.metadata?.hasBundleImages;
     const imageManifest = document.metadata?.bundleImages;
 
@@ -114,7 +112,6 @@ export function MarkdownViewer({
       clearTimeout(scrollTimeoutRef.current);
     }
 
-    // Debounce scroll updates
     scrollTimeoutRef.current = setTimeout(() => {
       const container = containerRef.current;
       if (!container) return;
@@ -132,7 +129,6 @@ export function MarkdownViewer({
     }, 150);
   }, [onScrollPositionChange]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) {
@@ -162,14 +158,10 @@ export function MarkdownViewer({
     const signatureChanged = root.dataset.searchHighlightSignature !== signature;
     if (signatureChanged) {
       root.dataset.searchHighlightSignature = signature;
+      // Cache original HTML for search highlight restore (content is renderMarkdown output, same origin)
       root.dataset.searchHighlightOriginalHtml = root.innerHTML;
     }
 
-    // Only reset innerHTML when the underlying content actually changed.
-    // A stale innerHTML assignment destroys the browser text selection even
-    // when the HTML string is identical (new DOM nodes replace the ones the
-    // Selection is anchored to).  This was the root cause of selections
-    // vanishing before the user could right-click to create a flashcard.
     if (signatureChanged) {
       root.innerHTML = root.dataset.searchHighlightOriginalHtml ?? root.innerHTML;
     }
@@ -313,6 +305,8 @@ export function MarkdownViewer({
       className="markdown-viewer prose prose-sm max-w-none dark:prose-invert reading-prose overflow-y-auto overflow-x-hidden h-full"
       onScroll={handleScroll}
       onContextMenu={handleContextMenu}
+      // Context menu overlay below uses role=menu; this div is a scroll container
+      role="document"
     >
       <h1 className="reading-title">{document.title}</h1>
       {content ? (

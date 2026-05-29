@@ -37,7 +37,6 @@ export function PullToRefresh({
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle touch start
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (disabled) return;
     // Only trigger on single touch (not pinch zoom)
@@ -55,7 +54,6 @@ export function PullToRefresh({
     }
   }, [disabled, refreshing]);
 
-  // Handle touch move
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!isDragging.current || disabled) return;
 
@@ -75,14 +73,12 @@ export function PullToRefresh({
     currentY.current = y;
   }, [disabled, pullMax]);
 
-  // Handle touch end
   const handleTouchEnd = useCallback(() => {
     if (!isDragging.current) return;
 
     isDragging.current = false;
 
     if (pullDistance >= threshold && !refreshing) {
-      // Trigger refresh
       performRefresh();
     } else {
       // Reset without refreshing
@@ -118,7 +114,6 @@ export function PullToRefresh({
     }
   }, [onRefresh, threshold]);
 
-  // Setup touch event listeners
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;

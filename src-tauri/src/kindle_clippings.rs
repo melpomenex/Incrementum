@@ -18,10 +18,6 @@ use crate::database::Repository;
 use crate::error::{IncrementumError, Result};
 use crate::models::{Document, Extract, FileType};
 
-// ---------------------------------------------------------------------------
-// Data structures
-// ---------------------------------------------------------------------------
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClippingType {
     Highlight,
@@ -95,10 +91,6 @@ pub struct KindleImportResult {
     pub warnings: Vec<String>,
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 fn hex_sha256(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
@@ -155,10 +147,6 @@ fn kindle_file_path(normalized_title: &str) -> String {
     format!("kindle://{}", hex_sha256(normalized_title))
 }
 
-// ---------------------------------------------------------------------------
-// File reading
-// ---------------------------------------------------------------------------
-
 /// Read a file trying UTF-8 first, falling back to Latin-1.
 fn read_file_bytes(path: &str) -> Result<String> {
     let bytes = fs::read(path).map_err(|e| {
@@ -173,10 +161,6 @@ fn read_file_bytes(path: &str) -> Result<String> {
     let text = bytes.iter().map(|&b| b as char).collect::<String>();
     Ok(text)
 }
-
-// ---------------------------------------------------------------------------
-// Date parsing
-// ---------------------------------------------------------------------------
 
 /// Parse the Kindle date format:
 /// `"Added on DayOfWeek, Month DD, YYYY H:MM:SS AM/PM"`
@@ -229,10 +213,6 @@ fn parse_kindle_date(date_str: &str) -> Option<DateTime<Utc>> {
     Some(naive.and_utc())
 }
 
-// ---------------------------------------------------------------------------
-// Metadata line parsing
-// ---------------------------------------------------------------------------
-
 /// Parse the metadata line from a clipping entry.
 fn parse_metadata_line(line: &str) -> Option<(ClippingType, Option<i32>, Option<i32>, Option<i32>, &str)> {
     let trimmed = line.trim();
@@ -277,10 +257,6 @@ fn parse_metadata_line(line: &str) -> Option<(ClippingType, Option<i32>, Option<
     Some((clipping_type, page, loc_start, loc_end, date_str))
 }
 
-// ---------------------------------------------------------------------------
-// Internal parsing
-// ---------------------------------------------------------------------------
-
 /// Internal: parse a clippings file into raw clippings and warnings.
 fn parse_clippings_raw(path: &str) -> Result<(Vec<KindleClipping>, Vec<String>)> {
     let text = read_file_bytes(path)?;
@@ -311,7 +287,7 @@ fn parse_clippings_raw(path: &str) -> Result<(Vec<KindleClipping>, Vec<String>)>
 
     let metadata_re = Regex::new(
         r"(?i)^[ \t]*- Your (Highlight|Note|Bookmark)(.*)",
-    ).unwrap();
+    ).expect("valid regex");
 
     for (idx, entry) in entries.iter().enumerate() {
         let lines: Vec<&str> = entry.lines().collect();
@@ -343,7 +319,7 @@ fn parse_clippings_raw(path: &str) -> Result<(Vec<KindleClipping>, Vec<String>)>
             }
         };
 
-        let clipping_type_str = caps.get(1).unwrap().as_str();
+        let clipping_type_str = caps.get(1).expect("regex group 1 captured").as_str();
         let clipping_type = match clipping_type_str {
             "Highlight" => ClippingType::Highlight,
             "Note" => ClippingType::Note,
@@ -434,10 +410,6 @@ fn group_clippings(clippings: &[KindleClipping]) -> Vec<KindleBookGroup> {
     books
 }
 
-// ---------------------------------------------------------------------------
-// Public API: Parse
-// ---------------------------------------------------------------------------
-
 /// Parse a `My Clippings.txt` file and return a validation result.
 pub fn parse_kindle_clippings(path: &str) -> Result<KindleValidationResult> {
     let (clippings, mut warnings) = parse_clippings_raw(path)?;
@@ -489,10 +461,6 @@ pub fn parse_kindle_clippings(path: &str) -> Result<KindleValidationResult> {
         warnings,
     })
 }
-
-// ---------------------------------------------------------------------------
-// Public API: Validate (with DB dedup check)
-// ---------------------------------------------------------------------------
 
 /// Validate a clippings file against the existing database.
 pub async fn validate_kindle_clippings_preview(
@@ -595,10 +563,6 @@ pub async fn validate_kindle_clippings_preview(
         warnings,
     })
 }
-
-// ---------------------------------------------------------------------------
-// Public API: Import
-// ---------------------------------------------------------------------------
 
 /// Import a `My Clippings.txt` file into the database.
 pub async fn do_import_kindle_clippings(
@@ -729,7 +693,6 @@ pub async fn do_import_kindle_clippings(
             new_extracts += 1;
         }
 
-        // Update document extract count
         if let Some(mut doc) = repo.get_document(&doc_id).await? {
             let current_extracts = repo.list_extracts_by_document(&doc_id).await?;
             doc.extract_count = current_extracts.len() as i32;
@@ -746,10 +709,6 @@ pub async fn do_import_kindle_clippings(
         warnings,
     })
 }
-
-// ---------------------------------------------------------------------------
-// Backfill: create learning items + content for existing Kindle imports
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -815,7 +774,6 @@ pub async fn do_backfill_kindle_imports(repo: &Repository) -> Result<KindleBackf
                 .and_then(|t| serde_json::from_str(&t).ok())
                 .unwrap_or_default();
 
-            // Build content for document preview
             if !content.is_empty() {
                 if existing_tags.contains(&"kindle-note".to_string()) {
                     content_parts.push(format!("**Note:** {}", content));
@@ -824,7 +782,6 @@ pub async fn do_backfill_kindle_imports(repo: &Repository) -> Result<KindleBackf
                 }
             }
 
-            // Create learning item
             let item_id = uuid::Uuid::new_v4().to_string();
             let due_date = date_created
                 .as_deref()
@@ -872,7 +829,6 @@ pub async fn do_backfill_kindle_imports(repo: &Repository) -> Result<KindleBackf
             }
         }
 
-        // Update document content and extract count
         let doc_content = if content_parts.is_empty() {
             None
         } else {
@@ -907,10 +863,6 @@ pub async fn do_backfill_kindle_imports(repo: &Repository) -> Result<KindleBackf
     })
 }
 
-// ---------------------------------------------------------------------------
-// Tauri commands
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub fn parse_kindle_clippings_file(file_path: String) -> Result<KindleValidationResult> {
     parse_kindle_clippings(&file_path)
@@ -939,10 +891,6 @@ pub async fn backfill_kindle_imports(
 ) -> Result<KindleBackfillResult> {
     do_backfill_kindle_imports(&repo).await
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -1109,7 +1057,6 @@ Nonexistent Book
     fn test_empty_content_clipping_skipped() {
         let content = r#"Book (Author)
 - Your Highlight on page 1 | Location 1 | Added on Sunday, January 1, 2024 12:00:00 PM
-
 
 ==========
 "#

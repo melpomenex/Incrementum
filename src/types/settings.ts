@@ -351,13 +351,10 @@ export interface Settings {
   keybindings: KeybindingSettings;
 }
 
-// Settings category type
 export type SettingsCategory = keyof Settings;
 
-// Settings update type
 export type SettingsUpdate = Partial<Settings>;
 
-// Settings validation result
 export interface SettingsValidationResult {
   valid: boolean;
   errors: Record<string, string>;

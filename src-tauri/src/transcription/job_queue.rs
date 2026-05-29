@@ -31,19 +31,18 @@ impl JobQueue {
 
         tokio::spawn(async move {
             let engine = TranscriptionEngine::new(app_handle.clone());
-            let model_manager = ModelManager::new(&app_handle).unwrap();
+            let model_manager = ModelManager::new(&app_handle).expect("failed to create model manager");
 
             while let Some(job) = rx.recv().await {
                 {
-                    let mut active = active_job_inner.lock().unwrap();
+                    let mut active = active_job_inner.lock().expect("job queue mutex poisoned");
                     *active = Some(job.clone());
                 }
 
-                app_handle.emit("transcription://status-change", &job).unwrap();
+                app_handle.emit("transcription://status-change", &job).expect("event emit failed");
 
                 if let Err(e) = Self::process_job(&job, &engine, &model_manager, &repo, &app_handle).await {
                     eprintln!("Error processing transcription job: {:?}", e);
-                    // Update status in DB to failed
                     let _ = repo.pool().execute(
                         sqlx::query("UPDATE transcripts SET status = 'failed', error_message = ? WHERE book_id = ? AND chapter_id = ?")
                             .bind(e.to_string())
@@ -53,10 +52,10 @@ impl JobQueue {
                 }
 
                 {
-                    let mut active = active_job_inner.lock().unwrap();
+                    let mut active = active_job_inner.lock().expect("job queue mutex poisoned");
                     *active = None;
                 }
-                app_handle.emit("transcription://idle", ()).unwrap();
+                app_handle.emit("transcription://idle", ()).expect("event emit failed");
             }
         });
 
@@ -122,7 +121,7 @@ impl JobQueue {
                         .execute(repo.pool())
                         .await;
                     
-                    app_handle.emit("transcription://segment", seg).unwrap();
+                    app_handle.emit("transcription://segment", seg).expect("event emit failed");
                 }
             });
         }, None).await?;

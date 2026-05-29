@@ -217,7 +217,6 @@ export function AudiobookViewer({
 
     const fetchCover = async () => {
       try {
-        // Step 1: Try to extract embedded cover from audio file (only if we have a local file)
         if (document.filePath) {
           const embeddedCover = await audiobookApi.extractAudioCoverArt(document.filePath);
           if (cancelled) return;
@@ -229,12 +228,11 @@ export function AudiobookViewer({
                 ...document,
                 coverImageUrl: embeddedCover,
               } as any);
-            } catch {}
+            } catch (_e) { /* non-critical */ }
             return;
           }
         }
 
-        // Step 2: Search Google Books using title/author
         const author = metadata.author || document.metadata?.author;
         const covers = await audiobookApi.searchAudiobookCover(document.title, author);
         if (cancelled) return;
@@ -246,7 +244,7 @@ export function AudiobookViewer({
               ...document,
               coverImageUrl: covers[0],
             } as any);
-          } catch {}
+          } catch (_e) { /* non-critical */ }
         }
       } catch (error) {
         console.error("[AudiobookViewer] Failed to auto-fetch cover:", error);
@@ -258,7 +256,6 @@ export function AudiobookViewer({
     return () => { cancelled = true; };
   }, [document.id, document.coverImageUrl, document.filePath, remoteAudioUrl]);
 
-  // Load SponsorBlock cuts and segments
   useEffect(() => {
     let cancelled = false;
     const loadSponsorBlockData = async () => {
@@ -268,7 +265,6 @@ export function AudiobookViewer({
           const cuts = await getSponsorBlockCuts(id);
           if (cancelled) return;
           if (cuts && cuts.length > 0) {
-            console.log(`[SponsorBlock] Loaded ${cuts.length} cuts metadata for ${id}`);
             setSponsorBlockCuts(cuts);
             return; // Downloaded pre-cut audio, skip live segment fetches
           }
@@ -281,7 +277,6 @@ export function AudiobookViewer({
       if (targetUrl) {
         const videoIdResult = extractVideoID(targetUrl);
         if (videoIdResult && videoIdResult.platform === "youtube") {
-          console.log(`[SponsorBlock] Fetching live segments for ${videoIdResult.videoID}`);
           try {
             const fetched = await fetchSponsorBlockSegments(videoIdResult.videoID);
             if (!cancelled) {
@@ -298,15 +293,11 @@ export function AudiobookViewer({
     return () => { cancelled = true; };
   }, [document.id, document.filePath, remoteAudioUrl, episodeId]);
 
-  // Debug logging
   useEffect(() => {
-    console.log('[AudiobookViewer] fileContent:', fileContent ? fileContent.substring(0, 100) + '...' : 'undefined');
   }, [fileContent]);
   useEffect(() => {
-    console.log('[AudiobookViewer] remoteAudioUrl:', remoteAudioUrl || 'undefined');
   }, [remoteAudioUrl]);
 
-  // Load audiobook data
   useEffect(() => {
     documentIdRef.current = document.id;
     const loadAudiobookData = async () => {
@@ -318,24 +309,20 @@ export function AudiobookViewer({
           setChapters(parsed.chapters || []);
           setTranscript(parsed.transcript || null);
           
-          // Check for multi-part info
           if (parsed.multiPart) {
             setMultiPartInfo(parsed.multiPart);
             setPartSources(parsed.multiPart.partFiles);
           }
         } catch {
-          // Invalid data
-        }
+        /* Audio playback error handling */ }
       }
       
-      // Load bookmarks
       const bookmarksData = localStorage.getItem(`audiobook-${document.id}-bookmarks`);
       if (bookmarksData) {
         try {
           setBookmarks(JSON.parse(bookmarksData));
         } catch {
-          // Invalid data
-        }
+        /* Audio format detection */ }
       }
     };
     
@@ -394,7 +381,6 @@ export function AudiobookViewer({
       try {
         const localPath = await getDownloadedEpisodePath(episodeId);
         if (localPath && !cancelled) {
-          console.log(`[AudiobookViewer] Found downloaded local path for episode ${episodeId}: ${localPath}`);
           const localUrl = await convertFileSrc(localPath);
           setPodcastLocalSrc(localUrl);
         } else if (!cancelled) {
@@ -451,7 +437,7 @@ export function AudiobookViewer({
               ...existing,
               metadata: {
                 ...parsed,
-                ...(existing.metadata || {}),
+                ...existing.metadata,
                 title: existing.metadata?.title || parsed.title,
                 author: existing.metadata?.author || parsed.author,
                 duration: existing.metadata?.duration || parsed.duration,
@@ -595,7 +581,6 @@ export function AudiobookViewer({
     lastSavedGlobalTimeRef.current = 0;
   }, [document.id, episodeId]);
 
-  // Load saved progress + audio prefs
   useEffect(() => {
     if (typeof initialSeekTime !== "number" || !Number.isFinite(initialSeekTime)) {
       void loadSavedPosition();
@@ -608,13 +593,11 @@ export function AudiobookViewer({
           const pos = await getEpisodePosition(episodeId);
           if (pos > 0) {
             if (audioRef.current && audioRef.current.readyState >= 1) {
-              console.log(`[AudiobookViewer] Audio ready, seeking podcast episode to ${pos}s immediately`);
               audioRef.current.currentTime = pos;
               setCurrentTime(pos);
               currentTimeRef.current = pos;
               currentGlobalTimeRef.current = toGlobalSeconds(currentPartIndex, pos);
             } else {
-              console.log(`[AudiobookViewer] Audio not ready, queueing podcast seek to ${pos}s`);
               pendingSeekTimeRef.current = pos;
               setIsWaitingForSeek(true);
             }
@@ -712,7 +695,6 @@ export function AudiobookViewer({
         }
       }
 
-      // Update active transcript segment
       if (transcript?.segments) {
         const segment = transcript.segments.find(
           s => time >= s.startTime && time < s.endTime
@@ -751,7 +733,6 @@ export function AudiobookViewer({
         }
       }
       
-      // Update buffered progress
       if (audioRef.current.buffered.length > 0) {
         setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
       }
@@ -804,7 +785,6 @@ export function AudiobookViewer({
     if (pendingSeekTimeRef.current != null && audioRef.current) {
       const target = pendingSeekTimeRef.current;
       
-      // Check if target is within seekable ranges
       let isSeekable = false;
       for (let i = 0; i < audioRef.current.seekable.length; i++) {
         if (target >= audioRef.current.seekable.start(i) && target <= audioRef.current.seekable.end(i)) {
@@ -814,7 +794,6 @@ export function AudiobookViewer({
       }
 
       if (isSeekable || audioRef.current.readyState >= 1) {
-        console.log(`[AudiobookViewer] Retrying pending seek to ${target}s...`);
         pendingSeekTimeRef.current = null;
         seek(target);
       } else if (audioRef.current.readyState > 0) {
@@ -849,7 +828,6 @@ export function AudiobookViewer({
   };
   
   const handleEnded = () => {
-    // Check if this is a multi-part book and there are more parts
     if (multiPartInfo && currentPartIndex < multiPartInfo.partFiles.length - 1) {
       const nextPartIndex = currentPartIndex + 1;
       setCurrentPartIndex(nextPartIndex);
@@ -937,7 +915,6 @@ export function AudiobookViewer({
     if (isTauri() && remoteAudioUrl && episodeId) {
       try {
         showInfo(t("viewer.loadingAudio"), t("viewer.directPlaybackFailed"));
-        // Check if already downloaded
         let localPath = await getDownloadedEpisodePath(episodeId);
         if (!localPath) {
           localPath = await downloadEpisodeAudio(episodeId, remoteAudioUrl, undefined);
@@ -999,12 +976,10 @@ export function AudiobookViewer({
 
   // Playback controls
   const togglePlay = async () => {
-    console.log('[AudiobookViewer] togglePlay:', { isPlaying, src: audioRef.current?.src, readyState: audioRef.current?.readyState });
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        console.log('[AudiobookViewer] Attempting to play...');
         try {
           await audioRef.current.play();
         } catch (err) {
@@ -1076,7 +1051,6 @@ export function AudiobookViewer({
     }, 0);
   }, [activeSegments.length, initialTranscriptSegmentId, showTranscript, transcript?.segments?.length]);
 
-  // Save position on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -1127,7 +1101,6 @@ export function AudiobookViewer({
     };
   }, [fallbackSrc]);
 
-  // Save on unmount
   useEffect(() => {
     return () => {
       const docId = documentIdRef.current;
@@ -1137,7 +1110,6 @@ export function AudiobookViewer({
           : currentTimeRef.current
       );
       if (docId && Number.isFinite(globalRounded) && globalRounded > 0) {
-        // Fire-and-forget in cleanup.
         void updateDocumentProgressAuto(docId, globalRounded);
         void saveDocumentPosition(docId, timePosition(globalRounded, totalDurationSecondsRef.current));
       }
@@ -1227,7 +1199,6 @@ export function AudiobookViewer({
     setSleepTimer(null);
   };
   
-  // Check sleep timer
   useEffect(() => {
     if (!sleepTimer) return;
     
@@ -1245,7 +1216,6 @@ export function AudiobookViewer({
     return () => clearInterval(interval);
   }, [sleepTimer, isPlaying, showInfo]);
   
-  // Get current chapter
   const getCurrentChapter = (): AudiobookChapter | null => {
     if (!chapters.length) return null;
 
@@ -1329,7 +1299,7 @@ export function AudiobookViewer({
           await loadTranscript(document.id, cid);
           const segments = useTranscriptionStore.getState().activeSegments;
           if (segments.length > 0) return;
-        } catch {}
+        } catch (_e) { /* non-critical */ }
       }
     };
     tryLoad();
@@ -1342,7 +1312,6 @@ export function AudiobookViewer({
     currentChapter?.id,
   ]);
   
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {

@@ -18,10 +18,6 @@ use tokio::sync::RwLock;
 use super::provider::{AuthToken, CloudProvider, CloudProviderType};
 use crate::error::AppError;
 
-// ─────────────────────────────────────────────────────────────
-// AuthStore – keychain / encrypted-file token persistence
-// ─────────────────────────────────────────────────────────────
-
 const KEYRING_SERVICE: &str = "com.incrementum.app";
 const TOKENS_DIR_NAME: &str = "tokens";
 
@@ -118,8 +114,6 @@ impl AuthStore {
         }
         Ok(())
     }
-
-    // ── keyring helpers (blocking, called from async context) ──
 
     fn keyring_entry(username: &str) -> Result<keyring::Entry, String> {
         keyring::Entry::new(KEYRING_SERVICE, username)
@@ -300,11 +294,6 @@ fn user_id() -> String {
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// CloudAuthProvider – Tauri managed state for authenticated
-// cloud providers
-// ─────────────────────────────────────────────────────────────
-
 pub struct CloudAuthProvider {
     providers: std::sync::Arc<std::sync::Mutex<
         HashMap<CloudProviderType, Arc<RwLock<Box<dyn CloudProvider>>>>,
@@ -332,7 +321,7 @@ impl CloudAuthProvider {
     ) -> Option<Arc<RwLock<Box<dyn CloudProvider>>>> {
         self.providers
             .lock()
-            .unwrap()
+            .expect("auth_store mutex poisoned")
             .get(&provider_type)
             .cloned()
     }
@@ -344,15 +333,15 @@ impl CloudAuthProvider {
     ) {
         self.providers
             .lock()
-            .unwrap()
+            .expect("auth_store mutex poisoned")
             .insert(provider_type, Arc::new(RwLock::new(provider)));
     }
 
     pub fn remove_provider(&self, provider_type: CloudProviderType) {
-        self.providers.lock().unwrap().remove(&provider_type);
+        self.providers.lock().expect("auth_store mutex poisoned").remove(&provider_type);
     }
 
     pub fn is_authenticated(&self, provider_type: CloudProviderType) -> bool {
-        self.providers.lock().unwrap().contains_key(&provider_type)
+        self.providers.lock().expect("auth_store mutex poisoned").contains_key(&provider_type)
     }
 }

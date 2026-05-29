@@ -57,7 +57,6 @@ pub struct RssUserPreference {
     pub author_whitelist: Option<String>,
     pub author_blacklist: Option<String>,
     pub category_filter: Option<String>,
-    // Display preferences
     pub view_mode: Option<String>,  // 'card', 'list', 'compact'
     pub theme_mode: Option<String>, // 'system', 'light', 'dark'
     pub density: Option<String>,    // 'compact', 'normal', 'comfortable'
@@ -67,7 +66,6 @@ pub struct RssUserPreference {
     pub show_author: Option<bool>,
     pub show_date: Option<bool>,
     pub show_feed_icon: Option<bool>,
-    // Sorting preferences
     pub sort_by: Option<String>,   // 'date', 'title', 'read_status', 'reading_time'
     pub sort_order: Option<String>, // 'asc', 'desc'
     pub date_created: String,
@@ -537,11 +535,9 @@ pub async fn mark_rss_feed_read(feed_id: String, repo: State<'_, Repository>) ->
     Ok(())
 }
 
-
 /// Toggle article queued status
 #[tauri::command]
 pub async fn toggle_rss_article_queued(id: String, repo: State<'_, Repository>) -> Result<bool> {
-    // Get current status
     let row = sqlx::query("SELECT is_queued FROM rss_articles WHERE id = ?")
         .bind(&id)
         .fetch_optional(repo.pool())
@@ -1032,11 +1028,6 @@ fn extract_first_image_url(html: &str) -> Option<String> {
     Some(rest[..value_end].to_string())
 }
 
-// ============================================================================
-// HTTP API Helper Functions (for browser_sync_server)
-// These functions take &Repository instead of tauri::State
-// ============================================================================
-
 /// Create RSS feed (HTTP API version)
 pub async fn create_rss_feed_http(
     url: String,
@@ -1331,7 +1322,6 @@ pub async fn fetch_article_full_content(
         .build()
         .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to create HTTP client: {}", e)))?;
 
-    // Fetch the article HTML
     let response = match client.get(&article_url).send().await {
         Ok(resp) => resp,
         Err(e) => {
@@ -1402,7 +1392,6 @@ pub async fn fetch_article_full_content(
 
     let fetched_at = Utc::now().to_rfc3339();
 
-    // Store in database
     sqlx::query(
         r#"
         UPDATE rss_articles

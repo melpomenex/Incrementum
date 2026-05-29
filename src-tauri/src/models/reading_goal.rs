@@ -165,7 +165,6 @@ impl ReadingStreak {
         let today = chrono::Utc::now().date_naive().to_string();
 
         if let Some(last_date) = &self.last_activity_date {
-            // Check if this is consecutive day
             if let Ok(last) = chrono::NaiveDate::parse_from_str(last_date, "%Y-%m-%d") {
                 if let Ok(current) = chrono::NaiveDate::parse_from_str(&activity_date, "%Y-%m-%d") {
                     let days_diff = (current - last).num_days();
@@ -186,7 +185,6 @@ impl ReadingStreak {
                 }
             }
         } else {
-            // First activity
             self.current_streak = 1;
             self.longest_streak = 1;
         }

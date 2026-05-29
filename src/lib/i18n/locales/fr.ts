@@ -3066,7 +3066,6 @@ export const fr: Dict = {
     "Dans l'application web, l'import de playlist est une opération unique. Les vidéos seront importées comme documents individuels. Pour les fonctionnalités d'import automatique et d'intercalaison dans la file, utilisez l'application de bureau.",
   "youtubePlaylist.youtubeApiConfig": "Configuration de l'API YouTube Data",
 
-  // --- Focus Timer ---
   "focusTimer.focus": "Concentration",
   "focusTimer.shortBreak": "Pause courte",
   "focusTimer.longBreak": "Pause longue",
@@ -3105,7 +3104,6 @@ export const fr: Dict = {
   "focusTimer.timerConfigUpdated": "Configuration du minuteur mise à jour",
   "focusTimer.failedToUpdateSettings": "Impossible de mettre à jour les paramètres",
 
-  // --- Offline / PWA ---
   "offline.pendingSync": "Synchronisation en attente",
   "offline.offline": "Hors ligne",
   "offline.downloading": "Téléchargement...",
@@ -3128,7 +3126,6 @@ export const fr: Dict = {
   "offline.updateReady": "Une nouvelle version est prête à être installée.",
   "offline.update": "Mettre à jour",
 
-  // --- Vimium Navigation ---
   "vimium.findPlaceholder": "Rechercher dans la page...",
   "vimium.commandPlaceholder": "Tapez une commande...",
   "vimium.noCommandsFound": "Aucune commande trouvée",
@@ -3889,7 +3886,6 @@ export const fr: Dict = {
   "performanceMonitor.empty": "Aucune métrique de performance enregistrée pour le moment.",
   "performanceMonitor.legend": "Légende :",
 
-  // --- Documents View: Additional missing keys ---
   "documentsView.archiveTitle": "Archiver les documents",
   "documentsView.archiveMessage":
     "Archiver {count} document(s) ? Les documents archivés sont masqués de la vue principale mais peuvent être restaurés plus tard.",
@@ -3932,6 +3928,5 @@ export const fr: Dict = {
   "documentsView.bulkMove": "Déplacement en masse",
   "documentsView.bulkReprioritize": "Repriorisation en masse",
 
-  // --- Graph controls ---
   "graph.resetRotation": "Réinitialiser la rotation",
 };

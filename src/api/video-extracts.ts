@@ -9,10 +9,6 @@
 
 import { invokeCommand, isTauri } from "../lib/tauri";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /**
  * Video extract with FSRS scheduling support
  */
@@ -93,15 +89,7 @@ export interface VideoTranscript {
   segments: VideoTranscriptSegment[];
 }
 
-// ============================================================================
-// API Configuration
-// ============================================================================
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-// ============================================================================
-// HTTP API Functions (for Web/PWA)
-// ============================================================================
 
 async function fetchAPI(endpoint: string, options?: RequestInit): Promise<Response> {
   const token = localStorage.getItem('auth_token');
@@ -119,10 +107,6 @@ async function fetchAPI(endpoint: string, options?: RequestInit): Promise<Respon
     headers,
   });
 }
-
-// ============================================================================
-// Video Extract CRUD Operations
-// ============================================================================
 
 /**
  * Get all video extracts for a document
@@ -256,10 +240,6 @@ export async function rateVideoExtract(extractId: string, rating: number): Promi
   return result.message || `Next review: ${new Date(result.next_review_date).toLocaleDateString()}`;
 }
 
-// ============================================================================
-// Video Chapters
-// ============================================================================
-
 /**
  * Get all chapters for a video
  */
@@ -306,10 +286,6 @@ export async function setVideoChapters(
     throw new Error(error.error || 'Failed to set video chapters');
   }
 }
-
-// ============================================================================
-// Video Transcript
-// ============================================================================
 
 /**
  * Get transcript for a video
@@ -377,10 +353,6 @@ export async function generateVideoTranscript(
   });
 }
 
-// ============================================================================
-// YouTube Chapters (Tauri only - requires yt-dlp)
-// ============================================================================
-
 /**
  * Get YouTube chapters for a video URL
  * Auto-detects chapters from video metadata or description
@@ -402,10 +374,6 @@ export async function getYouTubeChapters(
   console.warn('YouTube chapter detection requires Tauri desktop app with yt-dlp');
   return [];
 }
-
-// ============================================================================
-// Helper functions
-// ============================================================================
 
 /**
  * Format seconds as MM:SS or HH:MM:SS

@@ -94,14 +94,12 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
       const transferManager = getFileTransferManager();
 
       const checkStatus = async () => {
-        // Check if file is local
         const cached = await getCachedFile(fileId);
         if (cached && mounted) {
           setState({ status: "synced" });
           return;
         }
 
-        // Check if file is available from another device
         const available = manifest.isFileAvailable(fileId);
         if (mounted) {
           setState({ status: available ? "available" : "waiting" });
@@ -251,7 +249,6 @@ export function useFileDownloader() {
     await ensureFileSyncReady();
     const transferManager = getFileTransferManager();
 
-    // Check if already local
     const local = transferManager.getLocalFile(fileId);
     if (local) {
       return local;
@@ -284,14 +281,12 @@ export function useFileUploader() {
       const { calculateFileHash } = await import("./file-manifest");
       const contentHash = await calculateFileHash(file);
 
-      // Check for duplicates
       const existing = manifest.findByHash(contentHash);
       if (existing.length > 0) {
         // File already exists with same content
         return existing[0];
       }
 
-      // Create manifest entry
       const fileId = crypto.randomUUID();
       const entry: FileManifestEntry = {
         id: fileId,

@@ -110,10 +110,9 @@ export function usePdfOcrManager() {
 
   const abortRef = useRef(false);
 
-  const enterOcrMode = useCallback(() => {
-    abortRef.current = false;
+  const resetOcrState = useCallback((flowState: OcrFlowState) => {
     setState({
-      flowState: "selecting",
+      flowState,
       selectedRect: null,
       ocrResult: null,
       editedText: "",
@@ -123,18 +122,15 @@ export function usePdfOcrManager() {
     });
   }, []);
 
+  const enterOcrMode = useCallback(() => {
+    abortRef.current = false;
+    resetOcrState("selecting");
+  }, [resetOcrState]);
+
   const exitOcrMode = useCallback(() => {
     abortRef.current = true;
-    setState({
-      flowState: "idle",
-      selectedRect: null,
-      ocrResult: null,
-      editedText: "",
-      language: DEFAULT_LANGUAGE,
-      error: null,
-      lastImageData: null,
-    });
-  }, []);
+    resetOcrState("idle");
+  }, [resetOcrState]);
 
   const performOcr = useCallback(
     async (dataUrl: string, language: string): Promise<OCRResult> => {

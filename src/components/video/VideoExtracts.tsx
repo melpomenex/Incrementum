@@ -35,10 +35,6 @@ import {
 import { useToast } from '../common/Toast';
 import { useI18n } from '../../lib/i18n';
 
-// ============================================================================
-// Create Video Extract Dialog
-// ============================================================================
-
 interface CreateVideoExtractDialogProps {
   documentId: string;
   documentTitle: string;
@@ -108,7 +104,6 @@ export function CreateVideoExtractDialog({
   };
 
   const handleCreate = async () => {
-    // Validate
     if (startTime < 0) {
       setError(t('videoExtract.startTimeNegative'));
       return;
@@ -195,11 +190,12 @@ export function CreateVideoExtractDialog({
             </label>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">
+                <label htmlFor="extract-start-time" className="block text-xs text-muted-foreground mb-1">
                   {t('videoExtract.startTime')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="extract-start-time"
                     type="number"
                     value={startTime}
                     onChange={(e) => setStartTime(Number(e.target.value))}
@@ -213,11 +209,12 @@ export function CreateVideoExtractDialog({
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">
+                <label htmlFor="extract-end-time" className="block text-xs text-muted-foreground mb-1">
                   {t('videoExtract.endTime')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="extract-end-time"
                     type="number"
                     value={endTime}
                     onChange={(e) => setEndTime(Number(e.target.value))}
@@ -256,10 +253,11 @@ export function CreateVideoExtractDialog({
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label htmlFor="extract-title" className="block text-sm font-medium text-foreground mb-2">
               {t('common.title')} <span className="text-destructive">*</span>
             </label>
             <input
+              id="extract-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -282,10 +280,11 @@ export function CreateVideoExtractDialog({
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label htmlFor="extract-notes" className="block text-sm font-medium text-foreground mb-2">
               {t('videoExtract.notes')}
             </label>
             <textarea
+              id="extract-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t('videoExtract.notesPlaceholder')}
@@ -318,6 +317,7 @@ export function CreateVideoExtractDialog({
             </div>
             <div className="flex gap-2">
               <input
+                id="extract-tag-input"
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
@@ -391,10 +391,6 @@ export function CreateVideoExtractDialog({
   );
 }
 
-// ============================================================================
-// Video Extracts List
-// ============================================================================
-
 interface VideoExtractsListProps {
   documentId: string;
   onPlayExtract?: (extract: VideoExtract) => void;
@@ -424,6 +420,7 @@ export function VideoExtractsList({
       setLoading(false);
     }
   }, [documentId, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadExtracts();
@@ -474,10 +471,6 @@ export function VideoExtractsList({
     </div>
   );
 }
-
-// ============================================================================
-// Video Extract Card
-// ============================================================================
 
 interface VideoExtractCardProps {
   extract: VideoExtract;
@@ -636,10 +629,6 @@ export function VideoExtractCard({
   );
 }
 
-// ============================================================================
-// Due Video Extracts Review Component
-// ============================================================================
-
 interface DueVideoExtractsReviewProps {
   documentId?: string;
   onComplete?: () => void;
@@ -660,6 +649,7 @@ export function DueVideoExtractsReview({
   useEffect(() => {
     loadDueExtracts();
   }, [documentId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const loadDueExtracts = async () => {
     setLoading(true);
@@ -750,9 +740,5 @@ export function DueVideoExtractsReview({
     </div>
   );
 }
-
-// ============================================================================
-// Export helper functions for external use
-// ============================================================================
 
 export { formatSeconds, formatTimeRange };

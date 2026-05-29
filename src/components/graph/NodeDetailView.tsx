@@ -287,7 +287,6 @@ export function NodeDetailView({
             )}
             <button
               onClick={() => {
-                // Share functionality
                 setShowActions(false);
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"

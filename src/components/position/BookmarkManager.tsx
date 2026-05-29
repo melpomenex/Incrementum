@@ -6,8 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { createBookmark, deleteBookmark, listBookmarks } from '../../api/position';
-import type { Bookmark, DocumentPosition } from '../../types/position';
-import { formatPosition } from '../../types/position';
+import { formatPosition, type Bookmark, type DocumentPosition } from "../../types/position";
 
 interface BookmarkManagerProps {
   documentId: string;
@@ -34,6 +33,8 @@ export function BookmarkManager({
   useEffect(() => {
     loadBookmarks();
   }, [documentId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
 
   const loadBookmarks = async () => {
     try {
@@ -133,6 +134,9 @@ export function BookmarkManager({
                       <div
                         className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => handleNavigateToBookmark(bookmark)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleNavigateToBookmark(bookmark); }}
+                        role="button"
+                        tabIndex={0}
                       >
                         <div className="font-medium text-sm truncate">{bookmark.name}</div>
                         <div className="text-xs text-gray-500 mt-1">
@@ -180,10 +184,11 @@ export function BookmarkManager({
             <h3 className="text-lg font-semibold mb-4">Create Bookmark</h3>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="bookmark-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Name
               </label>
               <input
+                id="bookmark-name"
                 type="text"
                 value={newBookmarkName}
                 onChange={(e) => setNewBookmarkName(e.target.value)}

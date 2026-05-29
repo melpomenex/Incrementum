@@ -175,7 +175,8 @@ export function IntegrationsPage() {
                       {t("integrations.vaultPath")}
                     </label>
                     <input
-                      type="text"
+                      aria-label="API key"
+              type="text"
                       value={obsidianVault}
                       onChange={(e) => setObsidianVault(e.target.value)}
                       placeholder="/Users/yourname/Obsidian/MyVault"

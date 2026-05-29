@@ -46,7 +46,6 @@ export const useSearchStore = create<SearchStore>()(
 
       addToHistory: (query: string, resultCount: number) => {
         set((state) => {
-          // Remove if already exists
           const filtered = state.history.filter((h) => h.query !== query);
 
           // Add new item at start
@@ -247,6 +246,7 @@ export function SavedSearchesManager() {
             {editingId === savedSearch.id ? (
               <input
                 type="text"
+                aria-label="Edit search name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 onBlur={() => handleRename(savedSearch.id)}
@@ -281,6 +281,7 @@ export function SavedSearchesManager() {
                 setEditName(savedSearch.name);
               }}
               className="p-1.5 hover:bg-muted rounded"
+              aria-label="Rename search"
               title="Rename"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,6 +291,7 @@ export function SavedSearchesManager() {
             <button
               onClick={() => unsaveSearch(savedSearch.id)}
               className="p-1.5 hover:bg-destructive/10 hover:text-destructive rounded"
+              aria-label="Remove search"
               title="Remove"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

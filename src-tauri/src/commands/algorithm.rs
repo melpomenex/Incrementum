@@ -204,7 +204,6 @@ pub async fn rate_document(
     request: DocumentRatingRequest,
     repo: State<'_, Repository>,
 ) -> Result<DocumentRatingResponse> {
-    // Get the document
     let document = repo.get_document(&request.document_id).await?.ok_or_else(|| {
         crate::error::IncrementumError::NotFound(format!("Document {} not found", request.document_id))
     })?;
@@ -247,7 +246,6 @@ pub async fn rate_document(
         result.scheduling_reason = format!("{}; {}", result.scheduling_reason, reason);
     }
 
-    // Update the document with new scheduling data
     let new_reps = document.reps.unwrap_or(0) + 1;
     let new_time_spent = document.total_time_spent.unwrap_or(0) + request.time_taken.unwrap_or(0);
 
@@ -281,19 +279,16 @@ pub async fn rate_document_engaging(
     request: DocumentRatingRequest,
     repo: State<'_, Repository>,
 ) -> Result<DocumentRatingResponse> {
-    // Get the document
     let document = repo.get_document(&request.document_id).await?.ok_or_else(|| {
         crate::error::IncrementumError::NotFound(format!("Document {} not found", request.document_id))
     })?;
 
-    // Create engaging scheduler with default preferences
     // TODO: Load user preferences from settings
     let preferences = EngagementPreferences::default();
     let mut scheduler = EngagingScheduler::new(preferences);
 
     let review_rating = ReviewRating::from(request.rating);
 
-    // Get current FSRS state from document
     let current_stability = document.stability;
     let current_difficulty = document.difficulty;
     
@@ -326,7 +321,6 @@ pub async fn rate_document_engaging(
         result.scheduling_reason = format!("{}; {}", result.scheduling_reason, reason);
     }
 
-    // Update the document with new scheduling data
     let new_reps = review_count + 1;
     let new_time_spent = document.total_time_spent.unwrap_or(0) + request.time_taken.unwrap_or(0);
 
@@ -364,7 +358,6 @@ pub async fn rate_extract(
     request: ExtractRatingRequest,
     repo: State<'_, Repository>,
 ) -> Result<ExtractRatingResponse> {
-    // Get the extract
     let extract = repo.get_extract(&request.extract_id).await?.ok_or_else(|| {
         crate::error::IncrementumError::NotFound(format!("Extract {} not found", request.extract_id))
     })?;
@@ -384,7 +377,6 @@ pub async fn rate_extract(
 
     let review_rating = ReviewRating::from(request.rating);
 
-    // Get current stability and difficulty from memory state
     let current_stability = extract.memory_state.as_ref().map(|ms| ms.stability);
     let current_difficulty = extract.memory_state.as_ref().map(|ms| ms.difficulty);
 
@@ -396,7 +388,6 @@ pub async fn rate_extract(
         elapsed_days
     )?;
 
-    // Update the extract with new scheduling data
     let new_review_count = extract.review_count + 1;
     let new_reps = extract.reps + 1;
     let last_review = Some(now);
@@ -521,7 +512,6 @@ pub async fn get_algorithm_params(
         crate::error::IncrementumError::NotFound(format!("Learning item {} not found", item_id))
     })?;
 
-    // Get stability and difficulty from memory state
     let (stability, difficulty) = item
         .memory_state
         .as_ref()

@@ -111,7 +111,6 @@ impl MCPClient {
             return Err(format!("Initialize error: {}", error.message));
         }
 
-        // Parse server info from result
         if let Some(result) = response.result {
             self.parse_initialize_result(result);
         }
@@ -127,7 +126,6 @@ impl MCPClient {
         writeln!(writer, "{}", serde_json::to_string(&initialized_notif).unwrap())
             .map_err(|e| format!("Failed to send initialized notification: {}", e))?;
 
-        // Discover tools
         self.discover_tools_stdio(&mut reader, writer).await?;
 
         self.child = Some(child);
@@ -136,7 +134,6 @@ impl MCPClient {
 
     /// Parse the initialize result to extract server info and capabilities
     fn parse_initialize_result(&mut self, result: serde_json::Value) {
-        // Extract server info
         if let Some(server_info) = result.get("serverInfo") {
             self.server_info = Some(MCPServerInfo {
                 name: server_info["name"].as_str().unwrap_or("Unknown").to_string(),
@@ -145,7 +142,6 @@ impl MCPClient {
             });
         }
 
-        // Extract capabilities
         self.capabilities = result.get("capabilities")
             .and_then(|v| serde_json::from_value(v.clone()).ok());
     }
@@ -177,7 +173,6 @@ impl MCPClient {
             return Err(format!("Tools list error: {}", error.message));
         }
 
-        // Parse tools from result
         if let Some(result) = response.result {
             if let Some(tools_array) = result.get("tools").and_then(|v| v.as_array()) {
                 self.tools = tools_array
@@ -239,7 +234,6 @@ impl MCPClient {
             return Err(format!("Tool call error: {}", error.message));
         }
 
-        // Parse tool call result
         response.result
             .and_then(|v| serde_json::from_value(v).ok())
             .ok_or("Failed to parse tool call result".to_string())

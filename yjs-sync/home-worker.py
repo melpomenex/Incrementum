@@ -11,17 +11,18 @@ import time
 import requests
 from pathlib import Path
 
+<<<<<<< Updated upstream
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 VPS_URL = os.environ.get("VPS_URL", "http://REDACTED_IP:8766")
+=======
+VPS_URL = os.environ.get("VPS_URL", "http://100.103.106.125:8766")
+>>>>>>> Stashed changes
 VPS_API_KEY = os.environ.get("VPS_API_KEY", "change-me-in-production")
 WORKER_ID = os.environ.get("WORKER_ID", "mac-mini-1")
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "5"))  # seconds
 
-# =============================================================================
-# WORK QUEUE
-# =============================================================================
 WORK_QUEUE_FILE = Path.home() / ".transcript_queue.json"
 
 
@@ -29,7 +30,7 @@ def load_queue():
     """Load work queue from disk."""
     if WORK_QUEUE_FILE.exists():
         try:
-            with open(WORK_QUEUE_FILE, 'r') as f:
+            with open(WORK_QUEUE_FILE, "r") as f:
                 return json.load(f)
         except:
             return []
@@ -38,7 +39,7 @@ def load_queue():
 
 def save_queue(queue):
     """Save work queue to disk."""
-    with open(WORK_QUEUE_FILE, 'w') as f:
+    with open(WORK_QUEUE_FILE, "w") as f:
         json.dump(queue, f)
 
 
@@ -61,34 +62,30 @@ def remove_from_queue(video_id):
         save_queue(queue)
 
 
-# =============================================================================
-# TRANSCRIPT FETCHING
-# =============================================================================
 def fetch_transcript_direct(video_id):
     """Fetch transcript using yt-dlp directly."""
     import subprocess
 
-    video_url = f'https://www.youtube.com/watch?v={video_id}'
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
 
     cmd = [
-        'yt-dlp',
-        '--write-subs',
-        '--write-auto-subs',
-        '--sub-langs', 'en',
-        '--sub-format', 'vtt',
-        '--skip-download',
-        '--output', f'{video_id}.%(ext)s',
-        '--no-playlist',
-        video_url
+        "yt-dlp",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs",
+        "en",
+        "--sub-format",
+        "vtt",
+        "--skip-download",
+        "--output",
+        f"{video_id}.%(ext)s",
+        "--no-playlist",
+        video_url,
     ]
 
     try:
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd='/tmp'
+            cmd, capture_output=True, text=True, timeout=60, cwd="/tmp"
         )
 
         if result.returncode != 0:
@@ -98,9 +95,8 @@ def fetch_transcript_direct(video_id):
             return None, "yt-dlp failed"
 
         # Find the downloaded VTT file
-        import re
         vtt_file = None
-        for f in Path('/tmp').glob(f'{video_id}*.vtt'):
+        for f in Path("/tmp").glob(f"{video_id}*.vtt"):
             vtt_file = f
             break
 
@@ -108,16 +104,15 @@ def fetch_transcript_direct(video_id):
             return None, "No VTT file found"
 
         # Read VTT content
-        with open(vtt_file, 'r', encoding='utf-8') as f:
+        with open(vtt_file, "r", encoding="utf-8") as f:
             vtt_content = f.read()
 
-        # Clean up
         vtt_file.unlink()
-        for f in Path('/tmp').glob(f'{video_id}*'):
+        for f in Path("/tmp").glob(f"{video_id}*"):
             try:
                 f.unlink()
-            except:
-                pass
+            except OSError:
+                logger.warning("[{WORKER_ID}] Failed to cleanup file %s", f)
 
         return vtt_content, None
 
@@ -132,79 +127,91 @@ def parse_vtt_to_segments(vtt_content):
     import re
 
     segments = []
-    lines = vtt_content.split('\n')
+    lines = vtt_content.split("\n")
 
     i = 0
     while i < len(lines):
         line = lines[i].strip()
 
-        if '-->' in line:
+        if "-->" in line:
             try:
-                parts = line.split('-->')
+                parts = line.split("-->")
                 start_str = parts[0].strip()
                 end_str = parts[1].strip().split()[0]
 
-                start_parts = start_str.split(':')
+                start_parts = start_str.split(":")
                 if len(start_parts) == 3:
-                    start = int(start_parts[0]) * 3600 + int(start_parts[1]) * 60 + float(start_parts[2])
+                    start = (
+                        int(start_parts[0]) * 3600
+                        + int(start_parts[1]) * 60
+                        + float(start_parts[2])
+                    )
                 else:
                     start = int(start_parts[0]) * 60 + float(start_parts[1])
 
-                end_parts = end_str.split(':')
+                end_parts = end_str.split(":")
                 if len(end_parts) == 3:
-                    end = int(end_parts[0]) * 3600 + int(end_parts[1]) * 60 + float(end_parts[2])
+                    end = (
+                        int(end_parts[0]) * 3600
+                        + int(end_parts[1]) * 60
+                        + float(end_parts[2])
+                    )
                 else:
                     end = int(end_parts[0]) * 60 + float(end_parts[1])
 
                 i += 1
                 text_lines = []
-                while i < len(lines) and '-->' not in lines[i]:
+                while i < len(lines) and "-->" not in lines[i]:
                     text_line = lines[i].strip()
-                    text_line = re.sub(r'<[^>]+>', '', text_line)
-                    text_line = re.sub(r'^\d+\s*', '', text_line)
+                    text_line = re.sub(r"<[^>]+>", "", text_line)
+                    text_line = re.sub(r"^\d+\s*", "", text_line)
                     if text_line:
                         text_lines.append(text_line)
                     i += 1
 
-                text = ' '.join(text_lines).strip()
+                text = " ".join(text_lines).strip()
 
                 if text:
-                    segments.append({
-                        'start': round(start, 3),
-                        'duration': round(end - start, 3),
-                        'text': text
-                    })
+                    segments.append(
+                        {
+                            "start": round(start, 3),
+                            "duration": round(end - start, 3),
+                            "text": text,
+                        }
+                    )
 
-            except Exception as e:
-                print(f"[{WORKER_ID}] Warning: Failed to parse timestamp: {line}")
+            except (ValueError, IndexError) as e:
+                logger.warning(
+                    "[{WORKER_ID}] Failed to parse timestamp: %s (%s)", line, e
+                )
 
         i += 1
 
     return segments
 
 
-# =============================================================================
-# VPS COMMUNICATION
-# =============================================================================
 def send_transcript_to_vps(video_id, segments):
     """Send fetched transcript to VPS."""
     url = f"{VPS_URL}/worker/upload"
-    headers = {"X-API-Key": VPS_API_KEY}
 
     payload = {
-        'worker_id': WORKER_ID,
-        'video_id': video_id,
-        'segments': segments,
-        'segment_count': len(segments)
+        "worker_id": WORKER_ID,
+        "video_id": video_id,
+        "segments": segments,
+        "segment_count": len(segments),
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=30)
+        response = requests.post(
+            url, json=payload, headers={"X-API-Key": VPS_API_KEY}, timeout=30
+        )
         if response.status_code == 200:
             print(f"[{WORKER_ID}] Successfully sent transcript for {video_id} to VPS")
             return True
         else:
-            print(f"[{WORKER_ID}] Failed to send to VPS: {response.status_code} {response.text}")
+            print(
+                f"[{WORKER_ID}] Failed to send to VPS: {response.status_code} {response.text}"
+            )
             return False
     except Exception as e:
         print(f"[{WORKER_ID}] Error sending to VPS: {e}")
@@ -220,28 +227,23 @@ def poll_vps_for_work():
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            if data.get('pending'):
-                return data.get('video_ids', [])
+            if data.get("pending"):
+                return data.get("video_ids", [])
         return []
     except Exception as e:
         print(f"[{WORKER_ID}] Error polling VPS: {e}")
         return []
 
 
-# =============================================================================
-# MAIN LOOP
-# =============================================================================
 def process_video(video_id):
     """Process a single video."""
     print(f"[{WORKER_ID}] Processing {video_id}...")
 
-    # Fetch transcript
     vtt_content, error = fetch_transcript_direct(video_id)
     if not vtt_content:
         print(f"[{WORKER_ID}] Failed to fetch {video_id}: {error}")
         return False
 
-    # Parse to segments
     segments = parse_vtt_to_segments(vtt_content)
     if not segments:
         print(f"[{WORKER_ID}] No segments found for {video_id}")
@@ -263,9 +265,8 @@ def main():
     print(f"[{WORKER_ID}] Poll interval: {POLL_INTERVAL}s")
     print("=" * 50)
 
-    # Check dependencies
     try:
-        subprocess.run(['yt-dlp', '--version'], capture_output=True, check=True)
+        subprocess.run(["yt-dlp", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("ERROR: yt-dlp not found. Install with: brew install yt-dlp")
         sys.exit(1)
@@ -292,11 +293,12 @@ def main():
             print(f"[{WORKER_ID}] Shutting down...")
             break
         except Exception as e:
-            print(f"[{WORKER_ID}] Error in main loop: {e}")
+            logger.error("[{WORKER_ID}] Error in main loop: %s", e, exc_info=True)
 
         time.sleep(POLL_INTERVAL)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import subprocess
+
     main()

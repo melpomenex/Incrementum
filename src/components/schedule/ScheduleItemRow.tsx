@@ -1,9 +1,20 @@
-import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import {
-  BookOpen, Layers, Brain, Clock, AlertTriangle,
-  Zap, TrendingUp, Repeat, ChevronDown, ChevronRight,
-  Play, Pause, Trash2, CalendarClock, RotateCcw, EyeOff,
-  Columns2, Headphones,
+  BookOpen,
+  Layers,
+  Brain,
+  Clock,
+  AlertTriangle,
+  Repeat,
+  ChevronDown,
+  ChevronRight,
+  Play,
+  Pause,
+  Trash2,
+  CalendarClock,
+  EyeOff,
+  Columns2,
+  Headphones,
 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";

@@ -220,7 +220,6 @@ export function validateLatex(latex: string): { valid: boolean; errors: string[]
   const errors: string[] = [];
   let valid = true;
 
-  // Check for balanced braces
   let braceDepth = 0;
   for (const char of latex) {
     if (char === "{") braceDepth++;
@@ -236,7 +235,6 @@ export function validateLatex(latex: string): { valid: boolean; errors: string[]
     valid = false;
   }
 
-  // Check for balanced math mode delimiters
   const mathDelimiters = latex.match(/\$\$/g);
   if (mathDelimiters && mathDelimiters.length % 2 !== 0) {
     errors.push("Unmatched $$ delimiters");
@@ -339,7 +337,6 @@ export function cleanMathOCR(text: string): string {
     .replace(/≥/g, "\\geq")
     .replace(/≈/g, "\\approx")
     .replace(/≠/g, "\\neq")
-    // Fix spacing
     .replace(/\s+/g, " ")
     .trim();
 }

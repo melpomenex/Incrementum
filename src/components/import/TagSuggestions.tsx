@@ -66,7 +66,6 @@ export function TagSuggestions({
   // Use AI suggestions if available, otherwise use basic
   const suggestions = aiSuggestions.length > 0 ? aiSuggestions : basicSuggestions;
 
-  // Load AI suggestions on mount if enabled
   useEffect(() => {
     if (enableAI && content && !hasLoadedAI && aiSuggestions.length === 0) {
       setHasLoadedAI(true);

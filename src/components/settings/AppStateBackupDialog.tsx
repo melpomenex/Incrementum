@@ -27,10 +27,8 @@ import {
   Tag,
   FileText,
 } from "lucide-react";
-import type { ExportProgress } from "../../utils/appStateExport";
-import { exportAppState, downloadExport, estimateExportSize } from "../../utils/appStateExport";
-import type { ImportProgress, ImportResult, ImportOptions } from "../../utils/appStateImport";
-import { importAppState, readExportFile, validateExportFile, previewExport } from "../../utils/appStateImport";
+import { exportAppState, downloadExport, estimateExportSize, type ExportProgress } from "../../utils/appStateExport";
+import { importAppState, readExportFile, validateExportFile, previewExport, type ImportProgress, type ImportResult, type ImportOptions } from "../../utils/appStateImport";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useI18n } from "../../lib/i18n";
 
@@ -51,7 +49,6 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
   const [includeFiles, setIncludeFiles] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   
-  // Import state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [exportPreview, setExportPreview] = useState<ReturnType<typeof previewExport> | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);

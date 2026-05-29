@@ -251,7 +251,10 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                     <div className="flex-1 min-w-0">
                       <h3
                         className="text-sm font-medium text-foreground mb-1 cursor-pointer hover:text-primary"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedPaper(paper)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setSelectedPaper(paper); }}
                       >
                         {paper.title}
                       </h3>

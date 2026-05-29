@@ -7,7 +7,6 @@ import {
   type TTSVoiceProfile,
 } from "../utils/ttsSettings";
 import { makeCacheKey, getCachedAudio, setCachedAudio } from "../utils/ttsCache";
-import { isTauri } from "../lib/tauri";
 
 const DEFAULT_FAL_BASE_URL = "https://fal.run";
 const DEFAULT_GROQ_BASE_URL = "https://api.groq.com/openai/v1";
@@ -406,7 +405,6 @@ export async function generateSpeech(
 
   const cacheKey = makeCacheKey(tts.provider, voiceIdForCache, speedForCache, request.text);
 
-  // Check cache first
   try {
     const cached = await getCachedAudio(cacheKey);
     if (cached) {

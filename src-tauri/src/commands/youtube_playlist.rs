@@ -21,14 +21,11 @@ async fn import_youtube_video_as_document(
         return Err(IncrementumError::Internal("yt-dlp is not installed".to_string()));
     }
 
-    // Extract video info
     let info = extract_video_info(&url)
         .map_err(|e| IncrementumError::Internal(format!("Failed to fetch video info: {}", e)))?;
 
-    // Extract video ID for the file path
     let video_id = &info.id;
 
-    // Create document record for YouTube video
     let mut doc = Document::with_collection(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube, collection_id);
 
     // Set YouTube-specific fields
@@ -64,7 +61,6 @@ async fn import_youtube_video_as_document(
         ..Default::default()
     });
 
-    // Save to database
     let created = repo.create_document(&doc).await
         .map_err(|e| IncrementumError::Internal(format!("Failed to save document: {}", e)))?;
 
@@ -79,7 +75,6 @@ pub async fn subscribe_to_playlist(
 ) -> Result<PlaylistSubscription> {
     eprintln!("[YouTube Playlist] Subscribing to: {}", playlist_url);
     
-    // Extract playlist ID from URL
     let playlist_id = extract_playlist_id(&playlist_url)
         .ok_or_else(|| IncrementumError::Internal(
             format!("Invalid YouTube playlist URL: {}", playlist_url)
@@ -87,13 +82,11 @@ pub async fn subscribe_to_playlist(
     
     eprintln!("[YouTube Playlist] Extracted playlist ID: {}", playlist_id);
 
-    // Check if already subscribed
     if let Some(existing) = repo.get_playlist_subscription_by_playlist_id(&playlist_id).await? {
         eprintln!("[YouTube Playlist] Already subscribed, returning existing");
         return Ok(existing);
     }
 
-    // Check yt-dlp availability first
     let ytdlp_available = crate::youtube::check_ytdlp_installed()
         .map_err(|e| IncrementumError::Internal(format!("Failed to check yt-dlp: {}", e)))?;
     
@@ -105,7 +98,6 @@ pub async fn subscribe_to_playlist(
     
     eprintln!("[YouTube Playlist] yt-dlp is available, fetching playlist info...");
 
-    // Fetch playlist info from YouTube
     let playlist_info = get_playlist_info(&playlist_url)
         .map_err(|e| IncrementumError::Internal(format!("yt-dlp error: {}", e)))?;
     
@@ -131,7 +123,6 @@ pub async fn subscribe_to_playlist(
         .and_then(|e| e["id"].as_str())
         .map(youtube_thumbnail_url);
 
-    // Create subscription
     repo.create_playlist_subscription(
         &id,
         &playlist_id,
@@ -144,7 +135,6 @@ pub async fn subscribe_to_playlist(
         total_videos,
     ).await?;
 
-    // Fetch videos and add to tracking
     if let Some(entries) = playlist_info["entries"].as_array() {
         eprintln!("[YouTube Playlist] Processing {} entries", entries.len());
         for (position, entry) in entries.iter().enumerate() {
@@ -159,7 +149,6 @@ pub async fn subscribe_to_playlist(
                 let duration = entry["duration"].as_i64().map(|d| d as i32);
                 let thumbnail = youtube_thumbnail_url(video_id);
 
-                // Check if video already exists as a document
                 let video_url = format!("https://www.youtube.com/watch?v={}", video_id);
                 let existing_doc = repo.find_document_by_url(&video_url).await?;
 
@@ -191,7 +180,6 @@ pub async fn subscribe_to_playlist(
         eprintln!("[YouTube Playlist] No entries array found in playlist_info");
     }
 
-    // Return the created subscription
     repo.get_playlist_subscription(&id)
         .await?
         .ok_or_else(|| IncrementumError::Internal("Subscription not found".to_string()))
@@ -267,14 +255,12 @@ pub async fn refresh_playlist(
         .await?
         .ok_or_else(|| IncrementumError::Internal("Subscription not found".to_string()))?;
 
-    // Fetch latest playlist info
     let playlist_info = get_playlist_info(&subscription.playlist_url)
         .map_err(|e| IncrementumError::Internal(format!("Failed to fetch playlist: {}", e)))?;
 
     let mut new_videos_found = 0;
     let mut imported_count = 0;
 
-    // Process videos
     if let Some(entries) = playlist_info["entries"].as_array() {
         for (position, entry) in entries.iter().enumerate() {
             if let Some(video_id) = entry["id"].as_str() {
@@ -303,14 +289,12 @@ pub async fn refresh_playlist(
                     if auto_import && subscription.auto_import_new {
                         let video_url = format!("https://www.youtube.com/watch?v={}", video_id);
                         
-                        // Check if already exists as document
                         match repo.find_document_by_url(&video_url).await? {
                             Some(doc) => {
                                 // Mark as imported with existing document
                                 let _ = repo.mark_video_imported(&video_uuid, &doc.id).await;
                             }
                             None => {
-                                // Import as new document
                                 match import_youtube_video_as_document(video_url, repo.inner(), None).await {
                                     Ok(doc) => {
                                         let _ = repo.mark_video_imported(&video_uuid, &doc.id).await;
@@ -328,7 +312,6 @@ pub async fn refresh_playlist(
         }
     }
 
-    // Update last refreshed timestamp
     repo.update_playlist_last_refreshed(&subscription_id).await?;
 
     Ok(PlaylistRefreshResult {
@@ -343,7 +326,6 @@ pub async fn import_playlist_video(
     playlist_video_id: String,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
-    // Get the playlist video info
     let rows = sqlx::query(
         r#"
         SELECT pv.*, ps.playlist_id FROM youtube_playlist_videos pv
@@ -374,7 +356,6 @@ pub async fn import_playlist_video(
         }
     }
 
-    // Import the video
     let video_url = format!("https://www.youtube.com/watch?v={}", video_id);
     let doc = import_youtube_video_as_document(video_url, repo.inner(), None).await?;
 
@@ -523,15 +504,12 @@ pub async fn mark_playlist_video_queued(
     repo.mark_video_added_to_queue(&playlist_video_id, queue_position).await
 }
 
-// Helper functions
-
 /// Build a YouTube thumbnail URL from a video ID
 fn youtube_thumbnail_url(video_id: &str) -> String {
     format!("https://i.ytimg.com/vi/{}/hqdefault.jpg", video_id)
 }
 
 fn extract_playlist_id(url: &str) -> Option<String> {
-    // Handle various YouTube playlist URL formats
     let patterns = [
         r"[?&]list=([a-zA-Z0-9_-]+)",
     ];
@@ -548,8 +526,6 @@ fn extract_playlist_id(url: &str) -> Option<String> {
 
     None
 }
-
-// Response types
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PlaylistSubscriptionDetail {

@@ -147,7 +147,6 @@ export function LLMProviderSettings({
 
     const info = PROVIDER_INFO[newProviderType];
     
-    // Build pricing map from dynamic models
     const modelPricing: Record<string, ModelInfo> = {};
     const models = dynamicModels[newProviderType];
     if (models) {
@@ -264,7 +263,6 @@ export function LLMProviderSettings({
       }
       setDynamicModels({ ...dynamicModels, [newProviderType]: models });
       
-      // Create a pricing map for easy lookup
       const pricingMap: Record<string, ModelInfo> = {};
       models.forEach((model) => {
         pricingMap[model.id] = model;
@@ -307,7 +305,6 @@ export function LLMProviderSettings({
     return `$${price.toFixed(4)} per 1K tokens`;
   };
 
-  // Get pricing info for a model
   const getModelPricing = (providerType: string, modelId: string): ModelInfo | undefined => {
     const models = dynamicModels[providerType];
     if (!models) return undefined;

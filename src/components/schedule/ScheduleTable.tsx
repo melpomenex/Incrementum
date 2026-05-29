@@ -489,7 +489,6 @@ export function ScheduleTable({ groups, onPostpone, onOpen, onSuspend, onUnsuspe
     return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId); };
   }, []);
 
-  // Build flat row list with estimated heights
   type FlatRow =
     | { kind: "header"; groupDate: string; count: number }
     | { kind: "item"; item: ScheduleDayItem; idx: number };

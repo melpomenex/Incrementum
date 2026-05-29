@@ -1,11 +1,10 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "../lib/i18n";
-import type { TabPane } from "../stores/tabsStore";
+import { useTabsStore, type TabPane } from "../stores/tabsStore";
 import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText, Eye, EyeOff } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
-import { useTabsStore } from "../stores/tabsStore";
 import { useDocumentStore } from "../stores/documentStore";
 import { defaultSettings, useSettingsStore } from "../stores/settingsStore";
 import { DocumentViewer } from "../components/viewer/DocumentViewer";
@@ -156,7 +155,6 @@ export function QueueScrollPage() {
   })));
   const paneId = usePaneId();
 
-  // Get active tab ID from the first tab pane
   const activeTabId = useMemo(() => {
     const findFirstTabPane = (pane: typeof rootPane): TabPane | null => {
       if (pane.type === "tabs") return pane;
@@ -284,7 +282,6 @@ export function QueueScrollPage() {
     }, paneId);
   }, [addTab, paneId]);
 
-  // Load session state on mount
   useEffect(() => {
     const savedRatedIds = sessionStorage.getItem(SESSION_KEYS.RATED_IDS);
     if (savedRatedIds) {
@@ -301,7 +298,6 @@ export function QueueScrollPage() {
     }
   }, []);
 
-  // Save session state when it changes
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEYS.RATED_IDS, JSON.stringify(Array.from(ratedDocumentIds)));
   }, [ratedDocumentIds]);
@@ -382,7 +378,6 @@ export function QueueScrollPage() {
         seed: Date.now(),
       });
 
-      // Return both position and whether we should show toast
       return {
         position: response.start_position,
         shouldShowToast: response.is_resuming && lastPosition !== undefined && lastPosition > 0,
@@ -394,21 +389,17 @@ export function QueueScrollPage() {
     }
   }, [itemsReviewedThisSession]);
 
-  // Load queue, documents, and due flashcards/extracts on mount
   // IMPORTANT: Await loadDocuments() to prevent race condition in YouTube filter
   // Now uses smart start position for variety
   useEffect(() => {
     const loadAllData = async () => {
       startTimeRef.current = Date.now();
 
-      // Load documents first and wait for completion
       // This ensures the YouTube filter has all documents loaded before computing
       await loadDocuments();
 
-      // Load queue fresh - this will fetch current due items only
       await loadQueue();
 
-      // Load due learning items and extracts
       try {
         const [dueItems, extracts] = await Promise.all([
           getDueItems(),
@@ -416,7 +407,6 @@ export function QueueScrollPage() {
         ]);
         setDueFlashcards(dueItems);
         setDueExtracts(extracts);
-        console.log("QueueScrollPage: Loaded", dueItems.length, "flashcards,", extracts.length, "extracts");
       } catch (error) {
         console.error("Failed to load review items:", error);
       }
@@ -433,7 +423,6 @@ export function QueueScrollPage() {
           setCurrentIndex(startPos);
           setRenderedIndex(startPos);
 
-          // Update tab data
           if (activeTabId) {
             updateTab(activeTabId, {
               data: {
@@ -453,7 +442,6 @@ export function QueueScrollPage() {
     }
   }, [scrollItems.length, currentIndex, calculateSmartStart, activeTabId, updateTab, toast]);
 
-  // Save current position to session storage and tab data
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEYS.LAST_POSITION, String(currentIndex));
 
@@ -502,7 +490,6 @@ export function QueueScrollPage() {
           const itemAtPos = result[i];
           const catAtPos = itemAtPos.category ?? "uncategorized";
           if (catAtPos !== category) {
-            // Check if inserting here would violate constraint
             let consecutiveSame = 0;
             for (let j = i; j < result.length && consecutiveSame < maxSameCategory; j++) {
               if ((result[j]?.category ?? "uncategorized") === category) {
@@ -542,7 +529,6 @@ export function QueueScrollPage() {
     return Math.abs(hash) / 2147483647; // Normalize to 0-1
   }, []);
 
-  // Update scroll items when queue or flashcards change
   // Interleave: Due flashcards first, then documents, then RSS
   // Skip during rating to prevent race conditions
   useEffect(() => {
@@ -562,7 +548,6 @@ export function QueueScrollPage() {
         ? dueExtracts.filter(ex => subsetDocIds.has(ex.document_id))
         : dueExtracts;
 
-      // Create flashcard items from due learning items
       const flashcardItems: ScrollItem[] = activeFlashcards.map((item) => ({
         id: `flashcard-${item.id}`,
         type: "flashcard" as const,
@@ -574,7 +559,6 @@ export function QueueScrollPage() {
         engagementScore: 5 + getStableRandom(item.id, 1) * 2,
       }));
 
-      // Create document items with engagement scoring
       const docItems: ScrollItem[] = documentQueueItems
         .map((item) => {
           const doc = documents.find(d => d.id === item.documentId);
@@ -601,10 +585,10 @@ export function QueueScrollPage() {
         })
         .filter((item): item is NonNullable<typeof item> => item !== null) as ScrollItem[];
 
-      // Load RSS items based on settings
       const rssSettings = settings.rssQueue ?? defaultSettings.rssQueue;
       let rssItems: ScrollItem[] = [];
 
+<<<<<<< Updated upstream
       if (customSubset) {
         // If customSubset is active, we bypass settings and ONLY load RSS items explicitly selected in the cluster!
         const rssSubsets = customSubset.filter(item => item.itemType === "rss-article" as any);
@@ -624,11 +608,13 @@ export function QueueScrollPage() {
         }).filter(item => !!item.rssItem);
       } else if (rssSettings.includeInQueue) {
         // Get items based on unread setting
+=======
+      if (rssSettings.includeInQueue) {
+>>>>>>> Stashed changes
         let rssItemsToProcess: { feed: RSSFeed; item: RSSFeedItem }[];
         if (rssSettings.unreadOnly) {
           rssItemsToProcess = await getUnreadItemsAuto();
         } else {
-          // Get all items from subscribed feeds
           const allFeeds = await getSubscribedFeedsAuto();
           rssItemsToProcess = allFeeds.flatMap(feed =>
             feed.items.map(item => ({ feed, item }))
@@ -637,7 +623,6 @@ export function QueueScrollPage() {
 
         // Filter by feed inclusion/exclusion
         const filteredRssItems = rssItemsToProcess.filter(({ feed, item }) => {
-          // Check if feed is explicitly excluded
           if (rssSettings.excludedFeedIds.includes(feed.id)) return false;
 
           // Check if feed is explicitly included (if inclusion list is not empty)
@@ -729,7 +714,6 @@ export function QueueScrollPage() {
         }
       }
 
-      // Load podcast episodes based on settings
       let podcastItems: ScrollItem[] = [];
       const podcastSettings = settings.podcastQueue ?? defaultSettings.podcastQueue;
       if (podcastSettings.includeInQueue) {
@@ -759,7 +743,6 @@ export function QueueScrollPage() {
         }
       }
 
-      // Create extract items
       const extractItems: ScrollItem[] = activeExtracts.map((extract) => {
         // Find document title
         const doc = documents.find(d => d.id === extract.document_id);
@@ -906,7 +889,6 @@ export function QueueScrollPage() {
 
         const text = selection.toString().trim();
 
-        // Check if selection is within the RSS content
         const anchorElement = selection.anchorNode instanceof Element
           ? selection.anchorNode
           : selection.anchorNode?.parentElement;
@@ -924,7 +906,6 @@ export function QueueScrollPage() {
           return;
         }
 
-        // Get selection position for button placement
         try {
           const range = selection.getRangeAt(0);
           const rect = range.getBoundingClientRect();
@@ -1147,34 +1128,11 @@ export function QueueScrollPage() {
     };
   }, [currentItem, renderedItem, documents, contextWindowTokens, aiModel]);
 
-  // Debug logging
   useEffect(() => {
     if (currentItem) {
       if (currentItem.type === "document") {
-        const docInStore = documents.find(d => d.id === currentItem.documentId);
-        console.log("QueueScrollPage state:", {
-          currentIndex,
-          totalItems: scrollItems.length,
-          itemType: currentItem.type,
-          documentId: currentItem.documentId,
-          documentTitle: currentItem.documentTitle,
-          documentsCount: documents.length,
-          docInStore: docInStore ? {
-            id: docInStore.id,
-            title: docInStore.title,
-            fileType: docInStore.fileType,
-            filePath: docInStore.filePath,
-            hasContent: !!docInStore.content,
-          } : null,
-        });
+        const _docInStore = documents.find(d => d.id === currentItem.documentId);
       } else {
-        console.log("QueueScrollPage state:", {
-          currentIndex,
-          totalItems: scrollItems.length,
-          itemType: currentItem.type,
-          documentTitle: currentItem.documentTitle,
-          rssFeedTitle: currentItem.rssFeed?.title,
-        });
       }
     }
   }, [currentIndex, currentItem, scrollItems.length, documents]);
@@ -1235,12 +1193,10 @@ export function QueueScrollPage() {
     const handleWheel = (e: WheelEvent) => {
       const now = Date.now();
 
-      // Debounce scroll events
       if (now - lastScrollTime.current < scrollCooldown) {
         return;
       }
 
-      // Check if current item is an EPUB, PDF, or audio document
       // EPUBs and PDFs can be lengthy documents, so we don't want to auto-advance when user reaches the end
       // Audio documents need the player to remain visible — wheel events shouldn't navigate away
       // User should be able to scroll through the entire document freely
@@ -1459,22 +1415,12 @@ export function QueueScrollPage() {
 
   // Handle rating (for documents, flashcards, or mark as read for RSS)
   const handleRating = async (rating: number) => {
-    console.log("[QueueScroll] handleRating called:", {
-      rating,
-      currentItem: currentItem?.id,
-      type: currentItem?.type,
-      isRating,
-      documentId: currentItem?.documentId,
-      isNewDocument
-    });
 
     if (!currentItem) {
-      console.log("[QueueScroll] handleRating early return: no currentItem");
       return;
     }
 
     if (isRating) {
-      console.log("[QueueScroll] handleRating early return: already rating");
       return;
     }
 
@@ -1483,7 +1429,6 @@ export function QueueScrollPage() {
 
     try {
       const timeTaken = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
-      console.log(`[QueueScroll] Processing rating ${rating} for item type: ${currentItem.type}`);
 
       if (currentItem.type === "document") {
         if (!currentItem.documentId) {
@@ -1491,11 +1436,8 @@ export function QueueScrollPage() {
           throw new Error("Document ID is missing");
         }
 
-        console.log(`[QueueScroll] Rating document ${currentItem.documentId} as ${rating} (time: ${timeTaken}s)`);
-
         // Use the engaging FSRS-6 scheduler!
         const result = await rateDocumentEngaging(currentItem.documentId, rating, timeTaken);
-        console.log("[QueueScroll] rateDocumentEngaging result:", result);
 
         // Track rated document to prevent immediate re-appearance
         setRatedDocumentIds(prev => {
@@ -1507,12 +1449,10 @@ export function QueueScrollPage() {
         // Track items reviewed this session
         setItemsReviewedThisSession(prev => prev + 1);
 
-        // Remove the rated document from scrollItems and reload queue
         advanceAfterRemoval(ratedItemId);
         void loadQueue();
       } else if (currentItem.type === "flashcard" && currentItem.learningItem) {
         // Rate flashcard using FSRS
-        console.log(`Rating flashcard ${currentItem.learningItem.id} as ${rating} (time: ${timeTaken}s)`);
         await submitReview(currentItem.learningItem.id, rating, timeTaken);
 
         // Track items reviewed
@@ -1524,7 +1464,6 @@ export function QueueScrollPage() {
       } else if (currentItem.type === "rss" && currentItem.rssItem && currentItem.rssFeed) {
         // Mark RSS item as read
         await markItemReadAuto(currentItem.rssFeed.id, currentItem.rssItem.id, true);
-        console.log(`Marked RSS item ${currentItem.rssItem.id} as read (time: ${timeTaken}s)`);
 
         // Track items reviewed
         setItemsReviewedThisSession(prev => prev + 1);
@@ -1557,25 +1496,20 @@ export function QueueScrollPage() {
           }, 300);
         }
       } else if (currentItem.type === "extract" && currentItem.extract) {
-        // Rate extract
-        console.log(`Rating extract ${currentItem.extract.id} as ${rating} (time: ${timeTaken}s)`);
         await submitExtractReview(currentItem.extract.id, rating, timeTaken);
 
         // Track items reviewed
         setItemsReviewedThisSession(prev => prev + 1);
 
-        // Remove from both dueExtracts and scrollItems
         setDueExtracts(prev => prev.filter(e => e.id !== currentItem.extract!.id));
         advanceAfterRemoval(ratedItemId);
       } else if (currentItem.type === "podcast" && currentItem.podcastEpisode) {
         // Mark podcast episode as played
-        console.log(`[QueueScroll] Marking podcast episode ${currentItem.podcastEpisode.id} as played`);
         await markEpisodePlayed(currentItem.podcastEpisode.id, true);
 
         // Track items reviewed
         setItemsReviewedThisSession(prev => prev + 1);
 
-        // Remove from scrollItems
         advanceAfterRemoval(ratedItemId);
       }
 
@@ -1597,22 +1531,13 @@ export function QueueScrollPage() {
     }
   };
 
-  // Handle dismiss - hide document/flashcard/extract from queue
   const handleDismiss = async () => {
-    console.log("[QueueScroll] handleDismiss called:", {
-      currentItem: currentItem?.id,
-      type: currentItem?.type,
-      documentId: currentItem?.documentId,
-      isRating,
-    });
 
     if (!currentItem) {
-      console.log("[QueueScroll] handleDismiss early return: no currentItem");
       return;
     }
 
     if (isRating) {
-      console.log("[QueueScroll] handleDismiss early return: already processing");
       return;
     }
 
@@ -1631,11 +1556,9 @@ export function QueueScrollPage() {
 
     try {
       if (currentItem.type === "document" && currentItem.documentId) {
-        console.log(`[QueueScroll] Dismissing document ${currentItem.documentId}`);
 
         // Call API to dismiss document
         await dismissDocument(currentItem.documentId, true);
-        console.log("[QueueScroll] Document dismissed successfully");
 
         // Track dismissed document
         setRatedDocumentIds((prev) => {
@@ -1647,15 +1570,12 @@ export function QueueScrollPage() {
         // Track items reviewed this session
         setItemsReviewedThisSession((prev) => prev + 1);
 
-        // Show success toast
         toast.success(t("queueScroll.documentDismissed"), t("queueScroll.documentDismissedDesc"));
       } else if (currentItem.type === "flashcard" && currentItem.learningItem) {
         const cardId = currentItem.learningItem.id;
-        console.log(`[QueueScroll] Suspending flashcard ${cardId}`);
 
         // Call API to suspend flashcard
         await bulkSuspendItems([cardId]);
-        console.log("[QueueScroll] Flashcard suspended successfully");
 
         // Track items reviewed this session
         setItemsReviewedThisSession((prev) => prev + 1);
@@ -1663,18 +1583,15 @@ export function QueueScrollPage() {
         // Remove from dueFlashcards state to prevent re-populating on state recalculation
         setDueFlashcards((prev) => prev.filter((item) => item.id !== cardId));
 
-        // Show success toast
         toast.success(
           t("queueScroll.cardSuspended") !== "queueScroll.cardSuspended" ? t("queueScroll.cardSuspended") : "Flashcard suspended",
           t("queueScroll.cardSuspendedDesc") !== "queueScroll.cardSuspendedDesc" ? t("queueScroll.cardSuspendedDesc") : "This flashcard has been suspended and will not appear in reviews."
         );
       } else if (currentItem.type === "extract" && currentItem.extract) {
         const extractId = currentItem.extract.id;
-        console.log(`[QueueScroll] Deleting extract ${extractId}`);
 
         // Call API to delete extract
         await deleteExtract(extractId);
-        console.log("[QueueScroll] Extract deleted successfully");
 
         // Track items reviewed this session
         setItemsReviewedThisSession((prev) => prev + 1);
@@ -1682,14 +1599,12 @@ export function QueueScrollPage() {
         // Remove from dueExtracts state to prevent re-populating on state recalculation
         setDueExtracts((prev) => prev.filter((e) => e.id !== extractId));
 
-        // Show success toast
         toast.success(
           t("queueScroll.extractDeleted") !== "queueScroll.extractDeleted" ? t("queueScroll.extractDeleted") : "Extract deleted",
           t("queueScroll.extractDeletedDesc") !== "queueScroll.extractDeletedDesc" ? t("queueScroll.extractDeletedDesc") : "This extract has been deleted successfully."
         );
       }
 
-      // Remove the dismissed item from scrollItems and reload queue
       advanceAfterRemoval(dismissedItemId);
       void loadQueue();
     } catch (error) {
@@ -1762,7 +1677,6 @@ export function QueueScrollPage() {
       const target = e.target as HTMLElement;
       if (target.closest(".assistant-panel")) return;
 
-      // Check if current item is an EPUB, PDF, or audio document
       let isScrollableDocument = false;
       let isYouTubeItem = false;
       if (currentItem?.type === "document" && currentItem.documentId) {
@@ -1776,7 +1690,6 @@ export function QueueScrollPage() {
         }
       }
 
-      // Check if this is a horizontal or vertical gesture
       if (absDeltaX > absDeltaY) {
         if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
           if (currentItem?.type === "rss" && currentItem.rssFeed && currentItem.rssItem) {
@@ -1929,7 +1842,6 @@ export function QueueScrollPage() {
     await handleCreateRssExtract();
   }, [mobileRssSelection.text, handleCreateRssExtract]);
 
-  // Handle exit
   const handleExit = () => {
     if (activeTabId) {
       closeTab(activeTabId);
@@ -2211,7 +2123,7 @@ export function QueueScrollPage() {
               onRate={handleRating}
               onCreateCloze={(text, range) => setActiveExtractForCloze({ id: renderedItem.extract!.id, text, extractContent: renderedItem.extract!.content, range })}
               onCreateQA={() => setActiveExtractForQA(renderedItem.extract!.id)}
-              onCreateFlashcard={(selectedText) => setFlashcardStudioSeed({
+              onCreateFlashcard={(_selectedText) => setFlashcardStudioSeed({
                 key: `scroll-${renderedItem.extract!.id}-${Date.now()}`,
                 excerpt: renderedItem.extract!.content,
                 draftCardType: "qa",

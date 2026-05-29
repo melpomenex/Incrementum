@@ -7,10 +7,6 @@
 
 import * as Y from "yjs";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 /**
  * Metadata for a file in the sync manifest
  */
@@ -57,10 +53,6 @@ export type FileManifestEvent =
 
 type FileManifestListener = (event: FileManifestEvent) => void;
 
-// =============================================================================
-// FileManifest Class
-// =============================================================================
-
 const DEVICE_ID_KEY = "incrementum_device_id";
 
 /**
@@ -100,7 +92,6 @@ export class FileManifest {
     this.doc = doc;
     this.deviceId = getDeviceId();
 
-    // Get or create the shared maps
     this.filesMap = doc.getMap("fileManifest") as Y.Map<Record<string, unknown>>;
     this.devicesMap = doc.getMap("devicePresence") as Y.Map<Record<string, unknown>>;
 
@@ -127,7 +118,6 @@ export class FileManifest {
             const prevFiles = this.knownDeviceFiles.get(key) || new Set();
             const newFiles = new Set(presence.hasFiles);
 
-            // Check if this is a new device or file list changed
             const filesChanged =
               prevFiles.size !== newFiles.size ||
               ![...prevFiles].every((f) => newFiles.has(f));
@@ -147,10 +137,6 @@ export class FileManifest {
       });
     });
   }
-
-  // ===========================================================================
-  // File Operations
-  // ===========================================================================
 
   /**
    * Add a file to the manifest
@@ -195,10 +181,6 @@ export class FileManifest {
   findByHash(contentHash: string): FileManifestEntry[] {
     return this.getAllFiles().filter((f) => f.contentHash === contentHash);
   }
-
-  // ===========================================================================
-  // Device Presence
-  // ===========================================================================
 
   /**
    * Update this device's presence and which files it has
@@ -259,10 +241,6 @@ export class FileManifest {
     return this.findDevicesWithFile(fileId).length > 0;
   }
 
-  // ===========================================================================
-  // Events
-  // ===========================================================================
-
   subscribe(listener: FileManifestListener): () => void {
     this.listeners.add(listener);
     return () => {
@@ -280,10 +258,6 @@ export class FileManifest {
     });
   }
 }
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 /**
  * Calculate SHA-256 hash of a file

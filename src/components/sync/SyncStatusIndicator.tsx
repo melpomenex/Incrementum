@@ -2,7 +2,7 @@
  * Sync Status Indicator - shows sync state in the UI
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Cloud, CloudOff, RefreshCw, AlertCircle, Check } from 'lucide-react';
 import * as syncClient from '../../lib/sync-client';
 

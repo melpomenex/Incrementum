@@ -18,14 +18,12 @@ pub async fn extract_markdown_content(file_path: &str) -> Result<ExtractedConten
         }
     };
 
-    // Extract title from first heading
     let title = extract_title_from_markdown(&content);
 
     // Count lines and estimate page count (assuming ~40 lines per page)
     let line_count = content.lines().count();
     let page_count = (line_count / 40).max(1);
 
-    // Clean markdown syntax to get plain text
     let text = clean_markdown_text(&content);
 
     let metadata = serde_json::json!({
@@ -66,7 +64,6 @@ fn clean_markdown_text(markdown: &str) -> String {
             continue;
         }
 
-        // Remove heading markers
         let clean_line = trimmed
             .trim_start_matches('#')
             .trim_start_matches('>')
@@ -75,7 +72,6 @@ fn clean_markdown_text(markdown: &str) -> String {
             .trim_start_matches("+ ")
             .trim();
 
-        // Remove markdown formatting
         let clean_line = clean_line
             .replace("**", "")
             .replace("*", "")
@@ -98,7 +94,6 @@ fn clean_markdown_text(markdown: &str) -> String {
         result.push(' ');
     }
 
-    // Clean up multiple spaces and newlines
     result
         .split_whitespace()
         .collect::<Vec<&str>>()

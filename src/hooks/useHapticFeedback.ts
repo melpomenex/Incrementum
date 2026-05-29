@@ -35,7 +35,6 @@ function createVisualFeedback(
 ): void {
   const config = VISUAL_CONFIG[type];
 
-  // Create feedback element
   const element = document.createElement('div');
   element.className = `haptic-feedback haptic-${config.animation}`;
   element.innerHTML = config.icon;
@@ -53,7 +52,6 @@ function createVisualFeedback(
 
   container.appendChild(element);
 
-  // Remove after animation
   setTimeout(() => {
     element.remove();
   }, 1000);
@@ -100,7 +98,6 @@ export function useHapticFeedback() {
   const visualEnabled = settings.appearance?.visualFeedbackEnabled ?? true;
 
   const trigger = useCallback((type: FeedbackType, event?: React.MouseEvent | { x: number; y: number }) => {
-    // Get position
     const x = event ? ('clientX' in event ? event.clientX : event.x) : window.innerWidth / 2;
     const y = event ? ('clientY' in event ? event.clientY : event.y) : window.innerHeight / 2;
 
@@ -110,7 +107,6 @@ export function useHapticFeedback() {
       vibrate(type);
     }
 
-    // Visual feedback
     if (visualEnabled) {
       if (type === 'milestone') {
         createConfetti(x, y);

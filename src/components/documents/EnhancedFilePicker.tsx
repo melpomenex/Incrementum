@@ -147,7 +147,6 @@ export function EnhancedFilePicker({
           return;
         }
 
-        // Validate URL
         const validation = validateUrl(urlInput);
         if (!validation.valid) {
           setError(validation.error || "Invalid URL");
@@ -161,7 +160,6 @@ export function EnhancedFilePicker({
           return;
         }
 
-        // Validate Arxiv input
         const validation = validateArxivInput(urlInput);
         if (!validation.valid) {
           setError(validation.error || "Invalid Arxiv ID or URL");
@@ -170,7 +168,6 @@ export function EnhancedFilePicker({
 
         await onImport("arxiv", { url: urlInput });
       } else if (selectedSource === "screenshot") {
-        // Implement screenshot capture
         await onImport("screenshot", {});
       } else if (selectedSource === "anki" || selectedSource === "supermemo" || selectedSource === "json") {
         const { open } = await import("@tauri-apps/plugin-dialog");

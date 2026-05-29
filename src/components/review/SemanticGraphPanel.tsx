@@ -1,13 +1,16 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { X, Sliders, Sparkles, Play, Layers, Network, Info, Loader2 } from "lucide-react";
 import { ObsidianGraph } from "../graph/ObsidianGraph";
-import { GraphNodeType, type GraphNode, type GraphEdge } from "../graph/KnowledgeGraph";
-import { buildSemanticGraph as buildSemanticGraphFromEngine, type EmbeddingStatus } from "../../utils/semanticEngine";
+import { type GraphNode, type GraphEdge } from "../graph/KnowledgeGraph";
+import { buildSemanticGraph as buildSemanticGraphFromEngine, type EmbeddingStatus, type EmbeddingConfig } from "../../utils/semanticEngine";
 import { calculateItemSimilarity } from "../../utils/semanticRelations";
 import type { QueueItem } from "../../types/queue";
+<<<<<<< Updated upstream
 import { cn } from "../../utils";
 import type { EmbeddingConfig } from "../../utils/semanticEngine";
 import { getUnreadItems } from "../../api/rss";
+=======
+>>>>>>> Stashed changes
 
 interface SemanticGraphPanelProps {
   isOpen: boolean;
@@ -32,7 +35,6 @@ export function SemanticGraphPanel({
   const [embeddingStatus, setEmbeddingStatus] = useState<EmbeddingStatus>("idle");
   const [includeRss, setIncludeRss] = useState(false);
 
-  // Build the semantic graph asynchronously
   useEffect(() => {
     if (!isOpen) {
       setGraphData({ nodes: [], edges: [] });
@@ -94,7 +96,6 @@ export function SemanticGraphPanel({
     };
   }, [selectedNodeId, graphData.nodes, threshold, isOpen]);
 
-  // Handle clicking a node
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNodeId(node.id);
   }, []);

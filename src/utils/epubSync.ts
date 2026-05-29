@@ -82,7 +82,6 @@ function findMatch(
     return { start: idx, end: idx + normSeg.length - 1, confidence: 1.0 };
   }
 
-  // Try from beginning
   idx = chapterText.indexOf(normSeg);
   if (idx !== -1) {
     return { start: idx, end: idx + normSeg.length - 1, confidence: 0.9 };

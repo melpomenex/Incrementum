@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/prefer-tag-over-role */
 /**
  * Global search system
  * Fast, full-text search across all content types
@@ -242,13 +243,17 @@ export function GlobalSearch({
       });
 
       // Get document ID from result (structure varies by import type)
+   
       const documentId = (result as any)?.document_id || (result as any)?.id;
 
       const title = urlMetadata
         ? (urlDetection.type === URLType.YouTube
+   
             ? `Imported: ${(urlMetadata as any).title}`
             : urlDetection.type === URLType.RSSFeed
+   
             ? `Subscribed to: ${(urlMetadata as any).title}`
+   
             : `Imported: ${(urlMetadata as any).title}`)
         : `Imported: ${urlDetection.url}`;
 
@@ -262,6 +267,7 @@ export function GlobalSearch({
             setIsOpen(false);
           },
         },
+   
       } as any);
 
       // Clear for next import and refocus input
@@ -278,7 +284,6 @@ export function GlobalSearch({
     }
   }, [urlDetection, urlMetadata, importURL, toast, setIsOpen, onNavigateToDocument]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) {
@@ -305,7 +310,6 @@ export function GlobalSearch({
         case "Enter":
           e.preventDefault();
           if (isURLMode && urlDetection.isURL && !isImporting) {
-            // Handle URL import
             handleURLImport(importOptions);
           } else if (results[selectedIndex]) {
             handleResultClick(results[selectedIndex]);
@@ -379,15 +383,14 @@ export function GlobalSearch({
             aria-label="Global search"
           >
             {/* Accessibility announcements */}
-            <div
-              role="status"
+            <output
               aria-live="polite"
               aria-atomic="true"
               className="sr-only"
             >
               {isURLMode && !isMetadataLoading && "URL detected. Press Enter to import."}
               {isImporting && "Importing..."}
-            </div>
+            </output>
 
             {/* Search Input */}
             <div className="flex items-center gap-3 px-4 py-3 glass-divider">
@@ -470,8 +473,7 @@ export function GlobalSearch({
             >
               {/* URL Import Mode */}
               {isURLMode ? (
-                <div
-                  role="region"
+                <section
                   aria-label="URL import preview"
                   aria-busy={isMetadataLoading}
                   className="transition-opacity duration-200"
@@ -488,7 +490,7 @@ export function GlobalSearch({
                     duplicateCheck={duplicateCheck}
                     onOpenExisting={onNavigateToDocument}
                   />
-                </div>
+                </section>
               ) : !query ? (
                 <div className="p-6">
                   {/* Recent Searches */}
@@ -642,7 +644,7 @@ export function GlobalSearch({
                                     const synthetic: SearchResult = {
                                       ...result,
                                       metadata: {
-                                        ...(result.metadata || {}),
+                                        ...result.metadata,
                                         primaryHit: hit,
                                       },
                                     };

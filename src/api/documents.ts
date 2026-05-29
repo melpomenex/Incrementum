@@ -378,10 +378,6 @@ export async function convertDocumentPdfToHtml(
   });
 }
 
-// ============================================
-// Markdown Bundle Image APIs
-// ============================================
-
 /**
  * Store a bundle image for a document
  * In Tauri: copies the image to the document's bundle directory
@@ -425,7 +421,6 @@ export async function getBundleImage(
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = reader.result as string;
-        // Remove data URL prefix
         const commaIndex = base64.indexOf(",");
         resolve(commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64);
       };

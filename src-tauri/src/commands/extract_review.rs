@@ -27,7 +27,6 @@ pub async fn submit_extract_review(
 
     let now = Utc::now();
     
-    // Initialize memory state if missing
     if extract.memory_state.is_none() {
         extract.memory_state = Some(MemoryState {
             stability: 0.5, // Initial stability (in days)
@@ -35,7 +34,7 @@ pub async fn submit_extract_review(
         });
     }
     
-    let mut memory = extract.memory_state.unwrap();
+    let mut memory = extract.memory_state.expect("memory_state must be set for review");
     
     // Simplified FSRS logic for extracts (prioritize reading over precise memory retention)
     // Extracts are usually "read and processed", not memorized verbatim
@@ -57,7 +56,6 @@ pub async fn submit_extract_review(
         _ => memory.stability,
     };
     
-    // Update memory state
     memory.stability = new_interval_days;
     let memory_stability = memory.stability;
     let memory_difficulty = memory.difficulty;
@@ -66,7 +64,6 @@ pub async fn submit_extract_review(
     // Calculate new date
     let next_date = now + Duration::days(new_interval_days as i64);
     
-    // Update extract
     repo.update_extract_scheduling(
         &extract.id,
         Some(next_date),

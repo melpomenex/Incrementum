@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import type { CSSProperties } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff, Highlighter, Copy } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
@@ -19,8 +18,7 @@ import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { EditExtractDialog } from "../extracts/EditExtractDialog";
 import type { PdfSelectionContext, SelectionContext, TextSelectionContext, EpubSelectionContext } from "../../types/selection";
-import type { Extract } from "../../api/extracts";
-import { createExtract } from "../../api/extracts";
+import { createExtract, type Extract } from "../../api/extracts";
 import { QueueNavigationControls } from "../queue/QueueNavigationControls";
 import { PriorityControl } from "./PriorityControl";
 import { DocumentMinimap, type MinimapSegment } from "./DocumentMinimap";
@@ -45,7 +43,6 @@ import { recordReadingSession } from "../../utils/readingSpeed";
 import type { DocumentInitialJump, ExtractSourceContext } from "../../types/extractNavigation";
 import type { DocumentSearchState } from "../../types/searchHit";
 import { ReaderTTSControls } from "../common/ReaderTTSControls";
-import { WordHighlightLayer } from "../common/WordHighlightLayer";
 import { usePaneId } from "../common/Tabs/TabContent";
 import { generateShareUrl, copyShareLink, DocumentState, parseStateFromUrl } from "../../lib/shareLink";
 import { usePdfUrlState } from "../../hooks/usePdfUrlState";
@@ -550,7 +547,6 @@ export function DocumentViewer({
     const ext = doc.filePath?.split(".").pop()?.toLowerCase();
     const inferred = normalizeDocumentType(ext);
     if (inferred) return inferred;
-    // Check if filePath is a YouTube URL or ID
     if (doc.filePath?.includes("youtube.com") ||
       doc.filePath?.includes("youtu.be") ||
       doc.fileType === "youtube") {
@@ -773,7 +769,6 @@ export function DocumentViewer({
     lastViewedPageRef.current = pageNumber;
   }, [pageNumber]);
 
-  // Extract creation state
   const [selectedText, setSelectedText] = useState("");
   const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
   const [initialHighlightColor, setInitialHighlightColor] = useState<string | undefined>(undefined);
@@ -821,17 +816,14 @@ export function DocumentViewer({
     }
   }, [activeExtractSelection, toast]);
 
-  // Extract store for minimap
   const { extracts, loadExtracts } = useExtractStore();
   
-  // Load extracts for minimap
   useEffect(() => {
     if (currentDocument?.id) {
       loadExtracts(currentDocument.id);
     }
   }, [currentDocument?.id, loadExtracts]);
   
-  // Build minimap segments from extracts
   const minimapSegments: MinimapSegment[] = useMemo(() => {
     const segments: MinimapSegment[] = [];
     
@@ -1083,11 +1075,9 @@ export function DocumentViewer({
     }) => {
       // Don't save scroll state during restoration to prevent overwriting saved position with "Page 1"
       if (restorationInProgressRef.current || suppressPdfAutoScroll) {
-        console.log("[DocumentViewer] Ignoring scroll update during restoration/suppression");
         return;
       }
 
-      // Update minimap scroll indicator
       setMinimapPosition(Math.max(0, Math.min(1, state.scrollPercent / 100)));
 
       lastScrollStateRef.current = state;
@@ -1136,7 +1126,6 @@ export function DocumentViewer({
   const handleUserScrollDuringRestore = useCallback(() => {
     if (!restorationInProgressRef.current && !suppressPdfAutoScroll) return;
 
-    console.log("[DocumentViewer] User scrolled during restore, canceling restoration");
     restoreScrollDoneRef.current = true;
     restorationInProgressRef.current = false;
     pendingViewStateRef.current = null;
@@ -1152,7 +1141,6 @@ export function DocumentViewer({
   const cancelPdfRestoreAttempt = useCallback((reason: string) => {
     if (!restorationInProgressRef.current && !suppressPdfAutoScroll && !restoreState) return;
 
-    console.log("[DocumentViewer] Canceling PDF restore attempt:", reason);
     restoreScrollDoneRef.current = true;
     restorationInProgressRef.current = false;
     pendingViewStateRef.current = null;
@@ -1262,14 +1250,12 @@ export function DocumentViewer({
     const viewState = lastViewStateRef.current
       ? { ...lastViewStateRef.current, updatedAt: Date.now() }
       : null;
-    console.log("[DocumentViewer] Saving scroll progress:", reason, state);
     persistScrollState(state, undefined, viewState);
   }, [captureScrollState, docType, persistScrollState, scrollStorageKey, viewMode]);
 
   // Timer for tracking reading time
   const startTimeRef = useRef(Date.now());
 
-  // Queue navigation
   const queueNav = useQueueNavigation();
 
   // Inline extraction handlers
@@ -1286,7 +1272,6 @@ export function DocumentViewer({
       );
       handleAutoSummarization(extract.content).then((summary) => {
         if (summary) {
-          console.log(`Auto-summary generated: ${summary.length} chars`);
         }
       }).catch((err) =>
         console.error("Auto-summarization failed:", err)
@@ -1299,7 +1284,7 @@ export function DocumentViewer({
       console.error("Failed to create extract:", error);
       throw error;
     }
-  }, [toast, loadExtracts]);
+  }, [t, toast, loadExtracts]);
 
   const handleInlineCloze = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
     try {
@@ -1318,7 +1303,6 @@ export function DocumentViewer({
     }
   }, [toast, loadExtracts]);
 
-  // Setup inline extraction keyboard shortcuts
   useInlineExtraction({
     documentId,
     onExtract: handleInlineExtract,
@@ -1474,14 +1458,6 @@ export function DocumentViewer({
     const inferredType = normalizeDocumentType(doc.fileType) ?? normalizeDocumentType(ext) ?? "";
     const needsFileData = inferredType === "pdf" || inferredType === "epub";
 
-    console.log("[DocumentViewer] loadDocumentData:", {
-      fileType: doc.fileType,
-      filePath: doc.filePath,
-      ext,
-      inferredType,
-      needsFileData,
-    });
-
     if (mediaSourceRef.current?.revokeSrcOnDispose) {
       URL.revokeObjectURL(mediaSourceRef.current.src);
     }
@@ -1506,7 +1482,6 @@ export function DocumentViewer({
         // WebView2 (Windows) can detach the buffer during IPC transfer, causing
         // structuredClone failures when pdfjs-dist passes data to its worker.
         const bytes = new Uint8Array(rawBytes);
-        console.log("[DocumentViewer] File data loaded via backend, type:", inferredType, "size:", bytes.byteLength);
         setFileData(bytes);
       } catch (error) {
         console.error(`Failed to load ${inferredType}:`, error);
@@ -1514,9 +1489,6 @@ export function DocumentViewer({
         setIsLoading(false);
       }
     } else if (inferredType === "audio") {
-      // Audio: skip the blocking probeMediaSource — AudiobookViewer handles
-      // its own source resolution (convertFileSrc, m4b prepareAudiobookPlayback,
-      // etc.). The synchronous probe freezes the UI for large audiobook files.
       try {
         setMediaError(null);
         if (!doc.filePath) {
@@ -1547,18 +1519,11 @@ export function DocumentViewer({
       }
     } else if (inferredType === "video") {
       try {
-        console.log("[DocumentViewer] Loading video file:", doc.filePath);
         setMediaError(null);
         if (!doc.filePath) {
           throw new Error("Video document is missing a file path.");
         }
         const resolvedSource = await resolveLocalMediaSource(doc.filePath, inferredType);
-        console.log("[DocumentViewer] Resolved local media source:", {
-          filePath: doc.filePath,
-          strategy: resolvedSource.strategy,
-          mimeType: resolvedSource.mimeType,
-          attempts: resolvedSource.attempts,
-        });
         mediaSourceRef.current = resolvedSource;
         setMediaSource(resolvedSource);
       } catch (error) {
@@ -1607,7 +1572,6 @@ export function DocumentViewer({
     if (isAutoExtractEnabled() && doc.filePath && inferredType !== "pdf") {
       void (async () => {
         try {
-          console.log("[DocumentViewer] Auto-extracting content...");
           const extractionResult = await autoExtractWithCache(
             doc.id,
             doc.filePath,
@@ -1616,12 +1580,6 @@ export function DocumentViewer({
 
           // Store extraction result for use in the UI
           if (extractionResult.text || extractionResult.keyPhrases.length > 0) {
-            console.log("[DocumentViewer] Extraction result:", {
-              textLength: extractionResult.text.length,
-              keyPhrases: extractionResult.keyPhrases.length,
-              mathExpressions: extractionResult.mathExpressions.length,
-              ocrUsed: extractionResult.ocrUsed,
-            });
           }
           if (extractionResult.ocrUsed && extractionResult.text) {
             setOcrContextText(extractionResult.text);
@@ -1631,12 +1589,12 @@ export function DocumentViewer({
         }
       })();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- complex init callback with many captured values; intentional empty deps
   }, []);
 
   useEffect(() => {
     if (!documentId) return;
 
-    // Save scroll position BEFORE switching to a new document
     const prevDocId = lastDocumentIdRef.current;
     if (prevDocId && prevDocId !== documentId) {
       // Capture and save scroll position for the previous document
@@ -1664,7 +1622,6 @@ export function DocumentViewer({
           clientHeight: state.clientHeight,
           updatedAt: Date.now(),
         };
-        console.log("[DocumentViewer] Saving before document switch:", storageKey, payload);
         localStorage.setItem(storageKey, JSON.stringify(payload));
         const viewState = lastViewStateRef.current
           ? { ...lastViewStateRef.current, updatedAt: Date.now() }
@@ -1749,16 +1706,8 @@ export function DocumentViewer({
       const isVisible = !document.hidden;
       const wasVisible = isVisibleRef.current;
       
-      console.log("[DocumentViewer] Visibility change:", { 
-        isVisible, 
-        wasVisible, 
-        documentId,
-        docType 
-      });
-      
       if (!isVisible && wasVisible) {
         // Tab is being hidden - save position immediately
-        console.log("[DocumentViewer] Tab hidden, saving position");
         
         // IMPORTANT: Flush any pending debounced scroll save before saving
         if (scrollSaveTimeoutRef.current !== null) {
@@ -1822,7 +1771,6 @@ export function DocumentViewer({
         isVisibleRef.current = false;
       } else if (isVisible && !wasVisible) {
         // Tab is becoming visible again
-        console.log("[DocumentViewer] Tab visible again");
         isVisibleRef.current = true;
         
         // For PDFs, we need to restore the scroll position
@@ -1892,7 +1840,6 @@ export function DocumentViewer({
           }
           
           if (viewStateToRestore) {
-            console.log("[DocumentViewer] Restoring position on tab visibility:", viewStateToRestore);
             pendingViewStateRef.current = viewStateToRestore;
             lastViewStateRef.current = viewStateToRestore;
             currentPageRef.current = viewStateToRestore.pageNumber;
@@ -1914,7 +1861,6 @@ export function DocumentViewer({
 
     // Also handle pagehide event (fires when page is being unloaded/navigated away)
     const handlePageHide = () => {
-      console.log("[DocumentViewer] Page hide, saving position");
       flushAllViewStateWrites();
       
       // Flush any pending debounced save before page hides
@@ -1931,7 +1877,6 @@ export function DocumentViewer({
 
     // Handle beforeunload as an extra safety measure (especially for desktop browsers)
     const handleBeforeUnload = () => {
-      console.log("[DocumentViewer] Before unload, saving position");
       flushAllViewStateWrites();
       
       // Flush any pending debounced save
@@ -2011,7 +1956,6 @@ export function DocumentViewer({
     // This would require loading the specific highlights/extracts and displaying them
     // For now, we just parse the state but don't restore highlights/extracts
     if (state.highlights || state.extracts) {
-      console.log('[DocumentViewer] Shared state contains highlights/extracts:', state);
     }
   }, [currentDocument, documentId]);
 
@@ -2020,7 +1964,6 @@ export function DocumentViewer({
     // Only reset restoration state when document ID changes, not on viewMode change
     // to avoid race conditions with pending restoration
     if (restorationInProgressRef.current) {
-      console.log("[DocumentViewer] Skipping state reset - restoration in progress");
       return;
     }
     restoreScrollDoneRef.current = false;
@@ -2040,16 +1983,6 @@ export function DocumentViewer({
   }, [currentDocument?.id]);
 
   useEffect(() => {
-    console.log("[DocumentViewer] Restoration effect running:", {
-      viewMode,
-      viewModeRef: viewModeRef.current,
-      docType,
-      isLoading,
-      docId: currentDocument?.id,
-      restoreScrollDone: restoreScrollDoneRef.current,
-      skipStoredScroll: skipStoredScrollRef.current,
-      restorationInProgress: restorationInProgressRef.current,
-    });
     if (viewModeRef.current !== "document") return;
     if (docType !== "pdf" && docType !== "html") return;
     if (isLoading) return;
@@ -2113,7 +2046,6 @@ export function DocumentViewer({
 
     if (!selectedViewState) {
       let legacyParsed: { scrollPercent?: number; scrollTop?: number; pageNumber?: number; updatedAt?: number } | null = null;
-      // Check DocumentViewer's specific key
       const stored = scrollStorageKey ? localStorage.getItem(scrollStorageKey) : null;
       // Also check PDFViewer's legacy key as fallback
       const legacyStored = docId ? localStorage.getItem(`pdf-position-${docId}`) : null;
@@ -2354,14 +2286,13 @@ export function DocumentViewer({
     };
 
     restoreScrollTimeoutRef.current = window.setTimeout(attemptVerify, 200);
-  }, [docType, isLoading, restoreState, viewMode]);
+  }, [docType, isLoading, pageNumber, restoreState, viewMode]);
 
   useEffect(() => {
     loadQueue();
   }, [loadQueue]);
 
   // Note: visibilitychange handling is done in the effect above with restoration logic
-
 
   useEffect(() => {
     return () => {
@@ -2381,7 +2312,7 @@ export function DocumentViewer({
       const documentId = lastScrollMetaRef.current?.documentId;
 
       if (!storageKey || !documentId) {
-        console.log("[DocumentViewer] Cleanup - missing metadata:", { storageKey, documentId });
+        console.error("[DocumentViewer] Cleanup - missing metadata:", { storageKey, documentId });
         return;
       }
 
@@ -2407,7 +2338,6 @@ export function DocumentViewer({
             clientHeight: container.clientHeight,
             scrollPercent,
           };
-          console.log("[DocumentViewer] Cleanup - captured fresh from DOM:", stateToSave);
         }
       }
 
@@ -2423,7 +2353,6 @@ export function DocumentViewer({
             clientHeight: 0,
             scrollPercent: fallbackViewState.scrollPercent ?? 0,
           };
-          console.log("[DocumentViewer] Cleanup - captured from last view state:", stateToSave);
         } else {
           // Last resort: use current page ref
           stateToSave = {
@@ -2434,11 +2363,8 @@ export function DocumentViewer({
             clientHeight: 0,
             scrollPercent: 0,
           };
-          console.log("[DocumentViewer] Cleanup - using current page ref:", stateToSave);
         }
       }
-
-      console.log("[DocumentViewer] Cleanup - saving position:", stateToSave);
 
       const payload = {
         pageNumber: stateToSave.pageNumber,
@@ -2450,7 +2376,6 @@ export function DocumentViewer({
         updatedAt: Date.now(),
       };
 
-      console.log("[DocumentViewer] Saving to localStorage:", storageKey, payload);
       localStorage.setItem(storageKey, JSON.stringify(payload));
       
       // Also sync to PDFViewer's legacy key
@@ -2502,7 +2427,6 @@ export function DocumentViewer({
     setPdfTextSelectionCapability(null);
   }, [documentId]);
 
-  // Handle text selection
   useEffect(() => {
     if (docType === "pdf" || docType === "markdown" || docType === "html" || docType === "epub") return;
 
@@ -2551,7 +2475,6 @@ export function DocumentViewer({
 
         const text = selection.toString().trim();
 
-        // Check if selection is within the document content
         const anchorElement = selection.anchorNode instanceof Element
           ? selection.anchorNode
           : selection.anchorNode?.parentElement;
@@ -2572,7 +2495,6 @@ export function DocumentViewer({
           return;
         }
 
-        // Get selection position for button placement
         try {
           const range = selection.getRangeAt(0);
           const rect = range.getBoundingClientRect();
@@ -2664,7 +2586,6 @@ export function DocumentViewer({
     });
   }, [viewerSearchSupported]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in input
@@ -2772,6 +2693,7 @@ export function DocumentViewer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyboard handler captures many stable callbacks; exhaustive deps would cause excessive re-registration
   }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode, docType, hasDocumentHistory, queueNav.totalDocuments]);
 
   const handlePrevPage = () => {
@@ -2868,14 +2790,11 @@ export function DocumentViewer({
     pdfFingerprintRef.current = info.fingerprint ?? null;
   }, []);
 
-  // Handle PDF/EPUB load
   const handleDocumentLoad = useCallback((numPages: number, outline: any[] = []) => {
-    console.log("Document loaded:", numPages, "pages", outline.length, "outline items");
 
     // Store total pages for TTS auto-advance
     setTotalPages(numPages);
 
-    // Update document with page count if not already set
     // This ensures the "Continue Reading" tab can calculate progress correctly
     if (currentDocument && numPages > 0 && !currentDocument.totalPages) {
       documentsApi.updateDocument(currentDocument.id, {
@@ -2887,9 +2806,7 @@ export function DocumentViewer({
     }
   }, [currentDocument]);
 
-  // Handle YouTube load
   const handleYouTubeLoad = useCallback((metadata: { duration: number; title: string }) => {
-    console.log("YouTube loaded:", metadata);
   }, []);
 
   const handlePdfContextTextChange = useCallback(
@@ -2913,10 +2830,8 @@ export function DocumentViewer({
     if (docType === "pdf") {
       const nextPage = pageNumber + 1;
       if (nextPage <= totalPages) {
-        console.log(`TTS: Auto-advancing to page ${nextPage}`);
         setPageNumber(nextPage);
       } else {
-        console.log("TTS: Reached end of document");
       }
     }
   }, [docType, pageNumber, totalPages]);
@@ -2986,7 +2901,6 @@ export function DocumentViewer({
     settings.documents.ocr.autoExtractOnLoad,
   ]);
 
-  // Handle extract creation
   const handleExtractCreated = (extract: Extract) => {
     const sourceContext = buildExtractSourceContext();
     if (extractPostCreateBehavior === "show-extracts") {
@@ -3183,13 +3097,10 @@ export function DocumentViewer({
     }
   };
 
-  // Handle rating from keyboard shortcuts
   const handleRatingRef = useRef<(rating: ReviewRating) => Promise<void>>(null);
   const handleRating = async (rating: ReviewRating) => {
     try {
       const timeTaken = Math.round((Date.now() - startTimeRef.current) / 1000);
-
-      console.log(`DocumentViewer: Rating document ${documentId} as ${rating} (time: ${timeTaken}s)`);
 
       await rateDocumentEngaging(documentId, rating, timeTaken);
 
@@ -3222,7 +3133,6 @@ export function DocumentViewer({
           });
         }
       } else {
-        console.log("No next document in queue.");
       }
     } catch (error) {
       console.error("Failed to rate document:", error);
@@ -3230,7 +3140,6 @@ export function DocumentViewer({
   };
   handleRatingRef.current = handleRating;
 
-  // Handle dismissing document from queue
   const handleDismiss = async () => {
     try {
       await documentsApi.dismissDocument(documentId, true);
@@ -3242,7 +3151,6 @@ export function DocumentViewer({
     }
   };
 
-  // Handle back button - close the current tab
   const handleBack = () => {
     const currentTab = tabs.find(t => t.data?.documentId === documentId);
     if (currentTab) {
@@ -3254,7 +3162,6 @@ export function DocumentViewer({
   const handleShare = async () => {
     if (!currentDocument) return;
 
-    // Build the document state with current position
     const state: DocumentState = {};
 
     // Add page position for documents
@@ -3347,6 +3254,7 @@ export function DocumentViewer({
               Page {page.pageNumber}
             </div>
           )}
+          {/* OCR content rendered from backend text extraction */}
           <div dangerouslySetInnerHTML={{ __html: html }} />
         </section>
       );
@@ -3843,7 +3751,6 @@ export function DocumentViewer({
     viewerSearchSupported,
   ]);
 
-  // --- HTML Viewer: CSS injection for font settings and theming ---
   const htmlSettings = settings.documents.htmlSettings;
   const { theme: appTheme } = useTheme();
 
@@ -4236,7 +4143,7 @@ export function DocumentViewer({
       }, 300);
       return;
     }
-  }, [currentDocument?.id, docType, initialJump, scrollHtmlFrameToInitialHit]);
+  }, [currentDocument, currentDocument?.id, docType, initialJump, scrollHtmlFrameToInitialHit]);
 
   // Make Cmd/Ctrl+K work even when an embedded same-origin iframe has focus (eg HTML imports).
   // Key events inside iframes do not bubble to the parent window, so we also bind to the frame window.
@@ -4256,7 +4163,7 @@ export function DocumentViewer({
 
     win.addEventListener("keydown", handler, true);
     return () => win.removeEventListener("keydown", handler, true);
-  }, [currentDocument?.id, isHtmlViewer]);
+  }, [currentDocument, currentDocument?.id, isHtmlViewer]);
 
   // Capture scroll position from HTML iframe for persistence.
   useEffect(() => {
@@ -4368,6 +4275,7 @@ export function DocumentViewer({
                 ref={searchInputRef}
                 type="text"
                 placeholder={t("viewer.searchInDocument")}
+                aria-label={t("viewer.searchInDocument")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -4753,6 +4661,8 @@ export function DocumentViewer({
             ? "overflow-hidden"
             : "overflow-auto"
         )}
+        role="region"
+        aria-label="Document content"
         onClick={(e) => {
           // Toggle controls/fullscreen on click/tap if not clicking interactive elements
           const isMobile = window.matchMedia("(max-width: 768px)").matches;
@@ -4835,7 +4745,7 @@ export function DocumentViewer({
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-1">{t("viewer.lineHeight")}</div>
                       <div className="flex items-center gap-2">
-                        <input type="range" min="1.2" max="2.2" step="0.1" value={htmlSettings.lineHeight} onChange={(e) => updateHtmlSettings({ lineHeight: parseFloat(e.target.value) })} className="flex-1" />
+                        <input type="range" min="1.2" max="2.2" step="0.1" value={htmlSettings.lineHeight} onChange={(e) => updateHtmlSettings({ lineHeight: parseFloat(e.target.value) })} aria-label={t("viewer.lineHeight")} className="flex-1" />
                         <span className="text-xs text-muted-foreground min-w-[32px] text-right">{htmlSettings.lineHeight.toFixed(1)}</span>
                       </div>
                     </div>
@@ -4896,9 +4806,6 @@ export function DocumentViewer({
                   }
                 : null
             }
-            // On mobile, opening the extract modal (or the on-screen keyboard)
-            // can cause rapid viewport/container resizes. Avoid resize-driven
-            // re-render loops while the modal is open.
             suppressAutoScroll={suppressPdfAutoScroll || isExtractDialogOpen}
             onPageChange={handlePageChange}
             onLoad={handleDocumentLoad}
@@ -5199,6 +5106,7 @@ export function DocumentViewer({
                       step="0.1"
                       value={htmlSettings.lineHeight}
                       onChange={(e) => updateHtmlSettings({ lineHeight: parseFloat(e.target.value) })}
+                      aria-label={t("viewer.lineHeight")}
                       className="flex-1"
                     />
                     <span className="text-xs text-muted-foreground min-w-[32px] text-right">{htmlSettings.lineHeight.toFixed(1)}</span>

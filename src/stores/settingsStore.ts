@@ -745,7 +745,6 @@ export const useSettingsStore = create<SettingsState>()(
       name: "incrementum-settings",
       version: 2,
       migrate: (persisted: unknown, version: number) => {
-        // Settings migration is handled in onRehydrateStorage
         return persisted as SettingsState;
       },
       onRehydrateStorage: () => (state, error) => {

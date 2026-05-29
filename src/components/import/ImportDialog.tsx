@@ -128,13 +128,11 @@ export function ImportDialog({ url, isOpen, onClose, onImport }: ImportDialogPro
   const detectSourceType = (url: string, content: FetchedUrlContent): ContentPreview['sourceType'] => {
     const hostname = new URL(url).hostname.toLowerCase();
 
-    // Check for known sources
     if (hostname.includes('medium.com')) return 'blog';
     if (hostname.includes('notion.site')) return 'article';
     if (hostname.includes('arxiv.org')) return 'paper';
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) return 'video';
 
-    // Check content characteristics
     if (content.html?.includes('article') || content.html?.includes('post')) {
       return 'article';
     }

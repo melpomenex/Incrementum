@@ -78,7 +78,6 @@ impl std::fmt::Display for AlgorithmType {
     }
 }
 
-
 #[cfg(test)]
 mod tests;
 
@@ -137,7 +136,6 @@ impl SM2Params {
                 }
             }
 
-            // Update ease factor
             // EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
             let q = sm2_quality as f64;
             new_params.ease_factor += 0.1 - (5.0 - q) * (0.08 + (5.0 - q) * 0.02);

@@ -180,6 +180,7 @@ export function OcrTextPreview({
             onChange={(e) => onTextChange(e.target.value)}
             className="w-full h-40 resize-y text-sm bg-muted/50 border border-border rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono leading-relaxed"
             placeholder="OCR text will appear here..."
+            aria-label="OCR text preview"
             autoFocus
           />
         )}

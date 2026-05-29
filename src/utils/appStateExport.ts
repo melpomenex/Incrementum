@@ -157,7 +157,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
     onProgress?.(progress);
   };
 
-  // Phase 1: Collecting data
   updateProgress({
     phase: "collecting",
     message: "Collecting settings and preferences...",
@@ -166,7 +165,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
     total: 5,
   });
 
-  // Get all store states
   const settings = useSettingsStore.getState().settings;
   const collections = useCollectionStore.getState().collections;
   const documentAssignments: Record<string, string> = {};
@@ -193,7 +191,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
     total: 5,
   });
 
-  // Fetch all documents
   let documents: Document[] = [];
   try {
     if (isTauri()) {
@@ -215,7 +212,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
     total: 5,
   });
 
-  // Fetch all extracts
   let extracts: Extract[] = [];
   try {
     if (isTauri()) {
@@ -237,7 +233,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
     total: 5,
   });
 
-  // Fetch all learning items
   let learningItems: LearningItem[] = [];
   try {
     if (isTauri()) {
@@ -278,7 +273,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
           try {
             fileData = await invokeCommand<string>("read_document_file", { filePath: doc.filePath });
           } catch (readError: any) {
-            // Check if it's a "file not found" error
             if (isLikelyNotFoundError(readError)) {
               skippedFiles.push({
                 id: doc.id,
@@ -324,7 +318,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
           totalFileSize += fileSize;
         }
 
-        // Update progress for file packaging
         if (i % 5 === 0) {
           updateProgress({
             phase: "packaging",
@@ -345,7 +338,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
       }
     }
     
-    // Log summary of skipped files
     if (skippedFiles.length > 0) {
       console.warn(`Backup completed with ${skippedFiles.length} file(s) skipped:`);
       skippedFiles.forEach(f => console.warn(`  - "${f.title}": ${f.reason}`));
@@ -360,7 +352,6 @@ export async function exportAppState(options: ExportOptions): Promise<AppStateEx
     total: 5,
   });
 
-  // Build export object
   const exportData: AppStateExport = {
     metadata: {
       version: APP_STATE_EXPORT_VERSION,
@@ -474,7 +465,6 @@ export function estimateExportSize(documents: Document[], includeFiles: boolean)
     sizeBytes += documents.length * 5 * 1024 * 1024;
   }
 
-  // Format size
   if (sizeBytes < 1024 * 1024) {
     return `${(sizeBytes / 1024).toFixed(0)} KB`;
   } else if (sizeBytes < 1024 * 1024 * 1024) {

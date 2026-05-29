@@ -63,8 +63,7 @@ import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPan
 import { ArticleContextOverlay } from "./ArticleContextOverlay";
 import { ModernSummaryPanel, SummaryBadge, SummaryActions } from "./summary";
 import { useSummaryCache } from "../../utils/rssSummary";
-import type { SummaryLength, SummaryFocus } from "../../types/rssSummary";
-import { SUMMARY_LENGTH_CONFIG, SUMMARY_LOADING_STAGES } from "../../types/rssSummary";
+import { SUMMARY_LENGTH_CONFIG, SUMMARY_LOADING_STAGES, type SummaryLength, type SummaryFocus } from "../../types/rssSummary";
 import { TrainingMenu } from "./TrainingMenu";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 
@@ -301,12 +300,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     [scrollItems, favoritesOnly]
   );
 
-  // Load feeds and prepare scroll items
   useEffect(() => {
     const loadFeeds = async () => {
       const loadedFeeds = await getSubscribedFeedsAuto();
 
-      // Get all unread items from all feeds
       let allItems: RSSScrollItem[] = [];
       loadedFeeds.forEach((feed) => {
         feed.items.forEach((item, idx) => {
@@ -347,7 +344,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     loadFeeds();
   }, [initialFeedId]);
 
-  // Save position when changing items
   useEffect(() => {
     sessionStorage.setItem(RSS_SCROLL_POSITION_KEY, String(currentIndex));
   }, [currentIndex]);
@@ -393,12 +389,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     };
   }, [renderedIndex, visibleScrollItems, settings?.ai?.maxTokens, settings?.ai?.model]);
 
-  // Save auto-read mode preference
   useEffect(() => {
     localStorage.setItem("rss-auto-read-mode", String(autoReadMode));
   }, [autoReadMode]);
 
-  // Handle navigation with auto-read mode
   useEffect(() => {
     // When navigating to a new item and auto-read mode is on, mark it as read
     if (!autoReadMode) return;
@@ -507,7 +501,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     }
   }, [goToNext, goToPrevious, hasActiveSelectionInContent]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in input
@@ -605,7 +598,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     };
   }, []);
 
-  // Handle favorite toggle
   const handleToggleFavorite = useCallback(async (feedId: string, itemId: string) => {
     try {
       await toggleItemFavoriteAuto(feedId, itemId);
@@ -620,7 +612,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           : si
       )
     );
-    // Update summary cache persistence
     const articleId = `${feedId}-${itemId}`;
     const willBeFavorite = !scrollItems.find(si => si.feed.id === feedId && si.item.id === itemId)?.item.favorite;
     setEntryPersisted(articleId, willBeFavorite);
@@ -672,13 +663,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         return;
       }
 
-      // Get current index before removal
       const itemVisibleIndex = visibleScrollItems.findIndex(
         (si) => si.feed.id === feedId && si.item.id === itemId
       );
       if (itemVisibleIndex === -1) return;
 
-      // Remove item from scroll list
       const newItems = scrollItems.filter(
         (si) => !(si.feed.id === feedId && si.item.id === itemId)
       );
@@ -724,7 +713,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         console.warn("Failed to mark as read:", error);
       }
 
-      // Update local state
       setScrollItems((prev) =>
         prev.map((si) =>
           si.feed.id === feedId && si.item.id === itemId
@@ -736,14 +724,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       const itemKey = `${feedId}-${itemId}`;
       setReadItems((prev) => new Set(prev).add(itemKey));
 
-      // Show undo toast
       setUndoState({
         visible: true,
         ...undoData,
         progress: 100,
       });
 
-      // Start progress animation
       const startTime = Date.now();
       const duration = 3000;
 
@@ -779,7 +765,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         console.warn("Failed to toggle favorite:", error);
       }
 
-      // Update local state
       setScrollItems((prev) =>
         prev.map((si) =>
           si.feed.id === feedId && si.item.id === itemId
@@ -788,10 +773,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         )
       );
 
-      // Update summary cache persistence
       setEntryPersisted(`${feedId}-${itemId}`, !wasFavorite);
 
-      // Show undo toast
       setUndoState({
         visible: true,
         action: "favorite",
@@ -801,7 +784,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         progress: 100,
       });
 
-      // Start progress animation
       const startTime = Date.now();
       const duration = 3000;
 
@@ -867,13 +849,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       const minSwipeDistance = 50;
       const minVelocity = 0.3;
 
-      // Check if this is a horizontal or vertical gesture
       if (absDeltaX > absDeltaY) {
         // Horizontal gesture - check for swipe actions
         if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
           const currentItem = visibleScrollItems[currentIndex];
           if (currentItem) {
-            // Check content scroll position first
             const scrollableContent = container.querySelector(
               ".rss-article-content"
             ) as HTMLElement;
@@ -904,7 +884,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       } else {
         // Vertical gesture - check for navigation
         if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
-          // Check content scroll position first
           const scrollableContent = container.querySelector(".rss-article-content") as HTMLElement;
           if (scrollableContent) {
             const canScrollDown =
@@ -1049,14 +1028,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       // Mark all items as read
       await Promise.all(itemsToMark.map((si) => markItemReadAuto(si.feed.id, si.item.id, true)));
 
-      // Update local state
       const newReadItems = new Set(readItems);
       itemsToMark.forEach((si) => {
         newReadItems.add(`${si.feed.id}-${si.item.id}`);
       });
       setReadItems(newReadItems);
 
-      // Remove non-favorite items from scroll list
       const favoriteIds = new Set(
         visibleScrollItems
           .filter((si) => si.item.favorite)
@@ -1108,7 +1085,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       );
       const willBeFavorite = !currentItem?.item.favorite;
 
-      // Trigger animation
       setFavoriteAnimation(itemKey);
       setTimeout(() => setFavoriteAnimation(null), 500);
 
@@ -1117,13 +1093,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         triggerHaptic();
       }
 
-      // Call original handler
       await handleToggleFavorite(feedId, itemId);
     },
     [visibleScrollItems, handleToggleFavorite, triggerHaptic]
   );
 
-  // Handle text selection
   const updateSelection = useCallback(() => {
     const selection = window.getSelection();
     const text = selection?.toString().trim() ?? "";
@@ -1133,7 +1107,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       return;
     }
 
-    // Check if selection is within our content
     const container = contentRef.current;
     const anchorNode = selection?.anchorNode ?? null;
     const focusNode = selection?.focusNode ?? null;
@@ -1157,7 +1130,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     selectedTextRef.current = text;
   }, []);
 
-  // Set up selection listeners
   useEffect(() => {
     document.addEventListener("selectionchange", updateSelection);
 
@@ -1187,7 +1159,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     let docId = existingDoc?.id;
 
     try {
-      // Create document if it doesn't exist
       if (!docId) {
         const created = await createDocument(
           rssItem.title || currentItem.feed.title,
@@ -1198,7 +1169,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         docId = created.id;
       }
 
-      // Update document content
       if (rssContent && docId) {
         await updateDocumentContent(docId, rssContent);
         updateDocument(docId, {
@@ -1209,7 +1179,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         });
       }
 
-      // Create extract instantly with toast feedback
       if (docId) {
         await createInstantExtract({
           documentId: docId,
@@ -1248,7 +1217,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     toast.success("Extract created", "Saved from RSS article.");
   }, [toast]);
 
-  // Handle Shift+click: prepare document then open full dialog
   const handlePrepareExtractForDialog = useCallback(async () => {
     const currentItem = visibleScrollItems[renderedIndex];
     const textToExtract = selectedTextRef.current || selectedText;
@@ -1300,22 +1268,18 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     toast,
   ]);
 
-  // Save summary mode preference
   useEffect(() => {
     localStorage.setItem("rss-summary-mode", summaryMode);
   }, [summaryMode]);
 
-  // Save assistant visibility
   useEffect(() => {
     localStorage.setItem("rss-assistant-visible", String(isAssistantVisible));
   }, [isAssistantVisible]);
 
-  // Save assistant position
   useEffect(() => {
     localStorage.setItem("rss-assistant-position", assistantPosition);
   }, [assistantPosition]);
 
-  // Save modern summary settings
   useEffect(() => {
     localStorage.setItem("rss-summary-length", modernSummaryLength);
   }, [modernSummaryLength]);
@@ -1353,20 +1317,16 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
   // Helper to strip HTML and convert to markdown-like text
   const htmlToText = (html: string): string => {
-    // Create a temporary element to parse HTML
     const tmp = document.createElement("div");
     tmp.innerHTML = html;
 
-    // Get text content
     let text = tmp.textContent || tmp.innerText || "";
 
-    // Clean up whitespace
     text = text.replace(/\s+/g, " ").trim();
 
     return text;
   };
 
-  // Handle summarize with new parameters and caching
   const handleSummarize = useCallback(
     async (params?: { length?: SummaryLength; focus?: SummaryFocus }) => {
       const currentItem = visibleScrollItems[renderedIndex];
@@ -1384,7 +1344,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       const length = params?.length || modernSummaryLength;
       const focus = params?.focus || modernSummaryFocus;
 
-      // Check cache first
       const articleId = `${currentItem.feed.id}-${currentItem.item.id}`;
       const cached = getCachedSummary(articleId, content);
 
@@ -1403,7 +1362,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
       // 1. Try old AIConfig (Rust-side, in-memory only)
       let aiConfig: AIConfig | null = null;
-      try { aiConfig = await getAIConfig(); } catch {}
+      try { aiConfig = await getAIConfig(); } catch { /* AIConfig may not be initialized yet */ }
 
       if (aiConfig?.default_provider && aiConfig.api_keys) {
         const providerMap: Record<string, string> = {
@@ -1436,7 +1395,6 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         return;
       }
 
-      // Show panel
       setIsSummarizing(true);
       setSummaryText("");
       setDisplayedSummary("");

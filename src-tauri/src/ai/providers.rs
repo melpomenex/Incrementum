@@ -243,7 +243,6 @@ impl LLMProvider for AnthropicProvider {
     ) -> Result<ChatCompletionResponse, String> {
         let url = "https://api.anthropic.com/v1/messages";
 
-        // Extract system message if present
         let system_message = request
             .messages
             .iter()

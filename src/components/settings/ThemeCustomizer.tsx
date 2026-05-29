@@ -3,7 +3,7 @@
  * Allows creating and editing custom themes
  */
 
-import React, { useState } from 'react';
+import { useState } from "react";
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme, ThemeId, ThemeVariant } from '../../types/theme';
 import { X, Palette, RotateCcw } from 'lucide-react';

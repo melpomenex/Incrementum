@@ -101,6 +101,51 @@ function needsChunking(file: File): boolean {
  * });
  * ```
  */
+/**
+ * Standalone transcription function for use in loops/callbacks.
+ * Safe to call outside React components.
+ */
+async function transcribeItem(opts: TranscriptionOptions): Promise<TranscriptionResult> {
+  try {
+    if (!opts.documentId) throw new Error('Document ID is required');
+    const hasInput = opts.filePath || opts.file || opts.mediaUrl;
+    if (!hasInput) throw new Error('File, filePath, or mediaUrl is required');
+
+    const existing = await getVideoTranscript(opts.documentId);
+    if (existing?.segments && existing.segments.length > 0) return { success: true };
+
+    const isTauriEnv = isTauri();
+    const { settings } = useSettingsStore.getState();
+    const provider = opts.provider || settings.audioTranscription.provider;
+
+    if (isTauriEnv && provider === 'local') {
+      const modelId = settings.audioTranscription.preferredModelId;
+      if (!modelId) return { success: false, needsModel: true };
+      await enqueueVideoTranscription({
+        documentId: opts.documentId, filePath: opts.filePath,
+        documentTitle: opts.documentTitle, provider: 'local', modelId,
+        language: opts.language || settings.audioTranscription.language || 'en',
+      });
+      return { success: true };
+    }
+
+    if (!isGroqConfigured()) return { success: false, needsApiKey: true };
+
+    if (isTauriEnv && opts.filePath) {
+      await enqueueVideoTranscription({
+        documentId: opts.documentId, filePath: opts.filePath,
+        documentTitle: opts.documentTitle, provider: 'groq',
+        language: opts.language || settings.audioTranscription.language || 'en',
+      });
+      return { success: true };
+    }
+
+    return { success: false, error: new Error('Direct file/URL transcription not supported in batch mode') };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err : new Error(String(err)) };
+  }
+}
+
 export function useTranscriptionService(options: TranscriptionOptions) {
   const { settings } = useSettingsStore();
   const [status, setStatus] = useState<TranscriptionStatus>('none');
@@ -121,19 +166,18 @@ export function useTranscriptionService(options: TranscriptionOptions) {
     onCompleteRef.current = options.onComplete;
   }, [options.onComplete]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
       subscriptionRef.current?.();
     };
   }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Subscribe to Tauri transcription status updates and check for existing transcript
   useEffect(() => {
     if (!options.documentId) return;
     
-    // Check if transcript already exists
     getVideoTranscript(options.documentId).then((existing) => {
       if (existing?.segments && existing.segments.length > 0) {
         setStatus('completed');
@@ -144,7 +188,6 @@ export function useTranscriptionService(options: TranscriptionOptions) {
     
     if (!isTauriEnv) return;
     
-    // Check initial queue status
     const initialStatus = getVideoTranscriptionStatus(options.documentId);
     if (initialStatus) {
       setStatus(mapQueueStatus(initialStatus));
@@ -194,7 +237,6 @@ export function useTranscriptionService(options: TranscriptionOptions) {
     const language = options.language !== 'auto' ? options.language : undefined;
     
     if (typeof fileOrUrl === 'string') {
-      // URL transcription
       onProgress?.({ percent: 0, message: 'Starting transcription...' });
       
       const response = await transcribeWithGroq({
@@ -262,7 +304,6 @@ export function useTranscriptionService(options: TranscriptionOptions) {
     abortControllerRef.current = new AbortController();
 
     try {
-      // Validate inputs
       if (!options.documentId) {
         throw new Error('Document ID is required');
       }
@@ -272,7 +313,6 @@ export function useTranscriptionService(options: TranscriptionOptions) {
         throw new Error('File, filePath, or mediaUrl is required');
       }
 
-      // Check if already transcribed
       const existing = await getVideoTranscript(options.documentId);
       if (existing?.segments && existing.segments.length > 0) {
         setStatus('completed');
@@ -349,7 +389,6 @@ export function useTranscriptionService(options: TranscriptionOptions) {
         });
         return { success: true };
       } else if (options.file) {
-        // Web with file
         await transcribeWithGroqWeb(options.file, setProgress);
         setStatus('completed');
         options.onComplete?.();
@@ -480,15 +519,13 @@ export function useBatchTranscription() {
 
     for (const item of items) {
       try {
-        const service = useTranscriptionService({
+        const result = await transcribeItem({
           documentId: item.documentId,
           documentTitle: item.documentTitle,
           file: item.file,
           filePath: item.filePath,
           mediaUrl: item.mediaUrl,
         });
-
-        const result = await service.startTranscription();
         
         if (!result.success) {
           newErrors.push({ 

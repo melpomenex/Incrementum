@@ -20,7 +20,6 @@ export function ActivityChart({ data }: ActivityChartProps) {
   // Find max value for scaling
   const maxReviews = Math.max(...safeData.map((d) => d.reviews_count), 1);
 
-  // Get last 14 days for display
   const displayData = safeData.slice(-14);
 
   const getDayOfWeek = (dateStr: string) => {

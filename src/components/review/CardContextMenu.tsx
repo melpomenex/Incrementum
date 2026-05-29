@@ -4,7 +4,6 @@ import {
   Edit,
   Eye,
   Ban,
-  Archive,
   Trash2,
   FolderInput,
   Star,

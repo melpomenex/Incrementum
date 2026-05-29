@@ -136,7 +136,6 @@ export function DocumentViewer({
     };
   }, [documentId]);
 
-  // Process content for assistant based on document type
   useEffect(() => {
     let isActive = true;
     const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
@@ -263,33 +262,8 @@ export function DocumentViewer({
 
   const assistantContext = useMemo<AssistantContext>(() => {
     const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
-    
-    // If video context is available, create video type context
-    if (videoContext?.videoId) {
-      return {
-        type: "video",
-        documentId,
-        selection: selection || undefined,
-        content: assistantContent,
-        contextWindowTokens: maxTokens,
-        status: assistantStatus,
-        statusMessage: assistantStatusMessage,
-        source: assistantSource,
-        resolveForPrompt: resolveContextForPrompt,
-        position: {
-          currentTime: videoContext.currentTime,
-        },
-        metadata: {
-          title: videoContext.title,
-          duration: videoContext.duration,
-          videoId: videoContext.videoId,
-        },
-      };
-    }
-    
-    // Otherwise create document type context
-    return {
-      type: "document",
+
+    const base = {
       documentId,
       selection: selection || undefined,
       content: assistantContent,
@@ -298,6 +272,24 @@ export function DocumentViewer({
       statusMessage: assistantStatusMessage,
       source: assistantSource,
       resolveForPrompt: resolveContextForPrompt,
+    };
+
+    if (videoContext?.videoId) {
+      return {
+        ...base,
+        type: "video" as const,
+        position: { currentTime: videoContext.currentTime },
+        metadata: {
+          title: videoContext.title,
+          duration: videoContext.duration,
+          videoId: videoContext.videoId,
+        },
+      };
+    }
+
+    return {
+      ...base,
+      type: "document" as const,
       position: scrollState,
     };
   }, [

@@ -4,8 +4,7 @@ export type { Dict } from "./locales/en";
 
 export type SupportedLocale = "en" | "zh" | "es" | "de" | "fr" | "ja";
 
-import type { Dict } from "./locales/en";
-import { en } from "./locales/en";
+import { en, type Dict } from "./locales/en";
 import { zh } from "./locales/zh";
 import { es } from "./locales/es";
 import { de } from "./locales/de";

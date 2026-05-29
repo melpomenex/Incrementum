@@ -67,7 +67,6 @@ export function extractKeyPhrasesFrontend(
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-  // Extract candidate phrases
   const phrases: string[] = [];
   for (const sentence of sentences) {
     const words = sentence.split(/\s+/);
@@ -332,7 +331,6 @@ export function extractSummary(
       score += 1 - Math.abs(index - sentences.length / 2) / (sentences.length / 2);
     }
 
-    // Key phrase overlap
     if (keyPhrases.length > 0) {
       const lowerSentence = sentence.toLowerCase();
       for (const phrase of keyPhrases.slice(0, 5)) {

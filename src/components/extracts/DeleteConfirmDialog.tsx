@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
-import { deleteExtract } from "../../api/extracts";
-import { Extract } from "../../api/extracts";
+import { deleteExtract, Extract } from "../../api/extracts";
 import { useI18n } from "../../lib/i18n";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 

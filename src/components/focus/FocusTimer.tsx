@@ -26,8 +26,7 @@ import {
   skipFocusTimerPhase,
   updateFocusTimerConfig,
 } from '../../api/focusTimer';
-import type { FocusTimerState, FocusTimerConfig, TimerPhase } from '../../types/focus-timer';
-import { DEFAULT_TIMER_CONFIG } from '../../types/focus-timer';
+import { DEFAULT_TIMER_CONFIG, type FocusTimerState, type FocusTimerConfig, type TimerPhase } from "../../types/focus-timer";
 import { useToast } from '../common/Toast';
 import { t } from '../../lib/i18n';
 
@@ -123,7 +122,6 @@ function CircularProgress({
   );
 }
 
-// Settings Panel Component
 function SettingsPanel({
   config,
   onSave,
@@ -271,12 +269,10 @@ export function FocusTimer() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const toast = useToast();
 
-  // Load initial state
   useEffect(() => {
     loadTimerState();
   }, []);
 
-  // Set up interval when timer is running
   useEffect(() => {
     if (timerState?.state === 'running') {
       intervalRef.current = setInterval(async () => {
@@ -284,7 +280,6 @@ export function FocusTimer() {
           const state = await getFocusTimerState();
           setTimerState(state);
 
-          // Check if timer completed
           if (state.state === 'completed') {
             handleTimerComplete(state);
           }

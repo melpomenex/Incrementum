@@ -128,10 +128,10 @@ pub async fn cut_audio_file(
     let (mut rx, _) = ffmpeg_command(app_handle)
         .map_err(|e| format!("Failed to get ffmpeg command: {}", e))?
         .args([
-            "-i", input_path.to_str().unwrap(),
+            "-i", input_path.to_str().expect("input path is valid UTF-8"),
             "-af", &format!("aselect='{}',asetpts=N/SR/TB", filter_expr),
             "-y",
-            output_path.to_str().unwrap()
+            output_path.to_str().expect("output path is valid UTF-8")
         ])
         .spawn()
         .map_err(|e| format!("Failed to spawn ffmpeg: {}", e))?;

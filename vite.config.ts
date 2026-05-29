@@ -40,7 +40,6 @@ export default defineConfig(async ({ mode }) => {
     // Always use relative paths to avoid CORS issues with dynamic imports.
     base: isProd ? "./" : "/",
 
-    // Define environment variables
     define: {
       __PWA_MODE__: JSON.stringify(isPWA),
     },

@@ -37,7 +37,6 @@ export interface ShortcutsContext {
   view: "documents" | "review" | "queue" | "graph" | "settings" | "global";
 }
 
-// Define shortcuts for each context
 function getContextShortcuts(t: (key: string) => string): Record<string, ShortcutItem[]> {
   return {
     global: [

@@ -563,8 +563,12 @@ export function useSystemTheme() {
  */
 export function getThemeForMode(mode: ThemeMode): Theme {
   if (mode === ThemeMode.System) {
-    const systemTheme = useSystemTheme();
-    return BUILTIN_THEMES.find((t) => t.mode === systemTheme) || BUILTIN_THEMES[0];
+    // Detect system preference directly (not a hook — this is a plain function)
+    const isDark = typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false;
+    const systemMode = isDark ? ThemeMode.Dark : ThemeMode.Light;
+    return BUILTIN_THEMES.find((t) => t.mode === systemMode) || BUILTIN_THEMES[0];
   }
   return BUILTIN_THEMES.find((t) => t.id === mode) || BUILTIN_THEMES[0];
 }

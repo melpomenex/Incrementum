@@ -53,7 +53,6 @@ export function MarkdownBundlePreview({
   const [priority, setPriority] = useState(5);
   const [state, setState] = useState<PreviewState>({ loading: false, success: false });
 
-  // Initialize from bundle metadata
   useEffect(() => {
     if (bundle) {
       setTitle(bundle.metadata?.title || getBaseName(bundle.markdownFile.name));
@@ -178,11 +177,12 @@ export function MarkdownBundlePreview({
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="md-title">
               Title
             </label>
             <input
               type="text"
+              id="md-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -191,7 +191,7 @@ export function MarkdownBundlePreview({
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="md-tags">
               <Tag className="w-4 h-4 inline mr-1" />
               Tags
             </label>
@@ -215,6 +215,7 @@ export function MarkdownBundlePreview({
             <div className="flex gap-2">
               <input
                 type="text"
+                id="md-tags"
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -232,10 +233,11 @@ export function MarkdownBundlePreview({
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="md-category">
               Category
             </label>
             <select
+              id="md-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"

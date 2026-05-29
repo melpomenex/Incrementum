@@ -79,13 +79,10 @@ pub use substack::*;
 pub use rss_features::*;
 pub use mcp::*;
 
-// Podcast commands
 pub use podcast::*;
 
-// Cloud commands
 pub use cloud::oauth::*;
 pub use cloud::backup::*;
 pub use cloud::sync::*;
 
-// Scheduler commands
 pub use scheduler::*;

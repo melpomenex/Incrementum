@@ -186,12 +186,10 @@ impl OCRProvider for TesseractProvider {
     async fn process_image(&self, image_path: &std::path::Path) -> Result<OCRResult> {
         let start = std::time::Instant::now();
 
-        // Check if Tesseract is available
         self.check_installation()?;
 
         let cmd = self.resolve_cmd();
 
-        // Run Tesseract with output to stdout
         let output = std::process::Command::new(&cmd)
             .arg(image_path)
             .arg("stdout")
@@ -236,7 +234,6 @@ impl OCRProvider for TesseractProvider {
     }
 
     async fn process_image_bytes(&self, image_data: &[u8]) -> Result<OCRResult> {
-        // Write bytes to temporary file
         let temp_dir = std::env::temp_dir();
         let temp_file = temp_dir.join(format!("ocr_{}.png", uuid::Uuid::new_v4()));
 
@@ -246,7 +243,6 @@ impl OCRProvider for TesseractProvider {
 
         let result = self.process_image(&temp_file).await;
 
-        // Clean up temp file
         let _ = tokio::fs::remove_file(&temp_file).await;
 
         result
@@ -321,7 +317,6 @@ impl OCRProvider for GoogleDocumentAIProvider {
     }
 
     fn is_available(&self) -> bool {
-        // Check if credentials file exists
         std::path::Path::new(&self.credentials).exists()
     }
 
@@ -536,7 +531,6 @@ impl OCRProvider for MarkerProvider {
     }
 
     async fn process_image_bytes(&self, image_data: &[u8]) -> Result<OCRResult> {
-        // Write bytes to temporary file
         let temp_dir = std::env::temp_dir();
         let temp_file = temp_dir.join(format!("ocr_{}.png", uuid::Uuid::new_v4()));
 
@@ -546,7 +540,6 @@ impl OCRProvider for MarkerProvider {
 
         let result = self.process_image(&temp_file).await;
 
-        // Clean up temp file
         let _ = tokio::fs::remove_file(&temp_file).await;
 
         result
@@ -647,7 +640,6 @@ impl OCRProvider for NougatProvider {
     }
 
     async fn process_image_bytes(&self, image_data: &[u8]) -> Result<OCRResult> {
-        // Write bytes to temporary file
         let temp_dir = std::env::temp_dir();
         let temp_file = temp_dir.join(format!("ocr_{}.png", uuid::Uuid::new_v4()));
 
@@ -657,7 +649,6 @@ impl OCRProvider for NougatProvider {
 
         let result = self.process_image(&temp_file).await;
 
-        // Clean up temp file
         let _ = tokio::fs::remove_file(&temp_file).await;
 
         result

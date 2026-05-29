@@ -61,13 +61,11 @@ pub async fn get_queue_stats(
     };
 
     for item in &all_items {
-        // Count suspended
         if item.is_suspended {
             stats.suspended += 1;
             continue;
         }
 
-        // Count by state
         match item.state {
             crate::models::ItemState::New => stats.new_items += 1,
             crate::models::ItemState::Learning | crate::models::ItemState::Relearning => {
@@ -237,7 +235,6 @@ pub async fn bulk_delete_items(
     };
 
     for item_id in &item_ids {
-        // Delete from database directly via SQL
         match sqlx::query("DELETE FROM learning_items WHERE id = ?")
             .bind(item_id)
             .execute(repo.pool())
@@ -268,7 +265,6 @@ pub async fn export_queue(
             continue;
         }
 
-        // Get document title
         let document_title = if let Some(doc_id) = &item.document_id {
             repo.get_document(doc_id).await?
                 .map(|d| d.title)
@@ -277,7 +273,6 @@ pub async fn export_queue(
             "Unknown Document".to_string()
         };
 
-        // Get category from extract if available
         let category = if let Some(extract_id) = &item.extract_id {
             repo.get_extract(extract_id).await?
                 .and_then(|e| e.category)

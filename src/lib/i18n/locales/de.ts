@@ -3057,7 +3057,6 @@ export const de: Dict = {
     "In der Web-App ist der Playlist-Import ein einmaliger Vorgang. Videos werden als einzelne Dokumente importiert. Für Auto-Import und Warteschlangen-Einstreuungsfunktionen verwende die Desktop-App.",
   "youtubePlaylist.youtubeApiConfig": "YouTube Data API-Konfiguration",
 
-  // --- Focus Timer ---
   "focusTimer.focus": "Fokus",
   "focusTimer.shortBreak": "Kurze Pause",
   "focusTimer.longBreak": "Lange Pause",
@@ -3096,7 +3095,6 @@ export const de: Dict = {
   "focusTimer.timerConfigUpdated": "Timer-Konfiguration aktualisiert",
   "focusTimer.failedToUpdateSettings": "Einstellungen konnten nicht aktualisiert werden",
 
-  // --- Offline / PWA ---
   "offline.pendingSync": "Ausstehende Synchronisierung",
   "offline.offline": "Offline",
   "offline.downloading": "Wird heruntergeladen...",
@@ -3119,7 +3117,6 @@ export const de: Dict = {
   "offline.updateReady": "Eine neue Version ist bereit zur Installation.",
   "offline.update": "Aktualisieren",
 
-  // --- Vimium Navigation ---
   "vimium.findPlaceholder": "Auf der Seite suchen...",
   "vimium.commandPlaceholder": "Befehl eingeben...",
   "vimium.noCommandsFound": "Keine Befehle gefunden",
@@ -3849,7 +3846,6 @@ export const de: Dict = {
   "documentsView.installYtdlp": "yt-dlp installieren",
   "documentsView.manualInstallGuide": "Anleitung zur manuellen Installation",
 
-  // --- Documents View: Additional missing keys ---
   "documentsView.archiveTitle": "Dokumente archivieren",
   "documentsView.archiveMessage":
     "{count} Dokument(e) archivieren? Archivierte Dokumente werden aus der Hauptansicht ausgeblendet, können aber später wiederhergestellt werden.",
@@ -3893,7 +3889,6 @@ export const de: Dict = {
   "documentsView.bulkMove": "Massenverschiebung",
   "documentsView.bulkReprioritize": "Massen-Repriorisierung",
 
-  // --- Graph controls ---
   "graph.resetRotation": "Drehung zurücksetzen",
 
   "graph.fitToView": "Ansicht anpassen",

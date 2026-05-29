@@ -42,7 +42,6 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
   const [loginProgress, setLoginProgress] = useState(0);
   const [showBrowserHint, setShowBrowserHint] = useState(false);
 
-  // Check CLI status on mount
   const checkStatus = useCallback(async () => {
     setStep("checking");
     setError(null);
@@ -78,7 +77,6 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
     checkStatus();
   }, [checkStatus]);
 
-  // Handle login
   const handleLogin = async () => {
     setStep("logging-in");
     setError(null);
@@ -123,8 +121,6 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
     }
   };
 
-
-  // Handle logout
   const handleLogout = async () => {
     setStep("checking");
     setError(null);
@@ -145,7 +141,6 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
     }
   };
 
-  // Render different states
   const renderContent = () => {
     switch (step) {
       case "checking":

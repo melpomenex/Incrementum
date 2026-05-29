@@ -4,13 +4,6 @@
  * Shared helpers for date parsing and formatting in schedule components.
  */
 
-/**
- * Parse a date string safely.
- * Handles both bare dates ("2026-05-04") and full RFC3339 timestamps
- * ("2026-05-04T14:00:00+00:00") without creating NaN.
- * Returns a Date set to midnight local time for bare dates,
- * or the original parsed time for timestamps (then zeroed to midnight).
- */
 export function parseScheduleDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   try {

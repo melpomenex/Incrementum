@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Trash2,
   FileSpreadsheet,
-  MoreVertical,
 } from "lucide-react";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useToast } from "../common/Toast";

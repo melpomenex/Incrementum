@@ -150,11 +150,15 @@ export default function ScreenshotOverlay() {
       onMouseDown={startDrag}
       onMouseMove={updateDrag}
       onMouseUp={endDrag}
+      role="application"
+      aria-label="Screenshot selection area"
     >
       <div
         className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm flex items-center gap-2 cursor-default"
         onMouseDown={(event) => event.stopPropagation()}
         onMouseUp={(event) => event.stopPropagation()}
+        role="toolbar"
+        aria-label="Screenshot tools"
       >
         <button
           className={`px-3 py-1 rounded-full text-xs uppercase tracking-wide ${mode === "region" ? "bg-white text-black" : "bg-white/10"

@@ -50,7 +50,6 @@ export function ScheduleTimeline({
   const scrollRef = useRef<HTMLDivElement>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // Build a map for fast lookup
   const forecastMap = useMemo(() => {
     const m = new Map<string, ForecastPoint>();
     for (const p of forecast) m.set(p.date, p);

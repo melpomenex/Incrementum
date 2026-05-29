@@ -27,9 +27,6 @@ pub struct GoogleDriveConfig {
 impl Default for GoogleDriveConfig {
     fn default() -> Self {
         Self {
-            // Google OAuth default scopes for Incrementum
-            // Credentials can be set via environment variables:
-            // INCREMENTUM_GOOGLE_DRIVE_CLIENT_ID and INCREMENTUM_GOOGLE_DRIVE_CLIENT_SECRET
             client_id: std::env::var("INCREMENTUM_GOOGLE_DRIVE_CLIENT_ID")
                 .unwrap_or_else(|_| "YOUR_CLIENT_ID.apps.googleusercontent.com".to_string()),
             client_secret: std::env::var("INCREMENTUM_GOOGLE_DRIVE_CLIENT_SECRET")
@@ -93,7 +90,6 @@ impl GoogleDriveProvider {
 
     /// Get the OAuth authorization URL
     fn get_auth_url(&mut self) -> Result<String, AppError> {
-        // Validate credentials before attempting OAuth
         if self.config.client_id.contains("YOUR_CLIENT_ID") || self.config.client_id.is_empty() {
             return Err(AppError::Internal(
                 "Google Drive OAuth is not configured. Please set the INCREMENTUM_GOOGLE_DRIVE_CLIENT_ID \
@@ -204,9 +200,9 @@ impl GoogleDriveProvider {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::AUTHORIZATION,
-            format!("Bearer {}", token.access_token).parse().unwrap(),
+            format!("Bearer {}", token.access_token).parse().expect("valid header value"),
         );
-        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().expect("valid header value"));
 
         Ok(headers)
     }
@@ -215,7 +211,6 @@ impl GoogleDriveProvider {
     async fn fetch_account_info(&self) -> Result<AccountInfo, AppError> {
         let headers = self.get_auth_headers()?;
 
-        // Get user info
         let response = self.http_client
             .get("https://www.googleapis.com/oauth2/v2/userinfo")
             .headers(headers)
@@ -233,7 +228,6 @@ impl GoogleDriveProvider {
             .await
             .map_err(|e| AppError::Internal(format!("Failed to parse user info: {}", e)))?;
 
-        // Get storage quota from Google Drive
         let quota_response = self.http_client
             .get(format!("{}/about", self.api_base_url()))
             .query(&[("fields", "storageQuota")])
@@ -299,7 +293,6 @@ impl GoogleDriveProvider {
             }
         }
 
-        // Create the folder if it doesn't exist
         let headers = self.get_auth_headers()?;
         let create_body = serde_json::json!({
             "name": "Incrementum",
@@ -353,7 +346,6 @@ impl CloudProvider for GoogleDriveProvider {
     }
 
     async fn handle_callback(&mut self, code: &str, state: &str) -> Result<AuthResult, AppError> {
-        // Validate state parameter
         if let Some(expected_state) = &self.pending_state {
             if state != expected_state {
                 return Ok(AuthResult {
@@ -370,7 +362,6 @@ impl CloudProvider for GoogleDriveProvider {
         // Calculate token expiration
         let expires_at = Utc::now() + Duration::seconds(token_response.expires_in as i64);
 
-        // Store auth token
         self.auth_token = Some(AuthToken {
             access_token: token_response.access_token.clone(),
             refresh_token: token_response.refresh_token.clone(),
@@ -378,7 +369,6 @@ impl CloudProvider for GoogleDriveProvider {
             token_type: token_response.token_type,
         });
 
-        // Fetch account info
         let account_info = self.fetch_account_info().await?;
         self.account_info = Some(account_info.clone());
 
@@ -508,7 +498,6 @@ impl CloudProvider for GoogleDriveProvider {
 
         let headers = self.get_auth_headers()?;
 
-        // Get download URL
         let response = self.http_client
             .get(format!("{}/files/{}?fields=webContentLink", self.api_base_url(), file_id))
             .headers(headers.clone())
@@ -774,7 +763,6 @@ impl GoogleDriveProvider {
             }
         }
 
-        // Get the final file info
         let final_response = self.http_client
             .get(&upload_url)
             .headers(self.get_auth_headers()?)
@@ -846,8 +834,6 @@ impl GoogleDriveProvider {
         Ok(parent_folder)
     }
 }
-
-// ============ API Response Types ============
 
 #[derive(Debug, Deserialize)]
 struct TokenResponse {

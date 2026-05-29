@@ -143,7 +143,6 @@ impl DocumentSegmenter {
                     segment_index += 1;
                     current_start += current_segment.len();
 
-                    // Start new segment with overlap if configured
                     if self.config.overlap > 0 {
                         let mut overlap_words: Vec<&str> = current_segment
                             .split_whitespace()
@@ -206,7 +205,6 @@ impl DocumentSegmenter {
             current_segment.push_str("\n\n");
         }
 
-        // Last segment
         if !current_segment.trim().is_empty() {
             segments.push(self.create_segment(
                 segment_index,
@@ -235,7 +233,6 @@ impl DocumentSegmenter {
             let end = (i + chunk_size).min(words.len());
             let chunk_words = &words[i..end];
 
-            // Build segment content
             let segment_content = chunk_words.join(" ");
             let segment_start = current_pos;
 
@@ -265,11 +262,6 @@ impl DocumentSegmenter {
 
     /// Smart adaptive segmentation
     fn segment_smart(&self, content: &str) -> Result<SegmentationResult> {
-        // Smart segmentation detects document structure and adapts:
-        // 1. Look for headers/chapters
-        // 2. Detect bullet points and lists
-        // 3. Identify code blocks
-        // 4. Maintain logical groupings
 
         // Detect structure markers
         let header_pattern = regex::Regex::new(r"^(#{1,3}\s|Chapter\s|Part\s|\d+\.\d+\s)")
@@ -286,7 +278,6 @@ impl DocumentSegmenter {
             let is_header = header_pattern.is_match(line.trim());
             let line_words = line.split_whitespace().count();
 
-            // Start new segment on header if we have content
             if is_header && !current_segment_lines.is_empty() && current_length > self.config.min_length {
                 let segment_content = current_segment_lines.join("\n");
                 segments.push(self.create_segment(
@@ -305,7 +296,6 @@ impl DocumentSegmenter {
             current_segment_lines.push(*line);
             current_length += line_words;
 
-            // Check if segment is too long
             if current_length >= self.config.max_length && !is_header {
                 // Find a good break point (empty line or sentence end)
                 let break_point = current_segment_lines
@@ -330,7 +320,6 @@ impl DocumentSegmenter {
             }
         }
 
-        // Last segment
         if !current_segment_lines.is_empty() {
             let segment_content = current_segment_lines.join("\n");
             segments.push(self.create_segment(

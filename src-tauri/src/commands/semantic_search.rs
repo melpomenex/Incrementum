@@ -159,7 +159,7 @@ lazy_static::lazy_static! {
 fn embedding_to_bytes(embedding: &[f32]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(embedding.len() * 4);
     for &val in embedding {
-        bytes.write_f32::<LittleEndian>(val).unwrap();
+        bytes.write_f32::<LittleEndian>(val).expect("write to Vec<u8> buffer");
     }
     bytes
 }
@@ -169,7 +169,7 @@ fn bytes_to_embedding(bytes: &[u8], dimension: usize) -> Vec<f32> {
     let mut cursor = Cursor::new(bytes);
     let mut embedding = Vec::with_capacity(dimension);
     for _ in 0..dimension {
-        embedding.push(cursor.read_f32::<LittleEndian>().unwrap());
+        embedding.push(cursor.read_f32::<LittleEndian>().expect("read from embedding bytes"));
     }
     embedding
 }
@@ -236,7 +236,6 @@ pub async fn index_transcript(
 ) -> Result<usize> {
     let provider = get_provider(&config)?;
 
-    // Extract texts for batch embedding
     let texts: Vec<String> = chunks.iter().map(|c| c.text.clone()).collect();
 
     // Generate embeddings in batch
@@ -272,7 +271,6 @@ pub async fn semantic_search(
     // Perform vector search
     let raw_results = store.search(&query_response.embedding, limit);
 
-    // Build results with chunk data
     let mut results = Vec::new();
     for (chunk_id, score) in raw_results {
         // Filter by document_ids if specified

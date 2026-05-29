@@ -1,12 +1,3 @@
-/**
- * Inline Extraction Hook
- * 
- * Provides keyboard-driven text extraction for incremental reading.
- * Alt+X: Create extract from selection
- * Alt+Z: Create cloze deletion from selection
- * 
- * Philosophy: Zero-dialog extraction - text is queued in background
- */
 
 import { useEffect, useCallback, useRef } from "react";
 import { useToast } from "../components/common/Toast";
@@ -63,7 +54,6 @@ export function useInlineExtraction({
   }, []);
 
   const flashSelection = useCallback((range: Range) => {
-    // Create a temporary highlight effect
     const selection = window.getSelection();
     if (!selection) return;
 
@@ -85,7 +75,6 @@ export function useInlineExtraction({
       flashes.push(flash);
     }
 
-    // Remove after animation
     setTimeout(() => {
       flashes.forEach((f) => f.remove());
     }, 300);
@@ -100,15 +89,12 @@ export function useInlineExtraction({
     const { text, context } = info;
     const extractId = `${documentId}-${text.slice(0, 20)}`;
 
-    // Prevent duplicate submissions
     if (pendingRef.current.has(extractId)) return;
     pendingRef.current.add(extractId);
 
     try {
-      // Flash the selection
       flashSelection(info.range);
 
-      // Queue extract in background
       await onExtract({
         documentId,
         text,

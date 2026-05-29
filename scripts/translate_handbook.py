@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
 
 import argparse
 import json
@@ -146,7 +145,9 @@ def strip_embedded_table_of_contents(markdown: str) -> str:
 def translate_document(text: str, target: str) -> str:
     translated_sections: list[str] = []
     for section in split_sections(text):
-        translated_chunks = [translate_chunk(chunk, target) for chunk in split_text(section)]
+        translated_chunks = [
+            translate_chunk(chunk, target) for chunk in split_text(section)
+        ]
         translated_sections.append("".join(translated_chunks))
     translated = "".join(translated_sections)
     translated = normalize_generated_markdown(translated)
@@ -155,7 +156,9 @@ def translate_document(text: str, target: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate localized handbook markdown files.")
+    parser = argparse.ArgumentParser(
+        description="Generate localized handbook markdown files."
+    )
     parser.add_argument(
         "locales",
         nargs="*",

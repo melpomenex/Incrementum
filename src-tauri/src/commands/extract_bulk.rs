@@ -49,7 +49,6 @@ pub async fn bulk_generate_cards(
     let generator = crate::generator::LearningItemGenerator::new();
 
     for extract_id in &extract_ids {
-        // Get the extract
         let extract = match repo.get_extract(extract_id).await {
             Ok(Some(extract)) => extract,
             Ok(None) => {
@@ -67,7 +66,6 @@ pub async fn bulk_generate_cards(
         // Generate learning items from extract
         let learning_items = generator.generate_from_extract(&extract);
 
-        // Create each learning item
         let mut item_created = false;
         let mut has_error = false;
         for mut item in learning_items {

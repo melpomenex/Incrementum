@@ -150,7 +150,6 @@ function parseTranscriptXml(xmlText: string): TranscriptSegment[] {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
 
-  // Check for parsing errors
   const parseError = xmlDoc.querySelector('parsererror');
   if (parseError) {
     throw new Error('Failed to parse transcript XML');
@@ -192,7 +191,6 @@ async function fetchFromApi(videoId: string, language?: string): Promise<Transcr
     const params = new URLSearchParams({ videoId });
     if (language) params.append('language', language);
 
-    // Get stored cookies to send with the request
     const { getCookiesForApi } = await import('./youtubeCookies');
     const cookies = getCookiesForApi();
 
@@ -204,7 +202,6 @@ async function fetchFromApi(videoId: string, language?: string): Promise<Transcr
       body: cookies.length > 0 ? JSON.stringify({ cookies }) : undefined,
     });
 
-    // Check if response is JSON
     const contentType = response.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
       const text = await response.text();
@@ -220,7 +217,6 @@ async function fetchFromApi(videoId: string, language?: string): Promise<Transcr
     const data = await response.json();
 
     if (!response.ok || !data.success) {
-      // Handle specific error codes
       if (data.code === 'YOUTUBE_BOT_DETECTED') {
         throw new Error('YouTube is blocking transcript requests due to bot detection. This is a temporary limitation.');
       }
@@ -272,9 +268,7 @@ export async function fetchYouTubeTranscript(
     throw new Error('Invalid YouTube video ID or URL');
   }
 
-  // Check if running in Tauri
   if (isTauri()) {
-    console.log('[YouTubeTranscript] Using Tauri backend');
     const { invokeCommand } = await import("../lib/tauri");
     const result = await invokeCommand<Array<{ text: string; start: number; duration: number }> | null>(
       "get_youtube_transcript_by_id",
@@ -296,7 +290,6 @@ export async function fetchYouTubeTranscript(
     };
   }
 
-  // Check if running locally
   const isLocalhost = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
@@ -304,12 +297,9 @@ export async function fetchYouTubeTranscript(
   // in production browser builds (TypeError: Class extends value undefined).
   // Go directly to the API endpoint instead.
 
-  console.log('[YouTubeTranscript] Fetching via API endpoint...');
-
   // Try API endpoint (works best on Vercel deployments)
   try {
     const apiResult = await fetchFromApi(videoId, language);
-    console.log('[YouTubeTranscript] Successfully fetched via API');
     return apiResult;
   } catch (apiError) {
     // If it's a specific error (like no captions), don't try fallback
@@ -335,10 +325,8 @@ export async function fetchYouTubeTranscript(
   }
 
   // Fallback to CORS proxy method
-  console.log('[YouTubeTranscript] Trying CORS proxy method...');
 
   try {
-    // Fetch video page to get caption tracks
     const html = await fetchVideoPage(videoId);
     const captionTracks = extractCaptionTracks(html);
 
@@ -359,7 +347,6 @@ export async function fetchYouTubeTranscript(
       }
     }
 
-    // Fetch the transcript XML
     const transcriptUrl = selectedTrack.baseUrl;
     const transcriptResponse = await fetchWithCorsProxy(transcriptUrl);
     let transcriptXml = await transcriptResponse.text();
@@ -374,7 +361,6 @@ export async function fetchYouTubeTranscript(
       // Not JSON, use as-is
     }
 
-    // Parse the transcript
     const segments = parseTranscriptXml(transcriptXml);
 
     if (segments.length === 0) {
@@ -390,7 +376,6 @@ export async function fetchYouTubeTranscript(
     // All methods failed
     const errorMsg = error?.message || String(error);
 
-    // Check for specific error types
     if (errorMsg.includes('disabled') || errorMsg.includes('No caption tracks')) {
       throw new Error('This video does not have captions or subtitles enabled.');
     }

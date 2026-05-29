@@ -72,7 +72,6 @@ export function SummaryActions({
     };
 
     try {
-      // Check if Web Share API is available
       if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData);
         toast.success("Shared", "Summary shared successfully");

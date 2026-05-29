@@ -264,7 +264,6 @@ export function ObsidianSphere({
     []
   );
 
-  // Check if two nodes are connected
   const isConnected = useCallback((nodeId1: string, nodeId2: string, edges: GraphEdge[]): boolean => {
     return edges.some(
       (e) =>
@@ -297,7 +296,6 @@ export function ObsidianSphere({
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw globe wireframe
     if (showGrid) {
       drawGlobeGrid(ctx, width, height, currentRotation, currentZoom, isDark);
     }
@@ -322,7 +320,6 @@ export function ObsidianSphere({
         const depth = (avgZ + 200) / 400;
         const opacity = Math.max(0.05, depth * 0.4);
 
-        // Check if edge is connected to selected/hovered node
         const isHighlighted =
           selectedNode && (edge.source === selectedNode || edge.target === selectedNode);
         const isDimmed = selectedNode && !isHighlighted;
@@ -373,7 +370,6 @@ export function ObsidianSphere({
 
       ctx.globalAlpha = opacity;
 
-      // Get and draw cached sprite
       let state: "normal" | "hovered" | "selected" | "dimmed" = "normal";
       if (isDimmed) state = "dimmed";
       else if (isSelected) state = "selected";
@@ -513,7 +509,6 @@ export function ObsidianSphere({
     }
   };
 
-  // Handle resize
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -549,7 +544,6 @@ export function ObsidianSphere({
 
       dragStartRef.current = { x: e.clientX, y: e.clientY };
     } else {
-      // Check for hover
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -788,7 +782,6 @@ function drawGlobeGrid(
   ctx.strokeStyle = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
   ctx.lineWidth = 1;
 
-  // Draw longitude lines
   for (let i = 0; i < 12; i++) {
     const theta = (i / 12) * Math.PI * 2;
     ctx.beginPath();
@@ -820,7 +813,6 @@ function drawGlobeGrid(
     ctx.stroke();
   }
 
-  // Draw latitude lines
   for (let i = 1; i < 6; i++) {
     const phi = (i / 6) * Math.PI;
     const r = radius * Math.sin(phi);
@@ -855,7 +847,6 @@ function drawGlobeGrid(
     ctx.stroke();
   }
 
-  // Draw outer ring
   ctx.strokeStyle = isDark ? "rgba(59,130,246,0.2)" : "rgba(59,130,246,0.15)";
   ctx.lineWidth = 2;
   ctx.beginPath();

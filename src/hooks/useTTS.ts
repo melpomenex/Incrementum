@@ -95,7 +95,6 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
     setIsPaused(false);
   }, [hasSpeechSynthesis]);
 
-  // Load available system voices for fallback mode.
   useEffect(() => {
     if (!hasSpeechSynthesis) return;
 

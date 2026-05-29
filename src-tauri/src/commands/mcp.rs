@@ -181,7 +181,6 @@ pub async fn mcp_update_server(
     id: String,
     _updates: ServerConfigUpdate,
 ) -> Result<(), String> {
-    // Remove the existing server
     MCP_MANAGER.remove_server(&id).await?;
 
     // Re-add with updated configuration
@@ -225,7 +224,6 @@ pub async fn mcp_call_incrementum_tool(
     arguments: serde_json::Value,
     app: tauri::AppHandle,
 ) -> Result<ToolCallResultResponse, String> {
-    // Get the repository from the app state
     let state = app.state::<crate::AppState>();
     let pool = {
         let db_guard = state
@@ -239,7 +237,6 @@ pub async fn mcp_call_incrementum_tool(
     };
     let repository = crate::database::Repository::new(pool);
 
-    // Create tool registry with repository
     let registry = MCPToolRegistry::new(std::sync::Arc::new(repository));
     let result = registry.execute_tool(&tool_name, arguments).await?;
 

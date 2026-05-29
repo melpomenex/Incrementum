@@ -3,7 +3,6 @@ import { useI18n } from "../../lib/i18n";
 import type { ForecastPoint } from "../../api/analytics";
 import { ScheduleTimeline } from "./ScheduleTimeline";
 import { ScheduleSummary } from "./ScheduleSummary";
-import { cn } from "../../utils";
 
 interface ScheduleDashboardProps {
   forecast: ForecastPoint[];

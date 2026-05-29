@@ -130,7 +130,6 @@ pub async fn generate_learning_items_from_extract(
     extract_id: String,
     repo: State<'_, Repository>,
 ) -> Result<Vec<LearningItem>> {
-    // Get the extract
     let extract = repo.get_extract(&extract_id).await?
         .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Extract {}", extract_id)))?;
 
@@ -138,7 +137,6 @@ pub async fn generate_learning_items_from_extract(
     let generator = LearningItemGenerator::new();
     let items = generator.generate_from_extract(&extract);
 
-    // Save each item
     let mut created_items = Vec::new();
     for item in items {
         let created = repo.create_learning_item(&item).await?;

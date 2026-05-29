@@ -81,12 +81,12 @@ impl TranscriptionEngine {
 
         let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&self.app_handle)?
             .args([
-                "-i", input_path.to_str().unwrap(),
+                "-i", input_path.to_str().expect("input path is valid UTF-8"),
                 "-ar", "16000",
                 "-ac", "1",
                 "-c:a", "pcm_s16le",
                 "-y",
-                output_path.to_str().unwrap()
+                output_path.to_str().expect("output path is valid UTF-8")
             ])
             .spawn()?;
 
@@ -172,7 +172,6 @@ impl TranscriptionEngine {
             anyhow!("Failed to launch sidecar 'whisper': {}", e)
         })?;
 
-        // Process output events
         let mut success = false;
         let mut stdout_buf = String::new();
         let mut stderr_buf = String::new();
@@ -181,9 +180,6 @@ impl TranscriptionEngine {
             match event {
                 CommandEvent::Stdout(line) => {
                     let line_str = String::from_utf8_lossy(&line);
-                    // Whisper output parsing could happen here for real-time updates
-                    // For now we rely on the file output or simplified parsing if needed
-                    // print!("STDOUT: {}", line_str); 
                     if stdout_buf.len() < 4000 {
                         stdout_buf.push_str(&line_str);
                     }
@@ -194,7 +190,6 @@ impl TranscriptionEngine {
                     
                     while let Some(newline_idx) = stderr_line_buf.find('\n') {
                         let line = stderr_line_buf[..newline_idx].trim().to_string();
-                        // Advance buffer
                         stderr_line_buf = stderr_line_buf[newline_idx + 1..].to_string();
                         
                         // Parse progress: "progress = 5%"
@@ -266,10 +261,8 @@ impl TranscriptionEngine {
             }
         }
         
-        // Cleanup
         let _ = std::fs::remove_file(json_path);
 
         Ok(())
     }
 }
-

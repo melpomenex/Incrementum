@@ -41,12 +41,10 @@ fn main() {
 
             if let Some(output) = output {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                // Parse rpaths from otool -l output
                 let mut rpaths = Vec::new();
                 for line in stdout.lines() {
                     let trimmed = line.trim();
                     if trimmed.starts_with("path ") && trimmed.contains("/Volumes/") {
-                        // Extract just the path portion
                         if let Some(path) = trimmed.strip_prefix("path ") {
                             if let Some(path) = path.split_whitespace().next() {
                                 rpaths.push(path.to_string());
@@ -55,7 +53,6 @@ fn main() {
                     }
                 }
 
-                // Delete each stale rpath
                 for rpath in &rpaths {
                     let _ = std::process::Command::new("install_name_tool")
                         .args(["-delete_rpath", rpath])

@@ -80,11 +80,13 @@ export function TrainingMenu({ article, feedId, onClose, position }: TrainingMen
   return (
     <div
       className="fixed inset-0 z-50"
+      role="presentation"
       onClick={onClose}
     >
       <div
         ref={menuRef}
         className="absolute bg-card border border-border rounded-lg shadow-lg py-1 min-w-[180px] z-50"
+        role="menu"
         style={position ? { left: position.x, top: position.y } : { right: 16, top: "50%" }}
         onClick={(e) => e.stopPropagation()}
       >

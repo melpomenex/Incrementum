@@ -166,7 +166,6 @@ export function LocalVideoPlayer({
   const activeSrc = activeSource?.src ?? "";
   const activeSourceStrategy = activeSource?.strategy ?? "unresolved";
 
-  // Update refs when values change
   useEffect(() => {
     documentIdRef.current = documentId;
   }, [documentId]);
@@ -179,7 +178,6 @@ export function LocalVideoPlayer({
     durationRef.current = duration;
   }, [duration]);
 
-  // Load SponsorBlock cuts and segments
   useEffect(() => {
     let cancelled = false;
     const loadSponsorBlockData = async () => {
@@ -188,7 +186,6 @@ export function LocalVideoPlayer({
           const cuts = await getSponsorBlockCuts(documentId);
           if (cancelled) return;
           if (cuts && cuts.length > 0) {
-            console.log(`[SponsorBlock] Loaded ${cuts.length} cuts metadata for ${documentId}`);
             setSponsorBlockCuts(cuts);
             return; // Downloaded pre-cut audio, skip live fetches
           }
@@ -201,7 +198,6 @@ export function LocalVideoPlayer({
       if (targetUrl) {
         const videoIdResult = extractVideoID(targetUrl);
         if (videoIdResult && videoIdResult.platform === "youtube") {
-          console.log(`[SponsorBlock] Fetching live segments for ${videoIdResult.videoID}`);
           try {
             const fetched = await fetchSponsorBlockSegments(videoIdResult.videoID);
             if (!cancelled) {
@@ -264,23 +260,15 @@ export function LocalVideoPlayer({
   // Seek to saved position when startTime changes and video is ready
   // This handles the race condition where metadata loads before saved position is fetched
   useEffect(() => {
-    console.log('[LocalVideoPlayer] startTime effect triggered:', {
-      startTime,
-      videoRefExists: !!videoRef.current,
-      readyState: videoRef.current?.readyState,
-      currentTime: videoRef.current?.currentTime,
-    });
     if (startTime > 0 && videoRef.current && videoRef.current.readyState >= 1) {
       // Only seek if we're still at the beginning (or close to it)
       // This prevents overwriting user navigation after the video has loaded
       if (videoRef.current.currentTime < 1) {
         videoRef.current.currentTime = startTime;
-        console.log(`[LocalVideoPlayer] Seeked to saved position from effect: ${startTime}s`);
       } else {
-        console.log(`[LocalVideoPlayer] Not seeking from effect - currentTime is ${videoRef.current.currentTime}`);
       }
     } else {
-      console.log(`[LocalVideoPlayer] Cannot seek from effect - startTime: ${startTime}, readyState: ${videoRef.current?.readyState}`);
+      console.error(`[LocalVideoPlayer] Cannot seek from effect - startTime: ${startTime}, readyState: ${videoRef.current?.readyState}`);
     }
   }, [startTime]);
 
@@ -296,8 +284,6 @@ export function LocalVideoPlayer({
     if (typeof window === 'undefined') return;
     localStorage.setItem('transcript-visibility', String(showTranscript));
   }, [showTranscript]);
-
-  
 
   // Persist transcript width to localStorage
   useEffect(() => {
@@ -393,44 +379,24 @@ export function LocalVideoPlayer({
     };
   }, [isResizingTranscript]);
 
-  // Load saved position from document
   const loadSavedPosition = useCallback(async () => {
     if (!documentId) {
-      console.log('[LocalVideoPlayer] No documentId, skipping position load');
       return;
     }
 
     try {
-      console.log('[LocalVideoPlayer] Loading saved position for document:', documentId);
       const doc = await getDocumentAuto(documentId);
-      console.log('[LocalVideoPlayer] Got document:', {
-        documentId,
-        currentPage: doc?.currentPage,
-        current_page: doc?.current_page,
-        docKeys: doc ? Object.keys(doc) : null,
-      });
       setDocumentFilePath(doc?.filePath ?? null);
       const savedTime = doc?.currentPage ?? doc?.current_page ?? 0;
-      console.log("[LocalVideoPlayer] Loaded saved time:", {
-        documentId,
-        savedTime,
-        mediaType,
-        src,
-      });
       if (savedTime >= 3) {
-        // Update ref immediately so onLoadedMetadata can use it
         startTimeRef.current = savedTime;
         setStartTime(savedTime);
         // Seek immediately if video is already ready
         if (videoRef.current && videoRef.current.readyState >= 1) {
           videoRef.current.currentTime = savedTime;
-          console.log(`[LocalVideoPlayer] Restored position immediately: ${savedTime}s`);
         } else {
-          console.log(`[LocalVideoPlayer] Video not ready yet, will seek when ready. readyState:`, videoRef.current?.readyState);
         }
-        console.log(`[LocalVideoPlayer] Saved position set: ${savedTime}s`);
       } else {
-        console.log(`[LocalVideoPlayer] Saved time ${savedTime} is less than 3s, not restoring`);
       }
     } catch (error) {
       console.error('[LocalVideoPlayer] Failed to load position:', error);
@@ -472,11 +438,10 @@ export function LocalVideoPlayer({
     }
   }, [documentId, mapTranscriptSegments]);
 
-  // Save current position
   const savePosition = useCallback(async (time: number) => {
     const currentDocumentId = documentIdRef.current;
     if (!currentDocumentId) {
-      console.log('[LocalVideoPlayer] Cannot save position: no documentId');
+      console.error('[LocalVideoPlayer] Cannot save position: no documentId');
       return;
     }
 
@@ -487,21 +452,12 @@ export function LocalVideoPlayer({
 
     try {
       const roundedTime = Math.floor(time);
-      console.log("[LocalVideoPlayer] Saving position:", {
-        documentId: currentDocumentId,
-        time: roundedTime,
-        lastSaved: lastSavedTimeRef.current,
-        duration,
-        mediaType,
-      });
       await updateDocumentProgressAuto(currentDocumentId, roundedTime);
-      console.log("[LocalVideoPlayer] Position saved to document successfully:", roundedTime);
       if (isTauri()) {
         await saveDocumentPosition(
           currentDocumentId,
           timePosition(roundedTime, duration)
         );
-        console.log("[LocalVideoPlayer] Position saved to position API:", roundedTime);
       }
       lastSavedTimeRef.current = time;
     } catch (error) {
@@ -509,7 +465,6 @@ export function LocalVideoPlayer({
     }
   }, [duration, mediaType]);
 
-  // Load position on mount
   useEffect(() => {
     loadSavedPosition();
   }, [loadSavedPosition]);
@@ -533,14 +488,6 @@ export function LocalVideoPlayer({
 
       for (let index = 0; index < normalizedSources.length; index += 1) {
         const candidate = normalizedSources[index];
-        console.log("[LocalVideoPlayer] Probing local media source:", {
-          mediaType,
-          strategy: candidate.strategy,
-          mimeType: candidate.mimeType,
-          index,
-          total: normalizedSources.length,
-          src: candidate.src,
-        });
 
         const result = await probeLocalMediaSource(candidate, mediaType);
         if (cancelled || sourceResolutionRequestRef.current !== requestId) {
@@ -548,11 +495,6 @@ export function LocalVideoPlayer({
         }
 
         if (result.ok) {
-          console.log("[LocalVideoPlayer] Resolved playable local media source:", {
-            mediaType,
-            strategy: candidate.strategy,
-            index,
-          });
           setResolvedSourceIndex(index);
           setIsResolvingSource(false);
           setSourceFailure(null);
@@ -646,7 +588,6 @@ export function LocalVideoPlayer({
     };
   }, [isPlaying, savePosition]);
 
-  // Save position when unmounting or pausing
   useEffect(() => {
     return () => {
       // Save on unmount using the ref value (videoRef may be null by now)
@@ -656,10 +597,6 @@ export function LocalVideoPlayer({
         const docId = documentIdRef.current;
         // Avoid saving if time hasn't changed significantly
         if (Math.abs(timeToSave - lastSavedTimeRef.current) >= 1) {
-          console.log("[LocalVideoPlayer] Saving position on unmount:", {
-            documentId: docId,
-            time: timeToSave,
-          });
           // Fire and forget - don't await since we're in cleanup
           void updateDocumentProgressAuto(docId, timeToSave);
           if (isTauri()) {
@@ -670,7 +607,6 @@ export function LocalVideoPlayer({
     };
   }, []); // Empty deps - only run on unmount, use refs for values
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!videoRef.current) return;
@@ -1033,7 +969,6 @@ export function LocalVideoPlayer({
     }
   }, [activeExtractStartTime, activeExtractEndTime, sponsorBlockCuts, sponsorBlockSegments, attemptPlay]);
 
-  // Set up video frame callback for smoother updates
   useEffect(() => {
     const video = videoRef.current;
     // WebKit in Tauri can become unstable with per-frame callbacks during media playback.
@@ -1045,13 +980,11 @@ export function LocalVideoPlayer({
     const onFrame = () => {
       if (video) {
         const time = video.currentTime;
-        // Update state every frame for smooth progress bar
         if (Math.abs(time - currentTimeRef.current) > 0.05) {
           setCurrentTime(time);
         }
         currentTimeRef.current = time;
 
-        // Check extract loop
         if (
           activeExtractStartTime !== null
           && activeExtractEndTime !== null
@@ -1118,7 +1051,6 @@ export function LocalVideoPlayer({
     return bars;
   }, [sourceKey, title]);
 
-  // Handle scroll to seek
   const handleScroll = useCallback((e: React.WheelEvent) => {
     if (!videoRef.current) return;
     
@@ -1139,37 +1071,24 @@ export function LocalVideoPlayer({
     );
   }, [duration, toast]);
 
-  // Handle video click to toggle play/pause
   // Note: click/dblclick handlers are attached to the container so clicks on letterboxed
   // areas (not just the <video> pixels) still work. Controls opt-out via data attr.
 
   const handleLoadedMetadata = useCallback(() => {
-    console.log('[LocalVideoPlayer] onLoadedMetadata fired:', {
-      strategy: activeSourceStrategy,
-      startTimeRef: startTimeRef.current,
-      duration: videoRef.current?.duration,
-      readyState: videoRef.current?.readyState,
-    });
     if (videoRef.current) {
       const mediaDuration = videoRef.current.duration;
       setDuration(mediaDuration);
       onLoad?.({ duration: mediaDuration, title: title || t(mediaType === "audio" ? "viewer.audio" : "viewer.video") });
       if (startTimeRef.current > 0) {
         videoRef.current.currentTime = startTimeRef.current;
-        console.log("[LocalVideoPlayer] Seeked media to saved time:", startTimeRef.current);
       }
       if (playbackRate !== 1) {
         videoRef.current.playbackRate = playbackRate;
-        console.log("[LocalVideoPlayer] Applied saved playback rate:", playbackRate);
       }
     }
   }, [activeSourceStrategy, mediaType, onLoad, playbackRate, t, title]);
 
   const handleCanPlay = useCallback(() => {
-    console.log("[LocalVideoPlayer] Media can play:", {
-      mediaType,
-      strategy: activeSourceStrategy,
-    });
     setPlayError(null);
     setSourceFailure(null);
     setSourceFailureStrategy(null);
@@ -1223,13 +1142,13 @@ export function LocalVideoPlayer({
   const mediaElement = mediaType === "audio" ? (
     <audio
       ref={videoRef}
+      aria-label="Local media player"
       src={activeSrc}
       preload="none"
       className="sr-only"
       onLoadedMetadata={handleLoadedMetadata}
       onCanPlay={handleCanPlay}
       onWaiting={() => {
-        console.log("[LocalVideoPlayer] Audio waiting for data");
       }}
       onPlay={() => setIsPlaying(true)}
       onPause={handlePause}
@@ -1251,7 +1170,6 @@ export function LocalVideoPlayer({
       onLoadedMetadata={handleLoadedMetadata}
       onCanPlay={handleCanPlay}
       onWaiting={() => {
-        console.log("[LocalVideoPlayer] Video waiting for data");
       }}
       onPlay={() => setIsPlaying(true)}
       onPause={handlePause}
@@ -1507,6 +1425,16 @@ export function LocalVideoPlayer({
           {/* Progress Bar */}
           <div
             className="w-full h-1 bg-white/30 rounded-full cursor-pointer group"
+            role="slider"
+            aria-label="Seek bar"
+            aria-valuenow={Math.round(progressPercent)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft') seekToPercentage(Math.max(0, progressPercent - 5));
+              if (e.key === 'ArrowRight') seekToPercentage(Math.min(100, progressPercent + 5));
+            }}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const percent = ((e.clientX - rect.left) / rect.width) * 100;
@@ -1569,6 +1497,7 @@ export function LocalVideoPlayer({
                   max="100"
                   value={isMuted ? 0 : volume}
                   onChange={(e) => adjustVolume(parseInt(e.target.value))}
+                  aria-label="Volume"
                   className="w-20 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
                 />
               </div>

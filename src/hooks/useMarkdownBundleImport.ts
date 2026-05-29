@@ -9,8 +9,7 @@
 
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import type { MarkdownBundle } from "../utils/markdownBundleImport";
-import { createBundleDocument } from "../utils/markdownBundleImport";
+import { createBundleDocument, type MarkdownBundle } from "../utils/markdownBundleImport";
 import {
   createDocument,
   getDocument,
@@ -47,7 +46,6 @@ export function useMarkdownBundleImport(): UseMarkdownBundleImportResult {
       setProgress({ current: 0, total: totalSteps, status: "Starting import..." });
 
       try {
-        // Start with the original markdown content
         let markdownContent = bundle.markdownContent;
 
         // Convert images to embedded data URLs
@@ -82,7 +80,6 @@ export function useMarkdownBundleImport(): UseMarkdownBundleImportResult {
           status: "Creating document...",
         });
 
-        // Create the document object with embedded images
         const docId = uuidv4();
         const docData = await createBundleDocument(bundle, docId, {
           category: options.category,
@@ -103,7 +100,6 @@ export function useMarkdownBundleImport(): UseMarkdownBundleImportResult {
           },
         };
 
-        // Create the document in the database
         setProgress({
           current: totalSteps,
           total: totalSteps,
@@ -180,7 +176,6 @@ function readFileAsDataURL(file: File): Promise<string> {
 function generatePathVariations(path: string): string[] {
   const variations = new Set<string>();
 
-  // Original path
   variations.add(path);
 
   // Without leading ./

@@ -32,7 +32,6 @@ struct CloudSyncState {
     pending_conflicts: Vec<SyncConflict>,
 }
 
-
 impl CloudSyncManager {
     /// Create a new cloud sync manager
     pub fn new(db: Database) -> Result<Self, AppError> {
@@ -56,7 +55,7 @@ impl CloudSyncManager {
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("system time before UNIX epoch")
                 .as_secs()
         )
     }
@@ -202,7 +201,6 @@ impl CloudSyncManager {
     ) -> Result<Vec<SyncConflict>, AppError> {
         let mut conflicts = Vec::new();
 
-        // Create a map of remote changes by item_id
         let remote_map: HashMap<&str, &SyncChange> = remote_changes
             .iter()
             .filter_map(|c| {
@@ -214,7 +212,6 @@ impl CloudSyncManager {
             })
             .collect();
 
-        // Check for conflicts
         for local in local_changes {
             if let SyncData::Document { id, .. } = &local.data {
                 if let Some(remote) = remote_map.get(id.as_str()) {
@@ -279,12 +276,11 @@ impl CloudSyncManager {
             let cloud_path = format!("/sync/{}", id);
             let file_data = provider.download_file(&cloud_path, None).await?;
 
-            // Save to local storage
             let app_dir = std::env::current_dir()
-                .unwrap();
+                .expect("failed to get current directory");
             let local_path = app_dir.join("documents").join(name);
 
-            tokio::fs::create_dir_all(local_path.parent().unwrap())
+            tokio::fs::create_dir_all(local_path.parent().expect("path has no parent"))
                 .await
                 .map_err(|e| AppError::Internal(format!("Failed to create directory: {}", e)))?;
 
@@ -337,7 +333,6 @@ impl CloudSyncManager {
                     }
                 }
                 ConflictResolution::KeepBoth => {
-                    // Create a copy of both versions
                     self.create_duplicate(conflict).await?;
                 }
             }

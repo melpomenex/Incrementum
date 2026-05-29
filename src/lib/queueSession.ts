@@ -38,7 +38,6 @@ export function getQueueSession(): QueueSession {
     // Ignore parse errors
   }
   
-  // Create new session
   const session: QueueSession = {
     items: [],
     startedAt: new Date().toISOString(),

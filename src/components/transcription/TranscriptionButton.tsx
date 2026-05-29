@@ -12,7 +12,7 @@
  * - Saves transcript automatically when complete
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from "react";
 import { 
   Loader2, 
   CheckCircle2, 
@@ -73,12 +73,6 @@ const spinnerSizes = {
   lg: 'w-4 h-4',
 };
 
-/**
- * Transcription Button Component
- * 
- * Unified entry point for transcription across all platforms.
- * Handles API key setup, status display, and retry logic inline.
- */
 export function TranscriptionButton({
   documentId,
   documentTitle,
@@ -112,12 +106,10 @@ export function TranscriptionButton({
     onError,
   });
 
-  // Check if Groq is configured on mount
   useEffect(() => {
     setIsConfigured(isGroqConfigured());
   }, []);
 
-  // Handle auto-transcribe
   useEffect(() => {
     if (autoTranscribe && status === 'none' && !error && isConfigured) {
       void startTranscription();
@@ -145,7 +137,6 @@ export function TranscriptionButton({
       return;
     }
     
-    // Start new transcription
     const result = await startTranscription();
     if (result.needsApiKey) {
       setShowKeyDialog(true);
@@ -159,7 +150,6 @@ export function TranscriptionButton({
     void retryTranscription();
   }, [retryTranscription]);
 
-  // Get button content based on status
   const getButtonContent = () => {
     switch (status) {
       case 'queued':
@@ -214,7 +204,6 @@ export function TranscriptionButton({
     }
   };
 
-  // Get button styles based on status
   const getButtonStyles = () => {
     const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed';
     

@@ -97,6 +97,7 @@ export function Review() {
   const a11yConfig = getReviewAccessibilityConfig(isZenMode);
 
   const typedMode = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || card.itemType === "document") return null;
     const metadataMode = card?.interaction_metadata?.typedMode as TypedAnswerMode | undefined;
@@ -107,8 +108,10 @@ export function Review() {
     if (tags.includes("typed:exact")) return "exact";
     return null;
   }, [currentCard]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const hintStages = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || card.itemType === "document") return [];
     const fromMetadata = card?.interaction_metadata?.hints;
@@ -119,6 +122,7 @@ export function Review() {
   }, [currentCard]);
 
   const acceptedAnswers = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || card.itemType === "document") return [];
     const fromMetadata = card?.interaction_metadata?.acceptedAnswers;
@@ -131,6 +135,7 @@ export function Review() {
   }, [currentCard]);
 
   const interactionType = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || card.itemType === "document") return null;
     const t = card?.interaction_metadata?.interactionType;
@@ -142,6 +147,7 @@ export function Review() {
   }, [currentCard]);
 
   const orderingData = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || interactionType !== "ordering") return { options: [], expected: [] };
     const options = Array.isArray(card?.interaction_metadata?.orderingItems)
@@ -160,6 +166,7 @@ export function Review() {
   }, [currentCard, interactionType]);
 
   const matchingData = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || interactionType !== "matching") return { pairs: [] as Array<{ left: string; right: string }> };
     if (Array.isArray(card?.interaction_metadata?.matchingPairs)) {
@@ -183,6 +190,7 @@ export function Review() {
   }, [currentCard, interactionType]);
 
   const supportsHandwriting = useMemo(() => {
+   
     const card = currentCard as any;
     if (!card || card.itemType === "document") return false;
     if (card?.interaction_metadata?.handwritingEnabled) return true;
@@ -214,6 +222,7 @@ export function Review() {
   const handleCheckTypedAnswer = async () => {
     if (!typedMode || acceptedAnswers.length === 0) return;
     if (typedMode === "semantic") {
+   
       const card = currentCard as any;
       if (!card) return;
       setIsCheckingSemantic(true);
@@ -291,7 +300,6 @@ export function Review() {
     };
   }, [energyLevel, correctCount, reviewsCompleted]);
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -365,7 +373,6 @@ export function Review() {
   }
 
   if (!currentCard) {
-    // Review session complete
     return (
       <div className="flex items-center justify-center h-full p-6">
         <ReviewComplete
@@ -381,6 +388,7 @@ export function Review() {
   const sourceAnchor = ((currentCard as any)?.source_anchor ?? null) as
     | { document_id?: string; extract_id?: string; page_number?: number }
     | null;
+   
   const canJumpToSource = Boolean(sourceAnchor?.document_id || (currentCard as any)?.document_id || (currentCard as any)?.extract_id);
 
   return (
@@ -409,7 +417,9 @@ export function Review() {
           <button
             onClick={() => {
               const detail = {
+   
                 documentId: sourceAnchor?.document_id ?? (currentCard as any)?.document_id,
+   
                 extractId: sourceAnchor?.extract_id ?? (currentCard as any)?.extract_id,
                 pageNumber: sourceAnchor?.page_number,
               };
@@ -474,6 +484,7 @@ export function Review() {
           <>
             {/* Card with answer shown */}
             <ReviewCard
+   
               card={currentCard as any}
               showAnswer={true}
               onShowAnswer={() => {}}
@@ -492,6 +503,7 @@ export function Review() {
           <>
             {/* Card with answer hidden */}
             <ReviewCard
+   
               card={currentCard as any}
               showAnswer={false}
               onShowAnswer={showAnswer}
@@ -731,11 +743,13 @@ export function Review() {
                     onClick={async () => {
                       setIsConversationLoading(true);
                       try {
+   
                         const topic = `${(currentCard as any)?.question || ""}\n${(currentCard as any)?.answer || ""}`;
                         const result = await requestTutorFollowUp(topic, conversationInput.trim());
                         setConversationResult(result);
                         saveConversationalAssessment({
                           id: crypto.randomUUID(),
+   
                           itemId: String((currentCard as any)?.id || ""),
                           timestamp: new Date().toISOString(),
                           userResponse: conversationInput.trim(),

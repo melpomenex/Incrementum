@@ -61,7 +61,6 @@ export async function fetchPlaylistInfo(playlistId: string): Promise<YouTubePlay
     throw new Error("YouTube API key not configured. Please add your API key in settings.");
   }
 
-  // Fetch playlist details
   const playlistUrl = `${YOUTUBE_API_BASE}/playlists?part=snippet,contentDetails&id=${playlistId}&key=${apiKey}`;
   
   const playlistResponse = await fetch(playlistUrl);
@@ -81,7 +80,6 @@ export async function fetchPlaylistInfo(playlistId: string): Promise<YouTubePlay
   const snippet = playlist.snippet;
   const thumbnails = snippet.thumbnails;
   
-  // Get the best available thumbnail
   const thumbnail = thumbnails.maxres?.url || 
                    thumbnails.standard?.url || 
                    thumbnails.high?.url || 

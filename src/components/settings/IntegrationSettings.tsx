@@ -102,7 +102,6 @@ export function IntegrationSettings() {
     message: string;
   } | null>(null);
 
-  // Load settings on mount
   useEffect(() => {
     const loaded = getIntegrationSettings();
     setSettings(loaded);
@@ -123,7 +122,6 @@ export function IntegrationSettings() {
     setExtensionPort(loaded.extensionPort);
   }, []);
 
-  // Load browser sync config
   useEffect(() => {
     const loadBrowserSyncConfig = async () => {
       try {
@@ -137,14 +135,12 @@ export function IntegrationSettings() {
     loadBrowserSyncConfig();
   }, []);
 
-  // Load extension status
   useEffect(() => {
     loadExtensionStatus();
     const interval = setInterval(loadExtensionStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Load YouTube cookies on mount
   useEffect(() => {
     setYoutubeCookies(getStoredYouTubeCookies());
   }, []);
@@ -158,7 +154,6 @@ export function IntegrationSettings() {
     }
   };
 
-  // Save Obsidian config
   const handleSaveObsidian = () => {
     const config: ObsidianConfig = {
       vaultPath: obsidianVault,
@@ -178,7 +173,6 @@ export function IntegrationSettings() {
       setAnkiConnected(connected);
 
       if (connected) {
-        // Load decks and models
         const [decks, models] = await Promise.all([
           getAnkiDecks(ankiUrl),
           getAnkiModels(ankiUrl),
@@ -197,7 +191,6 @@ export function IntegrationSettings() {
     }
   };
 
-  // Save Anki config
   const handleSaveAnki = () => {
     const config: AnkiConfig = {
       url: ankiUrl,

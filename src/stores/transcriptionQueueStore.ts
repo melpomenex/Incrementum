@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { listen } from "../lib/tauri";
+import { listen, isTauri } from "../lib/tauri";
 import {
   getTranscriptionQueue,
   cancelTranscriptionJob,
@@ -11,7 +11,6 @@ import {
   TranscriptionQueueEntry,
   TranscriptSegment,
 } from "../api/transcription";
-import { isTauri } from "../lib/tauri";
 
 interface TranscriptionQueueState {
   entries: TranscriptionQueueEntryWithDoc[];
@@ -78,7 +77,6 @@ export const useTranscriptionQueueStore = create<TranscriptionQueueState>((set, 
   },
 }));
 
-// Setup event listeners
 if (isTauri()) {
   const queueListeners: Promise<() => void>[] = [];
 

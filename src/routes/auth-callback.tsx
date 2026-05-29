@@ -19,8 +19,7 @@ export default function AuthCallback() {
       const state = searchParams.get("state");
       const error = searchParams.get("error");
 
-      // Get the pending provider from sessionStorage
-      const pendingProvider = sessionStorage.getItem("pending_oauth_provider");
+      const _pendingProvider = sessionStorage.getItem("pending_oauth_provider");
 
       if (error) {
         console.error("OAuth error:", error);
@@ -54,8 +53,6 @@ export default function AuthCallback() {
           code,
           state,
         });
-
-        console.log("OAuth successful:", result);
 
         // Redirect back to settings with success
         navigate("/settings?oauth_success=true&provider=" + encodeURIComponent(providerType));

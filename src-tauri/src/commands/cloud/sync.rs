@@ -18,7 +18,6 @@ static CLOUD_SYNC_MANAGER: tokio::sync::Mutex<Option<CloudSyncManager>> =
 pub async fn cloud_sync_init(repo: State<'_, Repository>) -> Result<(), String> {
     let db = Database::from_pool(repo.pool().clone());
 
-    // Create manager from database
     let manager = CloudSyncManager::new(db)
         .map_err(|e| e.to_string())?;
 

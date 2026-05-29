@@ -124,7 +124,6 @@ pub fn parse_podcast_feed(xml: &str) -> Result<ParsedPodcastFeed, String> {
                 let name = String::from_utf8_lossy(local_name.as_ref());
 
                 if name == "item" && in_item {
-                    // Build episode
                     if let Some(audio_url) = item_audio_url.take() {
                         // Prefer iTunes title over regular title
                         let title = item_itunes_title
@@ -207,7 +206,6 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                 let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
                 let name_lower = name.to_lowercase();
 
-                // Handle non-self-closing image tag attributes
                 if name_lower == "itunes:image" || name_lower == "image" {
                     for attr in e.attributes().flatten() {
                         let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
@@ -391,7 +389,6 @@ fn parse_podcast_feed_inner(xml: &str) -> Result<ParsedPodcastFeed, String> {
                 }
 
                 if name_lower == "item" && in_item {
-                    // Finalize episode
                     if let Some(audio_url) = item_audio_url.take() {
                         let title = item_itunes_title
                             .take()

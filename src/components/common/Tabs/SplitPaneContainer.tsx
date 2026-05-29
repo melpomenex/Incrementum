@@ -296,7 +296,6 @@ function TabPaneView({
     
     let position: DropIndicator["position"];
     
-    // Check if we're in an edge zone and which edge is closest
     const inLeftZone = distLeft < xEdgeThreshold;
     const inRightZone = distRight < xEdgeThreshold;
     const inTopZone = distTop < yEdgeThreshold;
@@ -379,7 +378,6 @@ function TabPaneView({
     onDragEnd();
   }, [draggedTabId, draggedTabSourcePaneId, dropIndicator, pane.id, onMoveTabToPane, onSplitPane, onDragEnd]);
 
-  // Get indicator styles based on position
   const getIndicatorStyles = () => {
     if (!dropIndicator || dropIndicator.paneId !== pane.id) return null;
 

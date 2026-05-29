@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Plus,
   Globe,
@@ -44,12 +44,6 @@ export function NotebookLMSidebar({
   const [isAdding, setIsAdding] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (notebookId) {
-      loadSources();
-    }
-  }, [notebookId]);
 
   const loadSources = async () => {
     setIsLoading(true);
@@ -195,12 +189,14 @@ export function NotebookLMSidebar({
               type="text"
               value={sourceTitle}
               onChange={(e) => setSourceTitle(e.target.value)}
+              aria-label="Source title"
               placeholder="Title (optional)"
               className="w-full px-2.5 py-1.5 text-sm bg-background border border-border rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
             <textarea
               value={sourceInput}
               onChange={(e) => setSourceInput(e.target.value)}
+              aria-label="Source input"
               placeholder={
                 sourceType === "url"
                   ? "https://example.com"

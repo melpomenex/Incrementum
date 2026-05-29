@@ -53,7 +53,6 @@ export function KindleImportDialog({
   const [error, setError] = useState<string | null>(null);
   const [collapsedBooks, setCollapsedBooks] = useState<Set<string>>(new Set());
 
-  // Validate the file on mount or when filePath changes
   const doValidate = useCallback(async () => {
     if (!filePath) return;
     setState("validating");
@@ -107,8 +106,6 @@ export function KindleImportDialog({
   const totalNew = preview?.totalNewExtracts ?? 0;
   const fullyImportedCount =
     preview?.books.filter((b) => b.newHighlights + b.newNotes === 0).length ?? 0;
-
-  // --- Render states ---
 
   if (state === "idle") return null;
 
@@ -294,10 +291,6 @@ export function KindleImportDialog({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Book preview card sub-component
-// ---------------------------------------------------------------------------
 
 function BookPreviewCard({
   book,

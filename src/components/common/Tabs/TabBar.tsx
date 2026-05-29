@@ -62,7 +62,6 @@ export function TabBar({
     return after ? index + 1 : index;
   };
 
-  // Detect narrow container
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -92,7 +91,6 @@ export function TabBar({
     return () => window.removeEventListener("click", handleClick);
   }, []);
 
-  // Handle wheel scroll for tabs
   // Use onWheel prop instead of addEventListener for better cross-platform compat
   // (WebKitGTK in Linux AppImage ignores addEventListener passive:false on some builds)
   const handleTabWheel = (e: React.WheelEvent<HTMLDivElement>) => {

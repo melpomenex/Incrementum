@@ -55,7 +55,6 @@ pub async fn parse_supermemo_export(zip_path: &str) -> Result<SuperMemoCollectio
         media: Vec::new(),
     };
 
-    // Process all files in the archive
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
             .map_err(|e| IncrementumError::NotFound(format!("Cannot read file: {}", e)))?;
@@ -74,7 +73,6 @@ pub async fn parse_supermemo_export(zip_path: &str) -> Result<SuperMemoCollectio
             continue;
         }
 
-        // Process XML files
         if file_name.ends_with(".xml") {
             // Zip bomb protection
             const MAX_XML_SIZE: u64 = 100 * 1024 * 1024;
@@ -86,14 +84,12 @@ pub async fn parse_supermemo_export(zip_path: &str) -> Result<SuperMemoCollectio
             file.read_to_string(&mut content)
                 .map_err(|e| IncrementumError::NotFound(format!("Cannot read XML: {}", e)))?;
 
-            // Parse SuperMemo XML format
             if let Ok(items) = parse_supermemo_xml(&content, &file_name) {
                 collection.items.extend(items);
             }
         }
     }
 
-    // Extract unique topics
     let mut topics_set = std::collections::HashSet::new();
     for item in &collection.items {
         if let Some(topic) = &item.topic {

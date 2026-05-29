@@ -29,7 +29,6 @@ export function HighlightRenderer({ content, annotations, onAnnotationClick }: H
     );
   }
 
-  // Build highlighted segments from plain text content
   const plainText = content.replace(/<[^>]+>/g, "");
   const segments: Array<{ text: string; annotation?: RssAnnotation }> = [];
   let lastEnd = 0;
@@ -60,8 +59,11 @@ export function HighlightRenderer({ content, annotations, onAnnotationClick }: H
           <span
             key={i}
             className="cursor-pointer rounded-sm px-0.5"
+            role="button"
+            tabIndex={0}
             style={{ backgroundColor: seg.annotation.color || "#FFE082" }}
             onClick={() => onAnnotationClick?.(seg.annotation!)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onAnnotationClick?.(seg.annotation!); }}
             title={seg.annotation.content}
           >
             {seg.text}

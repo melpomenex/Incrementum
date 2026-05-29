@@ -127,8 +127,6 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
     const questionHtml = useMemo(() => renderAnkiHtmlWithLatex(learningItem.question), [learningItem.question]);
     const answerHtml = useMemo(() => learningItem.answer ? renderAnkiHtmlWithLatex(learningItem.answer) : "", [learningItem.answer]);
 
-
-    // Render cloze text with blanks or revealed answers
     const renderClozeText = () => {
         if (!learningItem.cloze_text) {
             return <span dangerouslySetInnerHTML={{ __html: questionHtml }} />;
@@ -255,7 +253,6 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
         );
     };
 
-    // Get display content based on item type
     const renderQuestionContent = () => {
         switch (learningItem.item_type) {
             case "Cloze":

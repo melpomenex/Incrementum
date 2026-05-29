@@ -56,6 +56,7 @@ export function ResizableSplit({
       </div>
       <div
         onMouseDown={handleMouseDown}
+        role="separator"
         className="w-1.5 flex-shrink-0 bg-border hover:bg-primary/30 cursor-col-resize transition-colors relative group"
       >
         <div className="absolute inset-y-0 -left-1 -right-1" />

@@ -52,6 +52,8 @@ export function DashboardTab() {
   useEffect(() => {
     loadStats();
   }, [activeCollectionId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
 
   const loadStats = async () => {
     try {

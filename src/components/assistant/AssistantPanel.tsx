@@ -17,7 +17,6 @@ import {
   Check,
   ImagePlus,
   X,
-  AlertTriangle,
 } from "lucide-react";
 import { compressImage, readFileAsDataUrl } from "../../utils/imageCompression";
 import { supportsVision } from "../../utils/visionCapability";
@@ -30,8 +29,7 @@ import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
 import { ShareMessageDialog } from "./ShareMessageDialog";
 import { copyToClipboard, generateSingleMessageMarkdown, type ConversationMessage } from "../../api/integrations";
 import { useI18n } from "../../lib/i18n";
-import type { ResolvedAssistantContext } from "../../utils/assistantContext";
-import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
+import { getAssistantContextErrorMessage, type ResolvedAssistantContext } from "../../utils/assistantContext";
 import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 import { invokeCommand } from "../../lib/tauri";
 
@@ -215,7 +213,6 @@ function MemoizedMarkdown({ content }: { content: string }) {
   );
 }
 
-
 export function AssistantPanel({
   context,
   onToolCall: _onToolCall,
@@ -276,13 +273,9 @@ export function AssistantPanel({
   const historyDraftRef = useRef("");
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
 
-  // --- Image attachment helpers ---
-
   const attachImage = async (file: File) => {
-    // Validate type
     if (!file.type.startsWith("image/")) return;
 
-    // Validate size
     if (file.size > MAX_IMAGE_BYTES) {
       // Show toast-like warning via a temporary system message
       setMessages((prev) => [
@@ -297,7 +290,6 @@ export function AssistantPanel({
       return;
     }
 
-    // Validate count
     setAttachedImages((prev) => {
       if (prev.length >= MAX_ATTACHED_IMAGES) {
         setMessages((msgs) => [
@@ -577,7 +569,6 @@ export function AssistantPanel({
     setIsLoading(true);
 
     try {
-      // Handle slash commands locally
       if (userInput === "/help") {
         const toolsList = getAvailableTools()
           .map((tool) => `• **${tool.name}** - ${tool.description}`)
@@ -638,7 +629,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         return;
       }
 
-      // Build context for the LLM
       // Filter conversation history to only include user and assistant messages
       const filteredHistory = messages
         .filter(m => m.role === "user" || m.role === "assistant")
@@ -656,8 +646,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       // Call the LLM API
       const response = await callLLM(userMessage.content, contextData);
       const { cleanedContent, toolCalls } = parseToolCalls(response.content);
-      console.log("[Assistant] LLM response:", response.content?.substring(0, 500));
-      console.log("[Assistant] Parsed tool calls:", toolCalls.length, toolCalls.map(c => c.name));
 
       // Show warning if images were stripped due to unsupported model
       if (response.imagesStripped && response.modelName) {
@@ -732,15 +720,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       const allProviders = useLLMProvidersStore.getState().providers;
       const enabledProviders = useLLMProvidersStore.getState().getEnabledProviders();
 
-      console.log("All providers:", allProviders.map((p) => ({
-        id: p.id,
-        provider: p.provider,
-        name: p.name,
-        enabled: p.enabled,
-        hasApiKey: p.apiKey ? p.apiKey.trim().length > 0 : false,
-      })));
-
-      // Check if the selected provider exists but is disabled
       const selectedTypeProvider = allProviders.find((p) => p.provider === effectiveProvider);
 
       if (!selectedTypeProvider) {
@@ -776,7 +755,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
           content: toolInstruction,
         },
         ...(contextData.conversationHistory as Message[]).map((m) => {
-          // Build multimodal content for messages with images
           if (m.images && m.images.length > 0) {
             const parts: LLMMessageContentPart[] = [];
             if (m.content.trim()) {
@@ -801,7 +779,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         },
       ];
 
-      // Check vision capability for current user message images
       const currentUserImages = contextData.currentUserImages as AttachedImage[] | undefined;
       let imagesStripped = false;
       const modelName = (provider.model || effectiveProvider) as string;
@@ -820,7 +797,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
           }
           imagesStripped = true;
         } else {
-          // Build multimodal content for current message
           const parts: LLMMessageContentPart[] = [];
           if (prompt.trim()) {
             parts.push({ type: "text", text: prompt });
@@ -836,7 +812,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         }
       }
 
-      // Build LLM context
       const llmContext = contextData.currentContext as AssistantContext;
       const contextWindow = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
       const effectiveContextWindow = llmContext?.contextWindowTokens && llmContext.contextWindowTokens > 0
@@ -1022,12 +997,10 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
                 }
               }
             }
-            // Remove the matched fence block from content
             cleanedContent = cleanedContent.replace(arrMatch[0], "").trim();
           }
         } catch {
-          // Not valid JSON
-        }
+        /* Image paste handling may fail */ }
       }
     }
 
@@ -1074,7 +1047,6 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
                   }
                 }
                 if (foundCards) {
-                  // Remove the matched array from content
                   cleanedContent = cleanedContent.slice(0, start + arrayStart) + cleanedContent.slice(start + end);
                   cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
                 }
@@ -1123,9 +1095,7 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
       updateToolCall(messageId, index, { parameters });
 
       try {
-        console.log("[Assistant] Executing tool:", call.name, "params:", parameters);
         const result = await callIncrementumMCPTool(call.name, parameters);
-        console.log("[Assistant] Tool result:", call.name, result);
         // Check if the MCP tool itself reported an error (e.g. DB write failure)
         if (result.isError) {
           console.warn("[Assistant] Tool reported error:", call.name, result);
@@ -1398,7 +1368,6 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
     }
   }, [externalPosition]);
 
-  // Handle position toggle
   const togglePosition = () => {
     const newPosition = position === "left" ? "right" : "left";
     setPosition(newPosition);
@@ -1406,7 +1375,6 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
     onPositionChange?.(newPosition);
   };
 
-  // Handle copying a single message to clipboard
   const handleCopyMessage = async (message: Message) => {
     const conversationMessage: ConversationMessage = {
       role: message.role,
@@ -1432,13 +1400,11 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
     }
   };
 
-  // Handle opening share dialog for a single message
   const handleShareMessage = (message: Message) => {
     setShareMessage(message);
     setIsShareDialogOpen(true);
   };
 
-  // Handle opening share dialog for the whole conversation
   const handleShareConversation = () => {
     setShareMessage(null);
     setIsShareDialogOpen(true);

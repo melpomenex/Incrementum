@@ -290,7 +290,6 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
     return newsletterDirectory;
   }, [selectedCategory, searchQuery]);
 
-  // Handle subscribe
   const handleSubscribe = async (newsletter: NewsletterSource) => {
     if (subscribing.has(newsletter.id)) return;
 

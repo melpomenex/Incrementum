@@ -123,7 +123,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load subscribed feeds on mount
   useEffect(() => {
     (async () => {
       try {
@@ -135,7 +134,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
     })();
   }, []);
 
-  // Fetch Substack categories on mount
   useEffect(() => {
     (async () => {
       try {
@@ -147,7 +145,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
     })();
   }, []);
 
-  // Check if a feed URL is subscribed
   const isSubscribed = useCallback(
     (feedUrl: string) => subscribedFeedUrls.has(feedUrl),
     [subscribedFeedUrls],
@@ -205,7 +202,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
     [],
   );
 
-  // Load more search results
   const handleLoadMoreSearch = async () => {
     if (!searchNextCursor || loadingMore) return;
     setLoadingMore(true);
@@ -220,7 +216,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
     }
   };
 
-  // Category feed browsing
   useEffect(() => {
     if (typeof selectedCategory !== "number") {
       setCategoryResults([]);
@@ -238,7 +233,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           setCategoryNextCursor(resp.nextCursor);
         }
       } catch {
-        // Silent fail
       } finally {
         if (!cancelled) setCategoryLoading(false);
       }
@@ -247,7 +241,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
     return () => { cancelled = true; };
   }, [selectedCategory]);
 
-  // Load more category results
   const handleLoadMoreCategory = async () => {
     if (!categoryNextCursor || loadingMore || typeof selectedCategory !== "number") return;
     setLoadingMore(true);
@@ -256,7 +249,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
       setCategoryResults((prev) => [...prev, ...resp.items]);
       setCategoryNextCursor(resp.nextCursor);
     } catch {
-      // Silent fail
     } finally {
       setLoadingMore(false);
     }
@@ -828,7 +820,6 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           onClose={() => setPreviewPublication(null)}
           onSubscribe={(feed) => {
             onSubscribe?.(feed);
-            // Update subscribed state
             setSubscribedFeedUrls((prev) => new Set(prev).add(feed.feedUrl));
           }}
           initiallySubscribed={isSubscribed(

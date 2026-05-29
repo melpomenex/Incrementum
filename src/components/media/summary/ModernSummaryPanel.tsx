@@ -76,7 +76,6 @@ export function ModernSummaryPanel({
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(width);
 
-  // Handle resize start
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -90,7 +89,6 @@ export function ModernSummaryPanel({
     [width]
   );
 
-  // Handle resize during drag
   useEffect(() => {
     if (!isResizing) return;
 
@@ -118,7 +116,6 @@ export function ModernSummaryPanel({
     };
   }, [isResizing, position, onWidthChange]);
 
-  // Handle escape key to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "h" || e.key === "H") {

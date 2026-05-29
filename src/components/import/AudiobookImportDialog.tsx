@@ -36,7 +36,7 @@ import {
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
-import { updateDocument as updateDocumentApi } from "../../api/documents";
+import { updateDocument as updateDocumentApi, openFilePicker, openFolderPicker } from "../../api/documents";
 import {
   AudiobookMetadata,
   AudiobookChapter,
@@ -55,7 +55,6 @@ import {
   MultiPartAudiobook,
 } from "../../api/audiobooks";
 import { downloadTranscriptionModel, getTranscriptionProfiles } from "../../api/transcription";
-import { openFilePicker, openFolderPicker } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
 import type { Document } from "../../types/document";
 
@@ -161,7 +160,6 @@ export function AudiobookImportDialog({
       
       if (!files || files.length === 0) return;
       
-      // Check if multiple files might be parts of the same book
       if (files.length > 1) {
         const detectedMultiPart = detectMultiPartAudiobook(files);
         
@@ -213,7 +211,6 @@ export function AudiobookImportDialog({
         return;
       }
       
-      // Single file
       await loadSingleFile(files[0]);
     } catch {
       showError("File selection failed", "Could not open file picker");
@@ -235,22 +232,18 @@ export function AudiobookImportDialog({
     setError(null);
     
     try {
-      console.log("[AudiobookImport] Opening folder picker...");
       const dirPath = await openFolderPicker({
         title: "Select Directory with Audiobooks",
       });
       
       if (!dirPath) {
-        console.log("[AudiobookImport] No directory selected");
         setIsLoading(false);
         return;
       }
       
-      console.log("[AudiobookImport] Selected directory:", dirPath);
       setImportMode("batch");
       
       // Scan directory for audiobook files
-      console.log("[AudiobookImport] Scanning for audiobooks...");
       let audiobookFiles: string[] = [];
       try {
         audiobookFiles = await scanDirectoryForAudiobooks(dirPath);
@@ -266,8 +259,6 @@ export function AudiobookImportDialog({
         return;
       }
       
-      console.log("[AudiobookImport] Found files:", audiobookFiles.length);
-
       if (audiobookFiles.length === 0) {
         setError(`No audiobook files found in ${dirPath}. Supported formats: ${AUDIOBOOK_FORMATS.join(", ")}`);
         setIsLoading(false);
@@ -278,7 +269,6 @@ export function AudiobookImportDialog({
       const detectedMultiPart = detectMultiPartAudiobook(audiobookFiles);
 
       if (detectedMultiPart) {
-        console.log("[AudiobookImport] Multi-part book detected:", detectedMultiPart.title, "-", detectedMultiPart.parts.length, "parts");
         setSelectedFiles(audiobookFiles);
         setMultiPartBook(detectedMultiPart);
         setImportMode("single");
@@ -311,7 +301,6 @@ export function AudiobookImportDialog({
       // Not a multi-part book — import as batch
       setImportMode("batch");
 
-      // Create batch items
       const items: BatchItem[] = audiobookFiles.map((filePath, index) => ({
         id: `item-${index}`,
         filePath,
@@ -322,7 +311,6 @@ export function AudiobookImportDialog({
       setBatchItems(items);
       setImportProgress({ current: 0, total: items.length });
 
-      // Load metadata for all files
       await loadBatchMetadata(items);
       
     } catch (err) {
@@ -336,19 +324,16 @@ export function AudiobookImportDialog({
     }
   };
 
-  // Load metadata for batch items
   const loadBatchMetadata = async (items: BatchItem[]) => {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       setImportProgress({ current: i + 1, total: items.length });
       
       try {
-        // Update status to loading
         setBatchItems(prev => prev.map(b => 
           b.id === item.id ? { ...b, status: "loading" } : b
         ));
         
-        // Parse metadata
         const parsed = await parseAudiobookMetadata(item.filePath);
         
         // Extract embedded cover and search for online covers in parallel
@@ -360,7 +345,6 @@ export function AudiobookImportDialog({
 
         const allCovers = embeddedCover ? [embeddedCover, ...covers] : covers;
 
-        // Update item with metadata
         const bestMatch = metaResults[0] || {};
         setBatchItems(prev => prev.map(b =>
           b.id === item.id ? {
@@ -377,7 +361,6 @@ export function AudiobookImportDialog({
           } : b
         ));
         
-        // Store search results
       } catch {
         setBatchItems(prev => prev.map(b => 
           b.id === item.id ? {
@@ -393,7 +376,6 @@ export function AudiobookImportDialog({
     setCurrentStep("metadata");
   };
 
-  // Load single file
   const loadSingleFile = async (path: string) => {
     setFilePath(path);
     setIsLoading(true);
@@ -418,7 +400,6 @@ export function AudiobookImportDialog({
         setSelectedCover(allCovers[0]);
       }
       
-      // Update metadata with search results if available
       if (metaResults.length > 0) {
         const bestMatch = metaResults[0];
         setMetadata(prev => ({
@@ -436,7 +417,6 @@ export function AudiobookImportDialog({
     }
   };
 
-  // Handle metadata search for single file
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
@@ -477,7 +457,6 @@ export function AudiobookImportDialog({
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       
-      // Handle Groq-specific errors
       if (message.includes('Groq API key not configured')) {
         showError(
           "Groq API Key Required",
@@ -525,7 +504,6 @@ export function AudiobookImportDialog({
           }
         );
       } else {
-        // Handle local Whisper errors
         const match = message.match(/Model '([^']+)' is not installed/i);
         if (match) {
           const missingModelId = match[1];
@@ -577,7 +555,6 @@ export function AudiobookImportDialog({
     }
   };
 
-  // Import transcript from file
   const handleImportTranscript = async () => {
     try {
       const files = await openFilePicker({
@@ -607,13 +584,10 @@ export function AudiobookImportDialog({
       let doc: Document;
       
       if (multiPartBook && selectedFiles.length > 0) {
-        // Import multi-part book
-        // Import first file as the main document
         const imported = await importFromFiles([selectedFiles[0]]);
         if (imported.length === 0) throw new Error("Failed to import audiobook");
         doc = imported[0];
         
-        // Create chapters from parts
         const partChapters: AudiobookChapter[] = multiPartBook.parts.map((part, idx) => ({
           id: idx + 1,
           title: `Part ${part.partNumber}`,
@@ -636,7 +610,6 @@ export function AudiobookImportDialog({
           },
         } as Document);
         
-        // Save audiobook data with all parts
         const audiobookData = {
           documentId: doc.id,
           chapters: partChapters,
@@ -676,7 +649,6 @@ export function AudiobookImportDialog({
           await updateDocumentContent(doc.id, transcript.fullText);
         }
         
-        // Save audiobook data
         const audiobookData = {
           documentId: doc.id,
           chapters,
@@ -702,7 +674,6 @@ export function AudiobookImportDialog({
     }
   };
 
-  // Import batch of audiobooks
   const handleBatchImport = async () => {
     const readyItems = batchItems.filter(item => item.status === "ready");
     
@@ -747,7 +718,6 @@ export function AudiobookImportDialog({
           },
         } as Document);
         
-        // Save audiobook data
         const audiobookData = {
           documentId: doc.id,
           chapters: [],
@@ -772,7 +742,6 @@ export function AudiobookImportDialog({
     
     await loadDocuments();
     
-    // Show summary
     if (results.failed.length === 0) {
       showSuccess(
         "Import complete",
@@ -1498,7 +1467,6 @@ export function AudiobookImportDialog({
                     </div>
                   </div>
                 ) : (
-                  // Batch summary
                   <div className="rounded-xl border border-border bg-card overflow-hidden">
                     <div className="max-h-80 overflow-y-auto">
                       {batchItems.filter(i => i.status === "ready").map((item) => (

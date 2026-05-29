@@ -111,10 +111,6 @@ pub const DEFAULT_SINC: f64 = 0.07;
 mod tests {
     use super::*;
 
-    // ============================================================
-    // Matrix Size and Structure Tests
-    // ============================================================
-
     #[test]
     fn test_matrix_size() {
         let matrix = get_sinc_matrix();
@@ -147,10 +143,6 @@ mod tests {
             expected_bytes
         );
     }
-
-    // ============================================================
-    // Spot-Check Tests for Known Values
-    // ============================================================
 
     #[test]
     fn test_first_values() {
@@ -295,10 +287,6 @@ mod tests {
         );
     }
 
-    // ============================================================
-    // Bounds Checking Tests
-    // ============================================================
-
     #[test]
     fn test_index_bounds_checking() {
         // Valid indices should return Some
@@ -382,9 +370,6 @@ mod tests {
 
     #[test]
     fn test_lookup_1_based_grade_conversion() {
-        // The caller (sm18.rs) converts 1-based grades to 0-based indices
-        // Grades 1-20 map to indices 0-19
-        // This test verifies the mapping produces correct results
 
         // Grade 1 (easiest) -> index 0 -> should give high SInc
         let grade_1_val = sinc_lookup(0, 10, 10);

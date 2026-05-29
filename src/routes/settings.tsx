@@ -39,6 +39,7 @@ export function Settings() {
                 </div>
               </div>
               <select
+                aria-label="Theme"
                 value={settings.appearance.theme}
                 onChange={(e) => updateSettings({ appearance: { ...settings.appearance, theme: e.target.value as "light" | "dark" | "system" } })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
@@ -60,6 +61,7 @@ export function Settings() {
                 type="number"
                 min="10"
                 max="20"
+                aria-label="Font size"
                 value={settings.appearance.fontSize}
                 onChange={(e) => updateSettings({ appearance: { ...settings.appearance, fontSize: Number(e.target.value) } })}
                 className="w-20 px-3 py-2 bg-background border border-border rounded-md text-foreground"
@@ -81,7 +83,9 @@ export function Settings() {
                 </div>
               </div>
               <select
+                aria-label="Algorithm"
                 value={settings.learning.algorithm}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, algorithm: e.target.value as any } })}
                 className="px-3 py-2 bg-background border border-border rounded-md text-foreground"
               >
@@ -106,6 +110,7 @@ export function Settings() {
                 type="number"
                 min="0"
                 max="100"
+                aria-label="New cards per day"
                 value={settings.learning.newCardsPerDay}
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, newCardsPerDay: Number(e.target.value) } })}
                 className="w-20 px-3 py-2 bg-background border border-border rounded-md text-foreground"
@@ -123,6 +128,7 @@ export function Settings() {
                 type="number"
                 min="0"
                 max="500"
+                aria-label="Reviews per day"
                 value={settings.learning.reviewsPerDay}
                 onChange={(e) => updateSettings({ learning: { ...settings.learning, reviewsPerDay: Number(e.target.value) } })}
                 className="w-20 px-3 py-2 bg-background border border-border rounded-md text-foreground"
@@ -168,6 +174,7 @@ export function Settings() {
               </div>
               <input
                 type="text"
+                aria-label="Default category"
                 value={settings.documents.defaultCategory}
                 onChange={(e) => updateSettings({ documents: { ...settings.documents, defaultCategory: e.target.value } })}
                 className="w-48 px-3 py-2 bg-background border border-border rounded-md text-foreground"

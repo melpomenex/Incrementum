@@ -12,10 +12,6 @@
 
 use serde::{Deserialize, Serialize};
 
-// ============================================================
-// Constants — exact values from decompilation
-// ============================================================
-
 /// Grade threshold for success (3+ = success, 0-2 = failure)
 const SUCCESS_GRADE: i32 = 3;
 
@@ -61,10 +57,6 @@ const DEFAULT_S_BOUNDARIES: [f64; 20] = [
     1.0, 1.5, 2.0, 3.0, 4.5, 6.5, 9.5, 14.0, 20.0, 29.0,
     42.0, 61.0, 89.0, 129.0, 188.0, 273.0, 396.0, 575.0, 835.0, 1212.0,
 ];
-
-// ============================================================
-// Default SInc Matrix (from StabilityIncrease.dat)
-// ============================================================
 
 /// Default 21×21×21 SInc matrix.
 /// Layout: flat[D * 441 + S * 21 + R] — D slowest, R fastest.
@@ -1005,10 +997,6 @@ const SINC_MATRIX: [f64; 9261] = [
 
 
 
-// ============================================================
-// State and Config
-// ============================================================
-
 /// SM-18 item state — persisted per learning item.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SM18State {
@@ -1061,10 +1049,6 @@ pub struct SM18ReviewResult {
     /// New interval in days
     pub new_interval: f64,
 }
-
-// ============================================================
-// Core Functions
-// ============================================================
 
 /// Compute retrievability: R = 0.9^(t/S).
 /// R = 0.9 at t = S by definition.
@@ -1197,7 +1181,6 @@ pub fn review(
 ) -> SM18ReviewResult {
     let fi = if fi <= 0.0 { DEFAULT_FI } else { fi };
 
-    // Step 1: Compute retrievability
     let r = if state.stability > 0.0 && elapsed_days > 0.0 {
         retrievability(state.stability, elapsed_days)
     } else {
@@ -1205,16 +1188,13 @@ pub fn review(
     }
     .clamp(0.0, 1.0);
 
-    // Step 2: Get grade-to-R mapping
     let grade_r = get_grade_r(state, grade);
 
-    // Step 3: Compute BW
     let bw = compute_bw(grade, r, grade_r);
 
     let mut sinc = 0.0;
 
     if grade < SUCCESS_GRADE {
-        // === FAILURE PATH ===
         state.lapses += 1;
         state.stability =
             (state.stability * POST_LAPSE_STABILITY_MOD / (1.0 + 0.1 * state.lapses as f64))
@@ -1222,7 +1202,6 @@ pub fn review(
         state.interval = POST_LAPSE_INTERVAL.max(1.0);
         state.repetition = 0;
     } else {
-        // === SUCCESS PATH ===
         state.repetition += 1;
 
         if state.repetition == 1 && state.stability <= 0.0 {
@@ -1235,7 +1214,6 @@ pub fn review(
             let s_grade = bin_s_grade(state.stability);
             let r_grade = bin_r_grade(r);
 
-            // Look up SInc
             sinc = sinc_lookup(d_grade, s_grade, r_grade);
 
             // Update stability: S_new = S_old × SInc
@@ -1248,7 +1226,6 @@ pub fn review(
         }
     }
 
-    // Step 4: Update difficulty (only for grades within valid range)
     if (0..=5).contains(&grade) {
         state.difficulty = update_difficulty(state.difficulty, bw, state.repetition);
     }
@@ -1283,10 +1260,6 @@ impl Default for SM18Algorithm {
         Self::new()
     }
 }
-
-// ============================================================
-// Tests
-// ============================================================
 
 #[cfg(test)]
 mod tests {

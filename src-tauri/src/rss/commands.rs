@@ -11,10 +11,6 @@ use crate::rss::service;
 use sqlx::Row;
 use tauri::State;
 
-// ============================================================================
-// Classifier Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn add_rss_classifier(
     feed_id: String,
@@ -63,10 +59,6 @@ pub async fn compute_intelligence_score(
 pub async fn recompute_all_intelligence_scores(repo: State<'_, Repository>) -> Result<i32> {
     service::recompute_all_intelligence_scores(&repo).await
 }
-
-// ============================================================================
-// Reading State Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn mark_rss_article_unread(id: String, repo: State<'_, Repository>) -> Result<()> {
@@ -118,10 +110,6 @@ pub async fn get_river_of_news(
     repo::get_river_of_news(&repo, &folder_id, limit.unwrap_or(100), intelligence_filter.as_deref()).await
 }
 
-// ============================================================================
-// Search & Intelligence Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn search_rss_articles(
     query: String,
@@ -151,10 +139,6 @@ pub async fn get_rss_articles_with_intelligence(
     ).await
 }
 
-// ============================================================================
-// Clustering Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn compute_story_clusters(
     feed_id: Option<String>,
@@ -178,10 +162,6 @@ pub async fn invalidate_clusters_for_feed(
 ) -> Result<()> {
     repo::invalidate_clusters_for_feed(&repo, &feed_id).await
 }
-
-// ============================================================================
-// Tag Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn add_tag(name: String, repo: State<'_, Repository>) -> Result<RssTag> {
@@ -251,10 +231,6 @@ pub async fn merge_tags(
     service::merge_tags(&repo, &source_tag_id, &target_tag_id).await
 }
 
-// ============================================================================
-// Annotation Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn create_annotation(
     article_id: String,
@@ -307,10 +283,6 @@ pub async fn delete_annotation(id: String, repo: State<'_, Repository>) -> Resul
     repo::delete_annotation(&repo, &id).await
 }
 
-// ============================================================================
-// Discovery Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn get_discovered_sites(
     limit: Option<i32>,
@@ -334,10 +306,6 @@ pub async fn refresh_discoveries(repo: State<'_, Repository>) -> Result<i32> {
 pub async fn seed_curated_feeds(repo: State<'_, Repository>) -> Result<i32> {
     service::seed_curated_feeds(&repo).await
 }
-
-// ============================================================================
-// Folder Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn create_rss_folder(
@@ -417,10 +385,6 @@ pub async fn reorder_folders(
     repo::reorder_folders(&repo, &reorder).await
 }
 
-// ============================================================================
-// Feed Preferences Commands
-// ============================================================================
-
 #[tauri::command]
 pub async fn toggle_feed_active(feed_id: String, repo: State<'_, Repository>) -> Result<bool> {
     repo::toggle_feed_active(&repo, &feed_id).await
@@ -444,10 +408,6 @@ pub async fn set_feed_view_preferences(
 ) -> Result<()> {
     repo::set_feed_view_preferences(&repo, &feed_id, view_mode.as_deref(), layout.as_deref(), auto_mark_after_days).await
 }
-
-// ============================================================================
-// Migration Commands
-// ============================================================================
 
 #[tauri::command]
 pub async fn migrate_folders_from_localstorage(

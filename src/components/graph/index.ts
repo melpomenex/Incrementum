@@ -3,7 +3,6 @@
  * Beautiful visualization of your knowledge network
  */
 
-// Core graph components
 export { KnowledgeGraph, GraphNodeType, LayoutAlgorithm } from "./KnowledgeGraph";
 export type { GraphNode, GraphEdge, GraphData, KnowledgeGraphProps } from "./KnowledgeGraph";
 
@@ -30,11 +29,9 @@ export type {
   GraphFilterControlsProps,
 } from "./GraphFilters";
 
-// Node detail view
 export { NodeDetailView, NodePreviewCard, NodeTooltip } from "./NodeDetailView";
 export type { NodeDetailViewProps } from "./NodeDetailView";
 
-// Export functionality
 export {
   GraphExportButton,
   exportGraph,

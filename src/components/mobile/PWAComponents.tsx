@@ -42,7 +42,6 @@ export function PWAInstallPrompt() {
 
     // Listen for beforeinstallprompt event
     const handler = (e: Event) => {
-      console.log('[PWA] beforeinstallprompt event received');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowPrompt(true);
@@ -65,11 +64,8 @@ export function PWAInstallPrompt() {
   const handleInstall = async () => {
     if (!deferredPrompt) return;
 
-    // Show install prompt
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-
-    console.log('[PWA] Install prompt outcome:', outcome);
 
     setDeferredPrompt(null);
     setShowPrompt(false);

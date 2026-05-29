@@ -273,7 +273,6 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         useCards = !useCards;
       }
 
-      // Start a review session on the backend
       const sessionId = interleaved.length > 0 ? await startReview() : "";
       const firstItem = interleaved[0] || null;
       const isFirstDocument = firstItem && (firstItem as ReviewDocumentItem).itemType === "document";
@@ -305,10 +304,8 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         clearStoredSession();
       }
 
-      // Load streak information
       get().loadStreak();
 
-      // Load preview intervals for the first card
       if (interleaved.length > 0 && firstItem && !isFirstDocument) {
         get().loadPreviewIntervals();
       }
@@ -525,7 +522,6 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     const nextIndex = currentIndex + 1;
 
     if (nextIndex >= queue.length) {
-      // No more cards
       set({
         currentCard: null,
         currentIndex: nextIndex,
@@ -546,7 +542,6 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         sessionStartTime: Date.now(), // Reset for next card
       });
 
-      // Load preview intervals for the next card
       setTimeout(() => {
         if (!nextIsDocument) {
           get().loadPreviewIntervals();

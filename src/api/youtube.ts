@@ -103,7 +103,6 @@ export function extractYouTubeTimestamp(url: string): number | null {
     const tParam = urlObj.searchParams.get('t');
     if (!tParam) return null;
 
-    // Parse time in various formats:
     // - Pure seconds: 933
     // - HH:MM:SS or MM:SS: 1:23:45 or 15:30
     // - YouTube format: 15m30s
@@ -117,7 +116,6 @@ export function extractYouTubeTimestamp(url: string): number | null {
       return hours * 3600 + minutes * 60 + seconds;
     }
 
-    // Check for HH:MM:SS or MM:SS format
     if (tParam.includes(':')) {
       const parts = tParam.split(':');
       if (parts.length === 3) {
@@ -155,7 +153,6 @@ export function extractPlaylistID(url: string): string | null {
  * Extract channel ID from YouTube URL
  */
 export function extractChannelID(url: string): string | null {
-  // Handle /c/, /channel/, /@username formats
   const channelMatch = url.match(/\/channel\/([a-zA-Z0-9_-]+)/);
   if (channelMatch) return channelMatch[1];
 
@@ -195,7 +192,7 @@ export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVid
         return result;
       }
     } catch (error) {
-      console.log("[YouTube] Tauri backend fetch failed, trying fallbacks:", error);
+      console.error("[YouTube] Tauri backend fetch failed, trying fallbacks:", error);
     }
   }
 
@@ -228,7 +225,7 @@ export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVid
       };
     }
   } catch (error) {
-    console.log("[YouTube] oEmbed fetch failed:", error);
+    console.error("[YouTube] oEmbed fetch failed:", error);
   }
 
   // Method 3: Try noembed.com as fallback
@@ -256,12 +253,12 @@ export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVid
       };
     }
   } catch (error) {
-    console.log("[YouTube] noembed fetch failed:", error);
+    console.error("[YouTube] noembed fetch failed:", error);
   }
 
   // Method 4: Last resort - return basic info with known thumbnail URL
   // This allows import even when APIs fail
-  console.log("[YouTube] All API methods failed, using basic fallback");
+  console.error("[YouTube] All API methods failed, using basic fallback");
   return {
     id: videoId,
     title: "YouTube Video", // Will be updated after import
@@ -297,10 +294,8 @@ async function getTranscriptApi(): Promise<any> {
  * In Browser/PWA: Uses youtube-transcript-ts library
  */
 export async function fetchYouTubeTranscript(videoId: string): Promise<YouTubeTranscriptSegment[]> {
-  // Check if running in Tauri
   if (isTauri()) {
     // In Tauri, the backend handles this via invokeCommand
-    console.log("[YouTube] Using Tauri backend for transcript");
     const { invokeCommand } = await import("../lib/tauri");
     const result = await invokeCommand<Array<{ text: string; start: number; duration: number }> | null>(
       "get_youtube_transcript_by_id",
@@ -325,7 +320,6 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<YouTubeTr
   } catch (error: any) {
     console.error("[YouTube] Failed to fetch transcript:", error);
     
-    // Check for specific library errors
     const errorMsg = error?.message || '';
     if (errorMsg.includes('disabled') || errorMsg.includes('not available')) {
       throw new Error('This video does not have captions enabled.');
@@ -524,27 +518,23 @@ export function getYouTubeURLType(url: string): "video" | "playlist" | "channel"
  * Download YouTube video using yt-dlp
  */
 export async function downloadYouTubeVideo(
-  url: string,
-  quality: "best" | "1080p" | "720p" | "480p" | "audio" = "best"
+  _url: string,
+  _quality: "best" | "1080p" | "720p" | "480p" | "audio" = "best"
 ): Promise<string> {
-  // This will be a Tauri command
-  console.log("Download request:", url, quality);
   throw new Error("Download requires Tauri backend - will be implemented in Rust");
 }
 
 /**
  * Extract YouTube video info using yt-dlp
  */
-export async function extractYouTubeInfoWithYTDLP(url: string): Promise<YouTubeVideo | null> {
-  // This will be a Tauri command
-  console.log("Extract request:", url);
+export async function extractYouTubeInfoWithYTDLP(_url: string): Promise<YouTubeVideo | null> {
   throw new Error("Extraction requires Tauri backend - will be implemented in Rust");
 }
 
 /**
  * Get available formats for a YouTube video
  */
-export async function getYouTubeFormats(videoId: string): Promise<
+export async function getYouTubeFormats(_videoId: string): Promise<
   Array<{
     format_id: string;
     ext: string;
@@ -555,6 +545,5 @@ export async function getYouTubeFormats(videoId: string): Promise<
   }>
 > {
   // This will be a Tauri command
-  console.log("Formats request:", videoId);
   throw new Error("Format listing requires Tauri backend - will be implemented in Rust");
 }

@@ -21,7 +21,6 @@ pub async fn extract_html_content(file_path: &str) -> Result<ExtractedContent> {
     // Extract title from <title> tag
     let title = extract_title_from_html(&content);
 
-    // Extract text content
     let text = extract_text_from_html(&content);
 
     // Estimate page count
@@ -67,7 +66,6 @@ fn extract_text_from_html(html: &str) -> String {
             '<' => {
                 in_tag = true;
 
-                // Check for script/style tags
                 let mut tag_name = String::new();
                 while let Some(&next) = chars.peek() {
                     if next.is_alphabetic() {
@@ -105,7 +103,6 @@ fn extract_text_from_html(html: &str) -> String {
         }
     }
 
-    // Clean up HTML entities
     result = result.replace("&nbsp;", " ");
     result = result.replace("&amp;", "&");
     result = result.replace("&lt;", "<");
@@ -113,6 +110,5 @@ fn extract_text_from_html(html: &str) -> String {
     result = result.replace("&quot;", "\"");
     result = result.replace("&#39;", "'");
 
-    // Clean up multiple spaces
     result.split_whitespace().collect::<Vec<&str>>().join(" ")
 }

@@ -66,6 +66,9 @@ export function QueueContextMenu({ item, onDelete, onStartReview }: QueueContext
             <div
               className="fixed inset-0 z-10"
               onClick={() => setIsOpen(false)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setIsOpen(false); }}
+              role="button"
+              tabIndex={-1}
             />
             <div className="absolute right-0 z-20 w-48 bg-card border border-border rounded-lg shadow-lg py-1">
               <button

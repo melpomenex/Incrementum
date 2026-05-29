@@ -492,16 +492,13 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
   const targetTransformRef = useRef<{ x: number; y: number; k: number } | null>(null);
   const _searchFitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Build cluster index from data
   const clusterIndex = useMemo(() => buildClusterIndex(data.edges, data.nodes), [data.edges, data.nodes]);
 
-  // Build edge adjacency
   const edgeAdj = useMemo(() => buildEdgeAdjacency(data.edges), [data.edges]);
 
   // Map from node id -> SimulationNode for O(1) lookup
   const nodeMapRef = useRef<Record<string, SimulationNode>>({});
 
-  // Initialize simulation nodes with random positions
   const simulationNodes = useMemo<SimulationNode[]>(() => {
     const width = canvasRef.current?.width || 800;
     const height = canvasRef.current?.height || 600;
@@ -559,7 +556,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     const cx = canvasSize / 2;
     const cy = canvasSize / 2;
     
-    // Draw glow
     if (hasGlow) {
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 2.5);
       gradient.addColorStop(0, config.color + "40");
@@ -571,13 +567,11 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     }
     
     if (isMed) {
-      // Shadow
       ctx.beginPath();
       ctx.arc(cx + 2, cy + 2, radius, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(0,0,0,0.2)";
       ctx.fill();
 
-      // Circle
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.fillStyle = config.color;
@@ -590,7 +584,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
       ctx.fillStyle = "rgba(0,0,0,0.2)";
       ctx.fill();
 
-      // Node circle
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.fillStyle = config.color;
@@ -610,14 +603,12 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
       ctx.fillStyle = gradient;
       ctx.fill();
 
-      // Border for selected
       if (isSelected) {
         ctx.strokeStyle = theme.colors.onBackground;
         ctx.lineWidth = 3;
         ctx.stroke();
       }
 
-      // Icon
       ctx.fillStyle = "#ffffff";
       ctx.font = `${radius * 0.9}px ${theme.typography.fontFamily}`;
       ctx.textAlign = "center";
@@ -784,7 +775,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
       // Filter down to only active (visible) nodes for force calculation
       const activeNodes = nodes.filter(n => currentVisible.nodes[n.id]);
 
-      // Build quadtree for Barnes-Hut repulsion on active nodes only
       const tree = buildQuadTree(activeNodes);
 
       // Apply forces to active nodes only
@@ -810,11 +800,9 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
           fy += (dy / dist) * force;
         }
 
-        // Center gravity
         fx += (width / 2 - node.x) * 0.005;
         fy += (height / 2 - node.y) * 0.005;
 
-        // Update velocity and position with damping
         node.vx = (node.vx + fx) * 0.8;
         node.vy = (node.vy + fy) * 0.8;
         node.x += node.vx * temperature;
@@ -874,7 +862,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     ctx.fillStyle = theme.colors.background;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw grid background
     drawGrid(ctx, width, height, transform, theme);
 
     ctx.save();
@@ -990,7 +977,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
           node.y - sprite.height / 2
         );
 
-        // Label
         if (localShowLabels || isSelected || isHovered) {
           ctx.fillStyle = isSelected ? theme.colors.onBackground : theme.colors.textSecondary;
           ctx.font = `${isSelected || isHovered ? "bold " : ""}12px ${theme.typography.fontFamily}`;
@@ -1056,7 +1042,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     const mh = miniCanvas.height;
     const { width: cw, height: ch } = mainCanvas;
 
-    // Background
     mctx.fillStyle = theme.colors.background + "dd";
     mctx.fillRect(0, 0, mw, mh);
 
@@ -1163,7 +1148,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     setPhysicsEnabled(true);
   }, [expandedClusters, data]);
 
-  // Handle resize
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -1252,7 +1236,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     const node = nodeMapRef.current[hoveredNode];
     if (!node) return;
 
-    // Check if it's a cluster — expand it
     if (visibleSet.isCluster[node.id] !== undefined) {
       setExpandedClusters((prev) => ({
         ...prev,
@@ -1325,8 +1308,6 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
     targetTransformRef.current = { x: newX, y: newY, k: newK };
     animatingTransformRef.current = true;
   }, [simulationNodes, transform]);
-
-  // ── Search fit handler (called from parent) ────────────────────
 
   // Reset view
   const resetView = useCallback(() => {

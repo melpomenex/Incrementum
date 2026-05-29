@@ -21,13 +21,6 @@ pub use commands::*;
 
 use sqlx::Row;
 
-// ============================================================================
-// HTTP API Variants
-// ============================================================================
-//
-// These functions are used by browser_sync_server.rs and other HTTP-based
-// consumers that need to pass a &Repository instead of Tauri State.
-
 /// HTTP API variant: Search articles
 pub async fn search_rss_articles_http(
     query: &str,

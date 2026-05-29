@@ -81,12 +81,10 @@ class OfflineQueueManager {
 
   private setupOnlineListener(): void {
     const handleOnline = () => {
-      console.log('[OfflineQueue] Browser online, processing queue...');
       this.processQueue();
     };
 
     const handleOffline = () => {
-      console.log('[OfflineQueue] Browser offline');
       this.notifyState({ isOnline: false });
     };
 
@@ -166,7 +164,6 @@ class OfflineQueueManager {
     }
 
     this.processing = true;
-    console.log(`[OfflineQueue] Processing ${this.queue.length} queued requests`);
 
     try {
       const connectionMode = this.getConnectionMode();
@@ -184,7 +181,6 @@ class OfflineQueueManager {
 
         try {
           await this.executeRequest(request, connectionMode);
-          // Remove successful request from queue
           this.queue = this.queue.filter((r) => r.id !== request.id);
           this.saveQueue();
           this.notifyState({});
@@ -192,7 +188,6 @@ class OfflineQueueManager {
           console.error(`[OfflineQueue] Failed to process request ${request.id}:`, error);
           request.retries++;
 
-          // Remove request if max retries exceeded
           if (request.retries >= request.maxRetries) {
             console.error(`[OfflineQueue] Max retries exceeded for request ${request.id}, removing`);
             this.queue = this.queue.filter((r) => r.id !== request.id);
@@ -226,7 +221,6 @@ class OfflineQueueManager {
     }
 
     if (connectionMode === 'cloud-only' || connectionMode === 'dual') {
-      // Try cloud API
       attempts.push({ url: CLOUD_API_BASE + endpoint, isLocal: false });
     }
 
@@ -237,7 +231,6 @@ class OfflineQueueManager {
         if (attempt.isLocal) {
           const isLocalAvailable = await this.checkLocalServer();
           if (!isLocalAvailable) {
-            console.log(`[DualConnection] Local server unavailable, skipping`);
             continue;
           }
         }
@@ -254,7 +247,6 @@ class OfflineQueueManager {
         const response = await fetch(attempt.url, augmentedOptions);
 
         if (response.ok) {
-          console.log(`[DualConnection] Success via ${attempt.isLocal ? 'local' : 'cloud'}: ${endpoint}`);
           return response;
         }
 
@@ -338,7 +330,6 @@ export async function dualFetch(
       if (isLocalAvailable) {
         const response = await fetch(LOCAL_SERVER_URL + endpoint, options);
         if (response.ok) {
-          console.log(`[DualConnection] Used local server for: ${endpoint}`);
           return response;
         }
       }
@@ -357,7 +348,6 @@ export async function dualFetch(
         ...queueManager['getAuthHeaders'](),
       },
     };
-    console.log(`[DualConnection] Using cloud API for: ${endpoint}`);
     return fetch(cloudUrl, cloudOptions);
   }
 
@@ -407,7 +397,6 @@ export async function sendToIncrementum(
     }
 
     const result = await response.json();
-    console.log('[Extension] Content sent successfully:', result);
     return result;
   } catch (error) {
     console.error('[Extension] Failed to send content:', error);
@@ -440,7 +429,6 @@ export function getConnectionMode(): ConnectionMode {
  */
 export function setConnectionMode(mode: ConnectionMode): void {
   localStorage.setItem(CONNECTION_MODE_KEY, mode);
-  console.log('[DualConnection] Connection mode changed to:', mode);
   (queueManager as any).notifyState({ connectionMode: mode });
 }
 

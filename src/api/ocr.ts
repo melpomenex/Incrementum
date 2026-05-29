@@ -125,12 +125,11 @@ export async function performOCR(
 
   try {
     const result = await Tesseract.recognize(image, langStr, {
-      logger: (m: any) => {
-        console.log(m);
+      logger: (_m: { status: string; progress: number }) => {
+        // Tesseract progress logging (silenced)
       },
-    } as any);
+    });
 
-    // Parse Tesseract result
     return parseTesseractResult(result.data);
   } catch (error) {
     console.error("OCR failed:", error);
@@ -207,14 +206,14 @@ export async function performOCRWithProgress(
     onProgress(0, "Initializing...");
 
     const result = await worker.recognize(image, {}, {
-      logger: (m: any) => {
+      logger: (m: { status: string; progress: number }) => {
         if (m.status === "recognizing text") {
           onProgress(Math.round(m.progress * 100), m.status);
         } else {
           onProgress(0, m.status);
         }
       },
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any -- Tesseract accepts logger in options despite type mismatch
 
     await worker.terminate();
 
@@ -238,6 +237,7 @@ export function getLanguageDisplayName(code: string): string {
  */
 export async function preloadLanguage(language: string = OCRLanguage.English): Promise<void> {
   const Tesseract = await import("tesseract.js");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loadLanguage is a worker action not in top-level types
   await (Tesseract as any).loadLanguage(language);
 }
 
@@ -287,7 +287,6 @@ export function calculateOCRQuality(result: OCRResult): {
   const issues: string[] = [];
   let score = 100;
 
-  // Check confidence
   if (result.confidence < 50) {
     score -= 30;
     issues.push("Low overall confidence");
@@ -296,20 +295,17 @@ export function calculateOCRQuality(result: OCRResult): {
     issues.push("Medium overall confidence");
   }
 
-  // Check for empty results
   if (!result.text.trim()) {
     score = 0;
     issues.push("No text detected");
   }
 
-  // Check word confidence
   const lowConfWords = result.words.filter((w) => w.confidence < 50);
   if (lowConfWords.length > result.words.length * 0.3) {
     score -= 20;
     issues.push("Many low-confidence words");
   }
 
-  // Check for common OCR errors
   const errorPatterns = [
     /\|/g, // Vertical bars often misrecognized
     /1\//g, // Slash confusion
@@ -366,7 +362,6 @@ export function validateOCRResult(result: OCRResult): {
  */
 export function cleanOCRText(text: string): string {
   return text
-    // Remove extra whitespace
     .replace(/\s+/g, " ")
     // Fix common OCR errors
     .replace(/\|/g, "I")

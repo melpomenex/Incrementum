@@ -1,8 +1,5 @@
 import { useState } from "react";
-import { useTabsStore } from "../stores";
-import { useDocumentStore } from "../stores";
-import { useUIStore } from "../stores";
-import { useSettingsStore } from "../stores";
+import { useTabsStore, useDocumentStore, useUIStore, useSettingsStore } from "../stores";
 import { captureAndSaveScreenshot } from "../utils/screenshotCaptureFlow";
 import { useI18n } from "../lib/i18n";
 import {
@@ -47,9 +44,6 @@ import {
   MessageSquare,
   Sparkles,
   Headphones,
-  ChevronDown,
-  Plus,
-  Check,
 } from "lucide-react";
 import { CollectionSwitcher } from "./collections/CollectionSwitcher";
 
@@ -127,7 +121,6 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const isVertical = position === "left" || position === "right";
   const [showUrlImportDialog, setShowUrlImportDialog] = useState(false);
 
-  // Import File button
   const handleImportFile = async () => {
     const imported = await openFilePickerAndImport();
     if (imported.length > 0) {
@@ -142,7 +135,6 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     }
   };
 
-  // Import URL button
   const handleImportUrl = () => {
     setShowUrlImportDialog(true);
   };
@@ -207,7 +199,6 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     }
   };
 
-  // Start Review button
   const handleStartReview = () => {
     addTab({
       title: "Review",
@@ -390,7 +381,6 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       });
   };
 
-  // Settings button
   const handleSettings = () => {
     addTab({
       title: "Settings",
@@ -621,7 +611,6 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
   ];
 
-  // Get unique group numbers
   const groups = Array.from(new Set(buttons.map((b) => b.group))).sort();
 
   const toolbarContent = isVertical ? (

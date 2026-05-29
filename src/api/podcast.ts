@@ -16,10 +16,6 @@ export async function importPodcastEpisodeAsDocument(episodeId: string, collecti
   return null;
 }
 
-// ============================================================================
-// Types (camelCase — Tauri auto-converts from snake_case)
-// ============================================================================
-
 /**
  * Podcast feed as returned by the backend (camelCase in JS).
  */
@@ -77,10 +73,6 @@ export interface PodcastSearchResult {
   categories?: Record<string, string> | null;
 }
 
-// ============================================================================
-// Podcast Search API
-// ============================================================================
-
 /**
  * Search for podcasts by keyword via the iTunes Search API (completely keyless and highly reliable).
  */
@@ -122,10 +114,6 @@ export async function searchPodcasts(query: string): Promise<PodcastSearchResult
   }
 }
 
-// ============================================================================
-// HTTP helpers (mirrors rss.ts / rss-classifiers.ts pattern)
-// ============================================================================
-
 function getApiBaseUrl(): string {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? `${window.location.protocol}//${window.location.hostname}:8766`
@@ -137,10 +125,6 @@ function shouldUseHttp(): boolean {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";
 }
-
-// ============================================================================
-// Unified async API functions (Tauri IPC → HTTP → browserInvoke fallback)
-// ============================================================================
 
 /**
  * Subscribe to a podcast feed. Returns the created PodcastFeed.
@@ -334,10 +318,6 @@ export async function getEpisodePosition(episodeId: string): Promise<number> {
   return invokeCommand<number>("get_episode_position", { episodeId });
 }
 
-// ============================================================================
-// Episode Download API
-// ============================================================================
-
 export async function downloadEpisodeAudio(
   episodeId: string,
   audioUrl: string,
@@ -421,10 +401,6 @@ export async function probeAudioDuration(localPath: string): Promise<number | nu
     return null;
   }
 }
-
-// ============================================================================
-// Transcription API
-// ============================================================================
 
 export interface TranscriptSegment {
   start: number;
@@ -528,10 +504,6 @@ export async function setFeedAutoTranscribe(
   }
   console.warn("[Browser] setFeedAutoTranscribe: no-op in browser fallback mode");
 }
-
-// ============================================================================
-// Client-side helper functions (kept as-is)
-// ============================================================================
 
 /**
  * Validate podcast feed URL.

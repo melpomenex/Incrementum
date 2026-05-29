@@ -1,8 +1,7 @@
 import { ReviewQueueView } from "../components/review/ReviewQueueView";
 import { useReviewStore, useTabsStore } from "../stores";
-import { DocumentViewer } from "../components/tabs/TabRegistry";
+import { DocumentViewer, ReviewTab } from "../components/tabs/TabRegistry";
 import type { QueueItem } from "../types/queue";
-import { ReviewTab } from "../components/tabs/TabRegistry";
 import { QueueScrollPage } from "./QueueScrollPage";
 import { Brain, FileText, Layers } from "lucide-react";
 import { useI18n } from "../lib/i18n";

@@ -4,8 +4,6 @@ Fetch public Feedspot category pages, extract feed URLs, dedupe against the
 existing curated Rust list, and write generated JSON for the Tauri backend.
 """
 
-from __future__ import annotations
-
 import argparse
 import html
 import json
@@ -20,10 +18,26 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 CURATED_RS = ROOT / "src-tauri" / "src" / "commands" / "curated_feeds.rs"
-OUTPUT_JSON = ROOT / "src-tauri" / "src" / "commands" / "generated" / "feedspot_curated_feeds.json"
-OUTPUT_REPORT = ROOT / "src-tauri" / "src" / "commands" / "generated" / "feedspot_curated_feeds_report.json"
+OUTPUT_JSON = (
+    ROOT
+    / "src-tauri"
+    / "src"
+    / "commands"
+    / "generated"
+    / "feedspot_curated_feeds.json"
+)
+OUTPUT_REPORT = (
+    ROOT
+    / "src-tauri"
+    / "src"
+    / "commands"
+    / "generated"
+    / "feedspot_curated_feeds_report.json"
+)
 DIRECTORY_URL = "https://rss.feedspot.com/rss_directory/"
-USER_AGENT = "IncrementumFeedImporter/1.0 (+https://github.com/melpomenex/incrementum-tauri)"
+USER_AGENT = (
+    "IncrementumFeedImporter/1.0 (+https://github.com/melpomenex/incrementum-tauri)"
+)
 
 TARGET_CATEGORIES = [
     "Artificial Intelligence RSS Feeds",
@@ -94,8 +108,13 @@ LOW_QUALITY_TITLE_PATTERNS = [
 ]
 
 SERVICE_BLOG_PATTERNS = [
-    re.compile(r"\b(app|web|software|digital|seo|marketing|development|devops|consulting|outsourcing)\b", re.I),
-    re.compile(r"\b(technologies|solutions|labs|infotech|agency|soft|apps|systems|crm)\b", re.I),
+    re.compile(
+        r"\b(app|web|software|digital|seo|marketing|development|devops|consulting|outsourcing)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(technologies|solutions|labs|infotech|agency|soft|apps|systems|crm)\b", re.I
+    ),
 ]
 
 TRUSTED_DOMAIN_HINTS = [
@@ -305,11 +324,19 @@ def quality_score(entry: dict[str, str]) -> tuple[int, list[str]]:
         score += 4
         reasons.append("allowlist")
 
-    if entry["site_url"].startswith("https://") and entry["feed_url"].startswith(("https://", "http://")):
+    if entry["site_url"].startswith("https://") and entry["feed_url"].startswith(
+        ("https://", "http://")
+    ):
         score += 1
         reasons.append("valid_urls")
 
-    if entry["category"] in {"Politics", "Science", "AI", "Security", "Business & Finance"}:
+    if entry["category"] in {
+        "Politics",
+        "Science",
+        "AI",
+        "Security",
+        "Business & Finance",
+    }:
         score += 1
         reasons.append("priority_category")
 
@@ -317,11 +344,16 @@ def quality_score(entry: dict[str, str]) -> tuple[int, list[str]]:
         score += 3
         reasons.append("trusted_domain")
 
-    if len(title) >= 8 and not any(title.startswith(prefix) for prefix in LOW_QUALITY_TITLE_PREFIXES):
+    if len(title) >= 8 and not any(
+        title.startswith(prefix) for prefix in LOW_QUALITY_TITLE_PREFIXES
+    ):
         score += 1
         reasons.append("clean_title")
 
-    if any(site_host == host or site_host.endswith(f".{host}") for host in LOW_QUALITY_HOSTS):
+    if any(
+        site_host == host or site_host.endswith(f".{host}")
+        for host in LOW_QUALITY_HOSTS
+    ):
         score -= 4
         reasons.append("hosted_blog")
 
@@ -368,7 +400,9 @@ def parse_existing_feeds() -> tuple[set[str], set[str]]:
 
 def discover_category_urls(directory_html: str) -> dict[str, str]:
     discovered = {}
-    for href, label in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>([^<]+RSS Feeds)</a>', directory_html, flags=re.I):
+    for href, label in re.findall(
+        r'<a[^>]+href="([^"]+)"[^>]*>([^<]+RSS Feeds)</a>', directory_html, flags=re.I
+    ):
         label = clean_text(label)
         if label in TARGET_CATEGORIES:
             if href.startswith("/"):
@@ -385,7 +419,9 @@ def extract_entries(page_html: str, source_category: str) -> list[dict[str, str]
     )
     for match in pattern.finditer(page_html):
         title_html = match.group("title")
-        title_link = re.search(r'<a[^>]*>(?P<title>.*?)</a>', title_html, flags=re.I | re.S)
+        title_link = re.search(
+            r"<a[^>]*>(?P<title>.*?)</a>", title_html, flags=re.I | re.S
+        )
         title = clean_text(title_link.group("title") if title_link else title_html)
         body = match.group("body")
 
@@ -404,7 +440,7 @@ def extract_entries(page_html: str, source_category: str) -> list[dict[str, str]
             continue
 
         description_match = re.search(
-            r'</a>\s*(?P<description>.*?)(?:Export RSS feeds list|Get access to|Email us|<h3|$)',
+            r"</a>\s*(?P<description>.*?)(?:Export RSS feeds list|Get access to|Email us|<h3|$)",
             body,
             flags=re.I | re.S,
         )
@@ -414,9 +450,13 @@ def extract_entries(page_html: str, source_category: str) -> list[dict[str, str]
                 "title": title.replace(" RSS Feed", "").strip(),
                 "feed_url": clean_text(feed_match.group("feed")),
                 "site_url": clean_text(site_match.group("site")),
-                "category": CATEGORY_ALIASES.get(source_category, source_category.replace(" RSS Feeds", "")),
+                "category": CATEGORY_ALIASES.get(
+                    source_category, source_category.replace(" RSS Feeds", "")
+                ),
                 "source_category": source_category,
-                "description": clean_text(description_match.group("description")) if description_match else "",
+                "description": clean_text(description_match.group("description"))
+                if description_match
+                else "",
             }
         )
     return entries
@@ -444,16 +484,18 @@ def dedupe_entries(
         score, reasons = quality_score(entry)
         min_score = CATEGORY_MIN_SCORE.get(entry["category"], 1)
         if score < min_score:
-            dropped.append({
-                "title": entry["title"],
-                "feed_url": entry["feed_url"],
-                "site_url": entry["site_url"],
-                "category": entry["category"],
-                "source_category": entry["source_category"],
-                "score": score,
-                "min_score": min_score,
-                "reasons": reasons,
-            })
+            dropped.append(
+                {
+                    "title": entry["title"],
+                    "feed_url": entry["feed_url"],
+                    "site_url": entry["site_url"],
+                    "category": entry["category"],
+                    "source_category": entry["source_category"],
+                    "score": score,
+                    "min_score": min_score,
+                    "reasons": reasons,
+                }
+            )
             continue
         seen_local.add((feed_key, site_key))
         deduped.append(
@@ -471,8 +513,15 @@ def dedupe_entries(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--delay", type=float, default=1.0, help="Delay between requests in seconds")
-    parser.add_argument("--limit-per-category", type=int, default=40, help="Cap imported entries per category")
+    parser.add_argument(
+        "--delay", type=float, default=1.0, help="Delay between requests in seconds"
+    )
+    parser.add_argument(
+        "--limit-per-category",
+        type=int,
+        default=40,
+        help="Cap imported entries per category",
+    )
     args = parser.parse_args()
 
     existing_feed_urls, existing_site_urls = parse_existing_feeds()
@@ -482,7 +531,9 @@ def main() -> int:
     for category, url in FALLBACK_CATEGORY_URLS.items():
         category_urls.setdefault(category, url)
 
-    missing = [category for category in TARGET_CATEGORIES if category not in category_urls]
+    missing = [
+        category for category in TARGET_CATEGORIES if category not in category_urls
+    ]
     if missing:
         print("Missing Feedspot categories:", ", ".join(missing), file=sys.stderr)
 
@@ -511,7 +562,9 @@ def main() -> int:
             }
             continue
         extracted = extract_entries(page_html, category)
-        deduped, dropped = dedupe_entries(extracted, existing_feed_urls, existing_site_urls)
+        deduped, dropped = dedupe_entries(
+            extracted, existing_feed_urls, existing_site_urls
+        )
         deduped.sort(key=lambda item: (-item["_quality_score"], item["title"].lower()))
         limited = deduped[: args.limit_per_category]
         dropped_entries.extend(dropped)
@@ -533,8 +586,12 @@ def main() -> int:
         entry.pop("_quality_score", None)
 
     imported_entries.sort(key=lambda item: (item["category"], item["title"].lower()))
-    dropped_entries.sort(key=lambda item: (item["category"], item["score"], item["title"].lower()))
-    OUTPUT_JSON.write_text(json.dumps(imported_entries, indent=2, ensure_ascii=True) + "\n")
+    dropped_entries.sort(
+        key=lambda item: (item["category"], item["score"], item["title"].lower())
+    )
+    OUTPUT_JSON.write_text(
+        json.dumps(imported_entries, indent=2, ensure_ascii=True) + "\n"
+    )
     report["dropped_samples"] = dropped_entries[:200]
     OUTPUT_REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=True) + "\n")
 

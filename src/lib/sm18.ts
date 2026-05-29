@@ -12,10 +12,6 @@
  * - Interval: S * ln(1-FI) / ln(0.9)
  */
 
-// ============================================================
-// Constants — exact values from decompilation
-// ============================================================
-
 /** Grade threshold for success (3+ = success, 0-2 = failure) */
 const SUCCESS_GRADE = 3;
 
@@ -58,10 +54,6 @@ const DEFAULT_S_BOUNDARIES: readonly number[] = [
     1.0, 1.5, 2.0, 3.0, 4.5, 6.5, 9.5, 14.0, 20.0, 29.0,
     42.0, 61.0, 89.0, 129.0, 188.0, 273.0, 396.0, 575.0, 835.0, 1212.0,
 ];
-
-// ============================================================
-// Default SInc Matrix (from StabilityIncrease.dat)
-// ============================================================
 
 /**
  * Default 21×21×21 SInc matrix.
@@ -1230,10 +1222,6 @@ const SINC_MATRIX: Float64Array = new Float64Array([
     0.0, 0.0, 0.0, 0.0, 0.0,
 ]);
 
-// ============================================================
-// State and Result Types
-// ============================================================
-
 /** SM-18 item state — persisted per learning item as JSON. */
 export interface SM18State {
     /** Difficulty in [0.0, 1.0] */
@@ -1265,10 +1253,6 @@ export interface SM18ReviewResult {
     /** New interval in days */
     new_interval: number;
 }
-
-// ============================================================
-// Helpers
-// ============================================================
 
 export function defaultSm18State(): SM18State {
     return {
@@ -1302,10 +1286,6 @@ export function parseSm18State(algorithmState: string | undefined): SM18State {
     }
     return defaultSm18State();
 }
-
-// ============================================================
-// Core Functions
-// ============================================================
 
 /** Compute retrievability: R = 0.9^(t/S). R = 0.9 at t = S by definition. */
 export function sm18Retrievability(stability: number, elapsedDays: number): number {
@@ -1391,10 +1371,6 @@ function getGradeR(state: SM18State, grade: number): number {
     return DEFAULT_GRADE_R[grade] ?? 0.9;
 }
 
-// ============================================================
-// Review Function
-// ============================================================
-
 /**
  * Process an SM-18 review and update item state.
  *
@@ -1412,7 +1388,6 @@ export function sm18Review(
 ): SM18ReviewResult {
     fi = fi <= 0.0 ? DEFAULT_FI : fi;
 
-    // Step 1: Compute retrievability
     let r: number;
     if (state.stability > 0.0 && elapsedDays > 0.0) {
         r = sm18Retrievability(state.stability, elapsedDays);
@@ -1421,16 +1396,13 @@ export function sm18Review(
     }
     r = Math.max(0.0, Math.min(1.0, r));
 
-    // Step 2: Get grade-to-R mapping
     const gradeR = getGradeR(state, grade);
 
-    // Step 3: Compute BW
     const bw = computeBw(grade, r, gradeR);
 
     let sinc = 0.0;
 
     if (grade < SUCCESS_GRADE) {
-        // === FAILURE PATH ===
         state.lapses += 1;
         state.stability = Math.max(
             state.stability * POST_LAPSE_STABILITY_MOD / (1.0 + 0.1 * state.lapses),
@@ -1439,7 +1411,6 @@ export function sm18Review(
         state.interval = Math.max(POST_LAPSE_INTERVAL, 1.0);
         state.repetition = 0;
     } else {
-        // === SUCCESS PATH ===
         state.repetition += 1;
 
         if (state.repetition === 1 && state.stability <= 0.0) {
@@ -1452,7 +1423,6 @@ export function sm18Review(
             const sGrade = binSGrade(state.stability);
             const rGrade = binRGrade(r);
 
-            // Look up SInc
             sinc = sincLookup(dGrade, sGrade, rGrade);
 
             // Update stability: S_new = S_old * SInc
@@ -1465,7 +1435,6 @@ export function sm18Review(
         }
     }
 
-    // Step 4: Update difficulty (only for grades within valid range)
     if (grade >= 0 && grade <= 5) {
         state.difficulty = updateDifficulty(state.difficulty, bw, state.repetition);
     }

@@ -172,7 +172,6 @@ export function DocumentQATab() {
     };
   }, [researchDraft, researchSession]);
 
-  // Parse mentions from input text
   const parseMentions = useCallback((text: string): { text: string; mentions: DocumentMention[] } => {
     const newMentions: DocumentMention[] = [];
 
@@ -202,14 +201,12 @@ export function DocumentQATab() {
     return formatted;
   }, []);
 
-  // Handle input change with @ trigger detection
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setRawInput(value);
 
     const cursorPosition = e.target.selectionStart;
 
-    // Check if we're typing after @
     const beforeCursor = value.slice(0, cursorPosition);
     const atMatch = beforeCursor.match(/@(\w*)$/);
 
@@ -222,7 +219,6 @@ export function DocumentQATab() {
       setMentionQuery("");
     }
 
-    // Parse existing mentions
     const { mentions: newMentions } = parseMentions(value);
     setMentions(newMentions);
 
@@ -242,11 +238,9 @@ export function DocumentQATab() {
       setDetectedChapter(null);
     }
 
-    // Update display value
     setInput(formatInputForDisplay(value, newMentions));
   };
 
-  // Handle document selection from mention popup
   const handleSelectDocument = (doc: { id: string; title: string }) => {
     if (!textareaRef.current) return;
 
@@ -277,7 +271,6 @@ export function DocumentQATab() {
     }
   };
 
-  // Handle keyboard navigation in mention popup
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (showMentionPopup) {
       if (e.key === "ArrowDown") {
@@ -300,7 +293,6 @@ export function DocumentQATab() {
     }
   };
 
-  // Remove a mention
   const handleRemoveMention = (mentionId: string) => {
     const token = `@{${mentionId}}`;
     const newValue = rawInput.replace(token, "");
@@ -331,7 +323,6 @@ export function DocumentQATab() {
         try {
           const extractionResult = await extractDocumentText(documentId);
           if (extractionResult.content) {
-            console.log(`[Document Q&A] Extracted ${extractionResult.content.length} chars from document`);
             documentContent = extractionResult.content;
           }
         } catch (extractionError) {
@@ -344,7 +335,6 @@ export function DocumentQATab() {
         const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 4000;
         const chapterContext = buildChapterQAContext(docTitle, documentContent, chapterRef.number, maxTokens);
         
-        console.log(`[Document Q&A] Using chapter ${chapterRef.number} content (${chapterContext.length} chars)`);
         return {
           content: chapterContext,
           isChapterSpecific: true,
@@ -419,7 +409,6 @@ export function DocumentQATab() {
       documentIds.map((id) => getDocumentContent(id, chapterRef))
     );
 
-    // Check if any document is using chapter-specific content
     const isChapterSpecific = results.some(r => r.isChapterSpecific);
     const chapterNumber = results.find(r => r.chapterNumber)?.chapterNumber;
 
@@ -442,7 +431,6 @@ export function DocumentQATab() {
     };
   };
 
-  // Parse tool calls from LLM response
   const parseToolCalls = (content: string) => {
     const toolCalls: ToolCall[] = [];
     const toolCallRegex = /```tool_calls\s*([\s\S]*?)```/g;
@@ -476,7 +464,6 @@ export function DocumentQATab() {
     return { cleanedContent, toolCalls };
   };
 
-  // Execute tool calls
   const executeToolCalls = async (messageId: string, calls: ToolCall[]) => {
     for (const call of calls) {
       try {
@@ -616,7 +603,6 @@ export function DocumentQATab() {
   const handleSendMessage = async () => {
     if (!rawInput.trim() || isProcessing) return;
 
-    // Parse mentions from input
     const mentionedDocumentIds = mentions.map((m) => m.id);
 
     // Detect chapter references in the query
@@ -640,7 +626,6 @@ export function DocumentQATab() {
     setIsProcessing(true);
 
     try {
-      // Check for LLM provider
       const enabledProviders = getEnabledProviders();
       if (!enabledProviders || enabledProviders.length === 0) {
         const errorMsg = {
@@ -656,7 +641,6 @@ export function DocumentQATab() {
 
       const provider = enabledProviders[0];
 
-      // Build system prompt with document context
       const mcpTools = (await getIncrementumMCPTools()) || [];
       const systemPrompt: LLMMessage = {
         role: "system",
@@ -720,7 +704,6 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
         chapterRef
       );
 
-      // Build user prompt with chapter context info
       let userQuestion = savedRawInput.replace(MENTION_REGEX, "").trim();
       let contextPrefix = "";
       
@@ -735,7 +718,6 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
           : userQuestion,
       };
 
-      // Build conversation history for LLM context
       // Include recent messages (excluding system messages) for context
       const conversationHistory: LLMMessage[] = messages
         .filter(m => m.role === "user" || m.role === "assistant")
@@ -840,6 +822,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
               <FlaskConical className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">NotebookLM Research Workspace</span>
               <select
+                aria-label="Research document"
                 value={activeResearchDocumentId}
                 onChange={(e) => setResearchDocumentId(e.target.value)}
                 className="px-2 py-1 border border-border rounded bg-background text-sm"
@@ -873,6 +856,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
 
             <div className="flex gap-2">
               <textarea
+                aria-label="Research query"
                 value={researchQuery}
                 onChange={(e) => setResearchQuery(e.target.value)}
                 placeholder="Ask NotebookLM to research this document context..."
@@ -890,6 +874,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
 
             <div>
               <textarea
+                aria-label="Research draft"
                 ref={researchEditorRef}
                 value={researchDraft}
                 onChange={(e) => setResearchDraft(e.target.value)}
@@ -934,6 +919,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                 </div>
                 {artifactDraft.type === "cloze" ? (
                   <textarea
+                    aria-label="Cloze text"
                     value={artifactDraft.clozeText || ""}
                     onChange={(e) => setArtifactDraft({ ...artifactDraft, clozeText: e.target.value, updatedAt: Date.now() })}
                     className="w-full px-2 py-1 border border-border rounded text-sm min-h-[90px]"
@@ -941,12 +927,14 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                 ) : (
                   <div className="space-y-2">
                     <input
+                      aria-label="Flashcard question"
                       value={artifactDraft.question || ""}
                       onChange={(e) => setArtifactDraft({ ...artifactDraft, question: e.target.value, updatedAt: Date.now() })}
                       className="w-full px-2 py-1 border border-border rounded text-sm"
                       placeholder="Question"
                     />
                     <textarea
+                      aria-label="Flashcard answer"
                       value={artifactDraft.answer || ""}
                       onChange={(e) => setArtifactDraft({ ...artifactDraft, answer: e.target.value, updatedAt: Date.now() })}
                       className="w-full px-2 py-1 border border-border rounded text-sm min-h-[80px]"

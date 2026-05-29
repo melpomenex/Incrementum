@@ -162,12 +162,10 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
     }
   }, []);
 
-  // Check notification permission on mount
   useEffect(() => {
     checkNotificationPermission().then(setPermission);
   }, []);
 
-  // Handle settings update
   const handleUpdate = (updates: Partial<typeof notificationSettings>) => {
     updateSettingsCategory("notifications", updates);
     onChange?.();
@@ -204,7 +202,6 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
     }
   };
 
-  // Get permission status display
   const getPermissionStatus = () => {
     switch (permission) {
       case "granted":

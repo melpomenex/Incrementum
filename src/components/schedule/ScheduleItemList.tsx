@@ -4,8 +4,6 @@ import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
 import { ScheduleItemRow } from "./ScheduleItemRow";
 import { ScheduleTable } from "./ScheduleTable";
-import { cn } from "../../utils";
-import { LayoutGrid, Table2 } from "lucide-react";
 
 interface ScheduleItemListProps {
   items: ScheduleDayItem[];

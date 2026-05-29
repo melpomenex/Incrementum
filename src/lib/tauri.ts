@@ -220,7 +220,6 @@ function browserOpenFilePicker(options?: {
     input.type = 'file';
     input.multiple = options?.multiple ?? false;
 
-    // Build accept attribute from filters
     if (options?.filters?.length) {
       const extensions = options.filters.flatMap(f => f.extensions.map(ext => `.${ext}`));
       input.accept = extensions.join(',');
@@ -245,7 +244,6 @@ function browserOpenFilePicker(options?: {
     input.click();
   });
 }
-
 
 /**
  * Open folder picker dialog
@@ -331,22 +329,18 @@ export async function openInWebviewWindow(
       alwaysOnTop: false,
     });
 
-    // Handle window creation events
     // Note: once() returns a Promise that resolves to an unlisten function
     // We don't need to clean these up as they fire only once and the window
     // manages its own lifecycle, but we should handle promise rejections
     void webview.once("tauri://created", () => {
-      console.log("YouTube player window created successfully");
     }).catch(() => { /* ignore */ });
 
     void webview.once("tauri://error", (event: unknown) => {
       console.error("Failed to create YouTube player window:", event);
-      // Fallback to browser
       openExternal(url);
     }).catch(() => { /* ignore */ });
   } catch (error) {
     console.error("Failed to create webview window:", error);
-    // Fallback to browser
     openExternal(url);
   }
 }

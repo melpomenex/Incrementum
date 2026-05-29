@@ -172,16 +172,13 @@ export function useGlobalShortcuts() {
 
     const setupTauriShortcutListeners = async () => {
       try {
-        console.log("[Tauri Shortcut Bridge] Setting up event listeners");
 
         unlistenPaletteOpen = await listen<string>("command-palette-open", (event) => {
-          console.log("[Tauri Shortcut Bridge] Received command-palette-open:", event.payload);
           window.dispatchEvent(new CustomEvent("command-palette-open"));
         });
 
         unlistenShortcutNative = await listen<string>("global-shortcut-native", (event) => {
           const key = event.payload;
-          console.log("[Tauri Shortcut Bridge] Received global-shortcut-native:", key);
           switch (key) {
             case "KeyQ":
               window.dispatchEvent(new CustomEvent("navigate", { detail: "/queue" }));

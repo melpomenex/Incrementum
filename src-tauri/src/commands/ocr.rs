@@ -409,7 +409,6 @@ pub async fn ocr_pdf_file(request: OCRPdfRequest) -> Result<OCRPdfResponse> {
     } else {
         let page_images = extract_pdf_page_images(&doc);
         
-        // Create a lookup map of page number to image
         let mut image_map = std::collections::HashMap::new();
         for img in page_images {
             image_map.insert(img.page_number, img);
@@ -491,7 +490,6 @@ pub fn extract_key_phrases(request: KeyPhraseRequest) -> Result<KeyPhraseRespons
 
 /// Simple RAKE (Rapid Automatic Keyword Extraction) implementation
 fn extract_phrases_rake(text: &str, max_phrases: usize) -> Vec<KeyPhrase> {
-    // Define stop words
     let stop_words = vec![
         "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
         "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between",
@@ -520,7 +518,6 @@ fn extract_phrases_rake(text: &str, max_phrases: usize) -> Vec<KeyPhrase> {
         .filter(|s| !s.is_empty())
         .collect();
 
-    // Extract candidate phrases
     let mut phrases: Vec<String> = Vec::new();
     for sentence in sentences {
         let words: Vec<&str> = sentence.split_whitespace().collect();
@@ -675,7 +672,6 @@ mod tests {
         assert!(!response.phrases.is_empty());
         assert!(response.phrases.len() <= 5);
 
-        // Check that phrases are sorted by score
         for i in 1..response.phrases.len() {
             assert!(response.phrases[i - 1].score >= response.phrases[i].score);
         }
@@ -692,7 +688,6 @@ mod tests {
 
         let response = extract_key_phrases(request).unwrap();
 
-        // Check that stop words are filtered out
         for phrase in &response.phrases {
             assert!(!["the", "is", "over", "very"].contains(&phrase.text.to_lowercase().as_str()));
         }
@@ -737,7 +732,6 @@ mod tests {
 
         let response = extract_key_phrases(request).unwrap();
 
-        // Check that all scores are between 0 and 1
         for phrase in &response.phrases {
             assert!(phrase.score >= 0.0);
             assert!(phrase.score <= 1.0);

@@ -73,7 +73,6 @@ export const AUDIOBOOK_FORMATS = [
   "mp3", "m4b", "m4a", "aac", "ogg", "flac", "opus", "wav", "wma"
 ];
 
-// Check if file is an audiobook
 export function isAudiobookFile(filePath: string): boolean {
   const ext = filePath.split(".").pop()?.toLowerCase() || "";
   return AUDIOBOOK_FORMATS.includes(ext);
@@ -112,13 +111,11 @@ export function detectMultiPartAudiobook(filePaths: string[]): MultiPartAudioboo
   // Sort files to ensure proper order
   const sortedPaths = [...filePaths].sort();
   
-  // Get base names without extension
   const baseNames = sortedPaths.map(path => {
     const fileName = path.split("/").pop()?.split("\\").pop() || "";
     return fileName.replace(/\.[^/.]+$/, "");
   });
   
-  // Check for common multi-part patterns
   const patterns = [
     // "Book Title Part 1", "Book Title Part 2"
     { regex: /^(.+?)\s+(?:part|pt|volume|vol|book|bk)\s*(\d+)$/i, group: 1 },
@@ -135,22 +132,18 @@ export function detectMultiPartAudiobook(filePaths: string[]): MultiPartAudioboo
   for (const pattern of patterns) {
     const matches = baseNames.map(name => name.match(pattern.regex));
     
-    // Check if all files match this pattern
     if (matches.every(m => m !== null)) {
       const groups = matches.map(m => m![pattern.group].trim());
       const partNumbers = matches.map(m => parseInt(m![2]));
       
-      // Check if base name is consistent
       const baseName = groups[0];
       const allSameBase = groups.every(g => g === baseName);
       
       if (allSameBase) {
-        // Clean the base name: strip common audiobook suffixes
         const cleanedBase = baseName
           .replace(/\s*\((?:unabridged|abridged|audiobook)\)\s*$/i, "")
           .trim();
 
-        // Parse "Author - Title" from cleaned base name
         const titleParts = cleanedBase.split(" - ");
         const author = titleParts.length >= 2 ? titleParts[0].trim() : undefined;
         const title = titleParts.length >= 2 
@@ -219,7 +212,6 @@ export interface BatchImportResult {
   total: number;
 }
 
-// Parse audiobook metadata from file
 export async function parseAudiobookMetadata(filePath: string): Promise<AudiobookMetadata> {
   if (isTauri()) {
     // In Tauri, use backend to parse metadata
@@ -281,7 +273,6 @@ export async function searchAudiobookCover(
     for (const item of data.items || []) {
       const imageLinks = item.volumeInfo?.imageLinks;
       if (imageLinks) {
-        // Prefer larger images
         if (imageLinks.extraLarge) covers.push(imageLinks.extraLarge);
         else if (imageLinks.large) covers.push(imageLinks.large);
         else if (imageLinks.medium) covers.push(imageLinks.medium);
@@ -296,7 +287,6 @@ export async function searchAudiobookCover(
   }
 }
 
-// Extract embedded cover art from audio file
 export async function extractAudioCoverArt(filePath: string): Promise<string | null> {
   if (!isTauri()) {
     return null;
@@ -408,7 +398,6 @@ async function generateTranscriptWithGroq(
   filePath: string,
   onProgress?: (progress: number) => void
 ): Promise<AudiobookTranscript> {
-  // Check if API key is configured
   if (!isGroqConfigured()) {
     throw new Error("Groq API key not configured. Please add your API key in Audio Transcription settings.");
   }
@@ -515,7 +504,6 @@ export function isTranscriptionAvailable(): boolean {
   return true;
 }
 
-// Import transcript from file
 export async function importTranscriptFromFile(
   filePath: string
 ): Promise<AudiobookTranscript> {
@@ -541,7 +529,6 @@ export async function importTranscriptFromFile(
     // Not JSON, treat as plain text
   }
   
-  // Parse as plain text - create one segment per paragraph
   const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
   const segments: TranscriptSegment[] = paragraphs.map((text, index) => ({
     id: `segment-${index}`,
@@ -568,14 +555,12 @@ export async function searchExistingTranscript(
   return null;
 }
 
-// Parse chapters from audiobook file
 export async function parseChapters(filePath: string): Promise<AudiobookChapter[]> {
   if (isTauri()) {
     const { invokeCommand } = await import("../lib/tauri");
     return await invokeCommand<AudiobookChapter[]>("parse_audiobook_chapters", { filePath });
   }
   
-  // Browser fallback
   return [{
     id: 1,
     title: "Chapter 1",
@@ -615,7 +600,6 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-// Extract sample/preview from audiobook
 export async function extractAudioSample(
   filePath: string,
   startTime: number,

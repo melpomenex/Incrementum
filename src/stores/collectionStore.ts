@@ -8,8 +8,7 @@ import {
   setActiveCollection as apiSetActiveCollection,
   getCollectionDueCount,
 } from "../api/collections";
-import type { Collection } from "../types/collection";
-import { DEFAULT_COLLECTION_ID } from "../types/collection";
+import { DEFAULT_COLLECTION_ID, type Collection } from "../types/collection";
 import { useQueueStore } from "./queueStore";
 import { useAnalyticsStore } from "./analyticsStore";
 import { useDocumentStore } from "./documentStore";

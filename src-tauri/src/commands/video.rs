@@ -67,19 +67,16 @@ pub async fn import_video_file(
 ) -> Result<Document, String> {
     let now = chrono::Utc::now();
 
-    // Validate the source file exists
     let source = std::path::Path::new(&source_path);
     if !source.exists() {
         return Err(format!("Source file not found: {}", source_path));
     }
 
-    // Get the video storage directory
     let data_dir = dirs::data_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("incrementum")
         .join("videos");
 
-    // Create the videos directory if it doesn't exist
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| format!("Failed to create video directory: {}", e))?;
 
@@ -94,7 +91,6 @@ pub async fn import_video_file(
     let stored_filename = format!("{}-{}", timestamp, safe_filename);
     let dest_path = data_dir.join(&stored_filename);
 
-    // Get file size before copying
     let file_size = std::fs::metadata(source)
         .map(|m| m.len() as i64)
         .unwrap_or(0);
@@ -103,7 +99,6 @@ pub async fn import_video_file(
     std::fs::copy(source, &dest_path)
         .map_err(|e| format!("Failed to copy video file: {}", e))?;
 
-    // Create document for the video file
     let metadata = DocumentMetadata {
         file_size: Some(file_size),
         ..Default::default()
@@ -394,7 +389,6 @@ pub async fn split_audio_for_groq(
         return Err(format!("File not found: {}", file_path));
     }
 
-    // Get file info using ffmpeg
     let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)
         .map_err(|e| format!("Failed to get ffmpeg command: {}", e))?
         .args([
@@ -408,16 +402,13 @@ pub async fn split_audio_for_groq(
     let mut duration: f64 = 0.0;
     let mut bitrate: f64 = 0.0;
     
-    // Parse ffmpeg output for duration
     while let Some(event) = rx.recv().await {
         if let CommandEvent::Stderr(line) = event {
             let line_str = String::from_utf8_lossy(&line);
-            // Parse duration: Duration: 01:23:45.67
             if let Some(duration_idx) = line_str.find("Duration: ") {
                 let duration_str = &line_str[duration_idx + 10..];
                 if let Some(comma_idx) = duration_str.find(',') {
                     let time_str = &duration_str[..comma_idx].trim();
-                    // Parse HH:MM:SS.ms format
                     let parts: Vec<&str> = time_str.split(':').collect();
                     if parts.len() == 3 {
                         if let (Ok(h), Ok(m), Ok(s)) = (
@@ -430,7 +421,6 @@ pub async fn split_audio_for_groq(
                     }
                 }
             }
-            // Parse bitrate: bitrate: 128 kb/s
             if let Some(bitrate_idx) = line_str.find("bitrate: ") {
                 let bitrate_str = &line_str[bitrate_idx + 9..];
                 if let Some(space_idx) = bitrate_str.find(' ') {
@@ -465,7 +455,6 @@ pub async fn split_audio_for_groq(
 
     let mut chunks = Vec::with_capacity(num_chunks);
     
-    // Create chunks using ffmpeg
     for i in 0..num_chunks {
         let start_time = i as f64 * chunk_duration;
         let end_time = (start_time + chunk_duration).min(duration);
@@ -474,7 +463,6 @@ pub async fn split_audio_for_groq(
         let chunk_filename = format!("chunk_{:04}.mp3", i);
         let chunk_path = temp_dir.join(&chunk_filename);
         
-        // Extract chunk using ffmpeg
         let (mut rx, _) = crate::utils::ffmpeg::ffmpeg_command(&app_handle)
             .map_err(|e| format!("Failed to get ffmpeg command: {}", e))?
             .args([
@@ -486,7 +474,7 @@ pub async fn split_audio_for_groq(
                 "-b:a", "32k",       // 32 kbps (good quality for speech, small size)
                 "-f", "mp3",         // MP3 format
                 "-y",                 // Overwrite
-                chunk_path.to_str().unwrap()
+                chunk_path.to_str().expect("chunk path is valid UTF-8")
             ])
             .spawn()
             .map_err(|e| format!("Failed to spawn ffmpeg: {}", e))?;
@@ -567,10 +555,6 @@ pub async fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Failed to read file: {}", e))
 }
 
-// ============================================================================
-// Video Extract commands
-// ============================================================================
-
 /// Create a video extract
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -585,7 +569,6 @@ pub async fn create_video_extract(
     add_to_queue: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<VideoExtract, String> {
-    // Validate timestamps
     if start_time < 0.0 {
         return Err("Start time cannot be negative".to_string());
     }
@@ -689,7 +672,6 @@ pub async fn rate_video_extract(
 ) -> Result<String, String> {
     use crate::algorithms::DocumentScheduler;
 
-    // Validate rating
     if !(1..=4).contains(&rating) {
         return Err("Rating must be between 1 (Again) and 4 (Easy)".to_string());
     }
@@ -712,7 +694,6 @@ pub async fn rate_video_extract(
 
     let review_rating = ReviewRating::from(rating);
 
-    // Get current stability and difficulty from memory state
     let current_stability = extract.memory_state.as_ref().map(|ms| ms.stability);
     let current_difficulty = extract.memory_state.as_ref().map(|ms| ms.difficulty);
 
@@ -725,7 +706,6 @@ pub async fn rate_video_extract(
     );
     let result = result.map_err(|e| format!("Failed to schedule: {}", e))?;
 
-    // Update the extract with new scheduling data
     let new_review_count = extract.review_count + 1;
     let new_reps = extract.reps + 1;
 

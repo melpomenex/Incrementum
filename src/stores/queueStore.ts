@@ -25,7 +25,6 @@ import {
   type PostponeStats,
 } from "../lib/postpone";
 
-// Queue filter modes for FSRS-based scheduling
 export type QueueFilterMode = "due-today" | "all-items" | "new-only" | "due-all";
 
 interface QueueState {
@@ -108,7 +107,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     try {
       const mode = forceAllItems ? "all-items" : get().queueFilterMode;
       const collectionId = useCollectionStore.getState().activeCollectionId;
-      console.log("[queue] loadQueue called, collectionId:", collectionId, "mode:", mode);
       let items: QueueItem[] = [];
       switch (mode) {
         case "due-today":
@@ -130,7 +128,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
       });
       get().applyFilters();
 
-      // Check auto-postpone prompt
       const settings = useSettingsStore.getState().settings;
       if (settings.learning.postpone.autoPostponeEnabled) {
         const overdueCount = items.filter((i) => {
@@ -340,8 +337,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
   setError: (error) => set({ error }),
 
-  // Bulk operations
-
   /**
    * Map queue items to PostponeInput using settings and available data.
    * For learning items, fetches full data from the API.
@@ -484,7 +479,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
       const docs = useDocumentStore.getState().documents;
       const docMap = new Map(docs.map((d) => [d.id, d]));
 
-      // Fetch all learning items for batch lookup
       const allLearningItems = await getAllLearningItems();
       const liMap = new Map(allLearningItems.map((li) => [li.id, li]));
 

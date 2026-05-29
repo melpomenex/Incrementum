@@ -25,13 +25,11 @@ export function useTextSelection(containerRef: React.RefObject<HTMLElement | nul
     }
 
     const range = sel.getRangeAt(0);
-    // Check if selection is within our container
     if (!container.contains(range.commonAncestorContainer)) {
       setIsVisible(false);
       return;
     }
 
-    // Get plain text and offsets
     const preRange = range.cloneRange();
     preRange.selectNodeContents(container);
     preRange.setEnd(range.startContainer, range.startOffset);

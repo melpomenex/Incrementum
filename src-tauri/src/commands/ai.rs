@@ -70,12 +70,11 @@ impl From<crate::ai::flashcard_generator::GeneratedFlashcard> for TauriGenerated
 /// Get AI configuration (API keys are redacted to last 4 characters)
 #[tauri::command]
 pub async fn get_ai_config(state: State<'_, AIState>) -> Result<Option<serde_json::Value>> {
-    let config = state.config.lock().unwrap();
+    let config = state.config.lock().expect("AI config mutex poisoned");
     let Some(config) = config.as_ref() else {
         return Ok(None);
     };
 
-    // Build a redacted version of the config for the frontend
     let mut config_map = serde_json::to_value(config)
         .map_err(|e| IncrementumError::Internal(format!("Failed to serialize AI config: {}", e)))?;
 
@@ -103,7 +102,7 @@ pub async fn get_ai_config(state: State<'_, AIState>) -> Result<Option<serde_jso
 /// Set AI configuration
 #[tauri::command]
 pub async fn set_ai_config(config: AIConfig, state: State<'_, AIState>) -> Result<()> {
-    let mut state_config = state.config.lock().unwrap();
+    let mut state_config = state.config.lock().expect("AI config mutex poisoned");
     *state_config = Some(config);
     Ok(())
 }
@@ -123,11 +122,10 @@ pub async fn set_api_key(
         _ => return Err(IncrementumError::InvalidInput(format!("Unknown provider: {}", provider))),
     }
 
-    // Store in keychain
     key_store.store_key(&provider_lower, &api_key).await?;
 
     // Also update in-memory state for immediate use
-    let mut config = state.config.lock().unwrap();
+    let mut config = state.config.lock().expect("AI config mutex poisoned");
     let mut current = config.clone().unwrap_or_default();
 
     match provider_lower.as_str() {
@@ -170,7 +168,7 @@ pub async fn remove_api_key(
 
     key_store.remove_key(&provider_lower).await?;
 
-    let mut config = state.config.lock().unwrap();
+    let mut config = state.config.lock().expect("AI config mutex poisoned");
     let mut current = config.clone().unwrap_or_default();
 
     match provider_lower.as_str() {
@@ -192,7 +190,6 @@ pub async fn generate_flashcards_from_extract(
     repo: State<'_, Repository>,
     ai_state: State<'_, AIState>,
 ) -> Result<Vec<TauriGeneratedFlashcard>> {
-    // Get the extract
     let extract = repo
         .get_extract(&extract_id)
         .await?
@@ -201,7 +198,6 @@ pub async fn generate_flashcards_from_extract(
     // Get AI configuration (clones and drops mutex guard)
     let config = get_ai_config_clone(&ai_state)?;
 
-    // Create provider
     let provider = AIProvider::from_config(
         config.default_provider,
         &config.api_keys,
@@ -487,7 +483,6 @@ pub async fn generate_progressive_summaries(
             IncrementumError::NotFound(format!("Extract {} not found", extract_id))
         })?;
 
-    // Return cached summaries if already generated
     if let Some(ref summaries) = extract.progressive_summaries {
         if !summaries.is_empty() {
             return Ok(summaries.clone());

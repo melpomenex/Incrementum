@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { X, Settings, Download, FileText, Star, RefreshCw, LayoutGrid, Eye } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
-import type { Feed } from "../../api/rss";
-import { updateFeedAutoFetchPreference } from "../../api/rss";
+import { updateFeedAutoFetchPreference, type Feed } from "../../api/rss";
 import { setFeedViewPreferencesAuto } from "../../api/rss-folders";
-
 
 interface FeedSettingsDialogProps {
   feed: Feed | null;
@@ -28,7 +26,6 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
   const [layout, setLayout] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load current settings when dialog opens
   useEffect(() => {
     if (feed && isOpen) {
       setAutoFetchMode((feed.autoFetchFullContent as AutoFetchMode) || "manual");
@@ -179,9 +176,10 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-muted-foreground" />
-              <label className="text-sm font-medium">Auto-Mark as Read</label>
+              <label className="text-sm font-medium" htmlFor="feed-auto-mark">Auto-Mark as Read</label>
             </div>
             <select
+              id="feed-auto-mark"
               value={autoMarkDays ?? ""}
               onChange={(e) => setAutoMarkDays(e.target.value ? Number(e.target.value) : null)}
               className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
@@ -196,9 +194,10 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-muted-foreground" />
-              <label className="text-sm font-medium">Default View Mode</label>
+              <label className="text-sm font-medium" htmlFor="feed-view-mode">Default View Mode</label>
             </div>
             <select
+              id="feed-view-mode"
               value={viewMode ?? ""}
               onChange={(e) => setViewMode(e.target.value || null)}
               className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
@@ -213,9 +212,10 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <LayoutGrid className="w-4 h-4 text-muted-foreground" />
-              <label className="text-sm font-medium">Default Layout</label>
+              <label className="text-sm font-medium" htmlFor="feed-layout">Default Layout</label>
             </div>
             <select
+              id="feed-layout"
               value={layout ?? ""}
               onChange={(e) => setLayout(e.target.value || null)}
               className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"

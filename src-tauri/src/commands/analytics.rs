@@ -66,13 +66,12 @@ pub async fn get_dashboard_stats(
     let pool = repo.pool();
     let cid = collection_id.unwrap_or_else(|| crate::models::collection::DEFAULT_COLLECTION_ID.to_string());
 
-    // Get today's date range
     let now = Utc::now();
     let today_start = now.date_naive().and_hms_opt(0, 0, 0)
-        .unwrap()
+        .expect("invalid time 0:0:0")
         .and_utc();
     let today_end = now.date_naive().and_hms_opt(23, 59, 59)
-        .unwrap()
+        .expect("invalid time 23:59:59")
         .and_utc();
 
     // Total cards
@@ -179,9 +178,8 @@ async fn calculate_study_streak(
     let mut streak = 0;
     let mut current_date = Utc::now().date_naive();
 
-    // Check if there was any review today
-    let today_start = current_date.and_hms_opt(0, 0, 0).unwrap().and_utc();
-    let today_end = current_date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+    let today_start = current_date.and_hms_opt(0, 0, 0).expect("invalid time 0:0:0").and_utc();
+    let today_end = current_date.and_hms_opt(23, 59, 59).expect("invalid time 23:59:59").and_utc();
 
     let reviews_today: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM learning_items WHERE last_review_date >= ? AND last_review_date <= ? AND is_suspended = false"
@@ -194,13 +192,13 @@ async fn calculate_study_streak(
 
     // If no reviews today, check from yesterday
     if reviews_today == 0 {
-        current_date = current_date.pred_opt().unwrap();
+        current_date = current_date.pred_opt().expect("no previous date");
     }
 
     // Count consecutive days backwards
     loop {
-        let day_start = current_date.and_hms_opt(0, 0, 0).unwrap().and_utc();
-        let day_end = current_date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+        let day_start = current_date.and_hms_opt(0, 0, 0).expect("invalid time 0:0:0").and_utc();
+        let day_end = current_date.and_hms_opt(23, 59, 59).expect("invalid time 23:59:59").and_utc();
 
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM learning_items WHERE last_review_date >= ? AND last_review_date <= ? AND is_suspended = false"
@@ -213,7 +211,7 @@ async fn calculate_study_streak(
 
         if count > 0 {
             streak += 1;
-            current_date = current_date.pred_opt().unwrap();
+            current_date = current_date.pred_opt().expect("no previous date");
         } else {
             break;
         }
@@ -294,8 +292,8 @@ pub async fn get_activity_data(
 
     for i in 0..days {
         let date = Utc::now().date_naive() - Duration::days(i as i64);
-        let day_start = date.and_hms_opt(0, 0, 0).unwrap().and_utc();
-        let day_end = date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+        let day_start = date.and_hms_opt(0, 0, 0).expect("invalid time 0:0:0").and_utc();
+        let day_end = date.and_hms_opt(23, 59, 59).expect("invalid time 23:59:59").and_utc();
 
         // Reviews count
         let reviews_count: i64 = sqlx::query_scalar(
@@ -382,9 +380,9 @@ pub async fn get_category_stats(
 
     let mut stats = Vec::new();
     for row in rows {
-        let category: String = row.try_get("category").unwrap();
-        let card_count: i64 = row.try_get("card_count").unwrap();
-        let reviews_count: i64 = row.try_get("reviews_count").unwrap();
+        let category: String = row.try_get("category").expect("missing category column");
+        let card_count: i64 = row.try_get("card_count").expect("missing card_count column");
+        let reviews_count: i64 = row.try_get("reviews_count").expect("missing reviews_count column");
 
         // Calculate retention rate for this category
         let retention_row: Option<f64> = sqlx::query_scalar(
@@ -500,8 +498,8 @@ pub async fn get_workload_data(
     let mut days = Vec::new();
     let mut current = start;
     while current <= end {
-        let day_start = current.and_hms_opt(0, 0, 0).unwrap().and_utc();
-        let day_end = current.and_hms_opt(23, 59, 59).unwrap().and_utc();
+        let day_start = current.and_hms_opt(0, 0, 0).expect("invalid time 0:0:0").and_utc();
+        let day_end = current.and_hms_opt(23, 59, 59).expect("invalid time 23:59:59").and_utc();
 
         // Due items count (unsuspended learning items with due_date on this day)
         let due_count: i64 = sqlx::query_scalar(
@@ -540,7 +538,7 @@ pub async fn get_workload_data(
             new_count: new_count as i32,
         });
 
-        current = current.succ_opt().unwrap();
+        current = current.succ_opt().expect("no next date");
     }
 
     Ok(days)
@@ -555,8 +553,8 @@ pub async fn get_workload_day_details(
     let pool = repo.pool();
     let target = NaiveDate::parse_from_str(&date, "%Y-%m-%d")
         .map_err(|e| e.to_string())?;
-    let day_start = target.and_hms_opt(0, 0, 0).unwrap().and_utc();
-    let day_end = target.and_hms_opt(23, 59, 59).unwrap().and_utc();
+    let day_start = target.and_hms_opt(0, 0, 0).expect("invalid time 0:0:0").and_utc();
+    let day_end = target.and_hms_opt(23, 59, 59).expect("invalid time 23:59:59").and_utc();
     let now = Utc::now();
 
     if target < now.date_naive() {

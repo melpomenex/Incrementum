@@ -51,7 +51,6 @@ export const useValidationStore = create<ValidationStore>()(
 
       addIssue: (issue) => {
         set((state) => {
-          // Remove existing issue with same key
           const filtered = state.issues.filter((i) => i.key !== issue.key);
           return { issues: [...filtered, issue] };
         });
@@ -68,7 +67,6 @@ export const useValidationStore = create<ValidationStore>()(
       },
 
       validateAll: async () => {
-        // Run all validators
         const allIssues: ValidationIssue[] = [];
 
         // Add validation results
@@ -239,7 +237,6 @@ export async function validateAllSettings(config: {
 }): Promise<ValidationResult> {
   const validator = new SettingsValidator();
 
-  // Validate sync settings
   if (config.sync?.enabled) {
     if (!config.sync.endpoint) {
       validator.error("sync.endpoint", "Sync endpoint is required", "Enter your sync server URL");
@@ -252,7 +249,6 @@ export async function validateAllSettings(config: {
     }
   }
 
-  // Validate AI settings
   if (config.ai?.provider && providerRequiresApiKey(config.ai.provider as import("../../utils/llmProviderUtils").ConfiguredLLMProvider, (config.ai as any).baseUrl)) {
     if (!config.ai.apiKey) {
       validator.warning(
@@ -265,7 +261,6 @@ export async function validateAllSettings(config: {
     }
   }
 
-  // Validate general settings
   if (config.general?.dataPath) {
     validator.pathExists(config.general.dataPath, "general.dataPath", "Data path");
   }
@@ -406,10 +401,8 @@ export function useSettingsValidation() {
       custom?: (value: unknown) => string | null;
     }
   ) => {
-    // Remove existing issue for this key
     removeIssue(key);
 
-    // Required check
     if (rules.required && !value) {
       addIssue({
         id: `validation-${key}`,
@@ -422,7 +415,6 @@ export function useSettingsValidation() {
 
     if (!value) return true;
 
-    // String validations
     if (typeof value === "string") {
       if (rules.minLength && value.length < rules.minLength) {
         addIssue({
@@ -455,7 +447,6 @@ export function useSettingsValidation() {
       }
     }
 
-    // Number validations
     if (typeof value === "number") {
       if (rules.min !== undefined && value < rules.min) {
         addIssue({
@@ -478,7 +469,6 @@ export function useSettingsValidation() {
       }
     }
 
-    // Custom validation
     if (rules.custom) {
       const error = rules.custom(value);
       if (error) {

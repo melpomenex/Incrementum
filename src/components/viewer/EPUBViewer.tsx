@@ -219,7 +219,6 @@ export function EPUBViewer({
   const activeSyncHighlightRef = useRef<string | null>(null);
   const syncNavigatingRef = useRef(false);
 
-  // Get current theme colors
   const { theme } = useTheme();
   const themeRef = useRef(theme);
   const { t } = useI18n();
@@ -255,7 +254,6 @@ export function EPUBViewer({
     lineHeightRef.current = epubSettings.lineHeight;
   }, [epubSettings.fontSize, epubSettings.fontFamily, epubSettings.lineHeight]);
 
-  // Save reading position to database
   const saveReadingPosition = useCallback(async (cfi: string) => {
     if (!documentId || !cfi) return;
 
@@ -278,7 +276,6 @@ export function EPUBViewer({
     }
   }, [documentId]);
 
-  // Load reading position from database
   const loadReadingPosition = useCallback(async (): Promise<string | null> => {
     if (!documentId) return null;
 
@@ -291,25 +288,21 @@ export function EPUBViewer({
 
       // Prefer remote if available and newer, otherwise use local
       if (remoteCfi) {
-        console.log("EPUBViewer: Found remote saved position:", remoteCfi);
         return remoteCfi;
       }
       if (localCfi) {
-        console.log("EPUBViewer: Found local saved position:", localCfi);
         return localCfi;
       }
     } catch {
       // API failed - use localStorage as fallback
       console.warn("EPUBViewer: Failed to load position from backend, using localStorage");
       if (localCfi) {
-        console.log("EPUBViewer: Found local saved position:", localCfi);
         return localCfi;
       }
     }
     return null;
   }, [documentId]);
 
-  // Update font size
   const updateEpubSettings = useCallback((updates: Partial<typeof epubSettings>) => {
     updateSettings({
       documents: {
@@ -489,7 +482,6 @@ export function EPUBViewer({
     }
   }, [applyContentOverrides, rendition]);
 
-  // Update font size
   const updateFontSize = useCallback((newSize: number) => {
     const clampedSize = Math.max(12, Math.min(32, newSize));
     updateEpubSettings({ fontSize: clampedSize });
@@ -533,7 +525,6 @@ export function EPUBViewer({
 
       animationFrameId = requestAnimationFrame(() => {
         if (!initialDisplayCompleteRef.current) {
-          console.log("EPUBViewer: Skipping resize during initial load");
           return;
         }
         if (resizeTimeout) {
@@ -542,7 +533,6 @@ export function EPUBViewer({
         resizeTimeout = setTimeout(() => {
           if (!rendition) return;
           try {
-            console.log("EPUBViewer: Container resized, calling rendition.resize()");
             rendition.resize();
           } catch {
             // Rendition may be destroyed during unmount while a resize is pending
@@ -581,9 +571,7 @@ export function EPUBViewer({
           throw new Error("No EPUB source available.");
         }
         if (fileUrl) {
-          console.log("EPUBViewer: Loading EPUB from URL:", fileUrl);
         } else {
-          console.log("EPUBViewer: Loading EPUB, fileData length:", fileData!.byteLength);
         }
 
         // Prefer URL source in Tauri to avoid heavy base64 decode on the renderer thread.
@@ -592,16 +580,12 @@ export function EPUBViewer({
         bookInstance = epubBook;
         setBook(epubBook);
 
-        console.log("EPUBViewer: Book created, waiting for ready...");
         // Wait for book to be ready
         await epubBook.ready;
-        console.log("EPUBViewer: Book is ready");
 
         if (!mounted) return;
 
-        // Get table of contents
         const tocData = await epubBook.loaded.navigation;
-        console.log("EPUBViewer: TOC loaded with", tocData.toc.length, "items");
         
         let filteredToc = tocData.toc;
         const startIdx = metadata?.chunkStartSpineIndex;
@@ -610,7 +594,6 @@ export function EPUBViewer({
           try {
             await epubBook.loaded.spine;
             filteredToc = filterTocItems(tocData.toc, epubBook, startIdx, endIdx);
-            console.log("EPUBViewer: Filtered TOC count:", filteredToc.length);
           } catch (e) {
             console.warn("EPUBViewer: Failed to filter TOC items:", e);
           }
@@ -620,14 +603,11 @@ export function EPUBViewer({
         tocRef.current = filteredToc;
         onLoad?.(filteredToc);
 
-        // Initialize rendition with retry for the ref to be ready
         const initializeRendition = async (): Promise<boolean> => {
-          console.log("EPUBViewer: Checking if viewerRef is available...", viewerRef.current);
 
           if (!viewerRef.current) {
             if (retryCount < maxRetries) {
               retryCount++;
-              console.log(`EPUBViewer: viewerRef not ready, retry ${retryCount}/${maxRetries}...`);
               await new Promise(resolve => setTimeout(resolve, 100));
               return initializeRendition();
             } else {
@@ -641,7 +621,6 @@ export function EPUBViewer({
           if (containerRect.width === 0 || containerRect.height === 0) {
             if (retryCount < maxRetries) {
               retryCount++;
-              console.log(`EPUBViewer: Container has no dimensions (${containerRect.width}x${containerRect.height}), retry ${retryCount}/${maxRetries}...`);
               await new Promise(resolve => setTimeout(resolve, 100));
               return initializeRendition();
             } else {
@@ -650,7 +629,6 @@ export function EPUBViewer({
             }
           }
 
-          console.log("EPUBViewer: Initializing rendition...");
           const rendition = epubBook.renderTo(viewerRef.current, {
             width: "100%",
             height: "100%",
@@ -666,13 +644,11 @@ export function EPUBViewer({
           // Register hooks BEFORE displaying content
           // Try multiple hook types to ensure styles are applied
           rendition.hooks.render.register((_contents: any) => {
-            console.log("EPUBViewer: Render hook fired");
             // This fires when each section is rendered
           });
 
           // Inject global styles to override EPUB internal styles
           rendition.hooks.content.register((contents: any) => {
-            console.log("EPUBViewer: Content hook fired, applying overrides...");
 
             // Disable all EPUB stylesheets by setting them to disabled
             const links = contents.document.querySelectorAll('link[rel="stylesheet"]');
@@ -680,14 +656,11 @@ export function EPUBViewer({
               link.disabled = true;
               link.remove(); // Completely remove the stylesheet element
             });
-            console.log(`EPUBViewer: Disabled and removed ${links.length} EPUB stylesheets`);
 
-            // Remove all style tags from EPUB
             const styleTags = contents.document.querySelectorAll('style:not(#epub-override-styles)');
             styleTags.forEach((tag: any) => {
               tag.remove();
             });
-            console.log(`EPUBViewer: Removed ${styleTags.length} EPUB style tags`);
 
             // More targeted inline style cleanup - only fix specific problematic elements
             // instead of iterating through ALL elements
@@ -734,15 +707,12 @@ export function EPUBViewer({
             if (contents.window) {
               onIframeWindowReadyRef.current?.(contents.window);
             }
-            console.log("EPUBViewer: Injected override styles into content");
           });
 
-          // Set up themes for font size control and consistent styling
           rendition.themes.register("default", {});
           applyRenditionTheme();
 
           // Display the book at saved position or start
-          console.log("EPUBViewer: Displaying book...");
           const savedPosition = await loadReadingPosition();
           const startIdx = metadata?.chunkStartSpineIndex;
 
@@ -763,10 +733,8 @@ export function EPUBViewer({
 
           if (displayTarget) {
             await rendition.display(displayTarget);
-            console.log("EPUBViewer: Displayed at target:", displayTarget);
           } else {
             await rendition.display();
-            console.log("EPUBViewer: Book displayed successfully");
           }
 
           if (onContextTextChangeRef.current) {
@@ -788,12 +756,10 @@ export function EPUBViewer({
               }
             };
 
-            // Extract initial text after content renders
             setTimeout(() => {
               extractCurrentChapterText();
             }, 100);
 
-            // Update text when user navigates to new chapter
             rendition.on("relocated", () => {
               setTimeout(() => {
                 extractCurrentChapterText();
@@ -806,10 +772,9 @@ export function EPUBViewer({
           setTimeout(() => {
             if (mounted) {
               initialDisplayCompleteRef.current = true;
-              console.log("EPUBViewer: Initial display complete, resize events now enabled");
               // Force a resize to ensure proper rendering after content is stable
               if (rendition) {
-                try { rendition.resize(undefined, undefined); } catch {}
+                try { rendition.resize(undefined, undefined); } catch { /* ignore */ }
               }
             }
           }, 500);
@@ -864,14 +829,13 @@ export function EPUBViewer({
                 if (currentLocation && currentLocation.start && mounted) {
                   saveReadingPosition(currentLocation.start.cfi);
                 }
-              } catch {}
+              } catch { /* ignore */ }
             }, 1000); // Save 1 second after last movement
           };
 
           // Track location changes to save reading position
           rendition.on("relocated", (location: any) => {
             if (!mounted) return;
-            console.log("EPUBViewer: Relocated to:", location.start.cfi);
 
             // Enforce spine boundaries
             const currentSpineIndex = location.start?.index;
@@ -880,7 +844,6 @@ export function EPUBViewer({
               const endIdx = metadata?.chunkEndSpineIndex;
               
               if (startIdx !== undefined && currentSpineIndex < startIdx) {
-                console.log(`EPUBViewer: Out of bounds (under start ${startIdx}). Redirecting to start...`);
                 const spine = epubBook.spine || (bookInstance ? bookInstance.spine : null);
                 if (spine) {
                   const item = spine.get(startIdx);
@@ -892,7 +855,6 @@ export function EPUBViewer({
               }
               
               if (endIdx !== undefined && currentSpineIndex > endIdx) {
-                console.log(`EPUBViewer: Out of bounds (over end ${endIdx}). Redirecting to end...`);
                 const spine = epubBook.spine || (bookInstance ? bookInstance.spine : null);
                 if (spine) {
                   const item = spine.get(endIdx);
@@ -905,7 +867,7 @@ export function EPUBViewer({
             }
 
             debouncedSavePosition();
-            try { updateProgress(location); } catch {}
+            try { updateProgress(location); } catch { /* ignore */ }
             const chapter = resolveChapterLabel(location.start?.href || location.start?.page);
             if (chapter) {
               setCurrentChapter(chapter);
@@ -964,11 +926,11 @@ export function EPUBViewer({
           if (cfi) {
             void saveReadingPosition(cfi);
           }
-        } catch {}
-        try { renditionInstance.destroy(); } catch {}
+        } catch { /* ignore */ }
+        try { renditionInstance.destroy(); } catch { /* ignore */ }
       }
       if (bookInstance) {
-        try { bookInstance.destroy(); } catch {}
+        try { bookInstance.destroy(); } catch { /* ignore */ }
       }
     };
     // Note: onLoad, onContextTextChange, onSelectionChange, and onProgressChange are
@@ -1110,7 +1072,6 @@ export function EPUBViewer({
     if (!highlightQuery || !highlightQuery.trim()) return;
     if (!rendition || !book) return;
 
-    // Remove existing highlights
     try {
       for (const cfi of activeSearchHighlightsRef.current) {
         rendition.annotations?.remove?.(cfi, "highlight");
@@ -1336,7 +1297,6 @@ export function EPUBViewer({
         const location = rendition.currentLocation() as any;
         const currentSpineIndex = location?.start?.index;
         if (typeof currentSpineIndex === 'number' && currentSpineIndex <= startIdx) {
-          console.log("EPUBViewer: Blocked paging back - at boundary start");
           return;
         }
       }
@@ -1351,7 +1311,6 @@ export function EPUBViewer({
         const location = rendition.currentLocation() as any;
         const currentSpineIndex = location?.start?.index;
         if (typeof currentSpineIndex === 'number' && currentSpineIndex >= endIdx) {
-          console.log("EPUBViewer: Blocked paging forward - at boundary end");
           return;
         }
       }
@@ -1368,7 +1327,6 @@ export function EPUBViewer({
     }
   }, [advanceChapterSignal]);
 
-  // --- Audiobook sync: build segment→CFI map when segments change or chapter loads ---
   const buildSyncMapForChapter = useCallback(() => {
     if (!rendition || syncSegmentsRef.current.length === 0) return;
 
@@ -1406,7 +1364,6 @@ export function EPUBViewer({
     syncCurrentChapterRef.current = null;
     if (syncSegments && syncSegments.length > 0) {
       onSyncStateChange?.({ status: "building", mappedCount: 0, totalSegments: syncSegments.length });
-      // Build map after a short delay for content to render
       const timer = setTimeout(() => buildSyncMapRef.current(), 300);
       return () => clearTimeout(timer);
     } else {
@@ -1438,23 +1395,22 @@ export function EPUBViewer({
 
     lastSyncSegmentIdxRef.current = active.index;
 
-    // Remove previous sync highlight
     if (activeSyncHighlightRef.current) {
-      try { rendition.annotations?.remove?.(activeSyncHighlightRef.current, "highlight"); } catch {}
+      try { rendition.annotations?.remove?.(activeSyncHighlightRef.current, "highlight"); } catch { /* ignore */ }
     }
 
     // Add new highlight
     try {
       rendition.annotations?.highlight?.(cfi, {}, undefined, "epub-sync-highlight");
       activeSyncHighlightRef.current = cfi;
-    } catch {}
+    } catch { /* ignore */ }
 
     // Auto-scroll
     try {
       syncNavigatingRef.current = true;
       rendition.display(cfi);
       setTimeout(() => { syncNavigatingRef.current = false; }, 500);
-    } catch {}
+    } catch { /* ignore */ }
   }, [rendition, syncSegments, syncCurrentTime, syncJumpSignal]);
 
   const handleTocClick = async (href: string) => {
@@ -1464,13 +1420,11 @@ export function EPUBViewer({
     }
 
     try {
-      console.log("EPUBViewer: TOC clicked, href:", href);
       const normalizeHref = (value: string) =>
         value.replace(/^\.?\//, "").split("#")[0];
       const [rawPath, rawFragment] = href.split("#");
       const normalizedPath = normalizeHref(rawPath);
 
-      // Get the spine to find the correct section
       const spine = await book.loaded.spine;
 
       // Try to find the spine item by href
@@ -1491,35 +1445,31 @@ export function EPUBViewer({
       // If we found the spine item, navigate to it
       if (spineItem) {
         const targetHref = rawFragment ? `${spineItem.href}#${rawFragment}` : spineItem.href;
-        console.log("EPUBViewer: Found spine item, navigating to:", targetHref, "index:", spineItem.index);
 
         // Method 1: Use rendition.display with the full href (preserves anchor fragments)
         try {
           await rendition.display(targetHref);
-          console.log("EPUBViewer: Successfully navigated using rendition.display");
           return;
         } catch (e) {
-          console.log("EPUBViewer: rendition.display failed:", e);
+          console.error("EPUBViewer: rendition.display failed:", e);
         }
 
         // Method 2: Use spine.goto with index (ignores fragments, but works as fallback)
         try {
           if (typeof spineItem.index === 'number') {
             await spine.goto(spineItem.index);
-            console.log("EPUBViewer: Successfully navigated using spine.goto with index");
             return;
           }
         } catch (e) {
-          console.log("EPUBViewer: spine.goto with index failed:", e);
+          console.error("EPUBViewer: spine.goto with index failed:", e);
         }
 
         // Method 3: Try navigating to the URL directly
         try {
           await rendition.display(spineItem.url || targetHref);
-          console.log("EPUBViewer: Successfully navigated using URL");
           return;
         } catch (e) {
-          console.log("EPUBViewer: URL navigation failed:", e);
+          console.error("EPUBViewer: URL navigation failed:", e);
         }
 
         console.warn("EPUBViewer: All navigation methods failed for href:", href);
@@ -1529,10 +1479,9 @@ export function EPUBViewer({
       // Fallback: Try to navigate to the href directly
       try {
         await rendition.display(rawFragment ? `${normalizedPath}#${rawFragment}` : normalizedPath);
-        console.log("EPUBViewer: Successfully navigated using href directly");
         return;
       } catch (e) {
-        console.log("EPUBViewer: Direct href navigation failed:", e);
+        console.error("EPUBViewer: Direct href navigation failed:", e);
       }
 
       // Try searching through TOC to find a matching item
@@ -1551,7 +1500,6 @@ export function EPUBViewer({
 
       const tocItem = searchToc(toc);
       if (tocItem) {
-        console.log("EPUBViewer: Found TOC item, attempting navigation:", tocItem.href);
         const tocPath = normalizeHref(tocItem.href || "");
         await rendition.display(tocPath || tocItem.href);
         return;
@@ -1563,7 +1511,6 @@ export function EPUBViewer({
     }
   };
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     if (isMobile) return;
     const handleKeyDown = (e: KeyboardEvent) => {

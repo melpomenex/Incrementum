@@ -53,7 +53,6 @@ export function SponsorBlockIntegration({
   // Skip notification timeout
   const skipNoticeTimeout = useRef<NodeJS.Timeout>(undefined);
 
-  // Fetch segments when video URL changes
   useEffect(() => {
     if (!enabled) {
       setSegments([]);
@@ -75,7 +74,6 @@ export function SponsorBlockIntegration({
     loadSegments();
   }, [videoUrl, enabled]);
 
-  // Check current time for segments
   useEffect(() => {
     if (!enabled || segments.length === 0) {
       setCurrentSegment(null);
@@ -103,7 +101,6 @@ export function SponsorBlockIntegration({
         // Mark as skipped
         setHasSkipped((prev) => new Set(prev).add(segment.UUID));
 
-        // Show skip notice
         setShowNotice(true);
         if (skipNoticeTimeout.current) {
           clearTimeout(skipNoticeTimeout.current);
@@ -269,7 +266,6 @@ export function SponsorBlockIntegration({
                     checked={autoSkip}
                     onChange={(e) => {
                       // In a real app, this would update settings
-                      console.log("Auto-skip:", e.target.checked);
                     }}
                     className="rounded"
                   />

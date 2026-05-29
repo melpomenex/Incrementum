@@ -48,7 +48,6 @@ export function ShareMessageDialog({
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [activeTab, setActiveTab] = useState<"obsidian" | "clipboard">("obsidian");
 
-  // Load Obsidian config when dialog opens
   useEffect(() => {
     if (isOpen) {
       const settings = getIntegrationSettings();
@@ -61,7 +60,6 @@ export function ShareMessageDialog({
     }
   }, [isOpen, documentTitle]);
 
-  // Update share mode when singleMessage prop changes
   useEffect(() => {
     if (singleMessage) {
       setShareMode("single");

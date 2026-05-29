@@ -117,7 +117,6 @@ impl ParameterOptimizer {
                 }
             }
 
-            // Check for convergence
             if !improved {
                 converged = true;
                 break;
@@ -154,7 +153,6 @@ impl ParameterOptimizer {
             // Simulate what the algorithm would predict
             let predicted_interval = self.predict_interval(params, record.days_since_previous_review);
 
-            // Check if prediction matches actual outcome
             // For simplicity, we use rating as proxy for retention
             let was_retained = matches!(record.rating, ReviewRating::Good | ReviewRating::Easy);
 

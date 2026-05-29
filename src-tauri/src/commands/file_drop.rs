@@ -45,7 +45,6 @@ async fn import_single_file(
     repo: &Repository,
     collection_id: Option<String>,
 ) -> Result<Document> {
-    // Check if file exists
     if !std::path::Path::new(file_path).exists() {
         return Err(IncrementumError::NotFound(format!(
             "File not found: {}",
@@ -60,7 +59,6 @@ async fn import_single_file(
             e
         )))?;
 
-    // Get file extension
     let extension = canonical
         .extension()
         .and_then(|e| e.to_str())
@@ -78,17 +76,14 @@ async fn import_single_file(
         _ => FileType::Other,
     };
 
-    // Get file name as title
     let file_name = canonical
         .file_stem()
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled Document");
 
-    // Create document
     let mut doc = Document::with_collection(file_name.to_string(), canonical.to_string_lossy().to_string(), file_type, collection_id);
     doc.priority_score = 5.0;
 
-    // Save to database
     repo.create_document(&doc).await?;
 
     Ok(doc)
@@ -99,7 +94,6 @@ async fn import_single_file(
 pub fn validate_dropped_file(file_path: String) -> Result<bool> {
     let path = std::path::Path::new(&file_path);
 
-    // Check if file exists
     if !path.exists() {
         return Ok(false);
     }
@@ -109,7 +103,6 @@ pub fn validate_dropped_file(file_path: String) -> Result<bool> {
         return Ok(false);
     }
 
-    // Check if it has a supported extension
     let supported_extensions = ["pdf", "epub", "md", "markdown", "html", "htm", "txt"];
     let extension = path
         .extension()

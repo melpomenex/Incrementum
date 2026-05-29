@@ -141,8 +141,6 @@ pub trait CloudProvider: Send + Sync {
     /// Get the backup folder path for this provider
     fn backup_folder(&self) -> &str;
 
-    // ========== Authentication ==========
-
     /// Start OAuth authentication flow
     /// Returns the authorization URL to open in a browser
     async fn authenticate(&mut self) -> Result<String, AppError>;
@@ -165,8 +163,6 @@ pub trait CloudProvider: Send + Sync {
 
     /// Get the current authentication token, if any
     fn auth_token(&self) -> Option<AuthToken>;
-
-    // ========== File Operations ==========
 
     /// Upload a file to cloud storage
     async fn upload_file(

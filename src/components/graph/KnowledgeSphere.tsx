@@ -80,8 +80,8 @@ export function KnowledgeSphere({
   // Auto-rotate idle timeout (D6.1)
   const lastInteractionRef = useRef(Date.now());
   // Force sim throttle (D6.2)
-  const lastSimFrameRef = useRef(0);
-  const SIM_FRAME_INTERVAL = 1000 / 15; // 15fps cap
+  const _lastSimFrameRef = useRef(0);
+  const _SIM_FRAME_INTERVAL = 1000 / 15; // 15fps cap
 
   // Convert nodes to 3D positions on sphere
   const sphereNodes = useRef<SphereNode[]>([]);
@@ -162,7 +162,6 @@ export function KnowledgeSphere({
     // Clear
     ctx.clearRect(0, 0, width, height);
 
-    // Get colors from theme
     const colors = theme.colors;
 
     // Sort nodes by z-depth (painter's algorithm)
@@ -177,7 +176,6 @@ export function KnowledgeSphere({
       return aZ - bZ;
     });
 
-    // Draw edges
     edges.forEach((edge) => {
       const sourceNode = sphereNodes.current.find((n) => n.id === edge.source);
       const targetNode = sphereNodes.current.find((n) => n.id === edge.target);
@@ -216,7 +214,6 @@ export function KnowledgeSphere({
       ctx.globalAlpha = 1;
     });
 
-    // Draw nodes
     projectedNodes.forEach(({ node, projected }) => {
       const depth = (node.position.z + 200) / 400; // Normalize to 0-1
       const opacity = 0.3 + depth * 0.7;
@@ -243,7 +240,6 @@ export function KnowledgeSphere({
         }
       }
 
-      // Draw node glow
       if (hoveredNode === node.id) {
         const gradient = ctx.createRadialGradient(
           projected.x,
@@ -262,7 +258,6 @@ export function KnowledgeSphere({
         ctx.fill();
       }
 
-      // Draw node
       ctx.beginPath();
       ctx.arc(projected.x, projected.y, nodeSize * projected.scale, 0, Math.PI * 2);
       ctx.fillStyle = nodeColor;
@@ -277,7 +272,6 @@ export function KnowledgeSphere({
         ctx.stroke();
       }
 
-      // Draw label
       if (showLabels && projected.scale > 0.5) {
         ctx.font = `${10 * projected.scale}px sans-serif`;
         ctx.fillStyle = textColor;
@@ -301,7 +295,6 @@ export function KnowledgeSphere({
     edgeOpacity,
   ]);
 
-  // Animation loop
   useEffect(() => {
     // If not active, completely avoid scheduling any animation frame to free CPU
     if (!isActive) return;
@@ -347,8 +340,7 @@ export function KnowledgeSphere({
           else if (!document.hidden) isVisibleRef.current = true;
         });
       } catch {
-        // Not in Tauri
-      }
+      /* Canvas rendering may fail */ }
     })();
 
     return () => {
@@ -360,7 +352,6 @@ export function KnowledgeSphere({
     };
   }, [draw, autoRotate, rotationSpeed, isDragging, isActive]);
 
-  // Handle canvas resize
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -386,7 +377,6 @@ export function KnowledgeSphere({
     return () => window.removeEventListener("resize", resize);
   }, [draw, onBattery]);
 
-  // Handle mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
@@ -408,7 +398,6 @@ export function KnowledgeSphere({
 
       setDragStart({ x: e.clientX, y: e.clientY });
     } else {
-      // Check for node hover
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
 

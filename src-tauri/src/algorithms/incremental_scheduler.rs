@@ -289,16 +289,16 @@ mod tests {
         let scheduler = IncrementalScheduler::default_params();
 
         // First good rating: 3 days
-        let result1 = scheduler.schedule_item(ReviewRating::Good, None, 0, 0);
-        assert_eq!(result1.interval_days, 3);
+        let first_good = scheduler.schedule_item(ReviewRating::Good, None, 0, 0);
+        assert_eq!(first_good.interval_days, 3);
 
         // Second consecutive good: 3 * 1.2 = 3.6 days
-        let result2 = scheduler.schedule_item(ReviewRating::Good, Some(3), 1, 0);
-        assert_eq!(result2.interval_days, 4); // Rounds to 4
+        let second_consec = scheduler.schedule_item(ReviewRating::Good, Some(3), 1, 0);
+        assert_eq!(second_consec.interval_days, 4); // Rounds to 4
 
         // Third consecutive good: 3 * 1.4 = 4.2 days
-        let result3 = scheduler.schedule_item(ReviewRating::Good, Some(4), 2, 0);
-        assert_eq!(result3.interval_days, 4); // Rounds to 4
+        let third_consec = scheduler.schedule_item(ReviewRating::Good, Some(4), 2, 0);
+        assert_eq!(third_consec.interval_days, 4); // Rounds to 4
     }
 
     #[test]
@@ -306,12 +306,12 @@ mod tests {
         let scheduler = IncrementalScheduler::default_params();
 
         // First hard rating: 1 day
-        let result1 = scheduler.schedule_item(ReviewRating::Hard, None, 0, 0);
-        assert_eq!(result1.interval_days, 1);
+        let first_hard = scheduler.schedule_item(ReviewRating::Hard, None, 0, 0);
+        assert_eq!(first_hard.interval_days, 1);
 
         // Second consecutive hard: 1 * 0.85 = 0.85 days
-        let result2 = scheduler.schedule_item(ReviewRating::Hard, Some(1), 0, 1);
-        assert!(result2.interval_days < 1); // Should be less than 1 day
+        let second_hard = scheduler.schedule_item(ReviewRating::Hard, Some(1), 0, 1);
+        assert!(second_hard.interval_days < 1); // Should be less than 1 day
     }
 
     #[test]
@@ -329,12 +329,12 @@ mod tests {
         let scheduler = IncrementalScheduler::default_params();
 
         // After 3 good ratings
-        let result1 = scheduler.schedule_item(ReviewRating::Good, None, 3, 0);
-        assert!(result1.consecutive_count > 0);
+        let after_good = scheduler.schedule_item(ReviewRating::Good, None, 3, 0);
+        assert!(after_good.consecutive_count > 0);
 
         // An again rating should reset consecutive good count
-        let result2 = scheduler.schedule_item(ReviewRating::Again, Some(3), 0, 0);
-        assert!(result2.consecutive_count < 0); // Negative indicates consecutive hard/again
+        let after_again = scheduler.schedule_item(ReviewRating::Again, Some(3), 0, 0);
+        assert!(after_again.consecutive_count < 0); // Negative indicates consecutive hard/again
     }
 
     #[test]

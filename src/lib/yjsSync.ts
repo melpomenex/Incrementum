@@ -68,12 +68,10 @@ export async function clearYjsIndexedDB(): Promise<boolean> {
   if (typeof indexedDB === "undefined") return false;
 
   try {
-    console.log("[YjsSync] Clearing IndexedDB data...");
 
     await new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase(DB_NAME);
       request.onsuccess = () => {
-        console.log("[YjsSync] IndexedDB cleared successfully");
         resolve();
       };
       request.onerror = () => {
@@ -105,12 +103,10 @@ async function checkAndRepairCorruption(): Promise<void> {
 
   // If we detected corruption in a previous session, clear data now
   if (wasCorrupted === "true") {
-    console.log("[YjsSync] Previous corruption detected, clearing data...");
     await clearYjsIndexedDB();
     return;
   }
 
-  // Set up global error handler to catch Yjs decode errors
   const originalErrorHandler = window.onerror;
   let detectedCorruption = false;
 
@@ -125,7 +121,6 @@ async function checkAndRepairCorruption(): Promise<void> {
       console.warn("[YjsSync] Detected corrupted Yjs data, will clear on next load");
       localStorage.setItem(CORRUPTION_FLAG_KEY, "true");
 
-      // Attempt immediate cleanup
       setTimeout(() => {
         clearYjsIndexedDB();
       }, 100);
@@ -153,7 +148,6 @@ export async function getYjsSync(): Promise<YjsSyncState> {
   }
 
   try {
-    // Check for corruption before initializing
     await checkAndRepairCorruption();
 
     const url = import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
@@ -163,23 +157,18 @@ export async function getYjsSync(): Promise<YjsSyncState> {
     let persistence: IndexeddbPersistence | null = null;
 
     try {
-      // Create Y.Doc first
       doc = new Y.Doc();
 
-      // Create persistence with error handling
       try {
         persistence = new IndexeddbPersistence(DB_NAME, doc);
 
-        // Handle sync events
         persistence.on("sync", (isSynced: boolean) => {
           if (isSynced) {
-            console.log("[YjsSync] IndexedDB sync complete");
             // Clear corruption flag on successful sync
             localStorage.removeItem(CORRUPTION_FLAG_KEY);
           }
         });
 
-        // Handle errors
         persistence.on("error", async (error: Error) => {
           console.error("[YjsSync] IndexedDB error:", error);
           localStorage.setItem(CORRUPTION_FLAG_KEY, "true");
@@ -187,7 +176,6 @@ export async function getYjsSync(): Promise<YjsSyncState> {
 
       } catch (persistenceError) {
         console.error("[YjsSync] Failed to create IndexedDB persistence:", persistenceError);
-        // Continue without persistence
         persistence = null;
       }
 
@@ -196,18 +184,11 @@ export async function getYjsSync(): Promise<YjsSyncState> {
       });
 
       if (isSyncDebugEnabled()) {
-        console.info("[YjsSync] Initializing provider", { url, room });
       }
 
-      // Handle WebSocket errors gracefully
       provider.on("status", (event: { status: string }) => {
         const ws = (provider as any).ws as WebSocket | undefined;
         const socketUrl = ws?.url;
-        console.log("[YjsSync] WebSocket status:", {
-          status: event.status,
-          url: socketUrl ?? url,
-          readyState: ws?.readyState,
-        });
       });
 
       provider.on("connection-error", (error: Error) => {
@@ -229,7 +210,6 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         room,
       };
 
-      // --- Idle disconnect (D4) ---
       let idleTimer: ReturnType<typeof setTimeout> | null = null;
       const IDLE_MS = 5 * 60 * 1000; // 5 minutes
       let disconnectedFromIdle = false;
@@ -241,7 +221,6 @@ export async function getYjsSync(): Promise<YjsSyncState> {
             provider.disconnect();
             disconnectedFromIdle = true;
             if (isSyncDebugEnabled()) {
-              console.info("[YjsSync] Idle disconnect: no updates for 5 minutes");
             }
           }
         }, IDLE_MS);
@@ -252,7 +231,6 @@ export async function getYjsSync(): Promise<YjsSyncState> {
           provider.connect();
           disconnectedFromIdle = false;
           if (isSyncDebugEnabled()) {
-            console.info("[YjsSync] Reconnecting after idle disconnect");
           }
         }
         resetIdleTimer();
@@ -270,7 +248,6 @@ export async function getYjsSync(): Promise<YjsSyncState> {
             provider.disconnect();
             if (idleTimer) clearTimeout(idleTimer);
             if (isSyncDebugEnabled()) {
-              console.info("[YjsSync] Disconnected due to page hidden");
             }
           }
         } else {
@@ -278,14 +255,12 @@ export async function getYjsSync(): Promise<YjsSyncState> {
             provider.connect();
             resetIdleTimer();
             if (isSyncDebugEnabled()) {
-              console.info("[YjsSync] Reconnected after page visible");
             }
           }
         }
       }
       document.addEventListener("visibilitychange", handleVisibilityChange);
 
-      // Start the idle timer
       resetIdleTimer();
 
       return instance;

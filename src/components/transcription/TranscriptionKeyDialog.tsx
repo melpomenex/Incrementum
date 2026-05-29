@@ -107,9 +107,12 @@ export function TranscriptionKeyDialog({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={handleBackdropClick}
+      onKeyDown={(e) => { if (e.key === 'Escape') handleBackdropClick(e as unknown as React.MouseEvent); }}
+      role="dialog"
+      aria-label="Transcription key settings"
     >
       <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
@@ -183,6 +186,7 @@ export function TranscriptionKeyDialog({
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
+                aria-label="API key"
                 placeholder="gsk_..."
                 className={cn(
                   'w-full rounded-lg border bg-background px-3 py-2.5 pr-20 text-sm text-foreground focus:outline-none focus:ring-2 transition-all',
@@ -343,6 +347,7 @@ export function InlineTranscriptionKeyInput({
             type={showKey ? 'text' : 'password'}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
+            aria-label="Groq API key"
             placeholder="gsk_..."
             className={cn(
               'w-full rounded-lg border bg-background px-3 py-2 pr-16 text-sm text-foreground focus:outline-none focus:ring-2 transition-all',

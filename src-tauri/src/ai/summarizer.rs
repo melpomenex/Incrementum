@@ -55,7 +55,6 @@ impl Summarizer {
 
         let response = self.provider.chat_completion(&request).await?;
 
-        // Parse bulleted list
         let points: Vec<String> = response
             .content
             .lines()
@@ -91,7 +90,6 @@ impl Summarizer {
 
         let response = self.provider.chat_completion(&request).await?;
 
-        // Parse JSON response
         let json_str = response.content.trim();
         let start = json_str.find('{').ok_or("No JSON object found")?;
         let json_slice = &json_str[start..];

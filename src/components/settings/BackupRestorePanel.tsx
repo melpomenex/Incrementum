@@ -105,7 +105,6 @@ export function BackupRestorePanel({
     message: string;
   } | null>(null);
 
-  // Load backups when component mounts or provider changes
   useEffect(() => {
     if (isAuthenticated && provider) {
       loadBackups();

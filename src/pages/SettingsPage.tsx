@@ -219,6 +219,7 @@ function GeneralSettings() {
                 </div>
               </div>
               <input
+                aria-label="Items per page"
                 type="number"
                 min="10"
                 max="20"

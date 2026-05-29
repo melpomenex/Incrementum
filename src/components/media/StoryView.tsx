@@ -5,8 +5,7 @@
 
 import { useCallback } from "react";
 import { ChevronLeft, ChevronRight, Star, ExternalLink, Clock, User } from "lucide-react";
-import type { FeedItem, Feed } from "../../api/rss";
-import { formatFeedDate } from "../../api/rss";
+import { formatFeedDate, type FeedItem, type Feed } from "../../api/rss";
 import { openExternal } from "../../lib/tauri";
 import { sanitizeHtml } from "../common/RichContentRenderer";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";

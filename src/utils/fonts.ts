@@ -1,12 +1,3 @@
-/**
- * Dynamic font loader for offline @fontsource packages.
- *
- * On Tauri/desktop, fonts are bundled via @fontsource packages.
- * On web/PWA, fonts are loaded via Google Fonts CDN.
- *
- * The app only loads the selected font (plus a small critical set) instead
- * of all 68 @fontsource packages, dramatically reducing startup cost.
- */
 
 import "@fontsource/inter"; // Critical default font — always loaded
 

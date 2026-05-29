@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import sys
 
 
@@ -27,15 +26,20 @@ def output_result(data: dict) -> None:
     sys.stdout.flush()
 
 
-async def download_book(md5: str, output_dir: str, fmt: str, timeout: int, mirrors: list[str]) -> None:
+async def download_book(
+    md5: str, output_dir: str, fmt: str, timeout: int, mirrors: list[str]
+) -> None:
     try:
         from playwright.async_api import async_playwright
-    except ImportError:
-        output_result({
-            "success": False,
-            "error": "Playwright is not installed. Install with: pip install playwright && playwright install chromium",
-            "error_type": "playwright_missing",
-        })
+    except ImportError as e:
+        print(f"Playwright not available: {e}", file=sys.stderr)
+        output_result(
+            {
+                "success": False,
+                "error": "Playwright is not installed. Install with: pip install playwright && playwright install chromium",
+                "error_type": "playwright_missing",
+            }
+        )
         sys.exit(1)
 
     os.makedirs(output_dir, exist_ok=True)
@@ -47,11 +51,13 @@ async def download_book(md5: str, output_dir: str, fmt: str, timeout: int, mirro
                 args=["--disable-blink-features=AutomationControlled"],
             )
         except Exception as e:
-            output_result({
-                "success": False,
-                "error": f"Failed to launch browser: {e}",
-                "error_type": "browser_error",
-            })
+            output_result(
+                {
+                    "success": False,
+                    "error": f"Failed to launch browser: {e}",
+                    "error_type": "browser_error",
+                }
+            )
             sys.exit(1)
 
         context = await browser.new_context(
@@ -63,7 +69,9 @@ async def download_book(md5: str, output_dir: str, fmt: str, timeout: int, mirro
         try:
             for base_url in mirrors:
                 try:
-                    result = await _try_download_from_mirror(page, base_url, md5, fmt, output_dir, timeout)
+                    result = await _try_download_from_mirror(
+                        page, base_url, md5, fmt, output_dir, timeout
+                    )
                     if result:
                         await browser.close()
                         output_result(result)
@@ -73,19 +81,23 @@ async def download_book(md5: str, output_dir: str, fmt: str, timeout: int, mirro
                     continue
 
             await browser.close()
-            output_result({
-                "success": False,
-                "error": "All download mirrors failed",
-                "error_type": "no_mirrors",
-            })
+            output_result(
+                {
+                    "success": False,
+                    "error": "All download mirrors failed",
+                    "error_type": "no_mirrors",
+                }
+            )
             sys.exit(1)
         except Exception as e:
             await browser.close()
-            output_result({
-                "success": False,
-                "error": str(e),
-                "error_type": "unknown",
-            })
+            output_result(
+                {
+                    "success": False,
+                    "error": str(e),
+                    "error_type": "unknown",
+                }
+            )
             sys.exit(1)
 
 
@@ -96,9 +108,13 @@ async def _try_download_from_mirror(
 
     try:
         await page.goto(book_url, wait_until="networkidle", timeout=timeout * 1000)
-    except Exception as e:
-        # Check if it's a Cloudflare block
-        content = await page.content()
+    except OSError:
+        # Page navigation failed (timeout or network error)
+        content = ""
+        try:
+            content = await page.content()
+        except Exception:
+            pass
         if "cloudflare" in content.lower() or "just a moment" in content.lower():
             return {
                 "success": False,
@@ -137,20 +153,17 @@ async def _try_download_from_mirror(
                 await asyncio.sleep(1)
                 download_links = await _get_download_links(page)
         except Exception:
+            # No external mirror button found, not critical
             pass
 
-    if not download_links:
-        return None
-
     # Prioritize: slow download → LibGen external → fast download
-    slow_links = [l for l in download_links if l.get("isSlow")]
+    slow_links = [item for item in download_links if item.get("isSlow")]
     external_links = [
-        l
-        for l in download_links
-        if l.get("isExternal")
-        and "libgen" in l.get("href", "").lower()
+        item
+        for item in download_links
+        if item.get("isExternal") and "libgen" in item.get("href", "").lower()
     ]
-    fast_links = [l for l in download_links if l.get("isFast")]
+    fast_links = [item for item in download_links if item.get("isFast")]
 
     # Try slow download
     if slow_links:
@@ -201,9 +214,7 @@ async def _try_slow_download(
     page, link: dict, output_dir: str, timeout: int
 ) -> dict | None:
     try:
-        btn = await page.query_selector(
-            f'a.js-download-link[href="{link["href"]}"]'
-        )
+        btn = await page.query_selector(f'a.js-download-link[href="{link["href"]}"]')
         if not btn:
             return None
 
@@ -234,11 +245,13 @@ async def _try_slow_download(
                             "file_name": suggested_name,
                             "file_size": os.path.getsize(output_path),
                         }
-            except Exception:
+            except OSError:
+                # Download button not found or download failed, try next attempt
                 pass
 
         return None
-    except Exception:
+    except OSError:
+        # Unexpected error during slow download attempt
         return None
 
 
@@ -246,7 +259,9 @@ async def _try_external_download(
     page, link: dict, md5: str, fmt: str, output_dir: str, timeout: int
 ) -> dict | None:
     try:
-        await page.goto(link["href"], wait_until="domcontentloaded", timeout=timeout * 1000)
+        await page.goto(
+            link["href"], wait_until="domcontentloaded", timeout=timeout * 1000
+        )
         await asyncio.sleep(3)
 
         # LibGen pages have GET or Download buttons
@@ -271,7 +286,8 @@ async def _try_external_download(
             }
 
         return None
-    except Exception:
+    except OSError:
+        # Download failed (network error, timeout, or button not found)
         return None
 
 
@@ -297,13 +313,13 @@ def main():
         default=180,
         help="Timeout in seconds for page loads",
     )
-    parser.add_argument(
-        "--mirror", default=None, help="Specific mirror URL to use"
-    )
+    parser.add_argument("--mirror", default=None, help="Specific mirror URL to use")
     args = parser.parse_args()
 
     mirrors = [args.mirror] if args.mirror else MIRRORS
-    asyncio.run(download_book(args.md5, args.output_dir, args.format, args.timeout, mirrors))
+    asyncio.run(
+        download_book(args.md5, args.output_dir, args.format, args.timeout, mirrors)
+    )
 
 
 if __name__ == "__main__":

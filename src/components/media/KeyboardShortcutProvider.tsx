@@ -32,7 +32,6 @@ export function KeyboardShortcutProvider({ onAction, enabled = true }: KeyboardS
         if (e.key !== "Escape") return;
       }
 
-      // Build key combo string
       const parts: string[] = [];
       if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
       if (e.shiftKey) parts.push("Shift");

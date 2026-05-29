@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { X, Loader2, AlertTriangle, Search, ChevronLeft, ChevronRight, Crosshair } from "lucide-react";
-import type { Document } from "../../types/document";
 import { useDocumentStore } from "../../stores/documentStore";
 import { ResizableSplit } from "./ResizableSplit";
 import { AudiobookViewer } from "./AudiobookViewer";
@@ -8,8 +7,7 @@ import { EPUBViewer } from "./EPUBViewer";
 import * as documentsApi from "../../api/documents";
 import { resolveLocalMediaSource } from "./localMediaSource";
 import { parseChapters, parseAudiobookMetadata } from "../../api/audiobooks";
-import { getTranscript } from "../../api/transcription";
-import type { TranscriptSegment as TranscriptionSegment } from "../../api/transcription";
+import { getTranscript, type TranscriptSegment as TranscriptionSegment } from "../../api/transcription";
 import type { SyncSegment } from "../../utils/epubSync";
 
 interface AudiobookEpubSyncViewProps {
@@ -34,9 +32,9 @@ export function AudiobookEpubSyncView({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [audioChapters, setAudioChapters] = useState<Array<{ title: string; startTime: number; endTime: number }>>([]);
+  const [_audioChapters, setAudioChapters] = useState<Array<{ title: string; startTime: number; endTime: number }>>([]);
   const [transcriptSegments, setTranscriptSegments] = useState<Array<{ text: string; startTime: number; endTime: number }>>([]);
-  const [epubChapters, setEpubChapters] = useState<Array<{ href: string; label: string; text: string }>>([]);
+  const [_epubChapters, setEpubChapters] = useState<Array<{ href: string; label: string; text: string }>>([]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
@@ -60,7 +58,6 @@ export function AudiobookEpubSyncView({
     return () => observer.disconnect();
   }, []);
 
-  // Load both documents' files
   useEffect(() => {
     if (!audioDoc?.filePath || !epubDoc?.filePath) {
       setLoadError("Missing file paths for one or both documents.");
@@ -120,7 +117,7 @@ export function AudiobookEpubSyncView({
               if (resp?.segments) {
                 rawSegments.push(...resp.segments);
               }
-            } catch {}
+            } catch { /* ignore partial fetch failure */ }
           }
           if (rawSegments.length > 0 && !cancelled) {
             setTranscriptSegments(rawSegments.map(seg => ({
@@ -130,14 +127,13 @@ export function AudiobookEpubSyncView({
             })));
           }
         }
-      } catch {}
+      } catch { /* ignore metadata load failure */ }
     }
 
     loadMeta();
     return () => { cancelled = true; };
   }, [audioDoc?.filePath, audioDoc?.id]);
 
-  // Extract EPUB chapter text when TOC is loaded
   const handleEpubLoad = useCallback((toc: any[]) => {
     const chapters = toc.map((item: any) => ({
       href: item.href || "",
@@ -147,7 +143,6 @@ export function AudiobookEpubSyncView({
     setEpubChapters(chapters);
   }, []);
 
-  // Build sync segments from transcript
   const syncSegments: SyncSegment[] = useMemo(() =>
     transcriptSegments.map((seg, idx) => ({
       index: idx,
@@ -231,6 +226,7 @@ export function AudiobookEpubSyncView({
               ref={searchInputRef}
               type="text"
               placeholder="Search in book..."
+              aria-label="Search in book"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

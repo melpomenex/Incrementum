@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Mic, Languages, Download, Trash2, CheckCircle2, Loader2, Info, AlertCircle,
   Cloud, Zap, Settings2, Key, TrendingUp, Clock, AlertTriangle, Check,
@@ -71,7 +71,6 @@ export function AudioTranscriptionSettings() {
     }
   }, [isDesktop, audioSettings.provider]);
 
-  // Update usage stats periodically when Groq is selected
   useEffect(() => {
     if (activeTab === 'groq') {
       setUsageStats(getUsageStats());
@@ -82,7 +81,6 @@ export function AudioTranscriptionSettings() {
     }
   }, [activeTab]);
 
-  // Validate API key when input changes
   useEffect(() => {
     if (apiKeyInput) {
       const validation = validateGroqApiKey(apiKeyInput);
@@ -94,7 +92,6 @@ export function AudioTranscriptionSettings() {
     }
   }, [apiKeyInput]);
 
-  // Check if API key is configured
   useEffect(() => {
     setIsKeyValid(isGroqConfigured());
   }, [audioSettings.groq.apiKey]);
@@ -771,7 +768,6 @@ export function AudioTranscriptionSettings() {
                   const result = await enqueueAllUntranscribed(provider, modelId, audioSettings.language);
                   await queueStore.fetchQueue();
                   if (result.enqueued > 0) {
-                    console.log(`Enqueued ${result.enqueued} documents for transcription`);
                   }
                   if (result.skipped.length > 0) {
                     const names = result.skipped.map(s => `"${s.title}"`).join(", ");

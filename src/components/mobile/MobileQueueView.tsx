@@ -78,7 +78,6 @@ export function MobileQueueView({
     progress: number;
   } | null>(null);
 
-  // Load initial data
   useEffect(() => {
     loadQueue();
   }, [loadQueue]);
@@ -169,7 +168,6 @@ export function MobileQueueView({
       toast.success(t("mobileQueue.itemSuspended"), t("mobileQueue.removedFromQueue"));
       loadQueue(); // Refresh the queue
 
-      // Show undo toast
       setUndoState({
         visible: true,
         action: "suspend",
@@ -178,7 +176,6 @@ export function MobileQueueView({
         progress: 100,
       });
 
-      // Start progress animation
       const startTime = Date.now();
       const duration = 3000; // 3 seconds
 
@@ -216,7 +213,6 @@ export function MobileQueueView({
         progress: 100,
       });
 
-      // Start progress animation
       const startTime = Date.now();
       const duration = 3000;
 

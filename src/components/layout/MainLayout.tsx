@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTabsStore, normalizePane, type TabType } from "../../stores";
-import { useDocumentStore } from "../../stores";
-import { useSettingsStore } from "../../stores";
-import { useUIStore } from "../../stores";
+import { useTabsStore, normalizePane, useDocumentStore, useSettingsStore, useUIStore, type TabType } from "../../stores";
 import { useI18n } from "../../lib/i18n";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useShortcut } from "../common/KeyboardShortcuts";
@@ -75,7 +72,6 @@ export function MainLayout() {
   const documentsLoadedRef = useRef(false);
   const [activePaneTabId, setActivePaneTabId] = useState<string | null>(null);
 
-  // Get toolbar position from settings
   const toolbarPosition = useSettingsStore((state) => state.settings.interface.toolbarPosition);
 
   // Find the first tab pane and its active tab for keyboard navigation
@@ -97,7 +93,6 @@ export function MainLayout() {
     }
   }, [rootPane]);
 
-  // Setup keyboard shortcuts
   useGlobalShortcuts();
   useShortcut("gen.screenshot", (event) => {
     const target = event.target as HTMLElement;
@@ -109,7 +104,6 @@ export function MainLayout() {
     void captureAndSaveScreenshot().then(() => loadDocuments());
   });
 
-  // Initialize default tabs on first mount
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -185,7 +179,7 @@ export function MainLayout() {
       const activeTab = tabs.find((tab) => tab.id === activePaneTabId);
       if (activeTab?.type === "web-browser") {
         updateTab(activeTab.id, {
-          data: { ...(activeTab.data || {}), initialUrl: formatted },
+          data: { ...activeTab.data, initialUrl: formatted },
         });
         return;
       }
@@ -231,7 +225,6 @@ export function MainLayout() {
 
   const vimiumCommands = useMemo<VimiumCommand[]>(() => {
     const cmds: VimiumCommand[] = [
-      // --- Navigation (existing) ---
       {
         id: "vimium-open",
         name: "open",
@@ -324,7 +317,6 @@ export function MainLayout() {
         aliases: ["previous-tab"],
       },
 
-      // --- Split Commands ---
       {
         id: "vimium-split",
         name: "split",
@@ -397,7 +389,6 @@ export function MainLayout() {
             if (childToRemove) {
               collapseSplit(pane.id, childToRemove.id);
             }
-            // Check if still split and recurse
             const newRoot = useTabsStore.getState().rootPane;
             if (newRoot.type === "split") collapseAllOthers(newRoot);
           };
@@ -429,7 +420,6 @@ export function MainLayout() {
         aliases: ["sw"],
       },
 
-      // --- Tab Commands ---
       {
         id: "vimium-tabnew",
         name: "tabnew",
@@ -510,7 +500,6 @@ export function MainLayout() {
         aliases: ["topen"],
       },
 
-      // --- File / Document Commands ---
       {
         id: "vimium-edit",
         name: "edit",
@@ -553,7 +542,6 @@ export function MainLayout() {
         aliases: ["ls", "files"],
       },
 
-      // --- Navigation Commands ---
       {
         id: "vimium-jump",
         name: "jump",
@@ -562,7 +550,6 @@ export function MainLayout() {
           if (args.length === 0) return;
           const tabType = resolveTabType(args[0]);
           if (tabType) {
-            // Check if tab already exists in current pane
             const pane = getActiveTabPane();
             if (pane) {
               const existingTab = useTabsStore.getState().tabs.find((t) => t.type === tabType);
@@ -648,7 +635,6 @@ export function MainLayout() {
         aliases: ["z"],
       },
 
-      // --- Session Commands ---
       {
         id: "vimium-qall",
         name: "qall",
@@ -754,7 +740,6 @@ export function MainLayout() {
     restoreTab: () => reopenLastClosedTab(),
   }), [activePaneTabId, closeTab, reopenLastClosedTab, setActiveTab]);
 
-  // Render layout based on toolbar position
   const renderLayout = () => {
     // Toolbar on the left
     if (toolbarPosition === "left") {

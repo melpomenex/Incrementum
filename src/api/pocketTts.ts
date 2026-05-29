@@ -5,8 +5,7 @@
  * for offline, low-latency text-to-speech on CPU.
  */
 
-import { invokeCommand } from "../lib/tauri";
-import { isTauri } from "../lib/tauri";
+import { invokeCommand, isTauri } from "../lib/tauri";
 
 export interface PocketTTSOptions {
   text: string;

@@ -47,7 +47,6 @@ function extractIds(html: string): string[] {
   const matches = html.match(ID_REGEX);
   if (!matches) return [];
   
-  // Process in reverse order as per original implementation
   const reversed = [...matches].reverse();
   for (const match of reversed) {
     const id = match.replace(/[^0-9]/g, "");
@@ -100,11 +99,9 @@ export async function searchLibGen(options: SearchOptions): Promise<LibGenBook[]
   const sortmode = reverse ? "DESC" : "ASC";
   const closestPage = offset ? Math.floor(offset / 25) + 1 : 1;
 
-  // Build search URL
   let allIds: string[] = [];
   let currentPage = closestPage;
 
-  // Fetch IDs until we have enough
   while (allIds.length < count + offset) {
     const pageUrl = `${mirror}/search.php?&req=${encodeURIComponent(query)}&view=detailed&column=${searchIn}&sort=${sortBy}&sortmode=${sortmode}&page=${currentPage}`;
     
@@ -135,7 +132,6 @@ export async function searchLibGen(options: SearchOptions): Promise<LibGenBook[]
     selectedIds = allIds.slice(0, count);
   }
 
-  // Fetch detailed book data
   const jsonUrl = `${mirror}/json.php?ids=${selectedIds.join(",")}&fields=*`;
   
   const jsonResponse = await fetch(jsonUrl);
@@ -145,7 +141,6 @@ export async function searchLibGen(options: SearchOptions): Promise<LibGenBook[]
 
   const books = await jsonResponse.json();
   
-  // Normalize the data
   return books.map((book: any) => ({
     id: book.id || book.md5,
     title: book.title || "Unknown Title",
@@ -170,11 +165,6 @@ export async function searchLibGen(options: SearchOptions): Promise<LibGenBook[]
  */
 export async function getDownloadLink(md5: string): Promise<string> {
   const mirror = await getWorkingMirror();
-  
-  // LibGen download links are typically:
-  // {mirror}/ads.php?md5={md5}&download=1
-  // or
-  // {mirror}/get.php?md5={md5}
   
   return `${mirror}/get.php?md5=${md5}`;
 }

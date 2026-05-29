@@ -469,7 +469,6 @@ export async function importMediaItem(
   type: MediaType,
   metadata?: Partial<MediaItem>
 ): Promise<MediaItem> {
-  // Get file metadata
   const duration = await getMediaDuration(file);
   const thumbnail = type === "video" ? await generateVideoThumbnail(file) : undefined;
 

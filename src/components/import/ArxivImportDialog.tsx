@@ -359,7 +359,10 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                   return (
                     <div
                       key={paper.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedPaper(paper)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setSelectedPaper(paper); }}
                       className={cn(
                         "cursor-pointer p-4 transition-colors hover:bg-muted/50",
                         selectedPaper?.id === paper.id && "bg-muted"

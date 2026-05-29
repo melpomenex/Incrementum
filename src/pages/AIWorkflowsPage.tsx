@@ -150,6 +150,7 @@ export function AIWorkflowsPage() {
               <button
                 key={workflow.id}
                 onClick={() => setSelectedWorkflow(workflow.id)}
+                aria-label={t(workflow.label)}
                 className={`w-full p-3 rounded text-left transition-colors ${selectedWorkflow === workflow.id
                     ? "bg-primary-100 border border-primary-300"
                     : "hover:bg-muted border border-transparent"
@@ -186,10 +187,11 @@ export function AIWorkflowsPage() {
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
                 {selectedWorkflow === "qa" && (
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="ai-question" className="block text-sm font-medium text-foreground mb-2">
                       {t("aiWorkflows.yourQuestion")}
                     </label>
                     <input
+                      id="ai-question"
                       type="text"
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
@@ -200,7 +202,7 @@ export function AIWorkflowsPage() {
                 )}
 
                 <div className="mb-4 flex-1 flex flex-col">
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="ai-input" className="block text-sm font-medium text-foreground mb-2">
                     {selectedWorkflow === "flashcards"
                       ? t("aiWorkflows.contentToGenerateFlashcards")
                       : selectedWorkflow === "qa"
@@ -208,6 +210,7 @@ export function AIWorkflowsPage() {
                         : t("aiWorkflows.contentToProcess")}
                   </label>
                   <textarea
+                    id="ai-input"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={t("aiWorkflows.pasteContent")}
