@@ -17,15 +17,21 @@ import {
   Check,
   ImagePlus,
   X,
+  ChevronDown,
+  Zap,
+  Cpu,
+  Eye,
+  AlertCircle,
+  Globe,
 } from "lucide-react";
 import { compressImage, readFileAsDataUrl } from "../../utils/imageCompression";
 import { supportsVision } from "../../utils/visionCapability";
 import { chatWithContext, type LLMMessage, type LLMMessageContentPart } from "../../api/llm";
 import { callIncrementumMCPTool, getIncrementumMCPTools, type MCPTool } from "../../api/mcp";
 import { renderMarkdown } from "../../utils/markdown";
-import { useSettingsStore } from "../../stores";
+import { useSettingsStore, useLLMProvidersStore, useTabsStore } from "../../stores";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
-import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
+import { SettingsTab } from "../tabs/TabRegistry";
 import { ShareMessageDialog } from "./ShareMessageDialog";
 import { copyToClipboard, generateSingleMessageMarkdown, type ConversationMessage } from "../../api/integrations";
 import { useI18n } from "../../lib/i18n";
@@ -261,6 +267,104 @@ export function AssistantPanel({
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
   const aiControls = useSettingsStore((state) => state.settings.ai.aiControls);
 
+  // Model selection UI states and store subscription
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const configuredProvidersList = useLLMProvidersStore((state) => state.providers);
+
+  // Clean, human-friendly model name formatter
+  const getFriendlyModelName = (providerId: string, rawModelName?: string) => {
+    if (!rawModelName) {
+      if (providerId === "openai") return "GPT-4o";
+      if (providerId === "anthropic") return "Claude 3.5 Sonnet";
+      if (providerId === "ollama") return "Llama 3.2";
+      if (providerId === "openrouter") return "Claude 3.5 Sonnet";
+      return "Select Model";
+    }
+
+    const modelLower = rawModelName.toLowerCase();
+    
+    // OpenAI Models
+    if (modelLower.includes("gpt-4o-mini")) return "GPT-4o Mini";
+    if (modelLower.includes("gpt-4o")) return "GPT-4o";
+    if (modelLower.includes("gpt-4-turbo")) return "GPT-4 Turbo";
+    if (modelLower.includes("gpt-4")) return "GPT-4";
+    if (modelLower.includes("gpt-3.5-turbo")) return "GPT-3.5 Turbo";
+    
+    // Anthropic Models
+    if (modelLower.includes("claude-3-5-sonnet")) return "Claude 3.5 Sonnet";
+    if (modelLower.includes("claude-3-5-haiku")) return "Claude 3.5 Haiku";
+    if (modelLower.includes("claude-3-opus")) return "Claude 3 Opus";
+    if (modelLower.includes("claude-3-sonnet")) return "Claude 3 Sonnet";
+    if (modelLower.includes("claude-3-haiku")) return "Claude 3 Haiku";
+    
+    // OpenRouter / Gemini / DeepSeek mappings
+    if (modelLower.includes("google/gemini-2.5-flash")) return "Gemini 2.5 Flash";
+    if (modelLower.includes("google/gemini-pro-1.5")) return "Gemini 1.5 Pro";
+    if (modelLower.includes("google/gemini-flash-1.5") || modelLower.includes("google/gemini-1.5-flash")) return "Gemini 1.5 Flash";
+    if (modelLower.includes("google/gemini-2.5-pro")) return "Gemini 2.5 Pro";
+    if (modelLower.includes("google/gemini-2.0-flash")) return "Gemini 2.0 Flash";
+    if (modelLower.includes("google/gemini")) return "Gemini Model";
+    if (modelLower.includes("deepseek/deepseek-chat") || modelLower.includes("deepseek-v3")) return "DeepSeek V3";
+    if (modelLower.includes("deepseek/deepseek-coder")) return "DeepSeek Coder";
+    if (modelLower.includes("meta-llama/llama-3.3-70b")) return "Llama 3.3 70B";
+    if (modelLower.includes("meta-llama/llama-3.1-405b")) return "Llama 3.1 405B";
+    if (modelLower.includes("openrouter")) return "OpenRouter Model";
+    
+    // Ollama / Local Models
+    if (modelLower.includes("llama3.2")) return "Llama 3.2";
+    if (modelLower.includes("llama3.3")) return "Llama 3.3";
+    if (modelLower.includes("llama3.1")) return "Llama 3.1";
+    if (modelLower.includes("llama3")) return "Llama 3";
+    if (modelLower.includes("mistral")) return "Mistral";
+    if (modelLower.includes("qwen")) return "Qwen";
+    if (modelLower.includes("deepseek")) return "DeepSeek";
+    if (modelLower.includes("phi3") || modelLower.includes("phi-3")) return "Phi-3";
+    if (modelLower.includes("gemma")) return "Gemma";
+    
+    // Clean OpenRouter formatting
+    if (rawModelName.includes("/")) {
+      const parts = rawModelName.split("/");
+      const modelPart = parts[parts.length - 1];
+      return modelPart
+        .split("-")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+    
+    return rawModelName;
+  };
+
+  // Provider configuration active status checker
+  const getProviderStatus = (providerId: "openai" | "anthropic" | "ollama" | "openrouter") => {
+    const config = configuredProvidersList.find(p => p.provider === providerId);
+    if (!config) return "not-configured";
+    if (!config.enabled) return "disabled";
+    
+    const requiresKey = providerRequiresApiKey(providerId, config.baseUrl || "");
+    const hasKey = config.apiKey && config.apiKey.trim().length > 0;
+    
+    if (requiresKey && !hasKey) return "key-missing";
+    return "active";
+  };
+
+  // Open the Settings tab to AI panel directly
+  const handleOpenSettingsToAI = () => {
+    localStorage.setItem("incrementum_settings_initial_tab", "ai");
+    
+    const tabId = useTabsStore.getState().addTab({
+      title: "Settings",
+      icon: <Settings className="w-4 h-4" />,
+      type: "settings",
+      content: SettingsTab,
+      closable: true,
+    });
+    
+    const pane = useTabsStore.getState().findPaneContainingTab(tabId);
+    if (pane) {
+      useTabsStore.getState().setActiveTab(pane.id, tabId);
+    }
+  };
+
   // Share dialog state
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [shareMessage, setShareMessage] = useState<Message | null>(null);
@@ -349,10 +453,38 @@ export function AssistantPanel({
   };
 
   const providers = [
-    { id: "openai", name: "OpenAI", icon: Sparkles, color: "text-green-500" },
-    { id: "anthropic", name: "Anthropic", icon: MessageSquare, color: "text-orange-500" },
-    { id: "ollama", name: "Ollama", icon: Code, color: "text-blue-500" },
-    { id: "openrouter", name: "OpenRouter", icon: Settings, color: "text-purple-500" },
+    { 
+      id: "openai", 
+      name: "OpenAI", 
+      icon: Sparkles, 
+      color: "text-emerald-500",
+      gradient: "from-emerald-500/15 to-teal-500/5 hover:from-emerald-500/20",
+      breathingDot: "bg-emerald-500 shadow-[0_0_8px_#10b981]",
+    },
+    { 
+      id: "anthropic", 
+      name: "Anthropic", 
+      icon: MessageSquare, 
+      color: "text-orange-500",
+      gradient: "from-orange-500/15 to-amber-500/5 hover:from-orange-500/20",
+      breathingDot: "bg-orange-500 shadow-[0_0_8px_#f97316]",
+    },
+    { 
+      id: "ollama", 
+      name: "Ollama", 
+      icon: Code, 
+      color: "text-cyan-500",
+      gradient: "from-cyan-500/15 to-blue-500/5 hover:from-cyan-500/20",
+      breathingDot: "bg-cyan-500 shadow-[0_0_8px_#06b6d4]",
+    },
+    { 
+      id: "openrouter", 
+      name: "OpenRouter", 
+      icon: Settings, 
+      color: "text-purple-500",
+      gradient: "from-purple-500/15 to-pink-500/5 hover:from-purple-500/20",
+      breathingDot: "bg-purple-500 shadow-[0_0_8px_#a855f7]",
+    },
   ];
 
   const scrollToBottom = () => {
@@ -1502,21 +1634,200 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
               <Share2 className="w-4 h-4 text-foreground" />
             </button>
           )}
-          {/* Provider Selector */}
-          <div className="flex items-center gap-1 mr-2">
-            {providers.map((provider) => (
-              <button
-                key={provider.id}
-                onClick={() => handleProviderChange(provider.id as any)}
-                className={`p-1.5 rounded transition-colors ${effectiveProvider === provider.id
-                  ? "bg-muted"
-                  : "hover:bg-muted"
-                  }`}
-                title={provider.name}
-              >
-                <provider.icon className={`w-3 h-3 ${provider.color}`} />
-              </button>
-            ))}
+          {/* Breathing CSS Animation */}
+          <style>{`
+            @keyframes breathing-glow {
+              0%, 100% {
+                opacity: 0.55;
+                transform: scale(0.92);
+              }
+              50% {
+                opacity: 1;
+                transform: scale(1.1);
+              }
+            }
+            .breathing-pulse {
+              animation: breathing-glow 2.2s infinite ease-in-out;
+            }
+          `}</style>
+
+          {/* Model Status Pill & Selector */}
+          <div className="relative mr-2">
+            <button
+              onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+              className={`
+                flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
+                bg-background border border-border shadow-sm transition-all duration-200
+                hover:bg-muted/80 cursor-pointer select-none active:scale-[0.98]
+                ${isModelDropdownOpen ? "border-primary ring-2 ring-primary/10 bg-muted/30" : ""}
+              `}
+              title="Change Active AI Model"
+            >
+              {/* Pulsing indicator dot */}
+              <span className="relative flex h-1.5 w-1.5">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  effectiveProvider === "openai" ? "bg-emerald-400" :
+                  effectiveProvider === "anthropic" ? "bg-orange-400" :
+                  effectiveProvider === "ollama" ? "bg-cyan-400" : "bg-purple-400"
+                }`}></span>
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                  effectiveProvider === "openai" ? "bg-emerald-500" :
+                  effectiveProvider === "anthropic" ? "bg-orange-500" :
+                  effectiveProvider === "ollama" ? "bg-cyan-500" : "bg-purple-500"
+                }`}></span>
+              </span>
+
+              {/* Icon */}
+              {(() => {
+                const activeProvObj = providers.find(p => p.id === effectiveProvider);
+                if (!activeProvObj) return null;
+                return <activeProvObj.icon className={`w-3 h-3 ${activeProvObj.color}`} />;
+              })()}
+
+              {/* Active Model Name */}
+              <span className="max-w-[110px] truncate text-foreground/90 font-medium tracking-tight">
+                {(() => {
+                  const activeConfig = configuredProvidersList.find(p => p.provider === effectiveProvider && p.enabled);
+                  return getFriendlyModelName(effectiveProvider, activeConfig?.model);
+                })()}
+              </span>
+
+              {/* Chevron */}
+              <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${
+                isModelDropdownOpen ? "transform rotate-180" : ""
+              }`} />
+            </button>
+
+            {/* AI Engine Center Dropdown */}
+            {isModelDropdownOpen && (
+              <>
+                {/* Backdrop overlay to close dropdown */}
+                <div 
+                  className="fixed inset-0 z-40 bg-transparent"
+                  onClick={() => setIsModelDropdownOpen(false)}
+                />
+                
+                {/* Dropdown Menu container */}
+                <div className={`
+                  absolute ${position === "right" ? "right-0" : "left-0"} mt-2 w-72 z-50
+                  glass-panel-heavy rounded-xl border border-glass-border/40 shadow-glass-lg
+                  p-3 space-y-2 select-none animate-in fade-in slide-in-from-bottom-2 duration-150
+                  bg-card/95 backdrop-blur-md
+                `}>
+                  <div className="flex items-center justify-between px-1.5 pb-1 border-b border-border/40">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      AI Engine Center
+                    </span>
+                    <button
+                      onClick={handleOpenSettingsToAI}
+                      className="p-1 hover:bg-muted/70 rounded transition-colors text-muted-foreground hover:text-foreground"
+                      title="Manage AI Providers"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    {providers.map((provider) => {
+                      const provConfig = configuredProvidersList.find(p => p.provider === provider.id);
+                      const status = getProviderStatus(provider.id as any);
+                      const isActive = effectiveProvider === provider.id;
+                      const hasVision = provConfig ? supportsVision(provider.id as any, provConfig.model) : false;
+                      const isMini = provConfig ? provConfig.model.toLowerCase().includes("mini") || provConfig.model.toLowerCase().includes("haiku") : false;
+
+                      return (
+                        <div
+                          key={provider.id}
+                          onClick={() => {
+                            if (status !== "not-configured") {
+                              handleProviderChange(provider.id as any);
+                              setIsModelDropdownOpen(false);
+                            } else {
+                              handleOpenSettingsToAI();
+                              setIsModelDropdownOpen(false);
+                            }
+                          }}
+                          className={`
+                            group flex flex-col p-2.5 rounded-lg border transition-all duration-200 cursor-pointer
+                            ${isActive 
+                              ? `bg-gradient-to-br ${provider.gradient} border-primary/20 shadow-sm` 
+                              : "bg-background/40 hover:bg-muted/40 border-transparent hover:border-border/60"
+                            }
+                          `}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1 rounded bg-background/80 shadow-sm transition-transform duration-200 group-hover:scale-105`}>
+                                <provider.icon className={`w-3.5 h-3.5 ${provider.color}`} />
+                              </div>
+                              <span className="text-xs font-bold text-foreground">
+                                {provider.name}
+                              </span>
+                            </div>
+
+                            {/* Status Indicators */}
+                            <div className="flex items-center gap-1.5">
+                              {isActive && (
+                                <span className={`h-1.5 w-1.5 rounded-full ${provider.breathingDot} breathing-pulse`}></span>
+                              )}
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                                status === "active" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                                status === "disabled" ? "bg-muted text-muted-foreground" :
+                                status === "key-missing" ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" :
+                                "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                              }`}>
+                                {status === "active" ? "Active" :
+                                 status === "disabled" ? "Disabled" :
+                                 status === "key-missing" ? "Key Alert" :
+                                 "Setup"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Model details and Capability Badges */}
+                          {provConfig && (
+                            <div className="mt-2 space-y-1.5 pl-7">
+                              <div className="text-[10px] font-mono text-muted-foreground truncate" title={provConfig.model}>
+                                {provConfig.model}
+                              </div>
+                              
+                              {/* Capabilities tags */}
+                              <div className="flex flex-wrap gap-1">
+                                {hasVision && (
+                                  <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.25 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/10">
+                                    <Eye className="w-2 h-2" /> Vision
+                                  </span>
+                                )}
+                                {provider.id === "ollama" ? (
+                                  <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.25 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/10">
+                                    <Cpu className="w-2.5 h-2.5" /> Local
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.25 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/10">
+                                    <Globe className="w-2.5 h-2.5" /> Cloud
+                                  </span>
+                                )}
+                                {isMini && (
+                                  <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.25 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/10">
+                                    <Zap className="w-2.5 h-2.5" /> Fast
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {status === "not-configured" && (
+                            <div className="mt-1 pl-7 text-[9px] text-muted-foreground italic">
+                              Click to configure API Key
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           {/* Position Toggle Button */}
           <button

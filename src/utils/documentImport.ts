@@ -76,7 +76,17 @@ export function processHtmlContent(rawHtml: string, baseUrl: string, title: stri
   const doc = parser.parseFromString(rawHtml, 'text/html');
   let baseHref = baseUrl;
   try {
-    baseHref = new URL(baseUrl).origin + '/';
+    // If the URL is an arXiv HTML page, ensure it has a trailing slash so that path-relative assets
+    // resolve correctly under the paper ID directory (e.g. /html/2403.12345/image.png)
+    if (baseUrl.includes('arxiv.org/html/')) {
+      const urlObj = new URL(baseUrl);
+      if (!urlObj.pathname.endsWith('/')) {
+        urlObj.pathname += '/';
+      }
+      baseHref = urlObj.toString();
+    } else {
+      baseHref = new URL(baseUrl).origin + '/';
+    }
   } catch {
     if (baseUrl.startsWith('file://')) {
       baseHref = baseUrl;
@@ -306,11 +316,22 @@ export async function importFromArxiv(input: string, format: 'pdf' | 'html' = 'p
     const fetched = await fetchUrlContent(downloadUrl);
     const pdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
 
+    let content = metadata.abstract;
+    if (isHtml) {
+      try {
+        const base64Content = await readDocumentFile(fetched.file_path);
+        const htmlContent = atob(base64Content);
+        content = processHtmlContent(htmlContent, downloadUrl, metadata.title, true);
+      } catch (error) {
+        console.warn('Failed to process ArXiv HTML content:', error);
+      }
+    }
+
     const document: Omit<Document, 'id'> = {
       title: metadata.title,
       filePath: fetched.file_path,
       fileType: isHtml ? 'html' : 'pdf',
-      content: metadata.abstract,
+      content: content,
       contentHash: await generateHash(fetched.file_path),
       category: 'Research Papers',
       tags: [

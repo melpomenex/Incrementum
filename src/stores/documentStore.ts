@@ -486,6 +486,34 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         collectionId
       );
 
+      // Prepare full update with all document data
+      const fullUpdate: Partial<Document> = {
+        content: docData.content,
+        tags: docData.tags,
+        category: docData.category,
+        metadata: docData.metadata,
+        priorityRating: docData.priorityRating,
+        prioritySlider: docData.prioritySlider,
+        priorityScore: docData.priorityScore,
+      };
+
+      // Persist content separately for Tauri (update_document doesn't store content)
+      if (docData.content && docData.content.trim().length > 0) {
+        try {
+          const updatedContentDoc = await documentsApi.updateDocumentContent(doc.id, docData.content);
+          Object.assign(doc, updatedContentDoc);
+        } catch (contentError) {
+          console.warn("[DocumentStore] Failed to persist document content:", contentError);
+        }
+      }
+
+      try {
+        const updatedDoc = await documentsApi.updateDocument(doc.id, fullUpdate as Document);
+        Object.assign(doc, updatedDoc);
+      } catch (updateError) {
+        console.warn('[DocumentStore] Failed to update document fully:', updateError);
+      }
+
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
