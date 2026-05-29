@@ -237,7 +237,7 @@ export async function buildSemanticGraph(
   }
 
   // Lexical fallback
-  return lexicalBuildSemanticGraph(items, thresholdPercent, focalTopic);
+  return lexicalBuildSemanticGraph(items, thresholdPercent, focalTopic, rssItems);
 }
 
 export { type EmbeddingConfigInput as EmbeddingConfig };

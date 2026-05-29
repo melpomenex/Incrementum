@@ -1,5 +1,6 @@
 import type { QueueItem } from "../types/queue";
 import { GraphNodeType, type GraphNode, type GraphEdge } from "../components/graph/KnowledgeGraph";
+import { type FeedItem } from "../api/rss";
 
 // Set of common English stop words to filter out during tokenization
 const STOP_WORDS = new Set([
@@ -131,12 +132,33 @@ export function calculateItemSimilarity(itemA: QueueItem, itemB: QueueItem): num
 export function buildSemanticGraph(
   items: QueueItem[],
   thresholdPercent: number,
-  focalTopic?: string
+  focalTopic?: string,
+  rssItems?: FeedItem[],
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const threshold = thresholdPercent / 100;
+
+  // Map RSS items to pseudo QueueItems
+  const rssQueueItems: QueueItem[] = (rssItems || []).map(item => {
+    return {
+      id: item.id.startsWith("rss-") ? item.id : `rss-${item.id}`,
+      documentId: item.id.startsWith("rss-") ? item.id : `rss-${item.id}`,
+      documentTitle: item.title || "Untitled",
+      itemType: "rss-article",
+      priority: 5,
+      estimatedTime: 5,
+      tags: item.categories || [],
+      category: item.categories?.[0] ?? "rss",
+      progress: 0,
+      // Store original RSS properties in custom fields for detail panel retrieval
+      rssItem: item,
+      rssFeed: { id: item.feedId, title: "RSS Feed", link: item.link },
+    } as any;
+  });
+
+  const allItems = [...items, ...rssQueueItems];
   
   // 1. Filter and score nodes if focal topic is provided
-  const scoredItems = items.map(item => {
+  const scoredItems = allItems.map(item => {
     const topicScore = focalTopic ? scoreFocalTopic(item, focalTopic) : 1.0;
     return { item, topicScore };
   });
@@ -144,7 +166,7 @@ export function buildSemanticGraph(
   // If focal topic is provided, filter out items that don't match it
   const activeItems = focalTopic 
     ? scoredItems.filter(si => si.topicScore > 0.0).map(si => si.item)
-    : items;
+    : allItems;
     
   // Cap at 250 items to prevent O(N^2) computational overhead and keep graph rendering responsive
   const cappedItems = activeItems.slice(0, 250);
@@ -159,6 +181,9 @@ export function buildSemanticGraph(
     } else if (item.itemType === "extract") {
       nodeType = GraphNodeType.Extract;
       nodeColor = "#22c55e"; // green
+    } else if (item.itemType === "rss-article") {
+      nodeType = GraphNodeType.Rss;
+      nodeColor = "#ea580c"; // orange (RSS)
     }
     
     // Choose label
