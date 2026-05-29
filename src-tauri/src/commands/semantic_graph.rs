@@ -230,13 +230,29 @@ pub async fn embed_queue_items(
 }
 
 #[tauri::command]
+pub async fn embed_active_rss_articles(
+    repo: tauri::State<'_, Repository>,
+    app: tauri::AppHandle,
+    items: Vec<QueueItemSummary>,
+    config: EmbeddingConfigInput,
+) -> Result<u32> {
+    embed_queue_items(repo, app, items, config).await
+}
+
+#[tauri::command]
 pub async fn compute_semantic_graph(
     repo: tauri::State<'_, Repository>,
     items: Vec<QueueItemSummary>,
+    rss_items: Option<Vec<QueueItemSummary>>,
     threshold_percent: f64,
     config: Option<EmbeddingConfigInput>,
 ) -> Result<SemanticGraphResult> {
-    if items.is_empty() {
+    let mut all_items = items.clone();
+    if let Some(ref rss) = rss_items {
+        all_items.extend(rss.clone());
+    }
+
+    if all_items.is_empty() {
         return Ok(SemanticGraphResult {
             nodes: Vec::new(),
             edges: Vec::new(),
@@ -244,7 +260,7 @@ pub async fn compute_semantic_graph(
         });
     }
 
-    let item_ids: Vec<String> = items.iter().map(|i| i.id.clone()).collect();
+    let item_ids: Vec<String> = all_items.iter().map(|i| i.id.clone()).collect();
 
     // Try embedding-based graph if provider is configured
     if let Some(ref cfg) = config {
@@ -252,7 +268,7 @@ pub async fn compute_semantic_graph(
         let provider_str = provider_name(cfg);
         let model_str = model_name(cfg);
 
-        let items_with_hashes: Vec<(String, String)> = items.iter()
+        let items_with_hashes: Vec<(String, String)> = all_items.iter()
             .map(|item| {
                 let hash = content_hash(&item.title, &item.text_content, &item.tags);
                 (item.id.clone(), hash)
@@ -272,7 +288,7 @@ pub async fn compute_semantic_graph(
                 .map(|e| (e.item_id, e.embedding))
                 .collect();
 
-            return Ok(build_graph_from_embeddings(&items, &emb_map, threshold_percent));
+            return Ok(build_graph_from_embeddings(&all_items, &emb_map, threshold_percent));
         }
         // If some items are stale, return a signal so frontend can trigger embedding first
         // Fall through to lexical fallback
@@ -309,16 +325,18 @@ fn build_graph_from_embeddings(
         let x = 400.0 + angle.cos() * distance;
         let y = 300.0 + angle.sin() * distance;
 
+        let is_rss = item.id.starts_with("rss-");
+
         GraphNodeOutput {
             id: item.id.clone(),
-            node_type: "Document".to_string(),
+            node_type: if is_rss { "Rss".to_string() } else { "Document".to_string() },
             label: if item.title.len() > 35 { format!("{}...", &item.title[..32]) } else { item.title.clone() },
             description: Some(item.text_content.clone()),
             x,
             y,
             radius: Some(16.0),
-            color: Some("#3b82f6".to_string()),
-            category: None,
+            color: Some(if is_rss { "#ea580c".to_string() } else { "#3b82f6".to_string() }),
+            category: if is_rss { Some("RSS".to_string()) } else { None },
             tags: if item.tags.is_empty() { None } else { Some(item.tags.clone()) },
             metadata: None,
         }

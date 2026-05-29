@@ -207,6 +207,7 @@ export function KnowledgeGraphPage() {
       [GraphNodeType.Flashcard]: 0,
       [GraphNodeType.Category]: 0,
       [GraphNodeType.Tag]: 0,
+      [GraphNodeType.Rss]: 0,
     };
     graphData.nodes.forEach((node) => {
       counts[node.type]++;

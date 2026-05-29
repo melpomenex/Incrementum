@@ -87,6 +87,13 @@ const NODE_TYPE_CONFIG = {
     textColor: "text-cyan-500",
     icon: "🏷️",
   },
+  [GraphNodeType.Rss]: {
+    labelKey: "graph.rss",
+    color: "bg-orange-500",
+    borderColor: "border-orange-500",
+    textColor: "text-orange-500",
+    icon: "📡",
+  },
 };
 
 export function GraphFilterControls({
@@ -577,6 +584,7 @@ export function calculateGraphStatistics(
     [GraphNodeType.Flashcard]: 0,
     [GraphNodeType.Category]: 0,
     [GraphNodeType.Tag]: 0,
+    [GraphNodeType.Rss]: 0,
   };
 
   nodes.forEach((node) => {

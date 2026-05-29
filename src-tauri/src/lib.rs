@@ -1063,6 +1063,7 @@ pub fn run() {
             // commands::is_indexed,
             // Semantic graph commands
             commands::embed_queue_items,
+            commands::embed_active_rss_articles,
             commands::compute_semantic_graph,
             commands::get_embedding_config,
             // Focus timer commands

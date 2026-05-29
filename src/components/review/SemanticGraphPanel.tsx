@@ -7,6 +7,7 @@ import { calculateItemSimilarity } from "../../utils/semanticRelations";
 import type { QueueItem } from "../../types/queue";
 import { cn } from "../../utils";
 import type { EmbeddingConfig } from "../../utils/semanticEngine";
+import { getUnreadItems } from "../../api/rss";
 
 interface SemanticGraphPanelProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export function SemanticGraphPanel({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; edges: GraphEdge[] }>({ nodes: [], edges: [] });
   const [embeddingStatus, setEmbeddingStatus] = useState<EmbeddingStatus>("idle");
+  const [includeRss, setIncludeRss] = useState(false);
 
   // Build the semantic graph asynchronously
   useEffect(() => {
@@ -40,6 +42,8 @@ export function SemanticGraphPanel({
     let cancelled = false;
     setEmbeddingStatus("idle");
 
+    const activeRssItems = includeRss ? getUnreadItems().map(x => x.item) : [];
+
     buildSemanticGraphFromEngine(
       items,
       threshold,
@@ -48,12 +52,13 @@ export function SemanticGraphPanel({
       (status) => {
         if (!cancelled) setEmbeddingStatus(status);
       },
+      activeRssItems,
     ).then((result) => {
       if (!cancelled) setGraphData(result);
     });
 
     return () => { cancelled = true; };
-  }, [items, threshold, focalTopic, isOpen, embeddingConfig]);
+  }, [items, threshold, focalTopic, isOpen, embeddingConfig, includeRss]);
 
   // Find the selected node details
   const selectedNodeDetails = useMemo(() => {
@@ -64,13 +69,18 @@ export function SemanticGraphPanel({
     const originalItem = node.metadata?.originalItem as QueueItem;
     if (!originalItem) return null;
 
-    // Find other related nodes
+    // Find other related nodes from graph edges
     const relatedItems: { item: QueueItem; score: number }[] = [];
-    items.forEach((item) => {
-      if (item.id === originalItem.id) return;
-      const score = calculateItemSimilarity(originalItem, item);
-      if (score >= threshold / 100) {
-        relatedItems.push({ item, score });
+    const connectedEdges = graphData.edges.filter(
+      (e) => e.source === selectedNodeId || e.target === selectedNodeId
+    );
+
+    connectedEdges.forEach((edge) => {
+      const neighborId = edge.source === selectedNodeId ? edge.target : edge.source;
+      const neighborNode = graphData.nodes.find((n) => n.id === neighborId);
+      const neighborItem = neighborNode?.metadata?.originalItem as QueueItem;
+      if (neighborItem) {
+        relatedItems.push({ item: neighborItem, score: edge.weight || 0 });
       }
     });
 
@@ -82,7 +92,7 @@ export function SemanticGraphPanel({
       originalItem,
       relatedItems,
     };
-  }, [selectedNodeId, graphData.nodes, items, threshold, isOpen]);
+  }, [selectedNodeId, graphData.nodes, threshold, isOpen]);
 
   // Handle clicking a node
   const handleNodeClick = useCallback((node: GraphNode) => {
@@ -131,6 +141,17 @@ export function SemanticGraphPanel({
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Include RSS items Toggle */}
+            <label className="flex items-center gap-2.5 px-3 py-2 bg-muted/60 dark:bg-zinc-900/60 border border-border/80 rounded-xl shadow-sm cursor-pointer hover:bg-muted dark:hover:bg-zinc-900 transition-all duration-200 select-none">
+              <input
+                type="checkbox"
+                checked={includeRss}
+                onChange={(e) => setIncludeRss(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-orange-600 dark:text-orange-500 focus:ring-orange-500 cursor-pointer accent-orange-600 dark:accent-orange-500"
+              />
+              <span className="text-xs font-semibold text-foreground">Include RSS Items</span>
+            </label>
+
             {/* Sliding Scale Controller */}
             <div className="flex items-center gap-3 px-4 py-2 bg-muted/60 dark:bg-zinc-900/60 border border-border/80 rounded-xl shadow-sm">
               <Sliders className="w-4 h-4 text-muted-foreground" />
@@ -205,9 +226,19 @@ export function SemanticGraphPanel({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Main Item details card */}
-            <div className="glass-card p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 dark:bg-blue-400/5">
-              <span className="inline-block px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 mb-2">
-                {selectedNodeDetails.originalItem.itemType}
+            <div className={cn(
+              "glass-card p-4 rounded-xl border mb-2 transition-all duration-200",
+              selectedNodeDetails.originalItem.itemType === "rss-article"
+                ? "border-orange-500/20 bg-orange-500/5 dark:bg-orange-400/5"
+                : "border-blue-500/20 bg-blue-500/5 dark:bg-blue-400/5"
+            )}>
+              <span className={cn(
+                "inline-block px-2 py-0.5 rounded text-[10px] uppercase font-bold mb-2 border",
+                selectedNodeDetails.originalItem.itemType === "rss-article"
+                  ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                  : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+              )}>
+                {selectedNodeDetails.originalItem.itemType === "rss-article" ? "RSS Feed Item" : selectedNodeDetails.originalItem.itemType}
               </span>
               <h4 className="text-sm font-semibold text-foreground leading-snug">
                 {selectedNodeDetails.originalItem.documentTitle}
@@ -215,6 +246,11 @@ export function SemanticGraphPanel({
               {selectedNodeDetails.originalItem.question && (
                 <p className="text-xs text-foreground/80 mt-2 p-2 bg-card/60 rounded border border-border/40 font-serif italic">
                   "{selectedNodeDetails.originalItem.question}"
+                </p>
+              )}
+              {selectedNodeDetails.originalItem.itemType === "rss-article" && (selectedNodeDetails.originalItem as any).rssItem?.description && (
+                <p className="text-xs text-muted-foreground mt-2 line-clamp-3 italic">
+                  "{(selectedNodeDetails.originalItem as any).rssItem.description}"
                 </p>
               )}
               {selectedNodeDetails.originalItem.category && (
@@ -245,30 +281,46 @@ export function SemanticGraphPanel({
 
               {selectedNodeDetails.relatedItems.length > 0 ? (
                 <div className="space-y-2">
-                  {selectedNodeDetails.relatedItems.map(({ item, score }) => (
-                    <div
-                      key={item.id}
-                      onClick={() => setSelectedNodeId(item.id)}
-                      className="p-3 bg-muted/40 hover:bg-muted/80 border border-border/60 rounded-xl cursor-pointer transition-all duration-200 flex flex-col gap-1 hover:scale-[1.01]"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                          {item.itemType}
+                  {selectedNodeDetails.relatedItems.map(({ item, score }) => {
+                    const isRss = item.itemType === "rss-article";
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => setSelectedNodeId(item.id)}
+                        className={cn(
+                          "p-3 border rounded-xl cursor-pointer transition-all duration-200 flex flex-col gap-1 hover:scale-[1.01]",
+                          isRss
+                            ? "bg-orange-500/5 hover:bg-orange-500/10 border-orange-500/20"
+                            : "bg-muted/40 hover:bg-muted/80 border-border/60"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase",
+                            isRss ? "text-orange-500 dark:text-orange-400" : "text-muted-foreground"
+                          )}>
+                            {isRss ? "RSS" : item.itemType}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-blue-500 dark:text-blue-400">
+                            {Math.round(score * 100)}% Match
+                          </span>
+                        </div>
+                        <span className="text-xs font-semibold text-foreground/90 line-clamp-2 leading-tight">
+                          {item.documentTitle}
                         </span>
-                        <span className="text-[10px] font-mono font-bold text-blue-500 dark:text-blue-400">
-                          {Math.round(score * 100)}% Match
-                        </span>
+                        {item.question && (
+                          <span className="text-[10px] text-muted-foreground italic line-clamp-1">
+                            "{item.question}"
+                          </span>
+                        )}
+                        {!item.question && isRss && (item as any).rssItem?.description && (
+                          <span className="text-[10px] text-muted-foreground italic line-clamp-1">
+                            "{(item as any).rssItem.description}"
+                          </span>
+                        )}
                       </div>
-                      <span className="text-xs font-semibold text-foreground/90 line-clamp-2 leading-tight">
-                        {item.documentTitle}
-                      </span>
-                      {item.question && (
-                        <span className="text-[10px] text-muted-foreground italic line-clamp-1">
-                          "{item.question}"
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground italic py-2">

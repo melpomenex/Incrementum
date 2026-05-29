@@ -17,6 +17,7 @@ export enum GraphNodeType {
   Flashcard = "flashcard",
   Category = "category",
   Tag = "tag",
+  Rss = "rss",
 }
 
 /**
@@ -332,6 +333,9 @@ export function KnowledgeGraph({
           case GraphNodeType.Tag:
             nodeColor = infoColor;
             break;
+          case GraphNodeType.Rss:
+            nodeColor = "#ea580c";
+            break;
         }
       }
 
@@ -583,6 +587,10 @@ export function KnowledgeGraph({
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full" style={{ background: infoColor }} />
             <span>{t("graph.tags")}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full" style={{ background: "#ea580c" }} />
+            <span>RSS Feeds</span>
           </div>
         </div>
       </div>

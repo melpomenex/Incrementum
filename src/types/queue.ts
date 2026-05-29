@@ -20,7 +20,7 @@ export interface QueueItem {
   question?: string;
   answer?: string;
   clozeText?: string;
-  itemType: "document" | "extract" | "learning-item" | "playlist-video";
+  itemType: "document" | "extract" | "learning-item" | "playlist-video" | "rss-article";
   priorityRating?: number;
   prioritySlider?: number;
   priority: number;
