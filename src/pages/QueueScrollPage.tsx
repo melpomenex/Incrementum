@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "../lib/i18n";
 import { useTabsStore, type TabPane } from "../stores/tabsStore";
-import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText, Eye, EyeOff } from "lucide-react";
+import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText, Eye, EyeOff, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useDocumentStore } from "../stores/documentStore";
@@ -30,7 +30,10 @@ import {
   type Feed as RSSFeed,
   markItemReadAuto,
   toggleItemFavoriteAuto,
+  getArticleFullContent,
+  fetchArticleFullContent,
 } from "../api/rss";
+import { cleanArticleHtml } from "../components/media/RSSFullContentView";
 import { getEpisodeQueue, markEpisodePlayed, type PodcastEpisode } from "../api/podcast";
 import { cn } from "../utils";
 import { scoreRssRelevance, type RssClassifier } from "../utils/rssRelevance";
@@ -181,6 +184,12 @@ export function QueueScrollPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showRssSettings, setShowRssSettings] = useState(false);
   const [isImageExpanded, setIsImageExpanded] = useState(settings.rssQueue.showCoverImage ?? false);
+
+  // Full content states
+  const [showFullContent, setShowFullContent] = useState(false);
+  const [fullContentMap, setFullContentMap] = useState<Map<string, string>>(new Map());
+  const [loadingFullContent, setLoadingFullContent] = useState<Set<string>>(new Set());
+  const [fullContentErrors, setFullContentErrors] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     setIsImageExpanded(settings.rssQueue.showCoverImage ?? false);
@@ -454,6 +463,114 @@ export function QueueScrollPage() {
       });
     }
   }, [currentIndex, renderedIndex, activeTabId, updateTab]);
+
+  // Load/fetch full content for the active RSS item in the queue
+  useEffect(() => {
+    const currentItem = scrollItems[currentIndex];
+    if (!currentItem || currentItem.type !== "rss" || !showFullContent || !currentItem.rssItem) return;
+
+    const item = currentItem.rssItem;
+    const itemId = item.id;
+    const itemLink = item.link;
+
+    // 1. Already in memory map
+    if (fullContentMap.has(itemId)) return;
+
+    // 2. Already in object
+    if (item.fullContent) {
+      setFullContentMap((prev) => {
+        const next = new Map(prev);
+        next.set(itemId, item.fullContent!);
+        return next;
+      });
+      return;
+    }
+
+    const loadContent = async () => {
+      setLoadingFullContent((prev) => {
+        const next = new Set(prev);
+        next.add(itemId);
+        return next;
+      });
+      setFullContentErrors((prev) => {
+        const next = new Map(prev);
+        next.delete(itemId);
+        return next;
+      });
+
+      try {
+        // Try getting cached content first
+        const cached = await getArticleFullContent(itemId);
+        if (cached?.content) {
+          setFullContentMap((prev) => {
+            const next = new Map(prev);
+            next.set(itemId, cached.content!);
+            return next;
+          });
+          // Update item in scroll list to keep it updated
+          setScrollItems((prev) =>
+            prev.map((si) =>
+              si.type === "rss" && si.rssItem?.id === itemId
+                ? {
+                    ...si,
+                    rssItem: {
+                      ...si.rssItem,
+                      fullContent: cached.content,
+                      fullContentFetchedAt: cached.fetchedAt,
+                    } as any,
+                  }
+                : si
+            )
+          );
+        } else {
+          // Fetch from network/API
+          const result = await fetchArticleFullContent(itemId, itemLink);
+          if (result.success && result.fullContent) {
+            setFullContentMap((prev) => {
+              const next = new Map(prev);
+              next.set(itemId, result.fullContent!);
+              return next;
+            });
+            // Update item in scroll list
+            setScrollItems((prev) =>
+              prev.map((si) =>
+                si.type === "rss" && si.rssItem?.id === itemId
+                  ? {
+                      ...si,
+                      rssItem: {
+                        ...si.rssItem,
+                        fullContent: result.fullContent,
+                        fullContentFetchedAt: result.fetchedAt,
+                      } as any,
+                    }
+                  : si
+              )
+            );
+          } else {
+            setFullContentErrors((prev) => {
+              const next = new Map(prev);
+              next.set(itemId, result.error || "Failed to fetch full article content");
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        setFullContentErrors((prev) => {
+          const next = new Map(prev);
+          next.set(itemId, err instanceof Error ? err.message : "Unknown error occurred");
+          return next;
+        });
+      } finally {
+        setLoadingFullContent((prev) => {
+          const next = new Set(prev);
+          next.delete(itemId);
+          return next;
+        });
+      }
+    };
+
+    void loadContent();
+  }, [currentIndex, showFullContent, scrollItems]);
 
   /**
    * Apply engagement-based variety mixing to the queue
@@ -2024,6 +2141,19 @@ export function QueueScrollPage() {
                           {isImageExpanded ? "Hide cover image" : "Show cover image"}
                         </button>
                       )}
+                      <button
+                        onClick={() => setShowFullContent(!showFullContent)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs transition-all duration-300 font-bold shadow-md cursor-pointer mobile-density-tap",
+                          showFullContent
+                            ? "bg-blue-600 border-blue-500 text-white shadow-blue-500/20 hover:bg-blue-700"
+                            : "bg-blue-500/10 border-blue-500/40 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-400"
+                        )}
+                        title={showFullContent ? "Show RSS Content" : "View Full Content"}
+                      >
+                        <FileText className="w-3.5 h-3.5 mr-0.5" />
+                        {showFullContent ? "Show RSS Content" : "View Full Content"}
+                      </button>
                     </div>
                   </div>
 
@@ -2062,10 +2192,63 @@ export function QueueScrollPage() {
                 )}
 
                 {/* RSS Article Content */}
-                {(renderedItem.rssItem?.content || renderedItem.rssItem?.description) ? (
+                {showFullContent && loadingFullContent.has(renderedItem.rssItem.id) ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                    <p className="text-sm text-muted-foreground animate-pulse">Fetching full article content...</p>
+                  </div>
+                ) : showFullContent && fullContentErrors.has(renderedItem.rssItem.id) ? (
+                  <div className="flex flex-col items-center justify-center py-16 space-y-4 px-6 text-center">
+                    <AlertCircle className="w-10 h-10 text-red-500 animate-bounce" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground mb-1">
+                        Failed to load full content
+                      </p>
+                      <p className="text-xs text-muted-foreground max-w-md">{fullContentErrors.get(renderedItem.rssItem.id)}</p>
+                    </div>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => {
+                          const itemId = renderedItem.rssItem!.id;
+                          setFullContentErrors((prev) => {
+                            const next = new Map(prev);
+                            next.delete(itemId);
+                            return next;
+                          });
+                          setFullContentMap((prev) => {
+                            const next = new Map(prev);
+                            next.delete(itemId);
+                            return next;
+                          });
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs font-semibold shadow-md shadow-blue-500/10"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Retry
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (renderedItem.rssItem?.link) {
+                            window.open(renderedItem.rssItem.link, "_blank", "noopener,noreferrer");
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg transition-colors text-xs font-semibold"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open Original
+                      </button>
+                    </div>
+                  </div>
+                ) : (renderedItem.rssItem?.content || renderedItem.rssItem?.description || (showFullContent && fullContentMap.get(renderedItem.rssItem.id))) ? (
                   <div
                     className="prose prose-lg max-w-none text-foreground reading-prose"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedItem.rssItem?.content || renderedItem.rssItem?.description || "") }}
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(
+                        showFullContent
+                          ? cleanArticleHtml(fullContentMap.get(renderedItem.rssItem.id) || renderedItem.rssItem.fullContent || "")
+                          : (renderedItem.rssItem.content || renderedItem.rssItem.description || "")
+                      )
+                    }}
                   />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
@@ -2138,7 +2321,11 @@ export function QueueScrollPage() {
 
           {renderedItem?.type === "rss" && (
             <ReaderTTSControls
-              text={stripHtmlToText(renderedItem.rssItem?.content || renderedItem.rssItem?.description || "")}
+              text={stripHtmlToText(
+                showFullContent
+                  ? (fullContentMap.get(renderedItem.rssItem?.id || "") || renderedItem.rssItem?.fullContent || renderedItem.rssItem?.content || renderedItem.rssItem?.description || "")
+                  : (renderedItem.rssItem?.content || renderedItem.rssItem?.description || "")
+              )}
               className={cn(
                 "absolute z-40 bottom-3 left-3 right-3",
                 !isMobile && "left-1/2 right-auto -translate-x-1/2"

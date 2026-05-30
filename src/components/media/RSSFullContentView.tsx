@@ -50,7 +50,7 @@ function SafeHTML({ html, fontFamily, lineHeight, fontSize }: { html: string; fo
  * Intelligent client-side de-cluttering utility to strip out promotional garbage,
  * ad containers, newsletter subscriptions, and social call-to-actions.
  */
-function cleanArticleHtml(rawHtml: string): string {
+export function cleanArticleHtml(rawHtml: string): string {
   if (!rawHtml) return "";
   try {
     const parser = new DOMParser();

@@ -32,6 +32,10 @@ import {
   GraduationCap,
   Eye,
   EyeOff,
+  FileText,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { supportsHaptics } from "../../utils/soundService";
 import {
@@ -42,7 +46,10 @@ import {
   toggleItemFavoriteAuto,
   formatFeedDate,
   getFeedIcon,
+  getArticleFullContent,
+  fetchArticleFullContent,
 } from "../../api/rss";
+import { cleanArticleHtml } from "./RSSFullContentView";
 import { cn } from "../../utils";
 import { sanitizeHtml } from "../common/RichContentRenderer";
 import { createDocument, updateDocumentContent } from "../../api/documents";
@@ -200,6 +207,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   // Article context overlay state
   const [showContextOverlay, setShowContextOverlay] = useState(false);
   const [fullContentExpanded, setFullContentExpanded] = useState(false);
+
+  // Full content states
+  const [showFullContent, setShowFullContent] = useState(false);
+  const [fullContentMap, setFullContentMap] = useState<Map<string, string>>(new Map());
+  const [loadingFullContent, setLoadingFullContent] = useState<Set<string>>(new Set());
+  const [fullContentErrors, setFullContentErrors] = useState<Map<string, string>>(new Map());
 
   const handleOpenOriginal = useCallback(async (url?: string) => {
     if (!url) return;
@@ -411,6 +424,114 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
     return () => clearTimeout(timer);
   }, [currentIndex, autoReadMode, visibleScrollItems]); // Only trigger on navigation, not on source list changes
+
+  // Load/fetch full content for the active RSS item
+  useEffect(() => {
+    const activeItem = visibleScrollItems[currentIndex];
+    if (!activeItem || !showFullContent) return;
+
+    const item = activeItem.item;
+    const itemId = item.id;
+    const itemLink = item.link;
+
+    // 1. Already in memory map
+    if (fullContentMap.has(itemId)) return;
+
+    // 2. Already in active item object
+    if (item.fullContent) {
+      setFullContentMap((prev) => {
+        const next = new Map(prev);
+        next.set(itemId, item.fullContent!);
+        return next;
+      });
+      return;
+    }
+
+    const loadContent = async () => {
+      setLoadingFullContent((prev) => {
+        const next = new Set(prev);
+        next.add(itemId);
+        return next;
+      });
+      setFullContentErrors((prev) => {
+        const next = new Map(prev);
+        next.delete(itemId);
+        return next;
+      });
+
+      try {
+        // Try getting cached content first
+        const cached = await getArticleFullContent(itemId);
+        if (cached?.content) {
+          setFullContentMap((prev) => {
+            const next = new Map(prev);
+            next.set(itemId, cached.content!);
+            return next;
+          });
+          // Update item in scroll list to keep it updated
+          setScrollItems((prev) =>
+            prev.map((si) =>
+              si.item.id === itemId
+                ? {
+                    ...si,
+                    item: {
+                      ...si.item,
+                      fullContent: cached.content,
+                      fullContentFetchedAt: cached.fetchedAt,
+                    },
+                  }
+                : si
+            )
+          );
+        } else {
+          // Fetch from network/API
+          const result = await fetchArticleFullContent(itemId, itemLink);
+          if (result.success && result.fullContent) {
+            setFullContentMap((prev) => {
+              const next = new Map(prev);
+              next.set(itemId, result.fullContent!);
+              return next;
+            });
+            // Update item in scroll list
+            setScrollItems((prev) =>
+              prev.map((si) =>
+                si.item.id === itemId
+                  ? {
+                      ...si,
+                      item: {
+                        ...si.item,
+                        fullContent: result.fullContent,
+                        fullContentFetchedAt: result.fetchedAt,
+                      },
+                    }
+                  : si
+              )
+            );
+          } else {
+            setFullContentErrors((prev) => {
+              const next = new Map(prev);
+              next.set(itemId, result.error || "Failed to fetch full article content");
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        setFullContentErrors((prev) => {
+          const next = new Map(prev);
+          next.set(itemId, err instanceof Error ? err.message : "Unknown error occurred");
+          return next;
+        });
+      } finally {
+        setLoadingFullContent((prev) => {
+          const next = new Set(prev);
+          next.delete(itemId);
+          return next;
+        });
+      }
+    };
+
+    void loadContent();
+  }, [currentIndex, showFullContent, visibleScrollItems]);
 
   // Navigation functions
   const goToNext = useCallback(() => {
@@ -1817,8 +1938,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                       {renderedItem.item.title}
                     </h1>
 
-                    {renderedItem.item.thumbnail && (
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                      {renderedItem.item.thumbnail && (
                         <button
                           onClick={() => setIsImageExpanded(!isImageExpanded)}
                           className="flex items-center gap-1 px-2 py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-lg text-xs transition-colors mobile-density-tap font-medium"
@@ -1826,8 +1947,22 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                           {isImageExpanded ? <EyeOff className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
                           {isImageExpanded ? "Hide cover image" : "Show cover image"}
                         </button>
-                      </div>
-                    )}
+                      )}
+
+                      <button
+                        onClick={() => setShowFullContent(!showFullContent)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs transition-all duration-300 font-bold shadow-md cursor-pointer mobile-density-tap",
+                          showFullContent
+                            ? "bg-blue-600 border-blue-500 text-white shadow-blue-500/20 hover:bg-blue-700"
+                            : "bg-blue-500/10 border-blue-500/40 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-400"
+                        )}
+                        title={showFullContent ? "Show RSS Content" : "View Full Content"}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {showFullContent ? "Show RSS Content" : "View Full Content"}
+                      </button>
+                    </div>
                   </div>
 
                   {!isImageExpanded && renderedItem.item.thumbnail && (
@@ -1905,21 +2040,70 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               </header>
 
               {/* Article content */}
-              <div
-                ref={contentRef}
-                className="flex-1 overflow-y-auto rss-article-content prose prose-lg max-w-none dark:prose-invert select-text"
-                onClick={(e) => {
-                  const target = e.target as HTMLElement;
-                  const link = target.closest("a[href]") as HTMLAnchorElement | null;
-                  if (!link) return;
-                  if (hasActiveSelectionInContent()) return;
-                  e.preventDefault();
-                  void handleOpenOriginal(link.href);
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeHtml(renderedItem.item.content || renderedItem.item.description || ""),
-                }}
-              />
+              {showFullContent && loadingFullContent.has(renderedItem.item.id) ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 space-y-4">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                  <p className="text-sm text-muted-foreground animate-pulse">Fetching full article content...</p>
+                </div>
+              ) : showFullContent && fullContentErrors.has(renderedItem.item.id) ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-4 px-6 text-center">
+                  <AlertCircle className="w-10 h-10 text-red-500 animate-bounce" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-1">
+                      Failed to load full content
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-md">{fullContentErrors.get(renderedItem.item.id)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const itemId = renderedItem.item.id;
+                        setFullContentErrors((prev) => {
+                          const next = new Map(prev);
+                          next.delete(itemId);
+                          return next;
+                        });
+                        setFullContentMap((prev) => {
+                          const next = new Map(prev);
+                          next.delete(itemId);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs font-semibold shadow-md shadow-blue-500/10"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Retry
+                    </button>
+                    <button
+                      onClick={() => void handleOpenOriginal(renderedItem.item.link)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg transition-colors text-xs font-semibold"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Open Original
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  ref={contentRef}
+                  className="flex-1 overflow-y-auto rss-article-content prose prose-lg max-w-none dark:prose-invert select-text"
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const link = target.closest("a[href]") as HTMLAnchorElement | null;
+                    if (!link) return;
+                    if (hasActiveSelectionInContent()) return;
+                    e.preventDefault();
+                    void handleOpenOriginal(link.href);
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(
+                      showFullContent
+                        ? cleanArticleHtml(fullContentMap.get(renderedItem.item.id) || renderedItem.item.fullContent || "")
+                        : (renderedItem.item.content || renderedItem.item.description || "")
+                    ),
+                  }}
+                />
+              )}
 
               {/* Article footer */}
               <footer className="flex-shrink-0 mt-6 pt-4 border-t border-border flex items-center justify-between">
@@ -2312,10 +2496,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           item={currentItem.item}
           isOpen={showContextOverlay}
           onClose={() => setShowContextOverlay(false)}
-          onExpandFullContent={() => setFullContentExpanded(!fullContentExpanded)}
+          onExpandFullContent={() => setShowFullContent(!showFullContent)}
           onOpenOriginal={() => handleOpenOriginal(currentItem.item.link)}
-          hasFullContent={!!currentItem.item.fullContent}
-          isFullContentExpanded={fullContentExpanded}
+          hasFullContent={!!currentItem.item.fullContent || !!fullContentMap.get(currentItem.item.id)}
+          isFullContentExpanded={showFullContent}
         />
       )}
 
