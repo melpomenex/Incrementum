@@ -582,13 +582,27 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
   const handleTranscribe = async (doc: Document) => {
     if (!doc.filePath) return;
     const settings = useSettingsStore.getState().settings.audioTranscription;
-    await enqueueAutoTranscription(
-      doc.id,
-      doc.filePath,
-      settings.provider,
-      settings.provider === "groq" ? "groq-whisper" : "distil-small.en",
-      settings.language || "en",
-    );
+    try {
+      await enqueueAutoTranscription(
+        doc.id,
+        doc.filePath,
+        settings.provider,
+        settings.provider === "groq" ? "groq-whisper" : "distil-small.en",
+        settings.language || "en",
+      );
+    } catch (error: any) {
+      console.error("Failed to transcribe:", error);
+      confirmDialog.confirm({
+        title: "Transcription Failed",
+        message: "Could not start transcription because the audio file was not found on your system. Please verify that the file exists and is accessible.",
+        variant: "warning",
+        itemName: "document",
+        itemCount: 1,
+        details: [doc.title || "Untitled", `Path: ${doc.filePath}`],
+        confirmLabel: "OK",
+        onConfirm: () => {},
+      });
+    }
   };
 
   const handleBulkTag = () => {

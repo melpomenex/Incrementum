@@ -108,32 +108,36 @@ export function MainLayout() {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    // If no tabs exist, try restoring from saved session
-    if (tabs.length === 0) {
-      // loadTabs() will restore the session if restoreSession is enabled
-      loadTabs();
+    const initTabs = async () => {
+      // If no tabs exist, try restoring from saved session
+      if (tabs.length === 0) {
+        // loadTabs() will restore the session if restoreSession is enabled
+        const restored = await loadTabs();
 
-      // If still no tabs after loading, create defaults
-      if (useTabsStore.getState().tabs.length === 0) {
-        // Add Dashboard tab (non-closable)
-        addTab({
-          title: "Dashboard",
-          icon: <LayoutDashboard className="w-4 h-4" />,
-          type: "dashboard",
-          content: DashboardTab,
-          closable: false,
-        });
+        // If still no tabs after loading, create defaults
+        if (!restored && useTabsStore.getState().tabs.length === 0) {
+          // Add Dashboard tab (non-closable)
+          addTab({
+            title: "Dashboard",
+            icon: <LayoutDashboard className="w-4 h-4" />,
+            type: "dashboard",
+            content: DashboardTab,
+            closable: false,
+          });
 
-        // Add Queue tab (closable)
-        addTab({
-          title: "Queue",
-          icon: <ListTodo className="w-4 h-4" />,
-          type: "queue",
-          content: QueueTab,
-          closable: true,
-        });
+          // Add Queue tab (closable)
+          addTab({
+            title: "Queue",
+            icon: <ListTodo className="w-4 h-4" />,
+            type: "queue",
+            content: QueueTab,
+            closable: true,
+          });
+        }
       }
-    }
+    };
+
+    void initTabs();
   }, []);
 
   useEffect(() => {

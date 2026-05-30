@@ -150,7 +150,7 @@ export interface TabsState {
 
   // Persistence
   saveTabs: () => void;
-  loadTabs: () => void;
+  loadTabs: () => Promise<boolean>;
   getDefaultTabs: () => Tab[];
 }
 
@@ -1035,19 +1035,19 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     }
   },
 
-  loadTabs: () => {
+  loadTabs: async () => {
     try {
       // Gate on the restoreSession setting
-      if (!useSettingsStore.getState().settings.general.restoreSession) return;
+      if (!useSettingsStore.getState().settings.general.restoreSession) return false;
 
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return;
+      if (!stored) return false;
 
       const data = JSON.parse(stored);
-      if (!data.tabs || !Array.isArray(data.tabs) || !data.rootPane) return;
+      if (!data.tabs || !Array.isArray(data.tabs) || !data.rootPane) return false;
 
       // Lazy import to avoid circular dep at module load time
-      const { rehydrateTab } = require("../components/tabs/TabRegistry") as {
+      const { rehydrateTab } = await import("../components/tabs/TabRegistry") as {
         rehydrateTab: (s: SerializedTabData) => Tab;
       };
 
@@ -1065,7 +1065,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         }
       }
 
-      if (rehydratedTabs.length === 0) return;
+      if (rehydratedTabs.length === 0) return false;
 
       // Filter pane tree to remove tabs that failed rehydration
       const filteredRootPane = filterInvalidTabsFromPane(data.rootPane, validTabIds);
@@ -1090,8 +1090,10 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           useCollectionStore.setState({ activeCollectionId: ui.activeCollectionId });
         }
       }
+      return true;
     } catch (error) {
       console.error("Failed to load tabs:", error);
+      return false;
     }
   },
 }));

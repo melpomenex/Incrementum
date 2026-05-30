@@ -105,6 +105,10 @@ pub async fn enqueue_auto_transcription(
     language: String,
     priority: Option<i32>,
 ) -> Result<()> {
+    if !Path::new(&audio_path).exists() {
+        return Err(crate::error::IncrementumError::NotFound(format!("Audio file not found: {}", audio_path)));
+    }
+
     // Don't enqueue if a completed or pending entry already exists
     let existing = repo.get_transcription_queue_entry(&document_id).await
         .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;

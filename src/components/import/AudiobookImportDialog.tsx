@@ -441,10 +441,6 @@ export function AudiobookImportDialog({
 
   // Generate transcript for single file
   const handleGenerateTranscript = async () => {
-    if (!isTauri()) {
-      showError("Not available", "Transcript generation requires the desktop app");
-      return;
-    }
     
     setIsGeneratingTranscript(true);
     setTranscriptProgress(0);
@@ -491,7 +487,7 @@ export function AudiobookImportDialog({
       } else if (message.includes('25MB limit')) {
         showError(
           "File Too Large for Groq",
-          "This audiobook exceeds Groq's 25MB free tier limit. Consider using local Whisper instead.",
+          "This audiobook exceeds Groq's 25MB free tier limit. Consider using local Moonshine instead.",
           {
             action: {
               label: "Switch to Local",
@@ -1300,21 +1296,16 @@ export function AudiobookImportDialog({
                   <div className="grid grid-cols-3 gap-4">
                     <button
                       onClick={handleGenerateTranscript}
-                      disabled={isGeneratingTranscript || !isTauri()}
+                      disabled={isGeneratingTranscript}
                       className="flex flex-col items-center rounded-xl border-2 border-border bg-card p-6 text-center transition-all hover:border-primary/50 hover:bg-muted/30 disabled:opacity-50"
                     >
                       <div className="mb-3 rounded-full bg-primary/10 p-3">
                         <Sparkles className="h-6 w-6 text-primary" />
                       </div>
                       <h4 className="mb-1 font-medium">Generate with AI</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Use Whisper AI to transcribe the audiobook
+                      <p className="text-xs text-muted-foreground text-center">
+                        Use local Moonshine STT or Groq Cloud to transcribe
                       </p>
-                      {!isTauri() && (
-                        <span className="mt-2 text-xs text-amber-500">
-                          Desktop only
-                        </span>
-                      )}
                       {isGeneratingTranscript && (
                         <div className="mt-3 w-full px-2">
                           <div className="flex justify-between text-xs text-muted-foreground mb-1">

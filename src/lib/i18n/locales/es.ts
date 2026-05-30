@@ -2175,7 +2175,7 @@ export const es: Dict = {
   "settings.audioDefaultModelDesc":
     "Modelo preferido para transcripción automática y acciones rápidas",
   "settings.audioDeleteModel": "Eliminar modelo",
-  "settings.audioDesktopFeature1": "Transcripción local Whisper (completamente sin conexión)",
+  "settings.audioDesktopFeature1": "Transcripción local Moonshine (completamente sin conexión)",
   "settings.audioDesktopFeature2": "Segmentación de archivos grandes para transcripción con Groq",
   "settings.audioDesktopFeature3": "Procesamiento de transcripción en segundo plano",
   "settings.audioDesktopRecommended": "App de escritorio recomendada",
@@ -2218,7 +2218,7 @@ export const es: Dict = {
     'Especificar un idioma mejora la precisión y velocidad. "Auto-detectar" funciona en la mayoría de casos.',
   "settings.audioLargeFileSupport":
     "Los archivos mayores de 25MB se dividen automáticamente en segmentos y se transcriben sin interrupciones. ¡Sin límite de tamaño!",
-  "settings.audioLocalWhisper": "Whisper local",
+  "settings.audioLocalWhisper": "Moonshine local",
   "settings.audioMinRam": "Mín. 8GB de RAM recomendados",
   "settings.audioModel": "Modelo",
   "settings.audioModelAccurateDesc":
@@ -2943,7 +2943,7 @@ export const es: Dict = {
   "viewer.tryInlineAnyway": "Probar inline de todos modos",
   "viewer.unableToLoadAudio": "No se pudo cargar el archivo de audio.",
   "viewer.usesWhisper":
-    "Usa <strong>Whisper</strong> para transcripción sin conexión de alta precisión.",
+    "Usa <strong>Moonshine</strong> para transcripción sin conexión de alta precisión.",
   "viewer.video": "Vídeo",
   "viewer.videoCannotPlayEmbedded":
     "Este vídeo no se puede reproducir en un reproductor integrado.",

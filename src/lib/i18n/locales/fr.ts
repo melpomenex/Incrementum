@@ -2192,7 +2192,7 @@ export const fr: Dict = {
   "settings.audioDefaultModelDesc":
     "Modèle préféré pour la transcription automatique et les actions rapides",
   "settings.audioDeleteModel": "Supprimer le modèle",
-  "settings.audioDesktopFeature1": "Transcription Whisper locale (entièrement hors ligne)",
+  "settings.audioDesktopFeature1": "Transcription Moonshine locale (entièrement hors ligne)",
   "settings.audioDesktopFeature2": "Découpage des gros fichiers pour la transcription Groq",
   "settings.audioDesktopFeature3": "Traitement de la transcription en arrière-plan",
   "settings.audioDesktopRecommended": "Application de bureau recommandée",
@@ -2236,7 +2236,7 @@ export const fr: Dict = {
     "Spécifier une langue améliore la précision et la vitesse. « Détection auto » fonctionne dans la plupart des cas.",
   "settings.audioLargeFileSupport":
     "Les fichiers de plus de 25 Mo sont automatiquement découpés en segments et transcrits de manière fluide. Aucune limite de taille de fichier !",
-  "settings.audioLocalWhisper": "Whisper local",
+  "settings.audioLocalWhisper": "Moonshine local",
   "settings.audioMinRam": "Min. 8 Go de RAM recommandés",
   "settings.audioModel": "Modèle",
   "settings.audioModelAccurateDesc":
@@ -2958,7 +2958,7 @@ export const fr: Dict = {
   "viewer.tryInlineAnyway": "Essayer en intégré quand même",
   "viewer.unableToLoadAudio": "Impossible de charger le fichier audio.",
   "viewer.usesWhisper":
-    "Utilise <strong>Whisper</strong> pour une transcription hors ligne de haute précision.",
+    "Utilise <strong>Moonshine</strong> pour une transcription hors ligne de haute précision.",
   "viewer.video": "Vidéo",
   "viewer.videoCannotPlayEmbedded": "Cette vidéo ne peut pas être lue dans un lecteur intégré.",
   "viewer.videoError": "Erreur vidéo",

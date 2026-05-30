@@ -2072,7 +2072,7 @@ export const en: Dict = {
   "viewer.overallProgress": "Overall Progress",
   "viewer.transcribing": "Transcribing...",
   "viewer.startLocalTranscription": "Start Local Transcription",
-  "viewer.usesWhisper": "Uses <strong>Whisper</strong> for high-accuracy offline transcription.",
+  "viewer.usesWhisper": "Uses <strong>Moonshine</strong> for high-accuracy offline transcription.",
   "viewer.sleepTimerTitle": "Sleep Timer",
   "viewer.partOf": "Part {current} of {total}",
 
@@ -2934,12 +2934,12 @@ export const en: Dict = {
   "settings.audioDesktopRecommended": "Desktop App Recommended",
   "settings.audioDesktopRecommendedDesc":
     "For the best transcription experience, use the desktop app which supports:",
-  "settings.audioDesktopFeature1": "Local Whisper transcription (fully offline)",
+  "settings.audioDesktopFeature1": "Local Moonshine transcription (fully offline)",
   "settings.audioDesktopFeature2": "Large file chunking for Groq transcription",
   "settings.audioDesktopFeature3": "Background transcription processing",
   "settings.audioWebLimitation":
     "In the web app, only direct Groq transcription of smaller files is available.",
-  "settings.audioLocalWhisper": "Local Whisper",
+  "settings.audioLocalWhisper": "Local Moonshine",
   "settings.audioGroqCloud": "Groq Cloud",
   "settings.audioFreeTier": "Free Tier",
   "settings.audioGroqCloudTranscription": "Groq Cloud Transcription",

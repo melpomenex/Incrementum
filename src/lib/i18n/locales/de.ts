@@ -2176,7 +2176,7 @@ export const de: Dict = {
   "settings.audioDefaultModel": "Standard-Transkriptionsmodell",
   "settings.audioDefaultModelDesc": "Bevorzugtes Modell für Auto-Transkription und Schnellaktionen",
   "settings.audioDeleteModel": "Modell löschen",
-  "settings.audioDesktopFeature1": "Lokale Whisper-Transkription (vollständig offline)",
+  "settings.audioDesktopFeature1": "Lokale Moonshine-Transkription (vollständig offline)",
   "settings.audioDesktopFeature2": "Große Datei-Aufteilung für Groq-Transkription",
   "settings.audioDesktopFeature3": "Transkription im Hintergrund",
   "settings.audioDesktopRecommended": "Desktop-App empfohlen",
@@ -2219,7 +2219,7 @@ export const de: Dict = {
     'Die Angabe einer Sprache verbessert Genauigkeit und Geschwindigkeit. "Automatisch erkennen" funktioniert in den meisten Fällen.',
   "settings.audioLargeFileSupport":
     "Dateien über 25 MB werden automatisch in Segmente aufgeteilt und nahtlos transkribiert. Keine Dateigrößenbegrenzung!",
-  "settings.audioLocalWhisper": "Lokales Whisper",
+  "settings.audioLocalWhisper": "Lokales Moonshine",
   "settings.audioMinRam": "Min. 8 GB RAM empfohlen",
   "settings.audioModel": "Modell",
   "settings.audioModelAccurateDesc":
@@ -2946,7 +2946,7 @@ export const de: Dict = {
   "viewer.transcriptionFailed": "Transkription fehlgeschlagen",
   "viewer.tryInlineAnyway": "Trotzdem inline versuchen",
   "viewer.unableToLoadAudio": "Audiodatei konnte nicht geladen werden.",
-  "viewer.usesWhisper": "Verwendet <strong>Whisper</strong> für hochgenaue Offline-Transkription.",
+  "viewer.usesWhisper": "Verwendet <strong>Moonshine</strong> für hochgenaue Offline-Transkription.",
   "viewer.video": "Video",
   "viewer.videoCannotPlayEmbedded":
     "Dieses Video kann nicht in einem eingebetteten Player abgespielt werden.",

@@ -737,13 +737,22 @@ pub async fn import_podcast_episode_as_document(
         .await?
         .ok_or_else(|| IncrementumError::NotFound(format!("Podcast episode {}", episode_id)))?;
 
-    // 2. Check if already imported (using audio_url as unique identifier)
+    // 2. Check if already imported
+    let local_path_str = find_existing_download(&episode_id)
+        .map(|p| p.to_string_lossy().to_string());
+
     if let Some(existing) = repo.find_document_by_url(&episode.audio_url).await? {
         return Ok(existing);
     }
+    if let Some(ref local_path) = local_path_str {
+        if let Some(existing) = repo.find_document_by_url(local_path).await? {
+            return Ok(existing);
+        }
+    }
 
     // 3. Create a new Document record
-    let mut doc = Document::with_collection(episode.title, episode.audio_url, FileType::Audio, collection_id);
+    let file_path = local_path_str.unwrap_or_else(|| episode.audio_url.clone());
+    let mut doc = Document::with_collection(episode.title, file_path, FileType::Audio, collection_id);
     doc.date_added = Utc::now();
     doc.date_modified = Utc::now();
     doc.next_reading_date = Some(Utc::now()); // Make it due immediately
@@ -908,6 +917,13 @@ pub async fn download_podcast_episode(
             .map_err(|e| IncrementumError::Internal(format!("Failed to save final download file: {}", e)))?;
     }
 
+    // Update matching imported document with local download path
+    if let Ok(Some(mut doc)) = repo.find_document_by_url(&audio_url).await {
+        doc.file_path = dest_path.to_string_lossy().to_string();
+        doc.date_modified = Utc::now();
+        let _ = repo.update_document(&doc.id, &doc).await;
+    }
+
     let _ = app_handle.emit(
         "podcast://download-complete",
         serde_json::json!({ "episodeId": &episode_id, "path": dest_path.to_string_lossy() }),
@@ -1004,4 +1020,17 @@ pub async fn search_podcasts(query: String) -> Result<Vec<PodcastSearchResult>> 
         .collect();
 
     Ok(results)
+}
+
+/// Save a podcast transcript from the frontend
+#[tauri::command]
+pub async fn save_podcast_transcript(
+    episode_id: String,
+    status: String,
+    error: Option<String>,
+    transcript: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<()> {
+    repo.update_episode_transcript_status(&episode_id, &status, error.as_deref(), transcript.as_deref()).await?;
+    Ok(())
 }

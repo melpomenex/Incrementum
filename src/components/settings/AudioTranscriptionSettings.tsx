@@ -9,7 +9,7 @@ import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { downloadTranscriptionModel, deleteTranscriptionModel, enqueueAllUntranscribed } from "../../api/transcription";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, isPWA } from "../../lib/tauri";
 import {
   isGroqConfigured,
   validateGroqApiKey,
@@ -63,13 +63,7 @@ export function AudioTranscriptionSettings() {
     }
   }, [fetchProfiles, isDesktop]);
 
-  // In web/PWA mode, force provider to 'groq' since local is not available
-  useEffect(() => {
-    if (!isDesktop && audioSettings.provider !== 'groq') {
-      handleUpdateSettings({ provider: 'groq' });
-      setActiveTab('groq');
-    }
-  }, [isDesktop, audioSettings.provider]);
+
 
   useEffect(() => {
     if (activeTab === 'groq') {
@@ -174,114 +168,111 @@ export function AudioTranscriptionSettings() {
 
       {/* Web/PWA Notice - Only show in browser */}
       {!isDesktop && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Monitor className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="font-medium text-blue-900">{t("settings.audioDesktopRecommended")}</p>
-              <p className="text-sm text-blue-800/90 mt-1">
-                {t("settings.audioDesktopRecommendedDesc")}
-              </p>
-              <ul className="text-sm text-blue-800/90 mt-2 ml-4 list-disc">
-                <li>{t("settings.audioDesktopFeature1")}</li>
-                <li>{t("settings.audioDesktopFeature2")}</li>
-                <li>{t("settings.audioDesktopFeature3")}</li>
-              </ul>
-              <p className="text-sm text-blue-800/90 mt-2">
-                {t("settings.audioWebLimitation")}
-              </p>
-            </div>
+        <div className={cn(
+          "rounded-xl border p-4 flex items-start gap-3 transition-all duration-300",
+          isPWA() 
+            ? "border-green-200 bg-green-50/50 text-green-950" 
+            : "border-blue-200 bg-blue-50/50 text-blue-950"
+        )}>
+          <div className={cn(
+            "p-2 rounded-lg",
+            isPWA() ? "bg-green-500/10 text-green-600" : "bg-blue-500/10 text-blue-600"
+          )}>
+            <Monitor className="w-5 h-5" />
           </div>
-        </div>
-      )}
-
-      {/* Provider Selection Tabs - Only show tabs on desktop */}
-      {isDesktop ? (
-        <div className="flex gap-2 p-1 bg-muted rounded-xl">
-          <button
-            onClick={() => handleProviderChange('local')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'local'
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
-            )}
-          >
-            <Settings2 className="w-4 h-4" />
-            {t("settings.audioLocalWhisper")}
-          </button>
-          <button
-            onClick={() => handleProviderChange('groq')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'groq'
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
-            )}
-          >
-            <Cloud className="w-4 h-4" />
-            {t("settings.audioGroqCloud")}
-            <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
-              {t("settings.audioFreeTier")}
-            </span>
-          </button>
-        </div>
-      ) : (
-        /* In web mode, just show a label indicating Groq is being used */
-        <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-xl border border-border">
-          <Cloud className="w-5 h-5 text-primary" />
-          <div>
-            <p className="font-medium text-foreground">{t("settings.audioGroqCloudTranscription")}</p>
-            <p className="text-xs text-muted-foreground">
-              {t("settings.audioGroqCloudDesc")}
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-foreground">
+                {isPWA() ? "PWA App Mode Active" : "Web Version Detected"}
+              </span>
+              <span className={cn(
+                "px-2 py-0.5 text-[10px] font-medium rounded-full",
+                isPWA() ? "bg-green-500/20 text-green-700" : "bg-blue-500/20 text-blue-700"
+              )}>
+                {isPWA() ? "Standalone App" : "Browser Tab"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {isPWA() 
+                ? "Your Moonshine models are permanently cached on this device for offline, local speech-to-text. Total privacy, no server API limits."
+                : "Running in browser tab. Models are cached, but browser cleaning or low disk space may evict them. Install as a PWA for persistent offline storage."
+              }
             </p>
           </div>
-          <span className="ml-auto px-2 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
-            {t("settings.audioActive")}
-          </span>
         </div>
       )}
 
-      {/* Local Whisper Settings - Desktop only */}
-      {isDesktop && activeTab === 'local' && (
+      {/* Provider Selection Tabs */}
+      <div className="flex gap-2 p-1 bg-muted rounded-xl">
+        <button
+          onClick={() => handleProviderChange('local')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
+            activeTab === 'local'
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+          )}
+        >
+          <Settings2 className="w-4 h-4" />
+          Local (Moonshine STT)
+        </button>
+        <button
+          onClick={() => handleProviderChange('groq')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
+            activeTab === 'groq'
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+          )}
+        >
+          <Cloud className="w-4 h-4" />
+          {t("settings.audioGroqCloud")}
+          <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
+            {t("settings.audioFreeTier")}
+          </span>
+        </button>
+      </div>
+
+      {/* Local Settings */}
+      {activeTab === 'local' && (
         <div className="space-y-8">
           {/* Auto-Transcription Toggle */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Mic className="w-5 h-5 text-primary" />
+          {isDesktop && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Mic className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{t("settings.audioAutoTranscribe")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("settings.audioAutoTranscribeDesc")}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">{t("settings.audioAutoTranscribe")}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t("settings.audioAutoTranscribeDesc")}
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={audioSettings.autoTranscribeLocalVideos}
+                    onChange={(e) => handleUpdateSettings({ autoTranscribeLocalVideos: e.target.checked })}
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
+                <div className="space-y-1">
+                  <p className="font-medium">{t("settings.audioResourceWarning")}</p>
+                  <p className="text-amber-800/90">
+                    {t("settings.audioResourceWarningDesc")}
                   </p>
                 </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={audioSettings.autoTranscribeLocalVideos}
-                  onChange={(e) => handleUpdateSettings({ autoTranscribeLocalVideos: e.target.checked })}
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-              <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
-              <div className="space-y-1">
-                <p className="font-medium">{t("settings.audioResourceWarning")}</p>
-                <p className="text-amber-800/90">
-                  {t("settings.audioResourceWarningDesc")}
-                </p>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Default Model Selection */}
           <section className="space-y-3">
@@ -300,11 +291,32 @@ export function AudioTranscriptionSettings() {
                 {profiles.length === 0 && (
                   <option value="">{t("settings.audioNoModels")}</option>
                 )}
-                {profiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
-                  </option>
-                ))}
+                {(() => {
+                  const moonshineList = profiles.filter(p => p.id.startsWith("moonshine-"));
+                  const whisperList = profiles.filter(p => !p.id.startsWith("moonshine-"));
+                  return (
+                    <>
+                      {moonshineList.length > 0 && (
+                        <optgroup label="Local Moonshine STT (Audiobooks & Videos)">
+                          {moonshineList.map((profile) => (
+                            <option key={profile.id} value={profile.id}>
+                              {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {whisperList.length > 0 && (
+                        <optgroup label="Desktop Whisper (Podcasts)">
+                          {whisperList.map((profile) => (
+                            <option key={profile.id} value={profile.id}>
+                              {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </>
+                  );
+                })()}
               </select>
             </label>
           </section>
@@ -330,6 +342,22 @@ export function AudioTranscriptionSettings() {
               <Languages className="w-5 h-5 text-muted-foreground" />
               <h4 className="font-semibold text-foreground">{t("settings.audioModelsAndProfiles")}</h4>
             </div>
+
+            {isDesktop && (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-muted-foreground space-y-2">
+                <p className="font-medium text-foreground flex items-center gap-1.5">
+                  <Info className="w-4 h-4 text-amber-600" />
+                  Dual Engine Setup for Desktop
+                </p>
+                <p className="leading-relaxed">
+                  Incrementum uses two optimized local transcription engines on Desktop:
+                </p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li><strong>Local Moonshine STT</strong>: High-speed, browser-worker-cached model used for transcribing video extracts and importing audiobooks.</li>
+                  <li><strong>Desktop Whisper (Podcasts)</strong>: Native Rust sidecar-managed model used for transcribing feed-based Podcast episodes.</li>
+                </ul>
+              </div>
+            )}
             
             <div className="grid gap-4">
               {profiles.map((profile) => {
@@ -343,8 +371,17 @@ export function AudioTranscriptionSettings() {
                     className="bg-card border border-border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-primary/30 transition-colors"
                   >
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-bold text-foreground">{profile.name}</span>
+                        {profile.id.startsWith("moonshine-") ? (
+                          <span className="px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full">
+                            Local Moonshine STT
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 rounded-full">
+                            Desktop Whisper (Podcasts)
+                          </span>
+                        )}
                         {progress === 100 && !isDownloading && (
                           <CheckCircle2 className="w-4 h-4 text-green-500" />
                         )}
@@ -397,48 +434,70 @@ export function AudioTranscriptionSettings() {
           </section>
 
           {/* Info & Requirements */}
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-3">
-            <div className="flex items-center gap-2 text-primary">
-              <Info className="w-5 h-5" />
-              <h5 className="font-bold">{t("settings.audioOfflinePrivate")}</h5>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {t("settings.audioOfflinePrivateDesc")}
-            </p>
-            <div className="pt-2 flex flex-wrap gap-4">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>{t("settings.audioMinRam")}</span>
+          {!isDesktop ? (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2 text-primary">
+                <Info className="w-5 h-5" />
+                <h5 className="font-bold">Fully Offline & Private</h5>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>{t("settings.audioAvxRequired")}</span>
-              </div>
-            </div>
-            
-            {/* GPU Support Info */}
-            <div className="pt-3 border-t border-border">
-              <p className="text-xs font-medium text-foreground mb-2">{t("settings.audioGpuAcceleration")}</p>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  <span>{t("settings.audioGpuApple")}</span>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Your audio never leaves your device. Transcription runs entirely inside a background Web Worker utilizing WebGPU acceleration or high-performance WebAssembly.
+              </p>
+              <div className="pt-2 flex flex-wrap gap-4 border-t border-border mt-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                  <span>WebGPU Acceleration supported</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  <span>{t("settings.audioGpuLinux")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  <span>{t("settings.audioGpuWindows")}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                  <span>{t("settings.audioGpuIntelMac")}</span>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                  <span>WASM High Performance Fallback</span>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-3">
+              <div className="flex items-center gap-2 text-primary">
+                <Info className="w-5 h-5" />
+                <h5 className="font-bold">{t("settings.audioOfflinePrivate")}</h5>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t("settings.audioOfflinePrivateDesc")}
+              </p>
+              <div className="pt-2 flex flex-wrap gap-4">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{t("settings.audioMinRam")}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{t("settings.audioAvxRequired")}</span>
+                </div>
+              </div>
+              
+              {/* GPU Support Info */}
+              <div className="pt-3 border-t border-border">
+                <p className="text-xs font-medium text-foreground mb-2">{t("settings.audioGpuAcceleration")}</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    <span>{t("settings.audioGpuApple")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    <span>{t("settings.audioGpuLinux")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    <span>{t("settings.audioGpuWindows")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                    <span>{t("settings.audioGpuIntelMac")}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

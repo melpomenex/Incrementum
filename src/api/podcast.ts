@@ -449,6 +449,39 @@ export async function transcribePodcastEpisode(
 }
 
 /**
+ * Save a podcast transcript from the frontend.
+ */
+export async function savePodcastTranscript(
+  episodeId: string,
+  status: string,
+  error?: string,
+  transcript?: string,
+): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("save_podcast_transcript", {
+      episodeId,
+      status,
+      error: error ?? null,
+      transcript: transcript ?? null,
+    });
+  }
+  if (shouldUseHttp()) {
+    const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/transcript`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status,
+        error: error ?? null,
+        transcript: transcript ?? null,
+      }),
+    });
+    if (!res.ok) throw new Error(`Failed to save transcript: ${res.statusText}`);
+    return;
+  }
+  throw new Error("Transcripts not available in browser fallback mode");
+}
+
+/**
  * Get transcript for a podcast episode.
  */
 export async function getPodcastTranscript(

@@ -46,6 +46,7 @@ import {
   cancelPodcastTranscription,
   setFeedAutoTranscribe,
   importPodcastEpisodeAsDocument,
+  savePodcastTranscript,
 } from "../../api/podcast";
 import type {
   PodcastFeed,
@@ -763,21 +764,107 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
 
   // Transcription handlers
   const handleTranscribe = async (episodeId: string) => {
-    try {
-      setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "starting", progress: 0 }));
-      const settings = useSettingsStore.getState().settings;
-      const autoSegment = settings.documents.autoProcessOnImport;
-      await transcribePodcastEpisode(episodeId, undefined, undefined, autoSegment);
-    } catch (error) {
-      setTranscriptionProgress((prev) => {
-        const next = new Map(prev);
-        next.delete(episodeId);
-        return next;
-      });
-      toast.error(
-        "Failed to start transcription",
-        error instanceof Error ? error.message : "Unknown error"
-      );
+    const settings = useSettingsStore.getState().settings;
+    const provider = settings.audioTranscription.provider;
+    const modelId = settings.audioTranscription.preferredModelId || "moonshine-tiny";
+
+    if (provider === 'local' && modelId.startsWith("moonshine-")) {
+      // Run local Moonshine STT in the browser Web Worker!
+      try {
+        setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "downloading", progress: 0 }));
+
+        // 1. Get episode details
+        const episode = episodes.find(e => e.id === episodeId);
+        if (!episode) throw new Error("Episode not found");
+
+        // 2. Save downloading status to database
+        await savePodcastTranscript(episodeId, "downloading");
+
+        // 3. Ensure we have the local file path
+        let localPath = await getDownloadedEpisodePath(episodeId);
+        if (!localPath) {
+          // Download episode audio using Rust backend reqwest downloader
+          localPath = await downloadEpisodeAudio(episodeId, episode.audioUrl, episode.audioType ?? undefined);
+        }
+
+        if (!localPath) {
+          throw new Error("Failed to download audio file");
+        }
+
+        // 4. Update status to transcribing in both UI state and database
+        setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "transcribing", progress: 0 }));
+        await savePodcastTranscript(episodeId, "transcribing");
+
+        // 5. Run Moonshine worker transcription
+        const { transcribeAudioWithMoonshine } = await import("../../utils/moonshineService");
+        
+        const transcript = await transcribeAudioWithMoonshine(
+          localPath,
+          modelId,
+          (progress) => {
+            // Map worker progress (0 to 100) to transcribing progress
+            setTranscriptionProgress((prev) => new Map(prev).set(episodeId, {
+              status: "transcribing",
+              progress: Math.round(progress),
+            }));
+          }
+        );
+
+        // 6. Save transcript back to database as completed
+        await savePodcastTranscript(episodeId, "done", undefined, transcript.fullText);
+
+        // 7. Clear progress and reload episodes to show transcript view immediately!
+        setTranscriptionProgress((prev) => {
+          const next = new Map(prev);
+          next.delete(episodeId);
+          return next;
+        });
+
+        toast.success("Transcription complete", `Episode "${episode.title}" has been successfully transcribed.`);
+        
+        if (selectedFeedId) {
+          loadEpisodes(selectedFeedId);
+        }
+        loadFeeds();
+      } catch (error) {
+        console.error("Moonshine podcast transcription failed:", error);
+        const errMsg = error instanceof Error ? error.message : "Unknown error";
+        
+        // Save error status to database
+        await savePodcastTranscript(episodeId, "error", errMsg);
+
+        setTranscriptionProgress((prev) => {
+          const next = new Map(prev);
+          next.delete(episodeId);
+          return next;
+        });
+
+        toast.error(
+          "Transcription failed",
+          errMsg
+        );
+
+        if (selectedFeedId) {
+          loadEpisodes(selectedFeedId);
+        }
+      }
+    } else {
+      // Fallback to standard native Whisper.cpp background sidecar transcriber
+      try {
+        setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "starting", progress: 0 }));
+        const autoSegment = settings.documents.autoProcessOnImport;
+        await transcribePodcastEpisode(episodeId, undefined, undefined, autoSegment);
+      } catch (error) {
+        setTranscriptionProgress((prev) => {
+          const next = new Map(prev);
+          next.delete(episodeId);
+          return next;
+        });
+        toast.error(
+          "Failed to start transcription",
+          error instanceof Error ? error.message : "Unknown error"
+        );
+      }
     }
   };
 

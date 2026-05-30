@@ -1,5 +1,12 @@
 import { invokeCommand, isTauri } from "../lib/tauri";
 
+import { 
+  MOONSHINE_MODELS, 
+  isMoonshineModelInstalled, 
+  downloadMoonshineModel, 
+  deleteMoonshineModel 
+} from "../utils/moonshineService";
+
 export interface ModelProfile {
   id: string;
   name: string;
@@ -23,26 +30,60 @@ export interface TranscriptResponse {
   segments: TranscriptSegment[];
 }
 
-export const getTranscriptionProfiles = (): Promise<ModelProfile[]> => {
-  if (!isTauri()) {
-    // Web/PWA: transcription requires Tauri backend with Whisper
-    return Promise.reject(new Error("Transcription is only available in the Tauri desktop app"));
+export const getTranscriptionProfiles = async (): Promise<ModelProfile[]> => {
+  const moonshineProfiles = MOONSHINE_MODELS.map(m => ({
+    ...m,
+    installed: isMoonshineModelInstalled(m.id),
+    url: `https://huggingface.co/onnx-community/${m.id}-ONNX`,
+  }));
+
+  if (isTauri()) {
+    try {
+      const nativeProfiles = await invokeCommand<ModelProfile[]>("get_transcription_profiles");
+      return [...moonshineProfiles, ...nativeProfiles];
+    } catch (err) {
+      console.error("Failed to fetch native transcription profiles:", err);
+      return moonshineProfiles;
+    }
   }
-  return invokeCommand("get_transcription_profiles");
+
+  return moonshineProfiles;
 };
 
-export const downloadTranscriptionModel = (id: string): Promise<void> => {
-  if (!isTauri()) {
-    return Promise.reject(new Error("Transcription is only available in the Tauri desktop app"));
+export const downloadTranscriptionModel = async (id: string): Promise<void> => {
+  const { useTranscriptionStore } = await import("../stores/useTranscriptionStore");
+  useTranscriptionStore.getState().setStatus("downloading");
+  useTranscriptionStore.getState().setDownloadProgress(id, 0);
+
+  try {
+    if (id.startsWith("moonshine-")) {
+      await downloadMoonshineModel(id, (progress) => {
+        useTranscriptionStore.getState().setDownloadProgress(id, progress);
+      });
+      useTranscriptionStore.getState().setStatus("idle");
+    } else {
+      if (!isTauri()) {
+        throw new Error("Whisper models are only available in the Tauri desktop app");
+      }
+      await invokeCommand("download_transcription_model", { id });
+      useTranscriptionStore.getState().setStatus("idle");
+    }
+  } catch (err) {
+    useTranscriptionStore.getState().setStatus("idle");
+    useTranscriptionStore.getState().setDownloadProgress(id, 0);
+    throw err;
   }
-  return invokeCommand("download_transcription_model", { id });
 };
 
-export const deleteTranscriptionModel = (id: string): Promise<void> => {
-  if (!isTauri()) {
-    return Promise.reject(new Error("Transcription is only available in the Tauri desktop app"));
+export const deleteTranscriptionModel = async (id: string): Promise<void> => {
+  if (id.startsWith("moonshine-")) {
+    deleteMoonshineModel(id);
+  } else {
+    if (!isTauri()) {
+      throw new Error("Whisper models are only available in the Tauri desktop app");
+    }
+    await invokeCommand("delete_transcription_model", { id });
   }
-  return invokeCommand("delete_transcription_model", { id });
 };
 
 export const startTranscription = (

@@ -584,9 +584,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900">
             <p className="font-medium">File too large</p>
             <p className="mt-1 text-blue-800/90">
-              {isTauri()
-                ? "This video exceeds Groq's 25MB free tier limit. Switch to Local Whisper in settings."
-                : "This video is too large to transcribe in the web app. Please use the desktop app for large files."}
+              This video exceeds Groq's 25MB free tier limit. Switch to Local Moonshine in settings.
             </p>
           </div>
         )}
@@ -601,7 +599,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
               <p className="text-xs text-muted-foreground">
                 {selectedProvider === 'groq'
                   ? "Groq transcribes quickly in the cloud. Keep watching while it works."
-                  : "Whisper runs locally on your machine. Keep watching while it works."}
+                  : "Moonshine runs locally on your machine. Keep watching while it works."}
               </p>
             </div>
           </div>
@@ -619,7 +617,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
                   }}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
-                  <option value="local">Local Whisper</option>
+                  <option value="local">Local Moonshine</option>
                   <option value="groq">Groq Cloud</option>
                 </select>
               </label>

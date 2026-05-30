@@ -457,7 +457,7 @@ async function generateTranscriptWithGroq(
 }
 
 /**
- * Generate transcript using Whisper (Tauri only)
+ * Generate transcript using Whisper (Tauri) or Moonshine/Groq (Web/PWA)
  * Automatically uses the configured provider (local or Groq)
  * 
  * @param filePath Path to the audio file
@@ -468,16 +468,53 @@ export async function generateTranscript(
   filePath: string,
   onProgress?: (progress: number) => void
 ): Promise<AudiobookTranscript> {
-  if (!isTauri()) {
-    throw new Error("Transcript generation requires the desktop app");
-  }
-  
   const provider = useSettingsStore.getState().settings.audioTranscription.provider;
-  
+
   if (provider === 'groq') {
-    return generateTranscriptWithGroq(filePath, onProgress);
+    if (!isTauri()) {
+      const { getBrowserFile } = await import("../lib/browser-file-store");
+      const file = getBrowserFile(filePath);
+      if (!file) throw new Error("Audio file not found in browser");
+      
+      const { transcribeWithGroq, convertGroqToInternalFormat } = await import("./groqTranscription");
+      const language = useSettingsStore.getState().settings.audioTranscription.language;
+      
+      const response = await transcribeWithGroq({
+        file,
+        language: language === 'auto' ? undefined : language,
+        responseFormat: 'verbose_json',
+        timestampGranularities: ['segment'],
+        temperature: 0,
+        onProgress,
+      });
+
+      const converted = convertGroqToInternalFormat(response);
+      const segments: TranscriptSegment[] = converted.segments.map((seg, index) => ({
+        id: `segment-${index}`,
+        text: seg.text,
+        startTime: seg.start_ms / 1000,
+        endTime: seg.end_ms / 1000,
+        confidence: seg.confidence,
+      }));
+
+      return {
+        segments,
+        fullText: converted.text,
+        language: response.language,
+        source: "generated",
+        lastUpdated: new Date().toISOString(),
+      };
+    } else {
+      return generateTranscriptWithGroq(filePath, onProgress);
+    }
   } else {
-    return generateTranscriptWithLocalWhisper(filePath, onProgress);
+    const { transcribeAudioWithMoonshine } = await import("../utils/moonshineService");
+    let modelId = useSettingsStore.getState().settings.audioTranscription.preferredModelId || "moonshine-tiny";
+    if (!modelId.startsWith("moonshine-")) {
+      modelId = "moonshine-tiny";
+    }
+    
+    return transcribeAudioWithMoonshine(filePath, modelId, onProgress);
   }
 }
 
@@ -492,15 +529,12 @@ export function getTranscriptionProvider(): 'local' | 'groq' {
  * Check if transcription is available based on current provider and configuration
  */
 export function isTranscriptionAvailable(): boolean {
-  if (!isTauri()) return false;
-  
   const provider = getTranscriptionProvider();
   
   if (provider === 'groq') {
     return isGroqConfigured();
   }
   
-  // Local is always "available" (will fail at runtime if no model)
   return true;
 }
 
