@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.46.0] - 2026-05-29
+
+### Added
+- **RSS full content reader** — Premium-mode article reader with dynamic theme matching, declutter filtering, and settings customization
+- **RSS semantic study & graph** — Advanced semantic study integration with cluster search, graph-based study queue, and thematic stacking
+- **RSS scroll mode enhancements** — Complete article content support in scroll mode and optimal queue
+- **Assistant model switcher redesign** — Premium breathing status pill with popover selector for quick model switching
+- **RSS study store** — Dedicated store for managing RSS-based study items
+
+### Changed
+- **Semantic graph panel** — Enhanced Obsidian graph view with stacking fixes and improved cluster search
+- **RSS reader components** — Expanded full content view and scroll mode with rich article rendering
+
 ## [1.45.0] - 2026-05-29
 
 ### Added
