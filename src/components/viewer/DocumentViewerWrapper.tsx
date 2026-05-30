@@ -40,6 +40,14 @@ export function DocumentViewer({
 }: DocumentViewerWithAssistantProps) {
   const [selection, setSelection] = useState("");
   const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
+  const [debouncedScrollPercent, setDebouncedScrollPercent] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedScrollPercent(scrollState.scrollPercent);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [scrollState.scrollPercent]);
   const [pdfContextText, setPdfContextText] = useState<string | undefined>(undefined);
   const [pdfOcrContextText, setPdfOcrContextText] = useState<string | null>(null);
   const [videoContext, setVideoContext] = useState<{
@@ -187,7 +195,7 @@ export function DocumentViewer({
       };
     }
 
-    trimToTokenWindow(baseContent, maxTokens, aiModel, selection)
+    trimToTokenWindow(baseContent, maxTokens, aiModel, selection, debouncedScrollPercent)
       .then((trimmed) => {
         if (isActive) {
           setAssistantContent(trimmed);
@@ -208,7 +216,7 @@ export function DocumentViewer({
     return () => {
       isActive = false;
     };
-  }, [currentDoc?.content, currentDoc?.fileType, documentContent, selection, contextWindowTokens, aiModel, pdfContextText, videoContext]);
+  }, [currentDoc?.content, currentDoc?.fileType, documentContent, selection, contextWindowTokens, aiModel, pdfContextText, videoContext, debouncedScrollPercent]);
 
   const resolveContextForPrompt = useCallback(async (_prompt: string): Promise<ResolvedAssistantContext> => {
     const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;

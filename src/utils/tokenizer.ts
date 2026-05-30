@@ -34,7 +34,8 @@ export async function trimToTokenWindow(
   text: string,
   maxTokens: number,
   model?: string,
-  selection?: string
+  selection?: string,
+  scrollPercent?: number
 ): Promise<string> {
   try {
     const tokenizer = await getTokenizer(model);
@@ -57,9 +58,29 @@ export async function trimToTokenWindow(
       }
     }
 
+    if (scrollPercent && scrollPercent > 0) {
+      // Find the character index corresponding to scrollPercent
+      const startIndex = Math.floor((scrollPercent / 100) * text.length);
+      // Align to a word boundary to avoid starting mid-word
+      let alignedStart = startIndex;
+      while (alignedStart < text.length && !/\s/.test(text[alignedStart])) {
+        alignedStart++;
+      }
+      if (alignedStart >= text.length) alignedStart = startIndex;
+
+      const slicedText = text.slice(alignedStart);
+      const slicedTokens = tokenizer.encode(slicedText);
+      if (slicedTokens.length <= maxTokens) return slicedText;
+      return tokenizer.decode(slicedTokens.slice(0, maxTokens));
+    }
+
     return tokenizer.decode(tokens.slice(0, maxTokens));
   } catch {
     const fallbackChars = Math.max(1, maxTokens * 4);
+    if (scrollPercent && scrollPercent > 0) {
+      const startIndex = Math.floor((scrollPercent / 100) * text.length);
+      return text.slice(startIndex, startIndex + fallbackChars);
+    }
     return text.slice(0, fallbackChars);
   }
 }

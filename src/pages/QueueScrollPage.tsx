@@ -1115,6 +1115,23 @@ export function QueueScrollPage() {
     return null;
   }, [currentItem, documents]);
 
+  const [selection, setSelection] = useState("");
+  const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
+  const [debouncedScrollPercent, setDebouncedScrollPercent] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedScrollPercent(scrollState.scrollPercent);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [scrollState.scrollPercent]);
+
+  useEffect(() => {
+    setSelection("");
+    setScrollState({});
+    setDebouncedScrollPercent(undefined);
+  }, [renderedItem?.id]);
+
   const [assistantContext, setAssistantContext] = useState<AssistantContext | undefined>(undefined);
 
   useEffect(() => {
@@ -1158,13 +1175,14 @@ export function QueueScrollPage() {
 
           if (transcriptText) {
             const content = [titleLine, transcriptText].filter(Boolean).join("\n\n");
-            const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel) : undefined;
+            const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel, selection, debouncedScrollPercent) : undefined;
             if (!cancelled) {
               setAssistantContext({
                 type: "video",
                 documentId: assistantItem.documentId,
                 content: trimmed || undefined,
                 contextWindowTokens: maxTokens,
+                selection: selection || undefined,
                 metadata: {
                   title: title || undefined,
                 },
@@ -1177,13 +1195,14 @@ export function QueueScrollPage() {
         const content = [titleLine, doc?.content]
           .filter(Boolean)
           .join("\n\n");
-        const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel) : undefined;
+        const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel, selection, debouncedScrollPercent) : undefined;
         if (!cancelled) {
           setAssistantContext({
             type: "document",
             documentId: assistantItem.documentId,
             content: trimmed || undefined,
             contextWindowTokens: maxTokens,
+            selection: selection || undefined,
             metadata: {
               title: title || undefined,
             },
@@ -1198,13 +1217,14 @@ export function QueueScrollPage() {
           .join("\n\n");
         const title = assistantItem.documentTitle ? `Title: ${assistantItem.documentTitle}` : null;
         const content = [title, extractContent].filter(Boolean).join("\n\n");
-        const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel) : undefined;
+        const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel, selection, debouncedScrollPercent) : undefined;
         if (!cancelled) {
           setAssistantContext({
             type: "document",
             documentId: `extract:${assistantItem.extract.id}`,
             content: trimmed || undefined,
             contextWindowTokens: maxTokens,
+            selection: selection || undefined,
             metadata: {
               title: assistantItem.documentTitle || undefined,
             },
@@ -1217,13 +1237,14 @@ export function QueueScrollPage() {
         const title = assistantItem.rssItem?.title ? `Title: ${assistantItem.rssItem?.title}` : null;
         const rssContent = assistantItem.rssItem?.content || assistantItem.rssItem?.description;
         const content = [title, rssContent].filter(Boolean).join("\n\n");
-        const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel) : undefined;
+        const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel, rssSelectedText, debouncedScrollPercent) : undefined;
         if (!cancelled) {
           setAssistantContext({
             type: "web",
             url: assistantItem.rssItem?.link || `rss:${assistantItem.rssItem?.id}`,
             content: trimmed || undefined,
             contextWindowTokens: maxTokens,
+            selection: rssSelectedText || undefined,
             metadata: {
               title: assistantItem.rssItem?.title || undefined,
             },
@@ -1239,7 +1260,7 @@ export function QueueScrollPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentItem, renderedItem, documents, contextWindowTokens, aiModel]);
+  }, [currentItem, renderedItem, documents, contextWindowTokens, aiModel, selection, rssSelectedText, debouncedScrollPercent]);
 
   useEffect(() => {
     if (currentItem) {
@@ -2051,6 +2072,8 @@ export function QueueScrollPage() {
                 documentId={renderedItem.documentId!}
                 embedded={true}
                 hideRatingOrbs={true}
+                onSelectionChange={setSelection}
+                onScrollPositionChange={setScrollState}
                 extractPostCreateBehavior="stay-in-reader"
                 onExtractCreated={(extract, sourceContext) => {
                   const effectiveContext = sourceContext ?? buildQueueExtractSourceContext({
