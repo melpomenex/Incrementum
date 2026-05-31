@@ -989,6 +989,7 @@ pub fn run() {
             transcription::delete_transcription_model,
             transcription::start_transcription,
             transcription::get_transcript,
+            transcription::save_transcript,
             transcription::enqueue_auto_transcription,
             transcription::get_transcription_queue,
             transcription::cancel_transcription_job,

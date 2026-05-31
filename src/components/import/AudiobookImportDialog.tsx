@@ -439,116 +439,119 @@ export function AudiobookImportDialog({
     }
   };
 
-  // Generate transcript for single file
-  const handleGenerateTranscript = async () => {
-    
+  const handleTranscriptionError = (message: string, retry?: () => void) => {
+    if (message.includes('Groq API key not configured')) {
+      showError(
+        "Groq API Key Required",
+        "Please configure your Groq API key in Audio Transcription settings to use cloud transcription.",
+        {
+          action: {
+            label: "Open Settings",
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('navigate-to-settings', {
+                detail: { section: 'audio-transcription' },
+              }));
+            },
+          },
+        }
+      );
+    } else if (message.includes('Rate limit')) {
+      showError(
+        "Groq Rate Limit Reached",
+        message,
+        {
+          action: {
+            label: "Switch to Local",
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('navigate-to-settings', {
+                detail: { section: 'audio-transcription' },
+              }));
+            },
+          },
+        }
+      );
+    } else if (message.includes('25MB limit')) {
+      showError(
+        "File Too Large for Groq",
+        "This audiobook exceeds Groq's 25MB free tier limit. Consider using local STT instead.",
+        {
+          action: {
+            label: "Switch to Local",
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent('navigate-to-settings', {
+                detail: { section: 'audio-transcription' },
+              }));
+            },
+          },
+        }
+      );
+    } else {
+      const match = message.match(/Model '([^']+)' is not installed/i);
+      if (match) {
+        const missingModelId = match[1];
+        showError(
+          "Model not installed",
+          `The "${missingModelId}" model is required for transcription.`,
+          retry ? {
+            action: {
+              label: "Download model",
+              onClick: async () => {
+                try {
+                  const profiles = await getTranscriptionProfiles();
+                  const target = profiles.find((p) => p.id === missingModelId) || profiles[0];
+                  if (!target) {
+                    showError("Download failed", "No transcription models are available.");
+                    return;
+                  }
+                  showInfo(
+                    "Downloading model",
+                    `${target.name} (${Math.round(target.size_bytes / 1024 / 1024)} MB)`
+                  );
+                  await downloadTranscriptionModel(target.id);
+                  showSuccess("Model downloaded", "Retrying transcription...");
+                  retry();
+                } catch (downloadErr) {
+                  showError(
+                    "Download failed",
+                    downloadErr instanceof Error ? downloadErr.message : "Unknown error"
+                  );
+                }
+              },
+            },
+          } : undefined
+        );
+      } else {
+        showError("Transcription failed", message || "Unknown error");
+      }
+    }
+  };
+
+  const startTranscription = async () => {
     setIsGeneratingTranscript(true);
     setTranscriptProgress(0);
+    showInfo(
+      "Transcription started",
+      "Your audiobook is being transcribed in the background. You can continue with the import."
+    );
     try {
       const result = await generateTranscript(filePath, (progress) => {
         setTranscriptProgress(progress);
       });
       setTranscript(result);
-      showSuccess("Transcript generated", "Your audiobook is now ready for incremental reading");
+      showSuccess(
+        "Transcript complete",
+        `"${metadata.title || "Audiobook"}" has been transcribed and is ready for incremental reading.`,
+        { duration: 8000 }
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      
-      if (message.includes('Groq API key not configured')) {
-        showError(
-          "Groq API Key Required",
-          "Please configure your Groq API key in Audio Transcription settings to use cloud transcription.",
-          {
-            action: {
-              label: "Open Settings",
-              onClick: () => {
-                // Navigate to settings - this would need to be implemented based on your routing
-                window.dispatchEvent(new CustomEvent('navigate-to-settings', { 
-                  detail: { section: 'audio-transcription' } 
-                }));
-              },
-            },
-          }
-        );
-      } else if (message.includes('Rate limit')) {
-        showError(
-          "Groq Rate Limit Reached",
-          message,
-          {
-            action: {
-              label: "Switch to Local",
-              onClick: () => {
-                window.dispatchEvent(new CustomEvent('navigate-to-settings', { 
-                  detail: { section: 'audio-transcription' } 
-                }));
-              },
-            },
-          }
-        );
-      } else if (message.includes('25MB limit')) {
-        showError(
-          "File Too Large for Groq",
-          "This audiobook exceeds Groq's 25MB free tier limit. Consider using local Moonshine instead.",
-          {
-            action: {
-              label: "Switch to Local",
-              onClick: () => {
-                window.dispatchEvent(new CustomEvent('navigate-to-settings', { 
-                  detail: { section: 'audio-transcription' } 
-                }));
-              },
-            },
-          }
-        );
-      } else {
-        const match = message.match(/Model '([^']+)' is not installed/i);
-        if (match) {
-          const missingModelId = match[1];
-          showError(
-            "Model not installed",
-            `The "${missingModelId}" model is required for transcription.`,
-            {
-              action: {
-                label: "Download model",
-                onClick: async () => {
-                  try {
-                    setIsGeneratingTranscript(true);
-                    const profiles = await getTranscriptionProfiles();
-                    const target = profiles.find((p) => p.id === missingModelId) || profiles[0];
-                    if (!target) {
-                      showError("Download failed", "No transcription models are available.");
-                      return;
-                    }
-                    showInfo(
-                      "Downloading model",
-                      `${target.name} (${Math.round(target.size_bytes / 1024 / 1024)} MB)`
-                    );
-                    await downloadTranscriptionModel(target.id);
-                    showSuccess("Model downloaded", "Retrying transcription...");
-                    const result = await generateTranscript(filePath);
-                    setTranscript(result);
-                    showSuccess(
-                      "Transcript generated",
-                      "Your audiobook is now ready for incremental reading"
-                    );
-                  } catch (downloadErr) {
-                    showError(
-                      "Download failed",
-                      downloadErr instanceof Error ? downloadErr.message : "Unknown error"
-                    );
-                  } finally {
-                    setIsGeneratingTranscript(false);
-                  }
-                },
-              },
-            }
-          );
-        } else {
-          showError("Generation failed", message || "Unknown error");
-        }
-      }
+      handleTranscriptionError(err instanceof Error ? err.message : String(err), () => void startTranscription());
     } finally {
       setIsGeneratingTranscript(false);
     }
+  };
+
+  const handleGenerateTranscript = () => {
+    void startTranscription();
   };
 
   const handleImportTranscript = async () => {
@@ -1295,25 +1298,38 @@ export function AudiobookImportDialog({
                 ) : (
                   <div className="grid grid-cols-3 gap-4">
                     <button
-                      onClick={handleGenerateTranscript}
+                      onClick={() => void handleGenerateTranscript()}
                       disabled={isGeneratingTranscript}
-                      className="flex flex-col items-center rounded-xl border-2 border-border bg-card p-6 text-center transition-all hover:border-primary/50 hover:bg-muted/30 disabled:opacity-50"
+                      className={cn(
+                        "flex flex-col items-center rounded-xl border-2 bg-card p-6 text-center transition-all hover:bg-muted/30 disabled:opacity-50",
+                        isGeneratingTranscript
+                          ? "border-primary/50 bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      )}
                     >
                       <div className="mb-3 rounded-full bg-primary/10 p-3">
-                        <Sparkles className="h-6 w-6 text-primary" />
+                        {isGeneratingTranscript ? (
+                          <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                        ) : (
+                          <Sparkles className="h-6 w-6 text-primary" />
+                        )}
                       </div>
-                      <h4 className="mb-1 font-medium">Generate with AI</h4>
+                      <h4 className="mb-1 font-medium">
+                        {isGeneratingTranscript ? "Transcribing..." : "Generate with AI"}
+                      </h4>
                       <p className="text-xs text-muted-foreground text-center">
-                        Use local Moonshine STT or Groq Cloud to transcribe
+                        {isGeneratingTranscript
+                          ? "You can continue with the import while this runs"
+                          : "Use local STT or Groq Cloud to transcribe"}
                       </p>
                       {isGeneratingTranscript && (
                         <div className="mt-3 w-full px-2">
                           <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                             <span>Transcribing...</span>
+                             <span>Progress</span>
                              <span>{transcriptProgress}%</span>
                           </div>
                           <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                            <div 
+                            <div
                                className="h-full bg-primary transition-all duration-300"
                                style={{ width: `${transcriptProgress}%` }}
                             />
@@ -1367,7 +1383,7 @@ export function AudiobookImportDialog({
                 </div>
               )}
               
-              <div className="mt-6 flex justify-between">
+              <div className="mt-6 flex justify-between items-center">
                 <button
                   onClick={() => setCurrentStep("metadata")}
                   className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
@@ -1375,11 +1391,17 @@ export function AudiobookImportDialog({
                   <ChevronLeft className="h-4 w-4" />
                   Back
                 </button>
+                {isGeneratingTranscript && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                    Transcription continues in the background
+                  </span>
+                )}
                 <button
                   onClick={() => setCurrentStep("confirm")}
                   className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                 >
-                  Next: Confirm
+                  {isGeneratingTranscript ? "Continue to Import" : "Next: Confirm"}
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>

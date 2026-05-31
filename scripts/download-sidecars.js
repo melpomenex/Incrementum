@@ -64,6 +64,20 @@ function sidecarExecutableName(baseName, targetTriple) {
   return `${baseName}-${targetTriple}${ext}`;
 }
 
+function ensureMoonshineSource() {
+  if (fs.existsSync(path.join('moonshine.cpp', 'CMakeLists.txt'))) {
+    return;
+  }
+
+  if (fs.existsSync('moonshine.cpp')) {
+    console.log('Removing corrupted moonshine.cpp directory...');
+    fs.rmSync('moonshine.cpp', { recursive: true, force: true });
+  }
+
+  console.log('Cloning moonshine.cpp...');
+  execSync('git clone --depth 1 https://github.com/locaal-ai/moonshine.cpp.git');
+}
+
 function ensureWhisperSource() {
   if (fs.existsSync(path.join('whisper.cpp', 'CMakeLists.txt'))) {
     return;
@@ -699,6 +713,8 @@ async function main() {
   const ffmpegPath = path.join(BIN_DIR, ffmpegName);
   const whisperPath = path.join(BIN_DIR, whisperName);
   const notebooklmPath = path.join(BIN_DIR, notebooklmName);
+  const moonshineName = `moonshine-${targetTriple}`;
+  const moonshinePath = path.join(BIN_DIR, moonshineName);
   const notebooklmSidecarPresent = fs.existsSync(notebooklmPath);
   const notebooklmSkipped = process.env.SKIP_NOTEBOOKLM_SIDECAR === '1';
   const notebooklmRequired = !notebooklmSkipped
@@ -715,6 +731,7 @@ async function main() {
   if (
     fs.existsSync(ffmpegPath)
     && fs.existsSync(whisperPath)
+    && fs.existsSync(moonshinePath)
     && (!notebooklmMustExist || notebooklmSidecarPresent)
     && (!notebooklmRequired || notebooklmRuntimeReady)
   ) {
@@ -722,6 +739,7 @@ async function main() {
     try {
       fs.chmodSync(ffmpegPath, 0o755);
       fs.chmodSync(whisperPath, 0o755);
+      fs.chmodSync(moonshinePath, 0o755);
       if (fs.existsSync(notebooklmPath)) {
         fs.chmodSync(notebooklmPath, 0o755);
       }
@@ -797,6 +815,43 @@ async function main() {
         // execSync('rm -rf whisper.cpp');
     }
 
+    // Linux Moonshine (building from source using CMake)
+    const moonshineName = `moonshine-${targetTriple}`;
+    const moonshinePath = path.join(BIN_DIR, moonshineName);
+    if (!fs.existsSync(moonshinePath)) {
+        console.log('Building Moonshine (Linux)...');
+        ensureMoonshineSource();
+
+        execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
+        execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
+
+        const candidates = [
+            'moonshine.cpp/build/examples/moonshine_example',
+            'moonshine.cpp/build/bin/moonshine_example',
+            'moonshine.cpp/build/src/moonshine_example',
+        ];
+        const moonshineBin = candidates.find(c => fs.existsSync(c));
+        if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
+        fs.copyFileSync(moonshineBin, moonshinePath);
+
+        // Copy ONNX Runtime shared libraries
+        const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
+        if (fs.existsSync(ortLibDir)) {
+            for (const f of fs.readdirSync(ortLibDir)) {
+                if (f.startsWith('libonnxruntime') && f.endsWith('.so') && !f.includes('tensorrt') && !f.includes('cuda') && !f.includes('shared')) {
+                    fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+                }
+            }
+        }
+
+        // Set RPATH so the binary finds libonnxruntime in the same directory
+        try {
+            execSync(`patchelf --set-rpath '$ORIGIN' ${moonshinePath}`, { stdio: 'ignore' });
+        } catch {
+            console.log('Note: patchelf not available for moonshine, using LD_LIBRARY_PATH via wrapper');
+        }
+    }
+
   } else if (platform === 'darwin') {
     // Mac FFmpeg
     if (!fs.existsSync(ffmpegPath)) {
@@ -854,6 +909,36 @@ async function main() {
         // execSync('rm -rf whisper.cpp');
     }
 
+    // Mac Moonshine (building from source using CMake)
+    const moonshineName = `moonshine-${targetTriple}`;
+    const moonshinePath = path.join(BIN_DIR, moonshineName);
+    if (!fs.existsSync(moonshinePath)) {
+        console.log('Building Moonshine (Mac)...');
+        ensureMoonshineSource();
+
+        execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
+        execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
+
+        const candidates = [
+            'moonshine.cpp/build/examples/moonshine_example',
+            'moonshine.cpp/build/bin/moonshine_example',
+            'moonshine.cpp/build/src/moonshine_example',
+        ];
+        const moonshineBin = candidates.find(c => fs.existsSync(c));
+        if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
+        fs.copyFileSync(moonshineBin, moonshinePath);
+
+        // Copy ONNX Runtime shared libraries
+        const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
+        if (fs.existsSync(ortLibDir)) {
+            for (const f of fs.readdirSync(ortLibDir)) {
+                if (f.startsWith('libonnxruntime') && f.endsWith('.dylib')) {
+                    fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+                }
+            }
+        }
+    }
+
   } else if (platform === 'win32') {
     // Windows FFmpeg
     console.log('Downloading FFmpeg (Windows)...');
@@ -895,6 +980,36 @@ async function main() {
       // Search recursively in build directory for shared libraries
       findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.dll');
     }
+
+    // Windows Moonshine (building from source via CMake)
+    const moonshineName = `moonshine-${targetTriple}`;
+    const moonshinePath = path.join(BIN_DIR, moonshineName);
+    if (!fs.existsSync(moonshinePath)) {
+      console.log('Building Moonshine (Windows)...');
+      ensureMoonshineSource();
+
+      execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
+      execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
+
+      const candidates = [
+        'moonshine.cpp/build/examples/Release/moonshine_example.exe',
+        'moonshine.cpp/build/bin/Release/moonshine_example.exe',
+        'moonshine.cpp/build/bin/moonshine_example.exe',
+      ];
+      const moonshineBin = candidates.find(c => fs.existsSync(c));
+      if (!moonshineBin) throw new Error('Failed to locate moonshine_example.exe after build');
+      fs.copyFileSync(moonshineBin, moonshinePath);
+
+      // Copy ONNX Runtime DLL
+      const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
+      if (fs.existsSync(ortLibDir)) {
+        for (const f of fs.readdirSync(ortLibDir)) {
+          if (f.startsWith('onnxruntime') && f.endsWith('.dll')) {
+            fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+          }
+        }
+      }
+    }
   }
 
   // Build bundled notebooklm sidecar/runtime used by NotebookLM integration.
@@ -933,6 +1048,9 @@ async function main() {
   try {
     fs.chmodSync(ffmpegPath, 0o755);
     fs.chmodSync(whisperPath, 0o755);
+    if (fs.existsSync(moonshinePath)) {
+      fs.chmodSync(moonshinePath, 0o755);
+    }
   } catch {
     // Windows might fail chmod, ignore
   }

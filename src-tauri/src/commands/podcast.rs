@@ -511,10 +511,11 @@ async fn run_transcription_job(
             .map_err(|e| IncrementumError::Internal(format!("Audio preparation failed: {}", e)))?;
 
         let model_path = model_manager.get_model_path(&selected_model);
+        let is_moonshine = selected_model.starts_with("moonshine-");
 
         let cancel_post = cancel_clone.clone();
-        engine
-            .transcribe(
+        if is_moonshine {
+            engine.transcribe_moonshine(
                 &prepared,
                 &model_path,
                 &lang,
@@ -540,6 +541,35 @@ async fn run_transcription_job(
             )
             .await
             .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        } else {
+            engine
+                .transcribe(
+                    &prepared,
+                    &model_path,
+                    &lang,
+                    move |seg| {
+                        if cancel_clone.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        if let Ok(mut guard) = segments_clone.lock() {
+                            guard.push(seg);
+                        }
+                    },
+                    Some(Box::new(move |p: i32| {
+                        let mapped = 30 + ((p as f64 / 100.0) * 70.0) as i32;
+                        let _ = app_clone.emit(
+                            "podcast://transcription-progress",
+                            serde_json::json!({
+                                "episodeId": &ep_id,
+                                "status": "transcribing",
+                                "progress": mapped
+                            }),
+                        );
+                    })),
+                )
+                .await
+                .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        }
 
         if cancel_post.load(Ordering::Relaxed) {
             return Err(IncrementumError::Internal("Transcription cancelled".to_string()));

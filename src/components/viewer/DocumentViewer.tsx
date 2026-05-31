@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo, type CSSProperties }
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff, Highlighter, Copy } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
-import { isTauri, isPWA, convertFileSrc } from "../../lib/tauri";
+import { isTauri, isPWA } from "../../lib/tauri";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { ContextMenu, ContextMenuItemType, type ContextMenuItem } from "../common/ContextMenu";
 import { PDFViewer } from "./PDFViewer";
@@ -72,7 +72,7 @@ import type { StoredHighlight } from "./HighlightLayer";
 import { normalizePdfHighlightColor } from "../../utils/highlightColors";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
 import { FlashcardStudioModal } from "../review/FlashcardStudioModal";
-import { resolveLocalMediaSource, type ResolvedLocalMediaSource, inferMimeType } from "./localMediaSource";
+import { resolveLocalMediaSource, type ResolvedLocalMediaSource } from "./localMediaSource";
 
 const READER_FOCUS_EVENT = "incrementum-reader-focus-mode-change";
 const READER_FOCUS_CLASS = "incrementum-reader-focus-mode";
@@ -1494,20 +1494,8 @@ export function DocumentViewer({
         if (!doc.filePath) {
           throw new Error("Audio document is missing a file path.");
         }
-        
-        // If it's a remote URL, use it directly. Otherwise, use convertFileSrc for local paths.
-        const isRemote = doc.filePath.startsWith("http://") || doc.filePath.startsWith("https://") || doc.filePath.startsWith("data:");
-        const src = isRemote ? doc.filePath : await convertFileSrc(doc.filePath);
-        
-        const resolvedSource: ResolvedLocalMediaSource = {
-          src,
-          mimeType: inferMimeType(doc.filePath, "audio"),
-          mediaType: "audio",
-          originalPath: doc.filePath,
-          strategy: isRemote ? "tauri-asset" : "tauri-asset", // keep strategy same for now
-          revokeSrcOnDispose: false,
-          attempts: [{ strategy: "tauri-asset", status: "success", detail: isRemote ? "Remote URL detected, using directly." : "Direct convertFileSrc; skipped probe for audio." }],
-        };
+
+        const resolvedSource = await resolveLocalMediaSource(doc.filePath, "audio");
         mediaSourceRef.current = resolvedSource;
         setMediaSource(resolvedSource);
       } catch (error) {

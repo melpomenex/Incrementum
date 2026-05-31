@@ -298,59 +298,6 @@ export function useTranscriptionService(options: TranscriptionOptions) {
   /**
    * Start transcription
    */
-  /**
-   * Start local Web-based transcription (Moonshine)
-   */
-  const startLocalWebTranscription = async (): Promise<TranscriptionResult> => {
-    const inputSource = options.file || options.filePath;
-    if (!inputSource) {
-      return { 
-        success: false, 
-        error: new Error('File or file path required for local transcription') 
-      };
-    }
-
-    let modelId = settings.audioTranscription.preferredModelId || "moonshine-tiny";
-    if (!modelId.startsWith("moonshine-")) {
-      modelId = "moonshine-tiny";
-    }
-    
-    setStatus('processing');
-    setProgress({ percent: 5, message: 'Loading Moonshine model...' });
-
-    try {
-      const { transcribeAudioWithMoonshine } = await import('../../utils/moonshineService');
-      
-      const response = await transcribeAudioWithMoonshine(
-        inputSource as any, 
-        modelId, 
-        (p) => {
-          setProgress({ percent: Math.round(p), message: p < 10 ? 'Decoding audio...' : 'Transcribing audio...' });
-        }
-      );
-
-      // Save transcript
-      const segments = response.segments.map((seg) => ({
-        time: seg.startTime,
-        text: seg.text,
-      }));
-
-      await setVideoTranscript(options.documentId, response.fullText, segments);
-      setStatus('completed');
-      options.onComplete?.();
-      return { success: true };
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      setStatus('failed');
-      options.onError?.(error);
-      return { success: false, error };
-    }
-  };
-
-  /**
-   * Start transcription
-   */
   const startTranscription = useCallback(async (): Promise<TranscriptionResult> => {
     // Reset state
     setError(null);
@@ -375,8 +322,8 @@ export function useTranscriptionService(options: TranscriptionOptions) {
 
       // Route to appropriate provider
       if (provider === 'local') {
-        // Local Moonshine for BOTH Web/PWA and Tauri Desktop
-        return await startLocalWebTranscription();
+        // Local transcription via native sidecar (Tauri desktop only)
+        return await startLocalTranscription();
       } else {
         // Groq Cloud (works in Web and Tauri)
         return await startGroqTranscription();
@@ -547,7 +494,7 @@ export function useTranscriptionAvailability() {
     provider,
     isTauri: isTauriEnv,
     canUseGroq: true, // Groq works in both web and Tauri
-    canUseLocal: true, // Local works in both Tauri (Whisper) and Web (Moonshine)!
+    canUseLocal: isTauriEnv,
   };
 }
 

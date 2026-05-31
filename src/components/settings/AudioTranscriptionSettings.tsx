@@ -194,7 +194,7 @@ export function AudioTranscriptionSettings() {
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {isPWA() 
-                ? "Your Moonshine models are permanently cached on this device for offline, local speech-to-text. Total privacy, no server API limits."
+                ? "Transcription models run locally with full privacy and no server API limits."
                 : "Running in browser tab. Models are cached, but browser cleaning or low disk space may evict them. Install as a PWA for persistent offline storage."
               }
             </p>
@@ -214,7 +214,7 @@ export function AudioTranscriptionSettings() {
           )}
         >
           <Settings2 className="w-4 h-4" />
-          Local (Moonshine STT)
+          Local STT
         </button>
         <button
           onClick={() => handleProviderChange('groq')}
@@ -292,30 +292,11 @@ export function AudioTranscriptionSettings() {
                   <option value="">{t("settings.audioNoModels")}</option>
                 )}
                 {(() => {
-                  const moonshineList = profiles.filter(p => p.id.startsWith("moonshine-"));
-                  const whisperList = profiles.filter(p => !p.id.startsWith("moonshine-"));
-                  return (
-                    <>
-                      {moonshineList.length > 0 && (
-                        <optgroup label="Local Moonshine STT (Audiobooks & Videos)">
-                          {moonshineList.map((profile) => (
-                            <option key={profile.id} value={profile.id}>
-                              {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {whisperList.length > 0 && (
-                        <optgroup label="Desktop Whisper (Podcasts)">
-                          {whisperList.map((profile) => (
-                            <option key={profile.id} value={profile.id}>
-                              {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </>
-                  );
+                  return profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}{profile.installed ? ` (${t("settings.audioInstalled")})` : ""}
+                    </option>
+                  ));
                 })()}
               </select>
             </label>
@@ -347,15 +328,11 @@ export function AudioTranscriptionSettings() {
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-muted-foreground space-y-2">
                 <p className="font-medium text-foreground flex items-center gap-1.5">
                   <Info className="w-4 h-4 text-amber-600" />
-                  Dual Engine Setup for Desktop
+                  Local Transcription
                 </p>
                 <p className="leading-relaxed">
-                  Incrementum uses two optimized local transcription engines on Desktop:
+                  Models run as native sidecar processes with isolated memory. Whisper supports multiple languages; Moonshine is English-only but very fast.
                 </p>
-                <ul className="list-disc pl-4 space-y-1">
-                  <li><strong>Local Moonshine STT</strong>: High-speed, browser-worker-cached model used for transcribing video extracts and importing audiobooks.</li>
-                  <li><strong>Desktop Whisper (Podcasts)</strong>: Native Rust sidecar-managed model used for transcribing feed-based Podcast episodes.</li>
-                </ul>
               </div>
             )}
             
@@ -375,11 +352,11 @@ export function AudioTranscriptionSettings() {
                         <span className="font-bold text-foreground">{profile.name}</span>
                         {profile.id.startsWith("moonshine-") ? (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full">
-                            Local Moonshine STT
+                            Local STT
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 rounded-full">
-                            Desktop Whisper (Podcasts)
+                            Desktop Whisper
                           </span>
                         )}
                         {progress === 100 && !isDownloading && (

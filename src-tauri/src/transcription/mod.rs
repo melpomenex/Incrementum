@@ -92,6 +92,60 @@ pub async fn get_transcript(
     }
 }
 
+#[command]
+pub async fn save_transcript(
+    repo: State<'_, Repository>,
+    book_id: String,
+    chapter_id: String,
+    model_used: String,
+    language: String,
+    status: String,
+    segments: Vec<engine::TranscriptSegment>,
+) -> Result<()> {
+    let mut tx = repo.pool().begin().await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+
+    sqlx::query("INSERT OR REPLACE INTO transcripts (book_id, chapter_id, model_used, language, status) VALUES (?, ?, ?, ?, ?)")
+        .bind(&book_id)
+        .bind(&chapter_id)
+        .bind(&model_used)
+        .bind(&language)
+        .bind(&status)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+
+    let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
+        .bind(&book_id)
+        .bind(&chapter_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+
+    sqlx::query("DELETE FROM transcript_segments WHERE transcript_id = ?")
+        .bind(transcript_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+
+    for seg in segments {
+        sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+            .bind(transcript_id)
+            .bind(seg.start_ms)
+            .bind(seg.end_ms)
+            .bind(&seg.text)
+            .bind(seg.confidence)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+    }
+
+    tx.commit().await
+        .map_err(|e| crate::error::IncrementumError::Internal(e.to_string()))?;
+
+    Ok(())
+}
+
 // Auto-transcription commands
 
 #[command]

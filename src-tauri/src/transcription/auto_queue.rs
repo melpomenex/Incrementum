@@ -166,7 +166,7 @@ impl AutoTranscriptionQueue {
 
         let model_path = model_manager.get_model_path(&entry.model_id);
         if !model_path.exists() {
-            return Err(anyhow::anyhow!("Whisper model not found: {}", entry.model_id));
+            return Err(anyhow::anyhow!("Transcription model not found: {}", entry.model_id));
         }
 
         let audio_path = std::path::Path::new(&entry.audio_path);
@@ -213,38 +213,75 @@ impl AutoTranscriptionQueue {
             });
         });
 
-        engine.transcribe(&wav_path, &model_path, &entry.language, move |seg| {
-            segments_clone.lock().expect("transcription segments mutex poisoned").push(seg.clone());
+        let is_moonshine = entry.model_id.starts_with("moonshine-");
 
-            let repo = repo_clone.clone();
-            let entry_id = entry_id.clone();
-            let app = app_clone.clone();
-            tokio::spawn(async move {
-                let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
-                    .bind(&entry_id)
-                    .bind(&entry_id)
-                    .fetch_one(repo.pool())
-                    .await
-                    .unwrap_or(0);
+        if is_moonshine {
+            engine.transcribe_moonshine(&wav_path, &model_path, &entry.language, move |seg| {
+                segments_clone.lock().expect("transcription segments mutex poisoned").push(seg.clone());
 
-                if transcript_id > 0 {
-                    if let Err(e) = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
-                        .bind(transcript_id)
-                        .bind(seg.start_ms)
-                        .bind(seg.end_ms)
-                        .bind(&seg.text)
-                        .bind(seg.confidence)
-                        .execute(repo.pool())
+                let repo = repo_clone.clone();
+                let entry_id = entry_id.clone();
+                let app = app_clone.clone();
+                tokio::spawn(async move {
+                    let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
+                        .bind(&entry_id)
+                        .bind(&entry_id)
+                        .fetch_one(repo.pool())
                         .await
-                    {
-                        tracing::warn!("Failed to insert transcript segment: {}", e);
+                        .unwrap_or(0);
+
+                    if transcript_id > 0 {
+                        if let Err(e) = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+                            .bind(transcript_id)
+                            .bind(seg.start_ms)
+                            .bind(seg.end_ms)
+                            .bind(&seg.text)
+                            .bind(seg.confidence)
+                            .execute(repo.pool())
+                            .await
+                        {
+                            tracing::warn!("Failed to insert transcript segment: {}", e);
+                        }
                     }
-                }
-                if let Err(e) = app.emit("transcription://segment", &seg) {
-                    tracing::debug!("Failed to emit transcription segment: {}", e);
-                }
-            });
-        }, Some(progress_cb)).await?;
+                    if let Err(e) = app.emit("transcription://segment", &seg) {
+                        tracing::debug!("Failed to emit transcription segment: {}", e);
+                    }
+                });
+            }, Some(progress_cb)).await?;
+        } else {
+            engine.transcribe(&wav_path, &model_path, &entry.language, move |seg| {
+                segments_clone.lock().expect("transcription segments mutex poisoned").push(seg.clone());
+
+                let repo = repo_clone.clone();
+                let entry_id = entry_id.clone();
+                let app = app_clone.clone();
+                tokio::spawn(async move {
+                    let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
+                        .bind(&entry_id)
+                        .bind(&entry_id)
+                        .fetch_one(repo.pool())
+                        .await
+                        .unwrap_or(0);
+
+                    if transcript_id > 0 {
+                        if let Err(e) = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+                            .bind(transcript_id)
+                            .bind(seg.start_ms)
+                            .bind(seg.end_ms)
+                            .bind(&seg.text)
+                            .bind(seg.confidence)
+                            .execute(repo.pool())
+                            .await
+                        {
+                            tracing::warn!("Failed to insert transcript segment: {}", e);
+                        }
+                    }
+                    if let Err(e) = app.emit("transcription://segment", &seg) {
+                        tracing::debug!("Failed to emit transcription segment: {}", e);
+                    }
+                });
+            }, Some(progress_cb)).await?;
+        }
 
         let full_text: String = {
             let all_segments = segments.lock().expect("transcription segments mutex poisoned");

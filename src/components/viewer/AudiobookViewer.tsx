@@ -54,9 +54,10 @@ import * as audiobookApi from "../../api/audiobooks";
 import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
-import { startTranscription } from "../../api/transcription";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { startTranscription, saveTranscript, enqueueAutoTranscription } from "../../api/transcription";
 import { convertFileSrc, isTauri } from "../../lib/tauri";
-import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto } from "../../api/documents";
+import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto, updateDocumentContent, getDocument } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
 import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath } from "../../api/podcast";
 
@@ -308,10 +309,20 @@ export function AudiobookViewer({
           setMetadata(parsed.metadata || {});
           setChapters(parsed.chapters || []);
           setTranscript(parsed.transcript || null);
-          
+
           if (parsed.multiPart) {
             setMultiPartInfo(parsed.multiPart);
             setPartSources(parsed.multiPart.partFiles);
+          }
+
+          // Ensure transcript text is available to the AI assistant via documents.content
+          if (parsed.transcript?.fullText && isTauri()) {
+            try {
+              const doc = await getDocument(document.id);
+              if (!doc?.content) {
+                await updateDocumentContent(document.id, parsed.transcript.fullText);
+              }
+            } catch { /* non-critical */ }
           }
         } catch {
         /* Audio playback error handling */ }
@@ -695,15 +706,22 @@ export function AudiobookViewer({
         }
       }
 
-      if (transcript?.segments) {
-        const segment = transcript.segments.find(
-          s => time >= s.startTime && time < s.endTime
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allSegments: any[] = transcript?.segments || activeSegments;
+      if (allSegments.length > 0) {
+        const segment = allSegments.find(
+          s => {
+            const start = s.startTime ?? s.start_ms / 1000;
+            const end = s.endTime ?? s.end_ms / 1000;
+            return time >= start && time < end;
+          }
         );
-        if (segment && segment.id !== activeSegmentId) {
-          setActiveSegmentId(segment.id);
+        const id = segment ? (segment.id || `seg-${allSegments.indexOf(segment)}`) : null;
+        if (id && id !== activeSegmentId) {
+          setActiveSegmentId(id);
           // Scroll segment into view using container-relative scrolling
           // to avoid scrolling the entire page and affecting other elements
-          const element = window.document.getElementById(`segment-${segment.id}`);
+          const element = window.document.getElementById(`segment-${id}`);
           const container = transcriptRef.current;
           if (element && container && showTranscript) {
             // Calculate the element's position relative to the container
@@ -737,7 +755,7 @@ export function AudiobookViewer({
         setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
       }
     }
-  }, [activeSegmentId, currentPartIndex, showTranscript, toGlobalSeconds, transcript, sponsorBlockCuts, sponsorBlockSegments]);
+  }, [activeSegmentId, activeSegments, currentPartIndex, showTranscript, toGlobalSeconds, transcript, sponsorBlockCuts, sponsorBlockSegments]);
   
   const [isWaitingForSeek, setIsWaitingForSeek] = useState(false);
   const seekRetryCountRef = useRef(0);
@@ -1238,27 +1256,72 @@ export function AudiobookViewer({
       return;
     }
 
-    if (profiles.length === 0) {
-      await fetchProfiles();
-    }
-
-    // Default to the first profile (usually distil-small.en)
-    const profile = profiles.find(p => p.id === "distil-small.en") || profiles[0];
-    if (!profile) {
-      showError("Transcription Error", "No transcription models found. Please check settings.");
-      return;
-    }
+    const settings = useSettingsStore.getState().settings.audioTranscription;
 
     try {
+      let currentProfiles = profiles;
+      if (currentProfiles.length === 0) {
+        await fetchProfiles();
+        currentProfiles = useTranscriptionStore.getState().profiles;
+      }
+
+      const installed = currentProfiles.filter((p) => p.installed);
+
+      // Define quality ranks for local models
+      const MODEL_QUALITY_RANK = [
+        "small",             // Whisper Small (Multilingual Balanced) - ~488MB
+        "moonshine-base",    // Moonshine Base - ~115MB (Modern, highly efficient, and superior quality)
+        "distil-small.en",   // Whisper Distil Small (English Fast) - ~336MB
+        "base",              // Whisper Base (Multilingual Fast) - ~148MB
+        "moonshine-tiny",    // Moonshine Tiny - ~52MB
+      ];
+
+      // Determine model to use
+      let bestModelId = settings.preferredModelId;
+      const isPreferredInstalled = installed.some((p) => p.id === bestModelId);
+
+      if (!bestModelId || !isPreferredInstalled) {
+        if (installed.length > 0) {
+          // Sort installed by rank
+          const sortedInstalled = [...installed].sort((a, b) => {
+            let rankA = MODEL_QUALITY_RANK.indexOf(a.id);
+            let rankB = MODEL_QUALITY_RANK.indexOf(b.id);
+            if (rankA === -1) rankA = 999;
+            if (rankB === -1) rankB = 999;
+            return rankA - rankB;
+          });
+          bestModelId = sortedInstalled[0].id;
+        } else {
+          bestModelId = "distil-small.en"; // Fallback default
+        }
+      }
+
+      const isGroq = settings.provider === "groq";
+      const finalModelId = isGroq ? "groq-whisper" : bestModelId;
+
       const currentChapter = getCurrentChapter();
-      await startTranscription(
-        document.id,
-        currentChapter?.id?.toString() || "default",
-        document.filePath,
-        profile.id,
-        "en" // TODO: Detect language or use setting
-      );
-      showSuccess("Transcription Started", "Transcribing in background...");
+      const chapterId = currentChapter?.id?.toString() || "default";
+
+      // Route transcription based on model & provider
+      if (isGroq || settings.provider === "groq") {
+        await enqueueAutoTranscription(
+          document.id,
+          document.filePath,
+          settings.provider,
+          finalModelId,
+          settings.language || "en",
+        );
+        showSuccess("Transcription Queued", "Document queued for background transcription.");
+      } else {
+        await startTranscription(
+          document.id,
+          chapterId,
+          document.filePath,
+          finalModelId,
+          settings.language || "en"
+        );
+        showSuccess("Transcription Started", "Transcribing in background...");
+      }
     } catch (err) {
       showError("Transcription Failed", String(err));
     }
@@ -1311,7 +1374,22 @@ export function AudiobookViewer({
     document.id,
     currentChapter?.id,
   ]);
-  
+
+  // Sync transcript to documents.content so the AI assistant can access it
+  useEffect(() => {
+    if (!isTauri() || activeSegments.length === 0 || transcript?.segments?.length) return;
+    const fullText = activeSegments.map(s => s.text).join(" ");
+    if (!fullText) return;
+    (async () => {
+      try {
+        const doc = await getDocument(document.id);
+        if (!doc?.content) {
+          await updateDocumentContent(document.id, fullText);
+        }
+      } catch { /* non-critical */ }
+    })();
+  }, [activeSegments.length, document.id, isTauri, transcript?.segments?.length]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {

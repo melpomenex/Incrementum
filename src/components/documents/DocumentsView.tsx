@@ -74,6 +74,8 @@ import { findCompanionDoc } from "../../utils/documentPairing";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
 import { enqueueAutoTranscription } from "../../api/transcription";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
+import { useToast } from "../common/Toast";
 
 const MODE_STORAGE_KEY = "documentsViewMode";
 const SAVED_VIEWS_KEY = "documentsSavedViews";
@@ -195,6 +197,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
 
   // Confirmation dialog for destructive actions
   const confirmDialog = useConfirmDialog();
+  const toast = useToast();
 
   const deviceInfo = getDeviceInfo();
   const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
@@ -583,12 +586,63 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     if (!doc.filePath) return;
     const settings = useSettingsStore.getState().settings.audioTranscription;
     try {
+      // 1. Fetch available profiles to find installed/downloaded ones
+      const transcriptionStore = useTranscriptionStore.getState();
+      let profiles = transcriptionStore.profiles;
+      if (profiles.length === 0) {
+        try {
+          await transcriptionStore.fetchProfiles();
+          profiles = useTranscriptionStore.getState().profiles;
+        } catch (err) {
+          console.warn("Failed to fetch transcription profiles:", err);
+        }
+      }
+
+      const installed = profiles.filter((p) => p.installed);
+
+      // 2. Define quality ranks for local models
+      const MODEL_QUALITY_RANK = [
+        "small",             // Whisper Small (Multilingual Balanced) - ~488MB
+        "moonshine-base",    // Moonshine Base - ~115MB (Modern, highly efficient, and superior quality)
+        "distil-small.en",   // Whisper Distil Small (English Fast) - ~336MB
+        "base",              // Whisper Base (Multilingual Fast) - ~148MB
+        "moonshine-tiny",    // Moonshine Tiny - ~52MB
+      ];
+
+      // Determine model to use
+      let bestModelId = settings.preferredModelId;
+      const isPreferredInstalled = installed.some((p) => p.id === bestModelId);
+
+      if (!bestModelId || !isPreferredInstalled) {
+        if (installed.length > 0) {
+          // Sort installed by rank
+          const sortedInstalled = [...installed].sort((a, b) => {
+            let rankA = MODEL_QUALITY_RANK.indexOf(a.id);
+            let rankB = MODEL_QUALITY_RANK.indexOf(b.id);
+            if (rankA === -1) rankA = 999;
+            if (rankB === -1) rankB = 999;
+            return rankA - rankB;
+          });
+          bestModelId = sortedInstalled[0].id;
+        } else {
+          bestModelId = "distil-small.en"; // Fallback default
+        }
+      }
+
+      const isGroq = settings.provider === "groq";
+      const finalModelId = isGroq ? "groq-whisper" : bestModelId;
+
+      // 3. Route transcription based on model & provider
       await enqueueAutoTranscription(
         doc.id,
         doc.filePath,
         settings.provider,
-        settings.provider === "groq" ? "groq-whisper" : "distil-small.en",
+        finalModelId,
         settings.language || "en",
+      );
+      toast.info(
+        "Transcription Queued",
+        `"${doc.title || "audio"}" has been enqueued for background transcription.`
       );
     } catch (error: any) {
       console.error("Failed to transcribe:", error);

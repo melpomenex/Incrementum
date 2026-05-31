@@ -96,35 +96,63 @@ impl JobQueue {
         let job_clone = job.clone();
         let repo_clone = repo.clone();
         let app_handle_clone = app_handle.clone();
+        let is_moonshine = job.model_id.starts_with("moonshine-");
 
-        engine.transcribe(&wav_path, &model_path, &job.language, move |seg| {
-            // Store segments in DB incrementally (or batch them)
-            // For simplicity, we'll just insert them as they come
-            let repo = repo_clone.clone();
-            let job = job_clone.clone();
-            let app_handle = app_handle_clone.clone();
-            
-            tokio::spawn(async move {
-                let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
-                    .bind(&job.book_id)
-                    .bind(&job.chapter_id)
-                    .fetch_one(repo.pool())
-                    .await.unwrap_or(0);
+        if is_moonshine {
+            engine.transcribe_moonshine(&wav_path, &model_path, &job.language, move |seg| {
+                let repo = repo_clone.clone();
+                let job = job_clone.clone();
+                let app_handle = app_handle_clone.clone();
 
-                if transcript_id > 0 {
-                    let _ = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
-                        .bind(transcript_id)
-                        .bind(seg.start_ms)
-                        .bind(seg.end_ms)
-                        .bind(&seg.text)
-                        .bind(seg.confidence)
-                        .execute(repo.pool())
-                        .await;
-                    
-                    app_handle.emit("transcription://segment", seg).expect("event emit failed");
-                }
-            });
-        }, None).await?;
+                tokio::spawn(async move {
+                    let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
+                        .bind(&job.book_id)
+                        .bind(&job.chapter_id)
+                        .fetch_one(repo.pool())
+                        .await.unwrap_or(0);
+
+                    if transcript_id > 0 {
+                        let _ = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+                            .bind(transcript_id)
+                            .bind(seg.start_ms)
+                            .bind(seg.end_ms)
+                            .bind(&seg.text)
+                            .bind(seg.confidence)
+                            .execute(repo.pool())
+                            .await;
+
+                        app_handle.emit("transcription://segment", seg).expect("event emit failed");
+                    }
+                });
+            }, None).await?;
+        } else {
+            engine.transcribe(&wav_path, &model_path, &job.language, move |seg| {
+                let repo = repo_clone.clone();
+                let job = job_clone.clone();
+                let app_handle = app_handle_clone.clone();
+
+                tokio::spawn(async move {
+                    let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
+                        .bind(&job.book_id)
+                        .bind(&job.chapter_id)
+                        .fetch_one(repo.pool())
+                        .await.unwrap_or(0);
+
+                    if transcript_id > 0 {
+                        let _ = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+                            .bind(transcript_id)
+                            .bind(seg.start_ms)
+                            .bind(seg.end_ms)
+                            .bind(&seg.text)
+                            .bind(seg.confidence)
+                            .execute(repo.pool())
+                            .await;
+
+                        app_handle.emit("transcription://segment", seg).expect("event emit failed");
+                    }
+                });
+            }, None).await?;
+        }
 
         // 5. Update status to completed
         sqlx::query("UPDATE transcripts SET status = 'completed' WHERE book_id = ? AND chapter_id = ?")
@@ -133,7 +161,31 @@ impl JobQueue {
             .execute(repo.pool())
             .await?;
 
-        // 6. Cleanup WAV
+        // 6. Copy transcript text to documents.content for AI assistant access
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT text FROM transcript_segments WHERE transcript_id = (SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?) ORDER BY start_ms"
+        )
+        .bind(&job.book_id)
+        .bind(&job.chapter_id)
+        .fetch_all(repo.pool())
+        .await
+        .unwrap_or_default();
+
+        let full_text: String = rows.iter()
+            .map(|r| r.0.trim())
+            .filter(|t| !t.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        if !full_text.is_empty() {
+            let _ = sqlx::query("UPDATE documents SET content = ? WHERE id = ?")
+                .bind(&full_text)
+                .bind(&job.book_id)
+                .execute(repo.pool())
+                .await;
+        }
+
+        // 7. Cleanup WAV
         let _ = std::fs::remove_file(wav_path);
 
         Ok(())

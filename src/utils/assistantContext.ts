@@ -88,9 +88,9 @@ function buildPdfContextContent(params: {
 export function getAssistantContextErrorMessage(reason?: string): string {
   switch (reason) {
     case "loading":
-      return "PDF context is still loading. Try again in a moment.";
+      return "Document context is still loading. Try again in a moment.";
     case "unavailable":
-      return "PDF text is unavailable for the current location. Enable OCR or extract text for this document, then try again.";
+      return "No text content available for this document. Transcribe the audio or extract text first, then try again.";
     default:
       return "Document context is unavailable for this request.";
   }

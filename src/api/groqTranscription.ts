@@ -290,7 +290,7 @@ async function transcribeChunk(
   const model = getGroqModel();
   
   // Read the chunk file
-  const bytes = await invokeCommand<number[]>('read_file_bytes', { filePath: chunkPath });
+  const bytes = await invokeCommand<number[]>('read_file_bytes', { filePath: chunkPath, file_path: chunkPath });
   const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/mp3' });
   
   const formData = new FormData();

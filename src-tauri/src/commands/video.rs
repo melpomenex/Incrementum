@@ -350,6 +350,15 @@ pub async fn generate_video_transcript(
         .await
         .map_err(|e| format!("Failed to save transcript: {}", e))?;
 
+    // Also write to documents.content for AI assistant access
+    if !transcript.is_empty() {
+        let _ = sqlx::query("UPDATE documents SET content = ? WHERE id = ?")
+            .bind(&transcript)
+            .bind(&document_id)
+            .execute(repo.pool())
+            .await;
+    }
+
     emit_status("completed", None);
 
     Ok(VideoTranscript {

@@ -508,13 +508,7 @@ export async function generateTranscript(
       return generateTranscriptWithGroq(filePath, onProgress);
     }
   } else {
-    const { transcribeAudioWithMoonshine } = await import("../utils/moonshineService");
-    let modelId = useSettingsStore.getState().settings.audioTranscription.preferredModelId || "moonshine-tiny";
-    if (!modelId.startsWith("moonshine-")) {
-      modelId = "moonshine-tiny";
-    }
-    
-    return transcribeAudioWithMoonshine(filePath, modelId, onProgress);
+    return generateTranscriptWithLocalWhisper(filePath, onProgress);
   }
 }
 

@@ -32,8 +32,6 @@ fn main() {
 
         for binary_path in &whisper_bins {
             // Read existing rpaths and delete any that point to /Volumes/external/
-            // (the original build machine) or any absolute paths that aren't
-            // @executable_path-based.
             let output = std::process::Command::new("otool")
                 .args(["-l", &binary_path.to_string_lossy()])
                 .output()
@@ -61,7 +59,54 @@ fn main() {
                 }
             }
 
-            // Add the correct rpath: Contents/MacOS/whisper -> Contents/Resources/bin/
+            let _ = std::process::Command::new("install_name_tool")
+                .args(["-add_rpath", "@executable_path/../Resources/bin"])
+                .arg(binary_path)
+                .output();
+        }
+
+        // Collect all moonshine-apple binaries in bin/
+        let moonshine_bins: Vec<std::path::PathBuf> = std::fs::read_dir(&bin_dir)
+            .unwrap()
+            .filter_map(|e| {
+                let e = e.unwrap();
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.starts_with("moonshine-") && name.contains("apple") {
+                    Some(e.path())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for binary_path in &moonshine_bins {
+            let output = std::process::Command::new("otool")
+                .args(["-l", &binary_path.to_string_lossy()])
+                .output()
+                .ok();
+
+            if let Some(output) = output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let mut rpaths = Vec::new();
+                for line in stdout.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("path ") && trimmed.contains("/Volumes/") {
+                        if let Some(path) = trimmed.strip_prefix("path ") {
+                            if let Some(path) = path.split_whitespace().next() {
+                                rpaths.push(path.to_string());
+                            }
+                        }
+                    }
+                }
+
+                for rpath in &rpaths {
+                    let _ = std::process::Command::new("install_name_tool")
+                        .args(["-delete_rpath", rpath])
+                        .arg(binary_path)
+                        .output();
+                }
+            }
+
             let _ = std::process::Command::new("install_name_tool")
                 .args(["-add_rpath", "@executable_path/../Resources/bin"])
                 .arg(binary_path)

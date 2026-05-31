@@ -1,10 +1,11 @@
 import { getTranscriptionProfiles } from "../api/transcription";
 import { generateVideoTranscript, getVideoTranscript, setVideoTranscript } from "../api/video-extracts";
-import { 
-  transcribeWithGroq, 
+import {
+  transcribeWithGroq,
   isGroqConfigured,
   GroqTranscriptionError,
 } from "../api/groqTranscription";
+import { updateDocumentContent } from "../api/documents";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useToastStore, ToastType } from "../components/common/Toast";
 import { isTauri } from "./tauri";
@@ -137,6 +138,11 @@ async function processWithGroq(job: VideoTranscriptionJob): Promise<void> {
       .filter((seg) => Number.isFinite(seg.time));
     
     await setVideoTranscript(job.documentId, response.text, segments);
+
+    // Copy transcript to documents.content for AI assistant access
+    try {
+      await updateDocumentContent(job.documentId, response.text);
+    } catch { /* non-critical */ }
     
   } catch (error) {
     if (error instanceof GroqTranscriptionError) {
@@ -162,6 +168,14 @@ async function processWithLocalWhisper(job: VideoTranscriptionJob): Promise<void
   if (!existing || existing.segments.length === 0) {
     await generateVideoTranscript(job.documentId, job.filePath, modelId, job.language);
   }
+
+  // Copy transcript to documents.content for AI assistant access
+  try {
+    const transcript = await getVideoTranscript(job.documentId);
+    if (transcript?.transcript) {
+      await updateDocumentContent(job.documentId, transcript.transcript);
+    }
+  } catch { /* non-critical */ }
 }
 
 /**

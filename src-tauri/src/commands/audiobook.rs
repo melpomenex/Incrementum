@@ -680,15 +680,26 @@ pub async fn generate_audiobook_transcript(
         wav_path = Some(prepared.clone());
 
         let model_path = model_manager.get_model_path(&selected_model);
+        let is_moonshine = selected_model.starts_with("moonshine-");
 
-        engine
-            .transcribe(&prepared, &model_path, &language, move |seg| {
+        if is_moonshine {
+            engine.transcribe_moonshine(&prepared, &model_path, &language, move |seg| {
                 if let Ok(mut guard) = segments_for_cb.lock() {
                     guard.push(seg);
                 }
             }, None)
             .await
             .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        } else {
+            engine
+                .transcribe(&prepared, &model_path, &language, move |seg| {
+                    if let Ok(mut guard) = segments_for_cb.lock() {
+                        guard.push(seg);
+                    }
+                }, None)
+                .await
+                .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        }
 
         Ok::<(), IncrementumError>(())
     }
