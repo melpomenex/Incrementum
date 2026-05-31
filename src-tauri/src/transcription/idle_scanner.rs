@@ -83,19 +83,31 @@ impl IdleScanner {
                     continue;
                 }
 
-                // Determine default provider/model
-                let provider = "local";
-                let model_id = "distil-small.en";
-                let language = "en";
-
                 let model_manager = match ModelManager::new(&app_handle) {
                     Ok(m) => m,
                     Err(_) => continue,
                 };
-                let has_model = model_manager.list_profiles().iter().any(|p| p.installed);
-                if !has_model {
+
+                let installed_profiles: Vec<_> = model_manager
+                    .list_profiles()
+                    .into_iter()
+                    .filter(|p| p.installed)
+                    .collect();
+
+                if installed_profiles.is_empty() {
                     continue;
                 }
+
+                // Prefer Moonshine models, otherwise fall back to the first installed model
+                let selected_profile = installed_profiles
+                    .iter()
+                    .find(|p| p.id.starts_with("moonshine-"))
+                    .or_else(|| installed_profiles.first())
+                    .unwrap(); // Safe because list is not empty
+
+                let provider = "local";
+                let model_id = &selected_profile.id;
+                let language = "en";
 
                 let mut enqueued = 0u32;
                 for (doc_id, _title, file_path) in untranscribed {

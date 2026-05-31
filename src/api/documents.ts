@@ -137,12 +137,16 @@ export interface PodcastImportResult {
 export async function importPodcastAudioFile(
   filePath: string,
   title?: string,
-  language?: string
+  language?: string,
+  modelId?: string,
+  autoTranscribe?: boolean
 ): Promise<PodcastImportResult> {
   return await invokeCommand<PodcastImportResult>("import_podcast_audio_file", {
     filePath,
     title,
     language,
+    modelId,
+    autoTranscribe,
   });
 }
 

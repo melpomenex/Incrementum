@@ -268,6 +268,8 @@ pub async fn import_podcast_audio_file(
     file_path: String,
     title: Option<String>,
     language: Option<String>,
+    model_id: Option<String>,
+    auto_transcribe: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<PodcastImportResult> {
     let path = Path::new(&file_path);
@@ -387,13 +389,14 @@ pub async fn import_podcast_audio_file(
     }
 
     // If no model was available for inline transcription, enqueue for auto-transcription
-    if !had_model {
+    if !had_model && auto_transcribe.unwrap_or(true) {
         if let Some(transcription_state) = app_handle.try_state::<crate::transcription::TranscriptionState>() {
+            let m_id = model_id.unwrap_or_else(|| "distil-small.en".to_string());
             let entry = crate::models::TranscriptionQueueEntry::new(
                 created.id.clone(),
                 stored_path.clone(),
                 "local".to_string(),
-                "distil-small.en".to_string(),
+                m_id,
                 language.as_deref().unwrap_or("en").to_string(),
             );
             if let Err(e) = transcription_state.auto_queue.enqueue(entry) {

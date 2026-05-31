@@ -63,6 +63,9 @@ pub async fn import_video_file(
     source_path: String,
     title: String,
     collection_id: Option<String>,
+    model_id: Option<String>,
+    language: Option<String>,
+    auto_transcribe: Option<bool>,
     repo: State<'_, Repository>,
 ) -> Result<Document, String> {
     let now = chrono::Utc::now();
@@ -114,17 +117,19 @@ pub async fn import_video_file(
         .map_err(|e| format!("Failed to create document: {}", e))?;
 
     // Auto-transcribe if enabled
-    // Note: Frontend should call enqueue_auto_transcription if autoTranscription is true.
-    // We enqueue here as a default behavior; the frontend can skip calling enqueue if disabled.
-    if let Some(transcription_state) = app_handle.try_state::<crate::transcription::TranscriptionState>() {
-        let entry = crate::models::TranscriptionQueueEntry::new(
-            created.id.clone(),
-            dest_path.to_string_lossy().to_string(),
-            "local".to_string(),
-            "distil-small.en".to_string(),
-            "en".to_string(),
-        );
-        let _ = transcription_state.auto_queue.enqueue(entry);
+    if auto_transcribe.unwrap_or(true) {
+        if let Some(transcription_state) = app_handle.try_state::<crate::transcription::TranscriptionState>() {
+            let m_id = model_id.unwrap_or_else(|| "distil-small.en".to_string());
+            let lang = language.unwrap_or_else(|| "en".to_string());
+            let entry = crate::models::TranscriptionQueueEntry::new(
+                created.id.clone(),
+                dest_path.to_string_lossy().to_string(),
+                "local".to_string(),
+                m_id,
+                lang,
+            );
+            let _ = transcription_state.auto_queue.enqueue(entry);
+        }
     }
 
     Ok(created)

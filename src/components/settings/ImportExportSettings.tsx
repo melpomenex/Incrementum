@@ -16,6 +16,7 @@ import { importPdfHighlightsAsExtracts, importPodcastAudioFile } from "../../api
 import { getClipboardWatcherEnabled, setClipboardWatcherEnabled } from "../common/ClipboardQuickAddWatcher";
 import { importReferenceItems, parseMendeleyItems, parseZoteroItems } from "../../utils/referenceImport";
 import { useI18n } from "../../lib/i18n";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { KindleImportDialog } from "../import/KindleImportDialog";
 
 /**
@@ -143,6 +144,7 @@ function AnkiExportControls() {
  */
 export function ImportExportSettings({ onChange }: { onChange: () => void }) {
   const { t } = useI18n();
+  const { settings } = useSettingsStore();
   const { collections, activeCollectionId } = useCollectionStore();
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     includeDocuments: true,
@@ -349,7 +351,13 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
       alert("Desktop file path is required for local Whisper import.");
       return;
     }
-    const result = await importPodcastAudioFile(filePath, podcastFile.name, podcastLanguage);
+    const result = await importPodcastAudioFile(
+      filePath,
+      podcastFile.name,
+      podcastLanguage,
+      settings.audioTranscription.preferredModelId,
+      settings.audioTranscription.autoTranscription
+    );
     alert(`Imported ${result.document.title} with ${result.transcript_segments} transcript segments.`);
     onChange();
   };

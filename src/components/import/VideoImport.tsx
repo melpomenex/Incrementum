@@ -71,6 +71,9 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
       const result = await invokeCommand<Document>('import_video_file', {
         sourcePath: filePath,
         title: title.trim(),
+        modelId: settings.audioTranscription.preferredModelId,
+        language: settings.audioTranscription.language || 'en',
+        autoTranscribe: settings.audioTranscription.autoTranscribeLocalVideos,
       });
 
       if (settings.audioTranscription.autoTranscribeLocalVideos && result.filePath) {
