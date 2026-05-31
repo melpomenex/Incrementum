@@ -12,7 +12,7 @@ fn main() {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with("moonshine-") {
                 // Already have a real or placeholder binary for this target
-                return;
+                break;
             }
         }
         // No moonshine binary found — probe the target triple and create placeholders
