@@ -1,30 +1,24 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Ensure moonshine sidecar placeholder exists for all declared targets.
+    // Ensure moonshine sidecar placeholder exists for the current target.
     // Tauri's bundler requires every externalBin entry to be present at build time.
     // If the real binary can't be built (e.g. no cmake on CI), a placeholder
     // keeps the build from failing. At runtime, the engine detects it's not
     // a real ONNX binary and falls back gracefully.
     let bin_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin");
     if bin_dir.is_dir() {
-        for entry in std::fs::read_dir(&bin_dir).unwrap().flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("moonshine-") {
-                // Already have a real or placeholder binary for this target
-                break;
+        let target = std::env::var("TARGET").unwrap_or_default();
+        if !target.is_empty() {
+            let sidecar_name = if target.contains("windows") {
+                format!("moonshine-{}.exe", target)
+            } else {
+                format!("moonshine-{}", target)
+            };
+            let sidecar_path = bin_dir.join(&sidecar_name);
+            if !sidecar_path.exists() {
+                std::fs::write(&sidecar_path, []).ok();
             }
-        }
-        // No moonshine binary found — probe the target triple and create placeholders
-        let target = std::env::var("TAURI_ENV_TARGET_TRIPLE")
-            .or_else(|_| std::env::var("TARGET_TRIPLE"))
-            .unwrap_or_default();
-        if target.contains("windows") {
-            let placeholder = bin_dir.join(format!("moonshine-{}.exe", target));
-            std::fs::write(&placeholder, []).ok();
-        } else if !target.is_empty() {
-            let placeholder = bin_dir.join(format!("moonshine-{}", target));
-            std::fs::write(&placeholder, []).ok();
         }
     }
 
