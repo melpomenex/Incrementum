@@ -200,6 +200,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Build sidecar binaries (if missing)
+        run: node scripts/download-sidecars.js
+
       - name: Build Tauri application
         run: npx tauri build ${{ matrix.tauri_args }}
         env:
@@ -377,6 +380,9 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Build sidecar binaries (if missing)
+        run: node scripts/download-sidecars.js
 
       - name: Build Tauri AppImage (with fallback repack)
         run: |

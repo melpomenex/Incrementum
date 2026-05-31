@@ -54,6 +54,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Build sidecar binaries (if missing)
+        run: node scripts/download-sidecars.js
+
       - name: Build Tauri application (Windows)
         uses: tauri-apps/tauri-action@v0
         with:
