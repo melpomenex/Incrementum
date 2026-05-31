@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.47.1] - 2026-05-31
+
+### Fixed
+- **Moonshine build resilience** — Native Moonshine sidecar build is now non-fatal; if compilation fails (e.g. onnxruntime hash mismatch on aarch64), the build continues without the binary. Browser-native Moonshine and Groq transcription remain fully functional.
+- **Dynamic onnxruntime hash verification** — Before building moonshine.cpp, the script now downloads each onnxruntime tarball and computes the real SHA256 hash, patching the cmake config to match. This prevents failures when upstream re-releases tarballs with different hashes.
+
 ## [1.47.0] - 2026-05-31
 
 ### Added

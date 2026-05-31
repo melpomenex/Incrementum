@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path, { dirname } from "path";
 import { execSync } from 'child_process';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -97,6 +98,87 @@ function ensureWhisperSource() {
 
   if (!fs.existsSync(path.join('whisper.cpp', 'CMakeLists.txt'))) {
     execSync('git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git');
+  }
+}
+
+function patchMoonshineOnnxruntimeHashes() {
+  const cmakeFile = path.join('moonshine.cpp', 'cmake', 'FetchOnnxruntime.cmake');
+  if (!fs.existsSync(cmakeFile)) return;
+
+  let lines = fs.readFileSync(cmakeFile, 'utf8').split('\n');
+  let patched = false;
+
+  // Fix typo OOnnxruntime_HASH -> Onnxruntime_HASH (MSVC)
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('OOnnxruntime_HASH')) {
+      lines[i] = lines[i].replace('OOnnxruntime_HASH', 'Onnxruntime_HASH');
+      console.log('  Fixed typo: OOnnxruntime_HASH -> Onnxruntime_HASH');
+      patched = true;
+    }
+  }
+
+  // Dynamically verify and patch SHA256 hashes for each onnxruntime tarball.
+  // The upstream repo has copy-paste errors (same hash for different platforms).
+  // We download each tarball, compute the real hash, and patch the cmake if needed.
+  // Dynamically extract onnxruntime version from the cmake file
+  let ORT_VERSION = '1.19.2'; // fallback
+  for (const line of lines) {
+    const vm = line.match(/set\(Onnxruntime_VERSION "([^"]+)"\)/);
+    if (vm) { ORT_VERSION = vm[1]; break; }
+  }
+  const ORT_BASEURL = `https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}`;
+  const PLATFORM_MAP = [
+    { stem: 'onnxruntime-osx-universal2', url: `${ORT_BASEURL}/onnxruntime-osx-universal2-${ORT_VERSION}.tgz` },
+    { stem: 'onnxruntime-win-x64', url: `${ORT_BASEURL}/onnxruntime-win-x64-${ORT_VERSION}.zip` },
+    { stem: 'onnxruntime-linux-aarch64', url: `${ORT_BASEURL}/onnxruntime-linux-aarch64-${ORT_VERSION}.tgz` },
+    { stem: 'onnxruntime-linux-x64-gpu', url: `${ORT_BASEURL}/onnxruntime-linux-x64-gpu-${ORT_VERSION}.tgz` },
+  ];
+
+  const tmpDir = '/tmp/ort-hash-check';
+  fs.mkdirSync(tmpDir, { recursive: true });
+  try {
+    for (const { stem, url: realUrl } of PLATFORM_MAP) {
+      const tmpFile = path.join(tmpDir, `hc-${Date.now()}`);
+      try {
+        console.log(`  Verifying onnxruntime hash: ${stem}`);
+        execSync(`curl -fL --max-time 60 -o ${shellQuote(tmpFile)} ${shellQuote(realUrl)}`, { stdio: 'ignore' });
+        const fileBuf = fs.readFileSync(tmpFile);
+        const actualHash = createHash('sha256').update(fileBuf).digest('hex');
+        console.log(`    Actual SHA256: ${actualHash}`);
+        // Find the cmake URL line for this platform stem
+        let urlLineIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes('Onnxruntime_URL') && lines[i].includes(stem)) {
+            urlLineIdx = i;
+            break;
+          }
+        }
+        if (urlLineIdx === -1) continue;
+        // Find the next Onnxruntime_HASH line after the URL
+        for (let i = urlLineIdx + 1; i < Math.min(urlLineIdx + 5, lines.length); i++) {
+          const hm = lines[i].match(/set\(Onnxruntime_HASH SHA256=([0-9a-f]{64})\)/);
+          if (hm) {
+            if (hm[1] !== actualHash) {
+              lines[i] = lines[i].replace(hm[1], actualHash);
+              console.log(`    Patched: ${hm[1].substring(0, 16)}... -> ${actualHash.substring(0, 16)}...`);
+              patched = true;
+            } else {
+              console.log('    Hash matches, no patch needed');
+            }
+            break;
+          }
+        }
+      } catch (dlErr) {
+        console.warn(`    Could not verify hash for ${stem}: ${dlErr.message}`);
+      } finally {
+        try { fs.unlinkSync(tmpFile); } catch {}
+      }
+    }
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+  }
+  if (patched) {
+    fs.writeFileSync(cmakeFile, lines.join('\n'));
   }
 }
 
@@ -819,36 +901,44 @@ async function main() {
     const moonshineName = `moonshine-${targetTriple}`;
     const moonshinePath = path.join(BIN_DIR, moonshineName);
     if (!fs.existsSync(moonshinePath)) {
-        console.log('Building Moonshine (Linux)...');
-        ensureMoonshineSource();
+        try {
+            console.log('Building Moonshine (Linux)...');
+            ensureMoonshineSource();
+            patchMoonshineOnnxruntimeHashes();
 
-        execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
-        execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
+            execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
+            execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
 
-        const candidates = [
-            'moonshine.cpp/build/examples/moonshine_example',
-            'moonshine.cpp/build/bin/moonshine_example',
-            'moonshine.cpp/build/src/moonshine_example',
-        ];
-        const moonshineBin = candidates.find(c => fs.existsSync(c));
-        if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
-        fs.copyFileSync(moonshineBin, moonshinePath);
+            const candidates = [
+                'moonshine.cpp/build/examples/moonshine_example',
+                'moonshine.cpp/build/bin/moonshine_example',
+                'moonshine.cpp/build/src/moonshine_example',
+            ];
+            const moonshineBin = candidates.find(c => fs.existsSync(c));
+            if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
+            fs.copyFileSync(moonshineBin, moonshinePath);
 
-        // Copy ONNX Runtime shared libraries
-        const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
-        if (fs.existsSync(ortLibDir)) {
-            for (const f of fs.readdirSync(ortLibDir)) {
-                if (f.startsWith('libonnxruntime') && f.endsWith('.so') && !f.includes('tensorrt') && !f.includes('cuda') && !f.includes('shared')) {
-                    fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+            // Copy ONNX Runtime shared libraries
+            const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
+            if (fs.existsSync(ortLibDir)) {
+                for (const f of fs.readdirSync(ortLibDir)) {
+                    if (f.startsWith('libonnxruntime') && f.endsWith('.so') && !f.includes('tensorrt') && !f.includes('cuda') && !f.includes('shared')) {
+                        fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+                    }
                 }
             }
-        }
 
-        // Set RPATH so the binary finds libonnxruntime in the same directory
-        try {
-            execSync(`patchelf --set-rpath '$ORIGIN' ${moonshinePath}`, { stdio: 'ignore' });
-        } catch {
-            console.log('Note: patchelf not available for moonshine, using LD_LIBRARY_PATH via wrapper');
+            // Set RPATH so the binary finds libonnxruntime in the same directory
+            try {
+                execSync(`patchelf --set-rpath '$ORIGIN' ${moonshinePath}`, { stdio: 'ignore' });
+            } catch {
+                console.log('Note: patchelf not available for moonshine, using LD_LIBRARY_PATH via wrapper');
+            }
+        } catch (moonshineError) {
+            console.warn(`⚠️  Moonshine native build failed for ${targetTriple}: ${moonshineError.message}`);
+            console.warn('   Moonshine native sidecar will not be available. Browser-native and Groq transcription will still work.');
+            // Clean up failed build artifacts to avoid wasting disk space
+            try { fs.rmSync('moonshine.cpp', { recursive: true, force: true }); } catch {}
         }
     }
 
@@ -913,29 +1003,36 @@ async function main() {
     const moonshineName = `moonshine-${targetTriple}`;
     const moonshinePath = path.join(BIN_DIR, moonshineName);
     if (!fs.existsSync(moonshinePath)) {
-        console.log('Building Moonshine (Mac)...');
-        ensureMoonshineSource();
+        try {
+            console.log('Building Moonshine (Mac)...');
+            ensureMoonshineSource();
+            patchMoonshineOnnxruntimeHashes();
 
-        execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
-        execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
+            execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
+            execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
 
-        const candidates = [
-            'moonshine.cpp/build/examples/moonshine_example',
-            'moonshine.cpp/build/bin/moonshine_example',
-            'moonshine.cpp/build/src/moonshine_example',
-        ];
-        const moonshineBin = candidates.find(c => fs.existsSync(c));
-        if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
-        fs.copyFileSync(moonshineBin, moonshinePath);
+            const candidates = [
+                'moonshine.cpp/build/examples/moonshine_example',
+                'moonshine.cpp/build/bin/moonshine_example',
+                'moonshine.cpp/build/src/moonshine_example',
+            ];
+            const moonshineBin = candidates.find(c => fs.existsSync(c));
+            if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
+            fs.copyFileSync(moonshineBin, moonshinePath);
 
-        // Copy ONNX Runtime shared libraries
-        const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
-        if (fs.existsSync(ortLibDir)) {
-            for (const f of fs.readdirSync(ortLibDir)) {
-                if (f.startsWith('libonnxruntime') && f.endsWith('.dylib')) {
-                    fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+            // Copy ONNX Runtime shared libraries
+            const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
+            if (fs.existsSync(ortLibDir)) {
+                for (const f of fs.readdirSync(ortLibDir)) {
+                    if (f.startsWith('libonnxruntime') && f.endsWith('.dylib')) {
+                        fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+                    }
                 }
             }
+        } catch (moonshineError) {
+            console.warn(`⚠️  Moonshine native build failed for ${targetTriple}: ${moonshineError.message}`);
+            console.warn('   Moonshine native sidecar will not be available. Browser-native and Groq transcription will still work.');
+            try { fs.rmSync('moonshine.cpp', { recursive: true, force: true }); } catch {}
         }
     }
 
@@ -985,29 +1082,36 @@ async function main() {
     const moonshineName = `moonshine-${targetTriple}`;
     const moonshinePath = path.join(BIN_DIR, moonshineName);
     if (!fs.existsSync(moonshinePath)) {
-      console.log('Building Moonshine (Windows)...');
-      ensureMoonshineSource();
+      try {
+        console.log('Building Moonshine (Windows)...');
+        ensureMoonshineSource();
+        patchMoonshineOnnxruntimeHashes();
 
-      execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
-      execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
+        execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
+        execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
 
-      const candidates = [
-        'moonshine.cpp/build/examples/Release/moonshine_example.exe',
-        'moonshine.cpp/build/bin/Release/moonshine_example.exe',
-        'moonshine.cpp/build/bin/moonshine_example.exe',
-      ];
-      const moonshineBin = candidates.find(c => fs.existsSync(c));
-      if (!moonshineBin) throw new Error('Failed to locate moonshine_example.exe after build');
-      fs.copyFileSync(moonshineBin, moonshinePath);
+        const candidates = [
+          'moonshine.cpp/build/examples/Release/moonshine_example.exe',
+          'moonshine.cpp/build/bin/Release/moonshine_example.exe',
+          'moonshine.cpp/build/bin/moonshine_example.exe',
+        ];
+        const moonshineBin = candidates.find(c => fs.existsSync(c));
+        if (!moonshineBin) throw new Error('Failed to locate moonshine_example.exe after build');
+        fs.copyFileSync(moonshineBin, moonshinePath);
 
-      // Copy ONNX Runtime DLL
-      const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
-      if (fs.existsSync(ortLibDir)) {
-        for (const f of fs.readdirSync(ortLibDir)) {
-          if (f.startsWith('onnxruntime') && f.endsWith('.dll')) {
-            fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+        // Copy ONNX Runtime DLL
+        const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
+        if (fs.existsSync(ortLibDir)) {
+          for (const f of fs.readdirSync(ortLibDir)) {
+            if (f.startsWith('onnxruntime') && f.endsWith('.dll')) {
+              fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
+            }
           }
         }
+      } catch (moonshineError) {
+        console.warn(`⚠️  Moonshine native build failed for ${targetTriple}: ${moonshineError.message}`);
+        console.warn('   Moonshine native sidecar will not be available. Browser-native and Groq transcription will still work.');
+        try { fs.rmSync('moonshine.cpp', { recursive: true, force: true }); } catch {}
       }
     }
   }
