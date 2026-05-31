@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.47.0] - 2026-05-31
+
+### Added
+- **Moonshine STT transcription** — Browser-native speech-to-text using the Moonshine model via @huggingface/transformers
+- **Native Moonshine sidecar** — Cross-platform Rust sidecar with onnxruntime for high-performance local transcription on desktop
+- **Scroll-position AI context** — AI assistant now receives scroll-position-aware context slicing for more relevant responses
+- **Moonshine wrapper & sidecar binaries** — Linux x86_64 moonshine binary and shell wrapper for seamless sidecar invocation
+- **libonnxruntime library** — Bundled ONNX runtime shared library for Linux sidecar transcription
+
+### Changed
+- **Transcription engine** — Major refactor to support both browser-native Moonshine and Groq cloud transcription with unified job queue
+- **Auto-queue transcription** — Enhanced auto-queue with Moonshine-first strategy, fallback to Groq, and improved job tracking
+- **Model manager** — Expanded to handle both local (Moonshine) and remote (Groq) transcription models with download progress
+- **Audiobook import dialog** — Streamlined import flow with improved transcription option handling
+- **Audio transcription settings** — Redesigned settings UI with Moonshine/Groq configuration options
+- **Browser extension** — Updated manifest and rebuilt extension package
+
 ## [1.46.0] - 2026-05-29
 
 ### Added
