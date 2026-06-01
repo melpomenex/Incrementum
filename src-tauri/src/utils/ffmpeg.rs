@@ -19,11 +19,21 @@ const HOMEBREW_BIN_DIRS: &[&str] = &[
     "/usr/local/bin",     // Intel Mac
 ];
 
+/// The ffmpeg binary name (platform-specific).
+fn ffmpeg_binary_name() -> &'static str {
+    if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" }
+}
+
+/// PATH separator character.
+const PATH_SEP: char = if cfg!(windows) { ';' } else { ':' };
+
 /// Resolve ffmpeg to an absolute path, checking common locations.
 fn resolve_ffmpeg_path() -> Option<PathBuf> {
+    let binary = ffmpeg_binary_name();
+
     // On macOS, GUI apps don't inherit shell PATH — check Homebrew locations directly
     for dir in HOMEBREW_BIN_DIRS {
-        let candidate = PathBuf::from(dir).join("ffmpeg");
+        let candidate = PathBuf::from(dir).join(binary);
         if candidate.exists() {
             return Some(candidate);
         }
@@ -31,8 +41,8 @@ fn resolve_ffmpeg_path() -> Option<PathBuf> {
 
     // Fall back to PATH resolution
     let path_var = std::env::var("PATH").unwrap_or_default();
-    for dir in path_var.split(':') {
-        let candidate = PathBuf::from(dir).join("ffmpeg");
+    for dir in path_var.split(PATH_SEP) {
+        let candidate = PathBuf::from(dir).join(binary);
         if candidate.exists() {
             return Some(candidate);
         }
@@ -52,7 +62,7 @@ fn enhanced_path() -> String {
     if homebrew_dirs.is_empty() {
         existing
     } else {
-        format!("{}:{}", homebrew_dirs.join(":"), existing)
+        format!("{}{}{}", homebrew_dirs.join(&PATH_SEP.to_string()), PATH_SEP, existing)
     }
 }
 
