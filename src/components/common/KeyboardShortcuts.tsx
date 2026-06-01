@@ -104,7 +104,7 @@ export const DEFAULT_SHORTCUTS: ShortcutAction[] = [
     name: "New Flashcard",
     description: "Create a new flashcard",
     category: ShortcutCategory.Editing,
-    defaultCombo: { key: "f", ctrl: true, shift: true, meta: true },
+    defaultCombo: { key: "f", ctrl: true, alt: true, meta: true },
   },
   {
     id: "edit.save",

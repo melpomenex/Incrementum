@@ -1017,6 +1017,8 @@ export const zh: Dict = {
   "commandPalette.goToAnalytics": "转到统计",
   "commandPalette.importDocument": "导入文档",
   "commandPalette.importDocumentDesc": "从文件导入新文档",
+  "commandPalette.createFlashcard": "创建闪卡",
+  "commandPalette.createFlashcardDesc": "打开闪卡工作室来制作一张闪卡",
   "commandPalette.keyboardShortcuts": "键盘快捷键",
   "commandPalette.navigate": "导航",
   "commandPalette.noCommandsFound": "未找到命令",

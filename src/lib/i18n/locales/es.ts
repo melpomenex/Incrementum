@@ -870,6 +870,8 @@ export const es: Dict = {
   "commandPalette.goToAnalytics": "Ir a Estadísticas",
   "commandPalette.importDocument": "Importar documento",
   "commandPalette.importDocumentDesc": "Importar un documento nuevo desde archivo",
+  "commandPalette.createFlashcard": "Crear tarjeta",
+  "commandPalette.createFlashcardDesc": "Abrir el Estudio de tarjetas para diseñar una tarjeta",
   "commandPalette.keyboardShortcuts": "Atajos de teclado",
   "commandPalette.navigate": "Navegar",
   "commandPalette.noCommandsFound": "No se encontraron comandos",

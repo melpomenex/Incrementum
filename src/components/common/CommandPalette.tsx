@@ -365,9 +365,29 @@ export function getDefaultCommands(): Command[] {
       description: t("commandPalette.importDocumentDesc"),
       icon: <Plus className="w-4 h-4" />,
       category: CommandCategory.Documents,
-      action: () => { window.dispatchEvent(new CustomEvent('import-document')); },
+      action: () => {
+        window.dispatchEvent(new CustomEvent("navigate", { detail: "/documents" }));
+        window.setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("import-document"));
+        }, 100);
+      },
       keywords: ["create", "add", "import", "file", "pdf", "epub"],
       shortcut: "⌘N",
+    }),
+    createCommand({
+      id: "new-flashcard",
+      label: t("commandPalette.createFlashcard"),
+      description: t("commandPalette.createFlashcardDesc"),
+      icon: <Plus className="w-4 h-4" />,
+      category: CommandCategory.Flashcards,
+      action: () => {
+        window.dispatchEvent(new CustomEvent("navigate", { detail: "/review" }));
+        window.setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("open-flashcard-studio"));
+        }, 100);
+      },
+      keywords: ["create", "add", "new", "flashcard", "card", "studio"],
+      shortcut: typeof window !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0 ? "⌘⌥F" : "Ctrl+Alt+F",
     }),
     createCommand({
       id: "go-documents",

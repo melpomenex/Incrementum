@@ -863,6 +863,8 @@ export const de: Dict = {
   "commandPalette.goToAnalytics": "Zur Statistik",
   "commandPalette.importDocument": "Dokument importieren",
   "commandPalette.importDocumentDesc": "Neues Dokument aus Datei importieren",
+  "commandPalette.createFlashcard": "Karteikarte erstellen",
+  "commandPalette.createFlashcardDesc": "KI-Karteikarten-Studio öffnen, um einen Entwurf zu erstellen",
   "commandPalette.keyboardShortcuts": "Tastenkürzel",
   "commandPalette.navigate": "Navigieren",
   "commandPalette.noCommandsFound": "Keine Befehle gefunden",

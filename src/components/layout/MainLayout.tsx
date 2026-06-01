@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useTabsStore, normalizePane, useDocumentStore, useSettingsStore, useUIStore, type TabType } from "../../stores";
 import { useI18n } from "../../lib/i18n";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
@@ -11,6 +11,7 @@ import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
+import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import {
   LayoutDashboard,
   ListTodo,
@@ -71,6 +72,7 @@ export function MainLayout() {
   const [vimiumEnabled] = useVimiumEnabled();
   const documentsLoadedRef = useRef(false);
   const [activePaneTabId, setActivePaneTabId] = useState<string | null>(null);
+  const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
 
   const toolbarPosition = useSettingsStore((state) => state.settings.interface.toolbarPosition);
 
@@ -103,6 +105,62 @@ export function MainLayout() {
     if (isInput) return;
     void captureAndSaveScreenshot().then(() => loadDocuments());
   });
+
+  useShortcut("gen.help", () => {
+    setIsShortcutsHelpOpen((prev) => !prev);
+  });
+
+  useShortcut("gen.settings", () => {
+    openTabByType("settings");
+  });
+
+  useShortcut("review.start", () => {
+    openTabByType("review");
+  });
+
+  useShortcut("edit.new-document", () => {
+    openTabByType("documents");
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("import-document"));
+    }, 100);
+  });
+
+  useShortcut("doc.import", () => {
+    openTabByType("documents");
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("import-document"));
+    }, 100);
+  });
+
+  useShortcut("edit.new-flashcard", () => {
+    openTabByType("review");
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("open-flashcard-studio"));
+    }, 100);
+  });
+
+  useShortcut("gen.quit", () => {
+    window.close();
+  });
+
+  useEffect(() => {
+    const handleShowHelp = () => {
+      setIsShortcutsHelpOpen(true);
+    };
+
+    const handleToggleTheme = () => {
+      const settings = useSettingsStore.getState().settings;
+      const next = settings.appearance.theme === "dark" ? "light" : "dark";
+      useSettingsStore.getState().updateSettingsCategory("appearance", { theme: next });
+    };
+
+    window.addEventListener("show-shortcuts-help", handleShowHelp);
+    window.addEventListener("toggle-theme", handleToggleTheme);
+    return () => {
+      window.removeEventListener("show-shortcuts-help", handleShowHelp);
+      window.removeEventListener("toggle-theme", handleToggleTheme);
+    };
+  }, []);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -199,7 +257,7 @@ export function MainLayout() {
     });
   };
 
-  const openTabByType = (type: TabType) => {
+  const openTabByType = useCallback((type: TabType) => {
     const tabConfig: Record<string, { title: string; content: React.ComponentType; closable: boolean }> = {
       dashboard: { title: "Dashboard", content: DashboardTab, closable: false },
       documents: { title: "Documents", content: DocumentsTab, closable: true },
@@ -225,7 +283,21 @@ export function MainLayout() {
       content: config.content,
       closable: config.closable,
     });
-  };
+  }, [addTab]);
+
+  useEffect(() => {
+    const handleNavigate = (e: CustomEvent<string>) => {
+      const path = e.detail;
+      const cleanPath = path.replace(/^\//, "");
+      const tabType = resolveTabType(cleanPath);
+      if (tabType) {
+        openTabByType(tabType);
+      }
+    };
+
+    window.addEventListener("navigate" as any, handleNavigate);
+    return () => window.removeEventListener("navigate" as any, handleNavigate);
+  }, [openTabByType]);
 
   const vimiumCommands = useMemo<VimiumCommand[]>(() => {
     const cmds: VimiumCommand[] = [
@@ -824,6 +896,10 @@ export function MainLayout() {
         actions={vimiumActions}
       >
         {renderLayout()}
+        <KeyboardShortcutsHelp
+          isOpen={isShortcutsHelpOpen}
+          onClose={() => setIsShortcutsHelpOpen(false)}
+        />
       </VimiumNavigationProvider>
     </MobileLayoutWrapper>
   );

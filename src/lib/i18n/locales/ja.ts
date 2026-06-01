@@ -853,6 +853,8 @@ export const ja: Dict = {
   "commandPalette.goToAnalytics": "統計ページへ",
   "commandPalette.importDocument": "ドキュメントをインポート",
   "commandPalette.importDocumentDesc": "ファイルから新しいドキュメントをインポート",
+  "commandPalette.createFlashcard": "フラッシュカードを作成",
+  "commandPalette.createFlashcardDesc": "カードスタジオを開いて新しくフラッシュカードの下書きを作成",
   "commandPalette.keyboardShortcuts": "キーボードショートカット",
   "commandPalette.navigate": "ナビゲーション",
   "commandPalette.noCommandsFound": "コマンドが見つかりません",

@@ -524,6 +524,10 @@ export function useVimiumNavigation(
       }
 
       // Normal mode key bindings
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+
       const key = e.key;
 
       if (key === "?") {

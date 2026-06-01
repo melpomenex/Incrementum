@@ -742,6 +742,8 @@ export const en: Dict = {
   "commandPalette.commandsCount": "{count} commands",
   "commandPalette.importDocument": "Import Document",
   "commandPalette.importDocumentDesc": "Import a new document from file",
+  "commandPalette.createFlashcard": "Create Flashcard",
+  "commandPalette.createFlashcardDesc": "Open Flashcard Studio to draft a card",
   "commandPalette.viewAllDocuments": "View all documents",
   "commandPalette.viewReviewQueue": "View review queue",
   "commandPalette.beginReviewSession": "Begin flashcard review session",

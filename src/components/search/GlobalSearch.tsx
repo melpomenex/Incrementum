@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/prefer-tag-over-role */
 /**
  * Global search system
  * Fast, full-text search across all content types
