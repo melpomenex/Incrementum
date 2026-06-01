@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.47.4] - 2026-06-01
+
+### Fixed
+- **FFmpeg detection on Windows** — FFmpeg binary lookup was using Unix-only PATH separator (`:`) and missing the `.exe` extension on Windows. Now uses `;` separator and `ffmpeg.exe` on Windows platforms.
+
+### Added
+- **Keyboard-driven shortcuts** — Premium keyboard-driven shortcuts for faster navigation and interaction
+- **Escape to close importers** — Press Escape to dismiss import dialogs
+- **Respect preferred transcription model in auto-queue** — Auto-queue now honors the user's preferred transcription model setting instead of always defaulting
+
 ## [1.47.1] - 2026-05-31
 
 ### Fixed
