@@ -107,6 +107,19 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
   }, [isOpen]);
 
   useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     const detectPdf = checkIsPdfUrl(url);
     setIsPdf(detectPdf);
     if (detectPdf) {

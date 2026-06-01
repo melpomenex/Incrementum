@@ -2574,14 +2574,43 @@ export function DocumentViewer({
     });
   }, [viewerSearchSupported]);
 
+  const scrollHtmlIframe = useCallback((direction: "up" | "down") => {
+    try {
+      const win = iframeRef.current?.contentWindow;
+      const doc = iframeRef.current?.contentDocument;
+      if (win && doc) {
+        const el = doc.scrollingElement || doc.documentElement || doc.body;
+        if (el) {
+          const step = 120;
+          el.scrollBy({ top: direction === "down" ? step : -step, behavior: "smooth" });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to scroll iframe:", e);
+    }
+  }, []);
+
+  const scrollDocumentContainer = useCallback((direction: "up" | "down") => {
+    const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
+    if (container) {
+      const step = 120;
+      container.scrollBy({ top: direction === "down" ? step : -step, behavior: "smooth" });
+    }
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in input
       if ((e.target as HTMLElement).tagName === "INPUT" ||
-        (e.target as HTMLElement).tagName === "TEXTAREA") {
+        (e.target as HTMLElement).tagName === "TEXTAREA" ||
+        (e.target as HTMLElement).isContentEditable) {
         return;
       }
-      if (!containerRef.current?.contains(e.target as Node)) return;
+      const isFocusedInViewer = 
+        e.target === document.body || 
+        containerRef.current?.contains(e.target as Node);
+      if (!isFocusedInViewer) return;
+
       const mod = e.ctrlKey || e.metaKey;
       const lowerKey = e.key.toLowerCase();
 
@@ -2654,6 +2683,23 @@ export function DocumentViewer({
         }
       }
 
+      // J / K smooth scrolling
+      if (lowerKey === "j") {
+        e.preventDefault();
+        if (docType === "html") {
+          scrollHtmlIframe("down");
+        } else if (docType === "markdown") {
+          scrollDocumentContainer("down");
+        }
+      } else if (lowerKey === "k") {
+        e.preventDefault();
+        if (docType === "html") {
+          scrollHtmlIframe("up");
+        } else if (docType === "markdown") {
+          scrollDocumentContainer("up");
+        }
+      }
+
       // Arrow keys for navigation when in document mode
       if (viewMode === "document") {
         if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
@@ -2682,7 +2728,7 @@ export function DocumentViewer({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyboard handler captures many stable callbacks; exhaustive deps would cause excessive re-registration
-  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode, docType, hasDocumentHistory, queueNav.totalDocuments]);
+  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode, docType, hasDocumentHistory, queueNav.totalDocuments, scrollHtmlIframe, scrollDocumentContainer]);
 
   const handlePrevPage = () => {
     if (currentDocument && currentDocument.totalPages) {
@@ -4143,15 +4189,28 @@ export function DocumentViewer({
     if (!win) return;
 
     const handler = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === "INPUT" ||
+        (e.target as HTMLElement).tagName === "TEXTAREA" ||
+        (e.target as HTMLElement).isContentEditable) {
+        return;
+      }
+
+      const lowerKey = e.key.toLowerCase();
       if (isCommandPaletteOpenShortcut(e)) {
         e.preventDefault();
         dispatchCommandPaletteOpen();
+      } else if (lowerKey === "j") {
+        e.preventDefault();
+        scrollHtmlIframe("down");
+      } else if (lowerKey === "k") {
+        e.preventDefault();
+        scrollHtmlIframe("up");
       }
     };
 
     win.addEventListener("keydown", handler, true);
     return () => win.removeEventListener("keydown", handler, true);
-  }, [currentDocument, currentDocument?.id, isHtmlViewer]);
+  }, [currentDocument, currentDocument?.id, isHtmlViewer, scrollHtmlIframe]);
 
   // Capture scroll position from HTML iframe for persistence.
   useEffect(() => {

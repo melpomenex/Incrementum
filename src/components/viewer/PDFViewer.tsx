@@ -196,6 +196,7 @@ export function PDFViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [outline, setOutline] = useState<any[]>([]);
+  const [flatOutline, setFlatOutline] = useState<{ title: string; dest: any; pageNumber: number }[]>([]);
   const [showTOC, setShowTOC] = useState(false);
   const [zoomMode, setZoomMode] = useState<ZoomMode>(externalZoomMode || "custom");
 
@@ -2513,11 +2514,139 @@ export function PDFViewer({
     ));
   };
 
+  // Pre-resolve outline destinations to flat sorted page numbers
+  useEffect(() => {
+    if (!pdf || outline.length === 0) {
+      setFlatOutline([]);
+      return;
+    }
+
+    let active = true;
+    const resolveFlatOutline = async () => {
+      const flat: { title: string; dest: any; pageNumber: number }[] = [];
+      
+      const traverse = async (items: any[]) => {
+        for (const item of items) {
+          if (!active) return;
+          if (item.dest) {
+            try {
+              const resolved = await resolveOutlineDest(item.dest);
+              if (resolved) {
+                flat.push({
+                  title: item.title,
+                  dest: item.dest,
+                  pageNumber: resolved.pageIndex + 1,
+                });
+              }
+            } catch (err) {
+              console.warn("Failed to resolve outline item dest:", err);
+            }
+          }
+          if (item.items && item.items.length > 0) {
+            await traverse(item.items);
+          }
+        }
+      };
+
+      await traverse(outline);
+      
+      if (active) {
+        // Sort by page number to make linear traversal correct
+        flat.sort((a, b) => a.pageNumber - b.pageNumber);
+        setFlatOutline(flat);
+      }
+    };
+
+    void resolveFlatOutline();
+    return () => {
+      active = false;
+    };
+  }, [pdf, outline, resolveOutlineDest]);
+
+  const handlePrevToc = useCallback(() => {
+    if (flatOutline.length === 0) return;
+    
+    let targetIndex = -1;
+    for (let i = 0; i < flatOutline.length; i++) {
+      if (flatOutline[i].pageNumber < pageNumber) {
+        targetIndex = i;
+      } else {
+        break;
+      }
+    }
+    
+    if (targetIndex !== -1) {
+      void handleTocClick(flatOutline[targetIndex].dest);
+    }
+  }, [flatOutline, pageNumber, handleTocClick]);
+
+  const handleNextToc = useCallback(() => {
+    if (flatOutline.length === 0) return;
+    
+    let targetIndex = -1;
+    for (let i = 0; i < flatOutline.length; i++) {
+      if (flatOutline[i].pageNumber > pageNumber) {
+        targetIndex = i;
+        break;
+      }
+    }
+    
+    if (targetIndex !== -1) {
+      void handleTocClick(flatOutline[targetIndex].dest);
+    }
+  }, [flatOutline, pageNumber, handleTocClick]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+    if ((e.target as HTMLElement).tagName === "INPUT" ||
+        (e.target as HTMLElement).tagName === "TEXTAREA" ||
+        (e.target as HTMLElement).isContentEditable) {
+      return;
+    }
+
+    const lowerKey = e.key.toLowerCase();
+
+    if (lowerKey === "j") {
+      e.preventDefault();
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.scrollBy({ top: 120, behavior: "smooth" });
+      }
+    } else if (lowerKey === "k") {
+      e.preventDefault();
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.scrollBy({ top: -120, behavior: "smooth" });
+      }
+    } else if (lowerKey === "h" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      handlePrevToc();
+    } else if (lowerKey === "l" || e.key === "ArrowRight") {
+      e.preventDefault();
+      handleNextToc();
+    } else if (e.key === "ArrowUp") {
       handlePrevPage();
-    } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+    } else if (e.key === "ArrowDown") {
       handleNextPage();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      const token = ++navTokenCounterRef.current;
+      activeNavTokenRef.current = token;
+      pendingNavRef.current = { token, pageNumber: effectiveStartPage, destArray: null };
+      if (pdfNavStabilityEnabledRef.current) {
+        setNavigationMode("programmatic-nav", "home-key");
+        isProgrammaticScrollRef.current = true;
+      }
+      onPageChange?.(effectiveStartPage);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const token = ++navTokenCounterRef.current;
+      activeNavTokenRef.current = token;
+      pendingNavRef.current = { token, pageNumber: effectiveEndPage, destArray: null };
+      if (pdfNavStabilityEnabledRef.current) {
+        setNavigationMode("programmatic-nav", "end-key");
+        isProgrammaticScrollRef.current = true;
+      }
+      onPageChange?.(effectiveEndPage);
     } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
       e.preventDefault();
       if (ocr.flowState === "idle") {
@@ -2527,6 +2656,13 @@ export function PDFViewer({
       }
     }
   };
+
+  // Autofocus the outer container on mount to enable immediate keyboard navigation
+  useEffect(() => {
+    if (outerContainerRef.current) {
+      outerContainerRef.current.focus();
+    }
+  }, []);
 
   // Pan/drag handlers for zoomed content
   const handleMouseDown = (e: React.MouseEvent) => {

@@ -281,9 +281,21 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
         }
       }
     })();
-    return () => {
-      cancelled = true;
+  }, [showYouTubeImport]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showYouTubeImport) {
+        setShowYouTubeImport(false);
+        setYoutubeUrl("");
+        setYoutubeError(null);
+      }
     };
+
+    if (showYouTubeImport) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
   }, [showYouTubeImport]);
 
   const searchTokens = useMemo(() => parseDocumentSearch(debouncedSearch), [debouncedSearch]);

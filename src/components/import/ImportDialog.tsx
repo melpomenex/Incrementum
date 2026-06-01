@@ -58,6 +58,19 @@ export function ImportDialog({ url, isOpen, onClose, onImport }: ImportDialogPro
     }
   }, [isOpen, url]);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, onClose]);
+
   const loadPreview = async () => {
     setLoading(true);
     setError(null);

@@ -69,6 +69,19 @@ export function YouTubeImportDialog({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, onClose]);
+
   const checkYTDLP = async () => {
     try {
       const available = await invokeCommand<boolean>("check_ytdlp");

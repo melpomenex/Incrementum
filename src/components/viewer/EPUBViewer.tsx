@@ -211,6 +211,7 @@ export function EPUBViewer({
   const liveSearchVersionRef = useRef(0);
   const activeLiveSearchCfiRef = useRef<string | null>(null);
   const activePersistedHighlightsRef = useRef<string[]>([]);
+  const handleEPUBKeyDownRef = useRef<any>(null);
 
   // Sync state
   const syncSegmentsRef = useRef<SyncSegment[]>([]);
@@ -704,6 +705,19 @@ export function EPUBViewer({
             // Bind Cmd/Ctrl+K here so the command palette always opens while reading.
             contents.window.addEventListener("keydown", handleCommandPaletteHotkey, true);
             contents.window.addEventListener("keydown", handleExtractTextHotkey, true);
+            contents.window.addEventListener("keydown", (e: KeyboardEvent) => {
+              if (handleEPUBKeyDownRef.current) {
+                handleEPUBKeyDownRef.current(e);
+              }
+            }, true);
+            
+            // Auto-focus the iframe window to enable immediate keyboard navigation
+            try {
+              setTimeout(() => {
+                contents.window.focus();
+              }, 150);
+            } catch { /* ignore */ }
+
             if (contents.window) {
               onIframeWindowReadyRef.current?.(contents.window);
             }
@@ -1511,25 +1525,174 @@ export function EPUBViewer({
     }
   };
 
-  useEffect(() => {
-    if (isMobile) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + Plus to increase font size
-      if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "+")) {
-        e.preventDefault();
-        increaseFontSize();
+  const scrollEpub = useCallback((direction: "up" | "down") => {
+    const step = 120;
+    const target = direction === "down" ? step : -step;
+
+    const getScrollableElement = (root: HTMLElement): HTMLElement | null => {
+      // Prevent traversing inside iframes to avoid getting hijacked by sub-documents
+      if (root.tagName === "IFRAME") return null;
+
+      if (root.scrollHeight > root.clientHeight) {
+        const style = window.getComputedStyle(root);
+        if (style.overflowY === "auto" || style.overflowY === "scroll") {
+          return root;
+        }
       }
-      // Ctrl/Cmd + Minus to decrease font size
-      else if ((e.ctrlKey || e.metaKey) && (e.key === "-" || e.key === "_")) {
-        e.preventDefault();
-        decreaseFontSize();
+      for (let i = 0; i < root.children.length; i++) {
+        const child = root.children[i] as HTMLElement;
+        const found = getScrollableElement(child);
+        if (found) return found;
       }
-      // Ctrl/Cmd + 0 to reset font size
-      else if ((e.ctrlKey || e.metaKey) && e.key === "0") {
-        e.preventDefault();
-        resetFontSize();
+      return null;
+    };
+
+    const root = viewerRef.current;
+    if (root) {
+      const scrollable = getScrollableElement(root);
+      if (scrollable) {
+        scrollable.scrollBy({ top: target, behavior: "smooth" });
+        return;
+      }
+    }
+
+    const iframe = viewerRef.current?.querySelector("iframe");
+    if (iframe?.contentWindow) {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        const el = doc.scrollingElement || doc.documentElement || doc.body;
+        if (el) {
+          el.scrollBy({ top: target, behavior: "smooth" });
+        }
+      } catch (e) {
+        console.warn("EPUBViewer: Failed to scroll iframe:", e);
+      }
+    }
+  }, []);
+
+  const getFlatToc = useCallback(() => {
+    const flat: any[] = [];
+    const traverse = (items: any[]) => {
+      for (const item of items) {
+        flat.push(item);
+        if (item.subitems && item.subitems.length > 0) {
+          traverse(item.subitems);
+        }
       }
     };
+    traverse(tocRef.current || []);
+    return flat;
+  }, []);
+
+  const getCurrentTocIndex = useCallback((flat: any[]) => {
+    if (!rendition) return -1;
+    try {
+      const currentLocation = rendition.currentLocation() as any;
+      const currentHref = currentLocation?.start?.href;
+      if (!currentHref) return -1;
+
+      const normalize = (h: string) => h.replace(/^\.?\//, "").split("#")[0];
+      const normCurrent = normalize(currentHref);
+
+      let index = flat.findIndex(item => item.href && normalize(item.href) === normCurrent);
+      if (index !== -1) return index;
+
+      index = flat.findIndex(item => item.href && (normalize(item.href).endsWith(normCurrent) || normCurrent.endsWith(normalize(item.href))));
+      return index;
+    } catch {
+      return -1;
+    }
+  }, [rendition]);
+
+  const handlePrevToc = useCallback(async () => {
+    const flat = getFlatToc();
+    if (flat.length === 0) return;
+    const currentIndex = getCurrentTocIndex(flat);
+    if (currentIndex > 0) {
+      await handleTocClick(flat[currentIndex - 1].href);
+    } else if (currentIndex === -1) {
+      await handleTocClick(flat[0].href);
+    }
+  }, [getFlatToc, getCurrentTocIndex, handleTocClick]);
+
+  const handleNextToc = useCallback(async () => {
+    const flat = getFlatToc();
+    if (flat.length === 0) return;
+    const currentIndex = getCurrentTocIndex(flat);
+    if (currentIndex !== -1 && currentIndex < flat.length - 1) {
+      await handleTocClick(flat[currentIndex + 1].href);
+    } else if (currentIndex === -1) {
+      await handleTocClick(flat[0].href);
+    }
+  }, [getFlatToc, getCurrentTocIndex, handleTocClick]);
+
+  const handleEPUBKeyDown = useCallback((e: KeyboardEvent) => {
+    // Don't trigger if typing in input
+    if ((e.target as HTMLElement).tagName === "INPUT" ||
+      (e.target as HTMLElement).tagName === "TEXTAREA" ||
+      (e.target as HTMLElement).isContentEditable) {
+      return;
+    }
+
+    const lowerKey = e.key.toLowerCase();
+
+    // Ctrl/Cmd + Plus to increase font size
+    if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "+")) {
+      e.preventDefault();
+      increaseFontSize();
+    }
+    // Ctrl/Cmd + Minus to decrease font size
+    else if ((e.ctrlKey || e.metaKey) && (e.key === "-" || e.key === "_")) {
+      e.preventDefault();
+      decreaseFontSize();
+    }
+    // Ctrl/Cmd + 0 to reset font size
+    else if ((e.ctrlKey || e.metaKey) && e.key === "0") {
+      e.preventDefault();
+      resetFontSize();
+    }
+    
+    // J / K scroll navigation
+    else if (lowerKey === "j") {
+      e.preventDefault();
+      scrollEpub("down");
+    } else if (lowerKey === "k") {
+      e.preventDefault();
+      scrollEpub("up");
+    }
+    
+    // H / L and Arrow keys for TOC navigation
+    else if (lowerKey === "h" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      void handlePrevToc();
+    } else if (lowerKey === "l" || e.key === "ArrowRight") {
+      e.preventDefault();
+      void handleNextToc();
+    }
+
+    // Home / End boundaries
+    else if (e.key === "Home") {
+      e.preventDefault();
+      const flat = getFlatToc();
+      if (flat.length > 0) {
+        void handleTocClick(flat[0].href);
+      }
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const flat = getFlatToc();
+      if (flat.length > 0) {
+        void handleTocClick(flat[flat.length - 1].href);
+      }
+    }
+  }, [decreaseFontSize, increaseFontSize, resetFontSize, scrollEpub, handlePrevToc, handleNextToc, getFlatToc, handleTocClick]);
+
+  // Keep ref up to date on every render
+  useEffect(() => {
+    handleEPUBKeyDownRef.current = handleEPUBKeyDown;
+  }, [handleEPUBKeyDown]);
+
+  useEffect(() => {
+    if (isMobile) return;
 
     const handleWheel = (e: WheelEvent) => {
       // Ctrl/Cmd + Scroll to change font size
@@ -1543,19 +1706,19 @@ export function EPUBViewer({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleEPUBKeyDown);
     const viewerElement = viewerRef.current;
     if (viewerElement) {
       viewerElement.addEventListener("wheel", handleWheel, { passive: false });
     }
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleEPUBKeyDown);
       if (viewerElement) {
         viewerElement.removeEventListener("wheel", handleWheel);
       }
     };
-  }, [decreaseFontSize, increaseFontSize, isMobile, resetFontSize]);
+  }, [handleEPUBKeyDown, decreaseFontSize, increaseFontSize, isMobile]);
 
   const handleReaderTap = (event: MouseEvent<HTMLDivElement>) => {
     if (!isMobile) return;
