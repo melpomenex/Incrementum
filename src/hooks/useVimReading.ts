@@ -99,7 +99,7 @@ export function useVimReading({
       if (e.key === "Escape" && mode === "inactive" && !isModalOpen) {
         engine.activate(documentId);
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         return;
       }
 
@@ -109,7 +109,7 @@ export function useVimReading({
       const handled = engine.handleKeyDown(e);
       if (handled) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
       }
     };
   }, [documentId, isModalOpen]);
