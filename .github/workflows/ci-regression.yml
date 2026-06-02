@@ -20,6 +20,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev
+
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -63,6 +68,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev
 
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
