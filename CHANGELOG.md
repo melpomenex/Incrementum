@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.48.0] - 2026-06-02
+
+### Added
+- **Vim reading mode** — Press Escape in any text document (EPUB, PDF, Markdown, HTML) to activate a Vim-like modal reading experience. Navigate word-by-word (h/l/w/b/e), line-by-line (j/k), jump to line boundaries (0/$), document boundaries (gg/G), and paragraphs ({/}). Press v for visual selection, V for visual line selection, then act on the selection: Enter to extract, y to yank (copy), H to highlight, F to create a flashcard. All keybindings are customizable in Settings > Keyboard Shortcuts > Vim Reading. Press Escape again to deactivate.
+
 ## [1.47.4] - 2026-06-01
 
 ### Fixed
