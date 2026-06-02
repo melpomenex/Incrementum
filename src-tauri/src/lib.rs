@@ -301,14 +301,6 @@ pub fn run() {
             install_panic_hook(app_handle.clone());
             log_startup(&app_handle, "startup: begin");
 
-            #[cfg(target_os = "linux")]
-            {
-                use tauri::Manager;
-                if let Some(main_win) = app.get_webview_window("main") {
-                    let _ = main_win.set_decorations(false);
-                }
-            }
-
             // Register global keyboard shortcuts to prevent webview engines
             // (webkit2gtk on Linux, WebView2 on Windows, WKWebView on macOS)
             // from intercepting Ctrl/Cmd+key combos before JavaScript.

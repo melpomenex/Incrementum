@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.47.5] - 2026-06-02
+
+### Fixed
+- **Restored native title bar on Linux (.deb)** — Window decorations (minimize, maximize, close) are now visible on Linux installations again. The title text in the title bar is also restored.
+
 ## [1.48.0] - 2026-06-02
 
 ### Added

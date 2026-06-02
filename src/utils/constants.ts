@@ -3,7 +3,7 @@
  */
 
 export const APP_NAME = "Incrementum";
-export const APP_VERSION = "1.23.5";
+export const APP_VERSION = "1.47.5";
 
 export const KEYBOARD_SHORTCUTS = {
   COMMAND_PALETTE: "Cmd+Shift+P",
