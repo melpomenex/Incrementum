@@ -22,6 +22,7 @@ const shortcutCategoryLabels: Record<ShortcutCategory, string> = {
   [ShortcutCategory.Documents]: "settings.shortcutCategory.documents",
   [ShortcutCategory.Flashcards]: "settings.shortcutCategory.flashcards",
   [ShortcutCategory.General]: "settings.shortcutCategory.general",
+  [ShortcutCategory.VimReading]: "Vim Reading",
 };
 
 const shortcutLabels: Record<string, { name: string; description: string }> = {

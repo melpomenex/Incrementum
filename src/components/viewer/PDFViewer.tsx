@@ -25,6 +25,7 @@ import {
   type PdfTextSelectionCapability,
 } from "./pdfTextSelection";
 import { useI18n } from "../../lib/i18n";
+import { useVimModeStore } from "../../stores/vimModeStore";
 // Custom selection engine imports
 import { usePdfCustomSelection } from "./selection";
 import { SelectionRenderer } from "./selection";
@@ -2606,23 +2607,31 @@ export function PDFViewer({
     const lowerKey = e.key.toLowerCase();
 
     if (lowerKey === "j") {
-      e.preventDefault();
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.scrollBy({ top: 120, behavior: "smooth" });
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        const container = scrollContainerRef.current;
+        if (container) {
+          container.scrollBy({ top: 120, behavior: "smooth" });
+        }
       }
     } else if (lowerKey === "k") {
-      e.preventDefault();
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.scrollBy({ top: -120, behavior: "smooth" });
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        const container = scrollContainerRef.current;
+        if (container) {
+          container.scrollBy({ top: -120, behavior: "smooth" });
+        }
       }
     } else if (lowerKey === "h" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      handlePrevToc();
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        handlePrevToc();
+      }
     } else if (lowerKey === "l" || e.key === "ArrowRight") {
-      e.preventDefault();
-      handleNextToc();
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        handleNextToc();
+      }
     } else if (e.key === "ArrowUp") {
       handlePrevPage();
     } else if (e.key === "ArrowDown") {

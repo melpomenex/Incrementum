@@ -5,6 +5,7 @@ import ePub from "epubjs";
 import { cn } from "../../utils";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useVimModeStore } from "../../stores/vimModeStore";
 import { getDeviceInfo } from "../../lib/pwa";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
@@ -1652,22 +1653,30 @@ export function EPUBViewer({
       resetFontSize();
     }
     
-    // J / K scroll navigation
+    // J / K scroll navigation (suppressed when vim reading mode is active)
     else if (lowerKey === "j") {
-      e.preventDefault();
-      scrollEpub("down");
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        scrollEpub("down");
+      }
     } else if (lowerKey === "k") {
-      e.preventDefault();
-      scrollEpub("up");
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        scrollEpub("up");
+      }
     }
-    
-    // H / L and Arrow keys for TOC navigation
+
+    // H / L and Arrow keys for TOC navigation (suppressed when vim mode is active)
     else if (lowerKey === "h" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      void handlePrevToc();
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        void handlePrevToc();
+      }
     } else if (lowerKey === "l" || e.key === "ArrowRight") {
-      e.preventDefault();
-      void handleNextToc();
+      if (useVimModeStore.getState().mode === "inactive") {
+        e.preventDefault();
+        void handleNextToc();
+      }
     }
 
     // Home / End boundaries

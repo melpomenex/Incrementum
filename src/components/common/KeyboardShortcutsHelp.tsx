@@ -28,6 +28,7 @@ const CATEGORY_LABEL_KEYS: Record<ShortcutCategory, string> = {
   [ShortcutCategory.Documents]: "keyboardShortcutsHelp.queue",
   [ShortcutCategory.Flashcards]: "keyboardShortcutsHelp.global",
   [ShortcutCategory.General]: "keyboardShortcutsHelp.global",
+  [ShortcutCategory.VimReading]: "keyboardShortcutsHelp.global",
 };
 
 const CATEGORY_ORDER: ShortcutCategory[] = [

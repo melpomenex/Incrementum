@@ -24,6 +24,8 @@ import { PriorityControl } from "./PriorityControl";
 import { DocumentMinimap, type MinimapSegment } from "./DocumentMinimap";
 import { useInlineExtraction, flashAnimationStyles } from "../../hooks/useInlineExtraction";
 import { useToastExtract } from "../../hooks/useToastExtract";
+import { useVimReading } from "../../hooks/useVimReading";
+import { VimModeIndicator } from "./VimModeIndicator";
 import { markItemViewed } from "../../lib/queueSession";
 import { useQueueNavigation } from "../../hooks/useQueueNavigation";
 import { cn } from "../../utils";
@@ -1331,6 +1333,48 @@ export function DocumentViewer({
       setEditExtractFromToast(extract);
       setIsEditExtractDialogOpen(true);
     },
+  });
+
+  // Vim reading mode
+  const { engineRef: vimEngineRef } = useVimReading({
+    docType: docType as "epub" | "pdf" | "markdown" | "html",
+    documentId: currentDocument?.id ?? "",
+    iframeWindow: epubIframeWindow,
+    iframeRef,
+    contentRef: undefined,
+    scrollContainerRef: null,
+    pdfTextLayerRoots: undefined,
+    pdfScrollContainer: null,
+    actionContext: currentDocument ? {
+      documentId: currentDocument.id,
+      getSelectedText: () => selectedTextRef.current || window.getSelection()?.toString() || "",
+      getPageNumber: () => computeExtractPageNumber({
+        selectionContext,
+        viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
+        scrollPercent: lastScrollStateRef.current?.scrollPercent,
+        totalPages: currentDocument?.totalPages ?? 0,
+        isEpubDoc: docType === "epub",
+      }),
+      getSelectionContext: () => selectionContext,
+      createInstantExtract,
+      openExtractDialog: (text: string) => {
+        setSelectedText(text);
+        lastSelectionRef.current = text;
+        setIsExtractDialogOpen(true);
+      },
+      openFlashcardStudio: (params) => {
+        setFlashcardStudioSeed({
+          key: params.key,
+          documentId: params.documentId,
+          excerpt: params.excerpt,
+          draftCardType: params.draftCardType,
+          resetDraftCards: true,
+          autoEditDraft: true,
+        });
+      },
+      clearTextSelection,
+    } : undefined,
+    isModalOpen: isExtractDialogOpen || !!flashcardStudioSeed,
   });
 
   // Build context menu items for text selection in non-PDF viewers
@@ -5644,6 +5688,9 @@ export function DocumentViewer({
         onClose={() => setFlashcardStudioSeed(null)}
         seed={flashcardStudioSeed}
       />
+
+      {/* Vim reading mode indicator */}
+      <VimModeIndicator />
     </div>
   );
 }
