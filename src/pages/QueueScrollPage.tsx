@@ -118,6 +118,7 @@ const SESSION_KEYS = {
   SESSION_TIMESTAMP: "scroll-mode-session-time",
   ITEMS_REVIEWED: "scroll-mode-items-reviewed",
   RATED_IDS: "scroll-mode-rated-ids",
+  READ_RSS_IDS: "scroll-mode-read-rss-ids",
 } as const;
 
 /**
@@ -199,6 +200,7 @@ export function QueueScrollPage() {
   const [dueExtracts, setDueExtracts] = useState<Extract[]>([]);
   const [isRating, setIsRating] = useState(false);
   const [ratedDocumentIds, setRatedDocumentIds] = useState<Set<string>>(new Set());
+  const [readRssItemIds, setReadRssItemIds] = useState<Set<string>>(new Set());
   const [itemsReviewedThisSession, setItemsReviewedThisSession] = useState(0);
   const [, setAssistantInputActive] = useState(false);
   const [assistantPosition, setAssistantPosition] = useState<AssistantPosition>(() => {
@@ -301,6 +303,15 @@ export function QueueScrollPage() {
       }
     }
 
+    const savedReadRssIds = sessionStorage.getItem(SESSION_KEYS.READ_RSS_IDS);
+    if (savedReadRssIds) {
+      try {
+        setReadRssItemIds(new Set(JSON.parse(savedReadRssIds)));
+      } catch {
+        // ignore parse errors
+      }
+    }
+
     const savedItemsReviewed = sessionStorage.getItem(SESSION_KEYS.ITEMS_REVIEWED);
     if (savedItemsReviewed) {
       setItemsReviewedThisSession(parseInt(savedItemsReviewed, 10) || 0);
@@ -310,6 +321,10 @@ export function QueueScrollPage() {
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEYS.RATED_IDS, JSON.stringify(Array.from(ratedDocumentIds)));
   }, [ratedDocumentIds]);
+
+  useEffect(() => {
+    sessionStorage.setItem(SESSION_KEYS.READ_RSS_IDS, JSON.stringify(Array.from(readRssItemIds)));
+  }, [readRssItemIds]);
 
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEYS.ITEMS_REVIEWED, String(itemsReviewedThisSession));
@@ -721,7 +736,7 @@ export function QueueScrollPage() {
             estimatedTime: 5,
             engagementScore: 10, // Max priority for custom subset items
           };
-        }).filter(item => !!item.rssItem);
+        }).filter(item => !!item.rssItem && !readRssItemIds.has(item.rssItem.id));
       } else if (rssSettings.includeInQueue) {
         // Get items based on unread setting
         let rssItemsToProcess: { feed: RSSFeed; item: RSSFeedItem }[];
@@ -942,7 +957,7 @@ export function QueueScrollPage() {
     return () => {
       cancelled = true;
     };
-  }, [documentQueueItems, documents, dueFlashcards, dueExtracts, isRating, settings.scrollQueue, settings.rssQueue, settings.podcastQueue, applyVarietyMixing]);
+  }, [documentQueueItems, documents, dueFlashcards, dueExtracts, isRating, readRssItemIds, settings.scrollQueue, settings.rssQueue, settings.podcastQueue, applyVarietyMixing]);
 
   // Current item (for display during transition)
   const currentItem = scrollItems[currentIndex];
@@ -1599,36 +1614,19 @@ export function QueueScrollPage() {
         // Mark RSS item as read
         await markItemReadAuto(currentItem.rssFeed.id, currentItem.rssItem.id, true);
 
+        // Track read RSS item to prevent re-appearance in custom subset rebuilds
+        setReadRssItemIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(currentItem.rssItem!.id);
+          return newSet;
+        });
+
         // Track items reviewed
         setItemsReviewedThisSession(prev => prev + 1);
 
-        // Reload RSS items to update the list
-        const rssUnread = await getUnreadItemsAuto();
-        const rssItems: ScrollItem[] = rssUnread.map(({ feed, item }) => ({
-          id: `rss-${item.id}`,
-          type: "rss",
-          documentTitle: item.title,
-          rssItem: item,
-          rssFeed: feed,
-        }));
-        const docItems = scrollItems.filter(item => item.type === "document");
-        const flashcardItems = scrollItems.filter(item => item.type === "flashcard");
-        const extractItems = scrollItems.filter(item => item.type === "extract");
-        const nextItems = [...flashcardItems, ...extractItems, ...docItems, ...rssItems];
-        setScrollItems(nextItems);
-        if (nextItems.length === 0) {
-          setCurrentIndex(0);
-          setRenderedIndex(0);
-        } else {
-          const nextIndex = Math.min(currentIndex, nextItems.length - 1);
-          setIsTransitioning(true);
-          setCurrentIndex(nextIndex);
-          startTimeRef.current = Date.now();
-          setTimeout(() => {
-            setRenderedIndex(nextIndex);
-            setIsTransitioning(false);
-          }, 300);
-        }
+        // Remove from scroll items and advance — the useEffect rebuild will
+        // handle refreshing the full list (filtering out read items via readRssItemIds)
+        advanceAfterRemoval(ratedItemId);
       } else if (currentItem.type === "extract" && currentItem.extract) {
         await submitExtractReview(currentItem.extract.id, rating, timeTaken);
 
