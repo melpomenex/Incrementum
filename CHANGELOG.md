@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.47.6] - 2026-06-03
+
+### Fixed
+- **Restored IPC on Linux production builds** — Pinned `tauri = "=2.11.0"` to work around a regression introduced in Tauri 2.11.1's fix for [GHSA-7gmj-67g7-phm9](https://github.com/tauri-apps/tauri/security/advisories/GHSA-7gmj-67g7-phm9) (origin confusion in IPC). The stricter `is_local_url()` check in 2.11.1+ classifies `http://localhost` (used by `tauri-plugin-localhost` for WebKitGTK compatibility) as a remote origin and rejects all custom `#[tauri::command]` invocations with "Command X not allowed by ACL". Since Incrementum only loads its own bundled frontend assets with no remote content, the CVE's attack vector does not apply.
+
 ## [1.47.5] - 2026-06-02
 
 ### Fixed
