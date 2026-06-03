@@ -3812,7 +3812,7 @@ dependencies = [
 
 [[package]]
 name = "incrementum-tauri"
-version = "1.48.0"
+version = "1.47.5"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -7900,9 +7900,9 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
 name = "tauri"
-version = "2.11.2"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "437404997acf375d85f1177afa7e11bb971f274ed6a7b83a2a3e339015f4cc28"
+checksum = "d059f2527558d9dba6f186dec4772610e1aecfd3f94002397613e7e648752b66"
 dependencies = [
  "anyhow",
  "bytes",

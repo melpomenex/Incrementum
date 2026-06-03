@@ -13,7 +13,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["unstable"] }
+# Pin to 2.11.0 to avoid the is_local_url() regression in 2.11.1+ (GHSA-7gmj-67g7-phm9)
+# which treats http://localhost (tauri-plugin-localhost) as a remote origin and
+# blocks all custom IPC commands. Incrementum only loads its own bundled assets,
+# so the origin-confusion CVE vector does not apply. See also:
+# https://github.com/tauri-apps/tauri/security/advisories/GHSA-7gmj-67g7-phm9
+tauri = { version = "=2.11.0", features = ["unstable"] }
 
 # Note: "devtools" feature is intentionally not enabled unconditionally.
 # DevTools are opened at runtime via INCREMENTUM_OPEN_DEVTOOLS env var.
