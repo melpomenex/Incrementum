@@ -530,6 +530,58 @@ pub async fn extract_document_text(
         }
     }
 
+    if let FileType::Youtube = doc.file_type {
+        if let Some(video_id) = crate::youtube::extract_video_id(&doc.file_path) {
+            let cached_transcript = repo.get_youtube_transcript_by_video_id(&video_id).await.ok().flatten();
+            let (transcript, segments_json) = match cached_transcript {
+                Some((t, s)) => (t, s),
+                None => {
+                    // Try to fetch it from YouTube
+                    let url_clone = doc.file_path.clone();
+                    let segments = tokio::task::spawn_blocking(move || {
+                        crate::youtube::extract_transcript(&url_clone, None)
+                    })
+                    .await
+                    .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to join transcript task: {}", e)))?
+                    .map_err(crate::error::IncrementumError::Internal)?;
+
+                    let transcript = crate::youtube::build_transcript_text(&segments);
+                    let segments_json = serde_json::to_string(&segments)
+                        .map_err(|e| crate::error::IncrementumError::Internal(format!("Failed to serialize transcript: {}", e)))?;
+                    
+                    // Cache it
+                    let _ = repo.upsert_youtube_transcript(Some(&doc.id), &video_id, &transcript, &segments_json).await;
+                    (transcript, segments_json)
+                }
+            };
+
+            if !transcript.is_empty() {
+                // If there are chapters, let's get them and build a structured transcript with chapters!
+                let chapters = repo.get_video_chapters(&doc.id).await.unwrap_or_default();
+                let structured_transcript = if !chapters.is_empty() {
+                    let segments: Vec<crate::youtube::TranscriptSegment> = serde_json::from_str(&segments_json).unwrap_or_default();
+                    crate::youtube::build_transcript_text_with_chapters(&segments, &chapters)
+                } else {
+                    transcript.clone()
+                };
+
+                let content_hash = Some(processor::generate_content_hash(&structured_transcript));
+                let mut metadata = doc.metadata.clone().unwrap_or_default();
+                metadata.word_count = Some(structured_transcript.split_whitespace().count() as i32);
+                metadata.source = Some("youtube".to_string());
+                metadata.site_name = Some("YouTube".to_string());
+                metadata.fetched_at = Some(chrono::Utc::now());
+
+                repo.update_document_content(&doc.id, &structured_transcript, content_hash, None, Some(metadata)).await?;
+
+                return Ok(TextExtractionResult {
+                    content: structured_transcript,
+                    extracted: true,
+                });
+            }
+        }
+    }
+
     // Skip file-based extraction for URL-based documents (web pages, YouTube, RSS, etc.)
     if doc.file_path.starts_with("http://") || doc.file_path.starts_with("https://") {
         return Ok(TextExtractionResult {

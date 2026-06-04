@@ -51,13 +51,53 @@ pub struct TranscriptSegment {
     pub duration: f64,
 }
 
-fn build_transcript_text(segments: &[TranscriptSegment]) -> String {
+pub fn build_transcript_text(segments: &[TranscriptSegment]) -> String {
     segments
         .iter()
         .map(|segment| segment.text.trim())
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+pub fn build_transcript_text_with_chapters(
+    segments: &[TranscriptSegment],
+    chapters: &[crate::commands::video::VideoChapter],
+) -> String {
+    if chapters.is_empty() {
+        return build_transcript_text(segments);
+    }
+
+    let mut result = String::new();
+    let mut current_chapter_index: Option<usize> = None;
+
+    for segment in segments {
+        // Find which chapter this segment belongs to
+        let matched_chapter_idx = chapters.iter().position(|ch| {
+            segment.start >= ch.start_time && segment.start < ch.end_time
+        });
+
+        if let Some(idx) = matched_chapter_idx {
+            if current_chapter_index != Some(idx) {
+                current_chapter_index = Some(idx);
+                let chapter = &chapters[idx];
+                if !result.is_empty() {
+                    result.push_str("\n\n");
+                }
+                result.push_str(&format!("Chapter {}: {}\n\n", idx + 1, chapter.title));
+            }
+        }
+
+        let trimmed_text = segment.text.trim();
+        if !trimmed_text.is_empty() {
+            if !result.is_empty() && !result.ends_with('\n') {
+                result.push(' ');
+            }
+            result.push_str(trimmed_text);
+        }
+    }
+
+    result
 }
 
 fn parse_transcript_segments(json: &str) -> Result<Vec<TranscriptSegment>, String> {
@@ -1026,15 +1066,13 @@ pub async fn download_youtube_video(
     Ok(path.to_string_lossy().to_string())
 }
 
-/// Tauri command: Extract transcript (accepts videoId or URL)
-#[tauri::command]
-pub async fn get_youtube_transcript(
-    url: String,
-    language: Option<String>,
-    document_id: Option<String>,
-    repo: State<'_, Repository>,
+pub async fn get_youtube_transcript_internal(
+    url: &str,
+    language: Option<&str>,
+    document_id: Option<&str>,
+    repo: &Repository,
 ) -> Result<Vec<TranscriptSegment>, String> {
-    if let Some(video_id) = extract_video_id(&url) {
+    if let Some(video_id) = extract_video_id(url) {
         if let Ok(Some((_transcript, segments_json))) = repo
             .get_youtube_transcript_by_video_id(&video_id)
             .await
@@ -1043,8 +1081,8 @@ pub async fn get_youtube_transcript(
         }
     }
 
-    let url_clone = url.clone();
-    let lang = language.clone();
+    let url_clone = url.to_string();
+    let lang = language.map(|l| l.to_string());
 
     // Use spawn_blocking to avoid blocking the async runtime
     let segments = tokio::task::spawn_blocking(move || {
@@ -1053,16 +1091,27 @@ pub async fn get_youtube_transcript(
     .await
     .map_err(|e| format!("Failed to join transcript task: {}", e))??;
 
-    if let Some(video_id) = extract_video_id(&url) {
+    if let Some(video_id) = extract_video_id(url) {
         let transcript = build_transcript_text(&segments);
         let segments_json = serde_json::to_string(&segments)
             .map_err(|e| format!("Failed to serialize transcript: {}", e))?;
-        repo.upsert_youtube_transcript(document_id.as_deref(), &video_id, &transcript, &segments_json)
+        repo.upsert_youtube_transcript(document_id, &video_id, &transcript, &segments_json)
             .await
             .map_err(|e| format!("Failed to cache transcript: {}", e))?;
     }
 
     Ok(segments)
+}
+
+/// Tauri command: Extract transcript (accepts videoId or URL)
+#[tauri::command]
+pub async fn get_youtube_transcript(
+    url: String,
+    language: Option<String>,
+    document_id: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<Vec<TranscriptSegment>, String> {
+    get_youtube_transcript_internal(&url, language.as_deref(), document_id.as_deref(), repo.inner()).await
 }
 
 /// Tauri command: Extract transcript by videoId
@@ -1073,32 +1122,9 @@ pub async fn get_youtube_transcript_by_id(
     document_id: Option<String>,
     repo: State<'_, Repository>,
 ) -> Result<Vec<TranscriptSegment>, String> {
-    if let Ok(Some((_transcript, segments_json))) = repo
-        .get_youtube_transcript_by_video_id(&video_id)
-        .await
-    {
-        return parse_transcript_segments(&segments_json);
-    }
-
     // Construct YouTube URL from video ID
     let url = format!("https://www.youtube.com/watch?v={}", video_id);
-    let lang = language.clone();
-
-    // Use spawn_blocking to avoid blocking the async runtime
-    let segments = tokio::task::spawn_blocking(move || {
-        extract_transcript(&url, lang.as_deref())
-    })
-    .await
-    .map_err(|e| format!("Failed to join transcript task: {}", e))??;
-
-    let transcript = build_transcript_text(&segments);
-    let segments_json = serde_json::to_string(&segments)
-        .map_err(|e| format!("Failed to serialize transcript: {}", e))?;
-    repo.upsert_youtube_transcript(document_id.as_deref(), &video_id, &transcript, &segments_json)
-        .await
-        .map_err(|e| format!("Failed to cache transcript: {}", e))?;
-
-    Ok(segments)
+    get_youtube_transcript_internal(&url, language.as_deref(), document_id.as_deref(), repo.inner()).await
 }
 
 /// Tauri command: Search YouTube
@@ -1122,12 +1148,10 @@ pub async fn extract_youtube_video_id(url: String) -> Result<Option<String>, Str
     Ok(extract_video_id(&url))
 }
 
-/// Import YouTube video to database
-#[tauri::command]
-pub async fn import_youtube_video(
-    url: String,
+pub async fn import_youtube_video_internal(
+    url: &str,
     collection_id: Option<String>,
-    repo: State<'_, Repository>,
+    repo: &Repository,
 ) -> Result<Document, String> {
     // First, verify yt-dlp is available
     let ytdlp_available = check_ytdlp_installed()
@@ -1137,7 +1161,7 @@ pub async fn import_youtube_video(
         return Err("yt-dlp is not installed. Please install it to import YouTube videos.".to_string());
     }
 
-    let info = extract_video_info(&url)
+    let info = extract_video_info(url)
         .map_err(|e| format!("Failed to fetch video info: {}", e))?;
 
     let video_id = &info.id;
@@ -1177,13 +1201,47 @@ pub async fn import_youtube_video(
         ..Default::default()
     });
 
-    let created = repo.create_document(&doc).await
+    let mut created = repo.create_document(&doc).await
         .map_err(|e| format!("Failed to save document to database: {}", e))?;
 
     // Auto-fetch and save chapters from YouTube (non-blocking, fail gracefully)
-    let _ = get_youtube_chapters(url, Some(created.id.clone()), repo.clone()).await;
+    let chapters = get_youtube_chapters_internal(url, Some(&created.id), repo).await.unwrap_or_default();
+
+    // Auto-fetch and save transcript from YouTube (non-blocking, fail gracefully)
+    if let Ok(segments) = get_youtube_transcript_internal(url, None, Some(&created.id), repo).await {
+        if !segments.is_empty() {
+            let structured_transcript = if !chapters.is_empty() {
+                build_transcript_text_with_chapters(&segments, &chapters)
+            } else {
+                build_transcript_text(&segments)
+            };
+
+            let content_hash = Some(crate::processor::generate_content_hash(&structured_transcript));
+            let mut metadata = created.metadata.clone().unwrap_or_default();
+            metadata.word_count = Some(structured_transcript.split_whitespace().count() as i32);
+            metadata.source = Some("youtube".to_string());
+            metadata.site_name = Some("YouTube".to_string());
+            metadata.fetched_at = Some(chrono::Utc::now());
+
+            if repo.update_document_content(&created.id, &structured_transcript, content_hash.clone(), None, Some(metadata.clone())).await.is_ok() {
+                created.content = Some(structured_transcript);
+                created.content_hash = content_hash;
+                created.metadata = Some(metadata);
+            }
+        }
+    }
 
     Ok(created)
+}
+
+/// Import YouTube video to database
+#[tauri::command]
+pub async fn import_youtube_video(
+    url: String,
+    collection_id: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<Document, String> {
+    import_youtube_video_internal(&url, collection_id, repo.inner()).await
 }
 
 /// YouTube chapter data
@@ -1334,18 +1392,17 @@ pub fn extract_chapters(url: &str) -> Result<Vec<YouTubeChapter>, String> {
     Ok(parse_chapters_from_json(&json))
 }
 
-/// Tauri command: Get chapters from YouTube video URL
-#[tauri::command]
-pub async fn get_youtube_chapters(
-    url: String,
-    document_id: Option<String>,
-    repo: State<'_, Repository>,
+pub async fn get_youtube_chapters_internal(
+    url: &str,
+    document_id: Option<&str>,
+    repo: &Repository,
 ) -> Result<Vec<crate::commands::video::VideoChapter>, String> {
     use tokio::task::spawn_blocking;
 
+    let url_clone = url.to_string();
     // Extract chapters from YouTube (blocking call)
     let youtube_chapters = spawn_blocking(move || {
-        extract_chapters(&url)
+        extract_chapters(&url_clone)
     })
     .await
     .map_err(|e| format!("Failed to join task: {}", e))??;
@@ -1367,7 +1424,7 @@ pub async fn get_youtube_chapters(
 
         video_chapters.push(crate::commands::video::VideoChapter {
             id: id.clone(),
-            document_id: document_id.clone().unwrap_or_default(),
+            document_id: document_id.unwrap_or_default().to_string(),
             title: chapter.title.clone(),
             start_time: chapter.start_time,
             end_time,
@@ -1376,7 +1433,7 @@ pub async fn get_youtube_chapters(
     }
 
     if let Some(doc_id) = document_id {
-        let existing = repo.get_video_chapters(&doc_id).await.ok();
+        let existing = repo.get_video_chapters(doc_id).await.ok();
         if let Some(chapters) = existing {
             if !chapters.is_empty() {
                 // Chapters already exist, return those
@@ -1384,9 +1441,19 @@ pub async fn get_youtube_chapters(
             }
         }
 
-        repo.set_video_chapters(&doc_id, &video_chapters).await
+        repo.set_video_chapters(doc_id, &video_chapters).await
             .map_err(|e| format!("Failed to save chapters: {}", e))?;
     }
 
     Ok(video_chapters)
+}
+
+/// Tauri command: Get chapters from YouTube video URL
+#[tauri::command]
+pub async fn get_youtube_chapters(
+    url: String,
+    document_id: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<Vec<crate::commands::video::VideoChapter>, String> {
+    get_youtube_chapters_internal(&url, document_id.as_deref(), repo.inner()).await
 }

@@ -13,58 +13,9 @@ async fn import_youtube_video_as_document(
     repo: &Repository,
     collection_id: Option<String>,
 ) -> Result<Document> {
-    // First, verify yt-dlp is available
-    let ytdlp_available = crate::youtube::check_ytdlp_installed()
-        .map_err(|e| IncrementumError::Internal(format!("Failed to check yt-dlp: {}", e)))?;
-
-    if !ytdlp_available {
-        return Err(IncrementumError::Internal("yt-dlp is not installed".to_string()));
-    }
-
-    let info = extract_video_info(&url)
-        .map_err(|e| IncrementumError::Internal(format!("Failed to fetch video info: {}", e)))?;
-
-    let video_id = &info.id;
-
-    let mut doc = Document::with_collection(info.title.clone(), format!("https://www.youtube.com/watch?v={}", video_id), FileType::Youtube, collection_id);
-
-    // Set YouTube-specific fields
-    // Note: category is not set to avoid foreign key constraint issues
-    doc.tags = vec!["youtube".to_string(), "video".to_string()];
-    doc.total_pages = Some(info.duration as i32);
-    doc.priority_score = 7.0; // YouTube videos get higher priority
-    if !info.thumbnail.is_empty() {
-        doc.cover_image_url = Some(info.thumbnail.clone());
-        doc.cover_image_source = Some("youtube".to_string());
-    }
-
-    // Set metadata with YouTube info
-    // Use current time if publish_date is not available or invalid
-    let created_at = chrono::Utc::now();
-
-    doc.metadata = Some(crate::models::DocumentMetadata {
-        author: Some(info.channel),
-        subject: None,
-        keywords: if info.tags.is_empty() { None } else { Some(info.tags) },
-        created_at: Some(created_at),
-        modified_at: None,
-        file_size: None,
-        language: Some("en".to_string()),
-        page_count: None,
-        word_count: None,
-        source: Some("youtube".to_string()),
-        fetched_at: Some(created_at),
-        site_name: Some("YouTube".to_string()),
-        browser_import_mode: None,
-        article_html: None,
-        extracted_images: None,
-        ..Default::default()
-    });
-
-    let created = repo.create_document(&doc).await
-        .map_err(|e| IncrementumError::Internal(format!("Failed to save document: {}", e)))?;
-
-    Ok(created)
+    crate::youtube::import_youtube_video_internal(&url, collection_id, repo)
+        .await
+        .map_err(IncrementumError::Internal)
 }
 
 /// Subscribe to a YouTube playlist for auto-import

@@ -32,6 +32,8 @@ import {
   Wand2,
   Save,
   AlertCircle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { renderMarkdown } from "../../utils/markdown";
 import { detectChapterReference, buildChapterQAContext, getChapterTitles, type ChapterReference } from "../../utils/chapterUtils";
@@ -84,6 +86,17 @@ export function DocumentQATab() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [researchDocumentId, setResearchDocumentId] = useState<string>("");
   const showLegacyNotebookResearch = false;
+
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [inputDraft, setInputDraft] = useState("");
+
+  const userQueries = useMemo(() => {
+    return messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .reverse();
+  }, [messages]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -251,9 +264,9 @@ export function DocumentQATab() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setRawInput(value);
+    setHistoryIndex(-1);
 
     const cursorPosition = e.target.selectionStart;
-
     const beforeCursor = value.slice(0, cursorPosition);
     const atMatch = beforeCursor.match(/@(\w*)$/);
 
@@ -317,6 +330,42 @@ export function DocumentQATab() {
         handleSelectDocument(filteredDocuments[mentionCursorIndex]);
       } else if (e.key === "Escape") {
         setShowMentionPopup(false);
+      }
+    } else if (e.key === "ArrowUp") {
+      const textarea = textareaRef.current;
+      if (textarea && textarea.selectionStart === 0 && userQueries.length > 0) {
+        e.preventDefault();
+        const nextIndex = historyIndex + 1;
+        if (nextIndex < userQueries.length) {
+          if (historyIndex === -1) {
+            setInputDraft(rawInput);
+          }
+          setHistoryIndex(nextIndex);
+          const historicalQuery = userQueries[nextIndex];
+          setRawInput(historicalQuery);
+          const { mentions: newMentions } = parseMentions(historicalQuery);
+          setMentions(newMentions);
+          setInput(formatInputForDisplay(historicalQuery, newMentions));
+        }
+      }
+    } else if (e.key === "ArrowDown") {
+      const textarea = textareaRef.current;
+      if (textarea && textarea.selectionStart === textarea.value.length && historyIndex >= 0) {
+        e.preventDefault();
+        const nextIndex = historyIndex - 1;
+        setHistoryIndex(nextIndex);
+        
+        let newQuery = "";
+        if (nextIndex === -1) {
+          newQuery = inputDraft;
+        } else {
+          newQuery = userQueries[nextIndex];
+        }
+        
+        setRawInput(newQuery);
+        const { mentions: newMentions } = parseMentions(newQuery);
+        setMentions(newMentions);
+        setInput(formatInputForDisplay(newQuery, newMentions));
       }
     } else if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -652,6 +701,7 @@ export function DocumentQATab() {
     };
 
     addMessage(userMessage);
+    setHistoryIndex(-1);
     const savedRawInput = rawInput;
     setRawInput("");
     setInput("");
@@ -1112,7 +1162,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
 
                 {/* Message content */}
                 <div
-                  className={`max-w-[85%] rounded-lg p-4 ${
+                  className={`max-w-[85%] rounded-lg p-4 relative group ${
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : message.role === "system"
@@ -1123,10 +1173,29 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                   {message.role === "user" ? (
                     <div className="whitespace-pre-wrap">{message.content}</div>
                   ) : (
-                    <div
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-                    />
+                    <>
+                      {message.role === "assistant" && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(message.content);
+                            setCopiedMessageId(message.id);
+                            setTimeout(() => setCopiedMessageId(null), 2000);
+                          }}
+                          className="absolute top-2 right-2 p-1.5 rounded bg-background/50 hover:bg-background/80 text-muted-foreground transition-all opacity-0 group-hover:opacity-100 border border-border"
+                          title="Copy response"
+                        >
+                          {copiedMessageId === message.id ? (
+                            <Check className="w-3.5 h-3.5 text-green-500" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
+                      <div
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+                      />
+                    </>
                   )}
 
                   {/* Tool calls */}

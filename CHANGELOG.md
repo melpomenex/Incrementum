@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.47.7] - 2026-06-04
+
+### Added
+- **YouTube video transcripts in Document Q&A** — Automatically pulls and caches transcripts and chapter headings on video import (both direct imports and playlist auto-imports). Transcripts are formatted with markdown chapter headers (`Chapter X: Title`) to integrate seamlessly with chapter-aware Q&A, and legacy imported videos auto-extract transcripts on-demand when queried.
+- **Copy Response button in Document Q&A** — Added a quick copy response button to AI messages in Document Q&A, complete with a smooth hover fade-in and a checkmark status indicator upon successful copy.
+- **Query history recall in Document Q&A** — Added up/down arrow key history recall inside the Q&A text input, allowing users to quickly cycle through previous queries.
+
 ## [1.47.6] - 2026-06-03
 
 ### Fixed
