@@ -423,9 +423,7 @@ jobs:
         run: npm run build
 
       - name: Build Tauri application
-        run: |
-          cd src-tauri
-          cargo build --release
+        run: npx tauri build --no-bundle
         env:
           RUST_MIN_STACK: 33554432
           LIBSQLITE3_SYS_USE_PKG_CONFIG: "1"
@@ -436,12 +434,15 @@ jobs:
       - name: Create Pacman package
         run: |
           PKG_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | awk -F'"' '{print $2}')
-          PKG_RELEASE=1
 
-          mkdir -p arch-pkg/incrementum-${PKG_VERSION}-${PKG_RELEASE}/src
-          mkdir -p arch-pkg/incrementum-${PKG_VERSION}-${PKG_RELEASE}/pkg
+          mkdir -p arch-pkg
 
-          # Create PKGBUILD
+          # Copy built artifacts for the PKGBUILD to install
+          cp src-tauri/target/release/incrementum-tauri arch-pkg/incrementum-tauri
+          cp src-tauri/icons/128x128.png arch-pkg/128x128.png
+          cp src-tauri/incrementum.desktop arch-pkg/incrementum.desktop 2>/dev/null || true
+
+          # Create PKGBUILD — binary is already built with embedded frontend assets
           cat > arch-pkg/PKGBUILD << EOF
           pkgname=incrementum
           pkgver=${PKG_VERSION}
@@ -450,27 +451,16 @@ jobs:
           arch=('x86_64')
           url="https://github.com/melpomenex/incrementum-tauri"
           license=('MIT')
-          options=('!lto')
           depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3' 'librsvg' 'gcc-libs' 'glibc' 'zstd')
-          makedepends=('cargo' 'pkgconf')
           optdepends=('notebooklm-py: NotebookLM integration for AI-powered flashcard generation'
                       'python-notebooklm: Alternative NotebookLM package')
-          source=("\$pkgname-\$pkgver::git+https://github.com/melpomenex/incrementum-tauri.git#tag=v\$pkgver")
-          sha256sums=('SKIP')
-
-          build() {
-            cd "\$pkgname-\$pkgver"
-            npm ci
-            npm run build
-            cd src-tauri
-            env LIBSQLITE3_SYS_USE_PKG_CONFIG=1 SQLITE3_STATIC=0 ZSTD_SYS_USE_PKG_CONFIG=1 RUSTFLAGS="-C link-arg=-lsqlite3 -C link-arg=-lzstd" cargo build --release
-          }
+          source=("incrementum-tauri" "128x128.png" "incrementum.desktop")
+          sha256sums=('SKIP' 'SKIP' 'SKIP')
 
           package() {
-            cd "\$pkgname-\$pkgver"
-            install -Dm755 "src-tauri/target/release/incrementum-tauri" "\$pkgdir/usr/bin/incrementum"
-            install -Dm644 "src-tauri/icons/128x128.png" "\$pkgdir/usr/share/icons/hicolor/128x128/apps/incrementum.png"
-            install -Dm644 "src-tauri/incrementum.desktop" "\$pkgdir/usr/share/applications/incrementum.desktop" || true
+            install -Dm755 "\$srcdir/incrementum-tauri" "\$pkgdir/usr/bin/incrementum"
+            install -Dm644 "\$srcdir/128x128.png" "\$pkgdir/usr/share/icons/hicolor/128x128/apps/incrementum.png"
+            install -Dm644 "\$srcdir/incrementum.desktop" "\$pkgdir/usr/share/applications/incrementum.desktop" 2>/dev/null || true
           }
           EOF
 
