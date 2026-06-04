@@ -70,6 +70,7 @@ export function DocumentQATab() {
   const [mentionCursorIndex, setMentionCursorIndex] = useState(0);
   const [, setProviderError] = useState<string | null>(null);
   const [detectedChapter, setDetectedChapter] = useState<{ number: number; title?: string } | null>(null);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string>("");
   const [notebookResearchEnabled, setNotebookResearchEnabled] = useState(false);
   const [researchQuery, setResearchQuery] = useState("");
   const [researchStatus, setResearchStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
@@ -90,7 +91,7 @@ export function DocumentQATab() {
   const mentionPopupRef = useRef<HTMLDivElement>(null);
   const autosaveTimerRef = useRef<number | null>(null);
 
-  const { documents } = useDocumentStore();
+  const { documents, currentDocument } = useDocumentStore();
   const getEnabledProviders = useLLMProvidersStore((state) => state.getEnabledProviders);
   const contextWindowTokens = useSettingsStore((state) => state.settings.ai.maxTokens);
   const aiControls = useSettingsStore((state) => state.settings.ai.aiControls);
@@ -123,6 +124,52 @@ export function DocumentQATab() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (currentDocument) {
+      setSelectedDocumentId(currentDocument.id);
+    } else if (documents.length > 0 && !selectedDocumentId) {
+      setSelectedDocumentId(documents[0].id);
+    }
+  }, [currentDocument, documents]);
+
+  // Detect chapter references in the query reactively
+  useEffect(() => {
+    const chapterRef = detectChapterReference(rawInput);
+    const targetDocId = mentions.length > 0 ? mentions[0].id : selectedDocumentId;
+    
+    if (chapterRef && targetDocId) {
+      const doc = documents.find(d => d.id === targetDocId);
+      if (doc?.content) {
+        const titles = getChapterTitles(doc.content);
+        const matchedChapter = titles.find(t => t.number === chapterRef.number);
+        setDetectedChapter({ number: chapterRef.number, title: matchedChapter?.title });
+      } else {
+        // Content not loaded in memory; show number first
+        setDetectedChapter({ number: chapterRef.number });
+        
+        // Asynchronously fetch document content to resolve title
+        getDocument(targetDocId)
+          .then((fullDoc) => {
+            if (fullDoc?.content) {
+              const titles = getChapterTitles(fullDoc.content);
+              const matchedChapter = titles.find(t => t.number === chapterRef.number);
+              setDetectedChapter((prev) => {
+                if (prev && prev.number === chapterRef.number) {
+                  return { number: chapterRef.number, title: matchedChapter?.title };
+                }
+                return prev;
+              });
+            }
+          })
+          .catch((err) => {
+            console.warn("Failed to fetch full document content for chapter title:", err);
+          });
+      }
+    } else {
+      setDetectedChapter(null);
+    }
+  }, [rawInput, mentions, selectedDocumentId, documents]);
 
   useEffect(() => {
     setNotebookResearchEnabled(notebookFeatureEnabled);
@@ -221,22 +268,6 @@ export function DocumentQATab() {
 
     const { mentions: newMentions } = parseMentions(value);
     setMentions(newMentions);
-
-    // Detect chapter references in the query
-    const chapterRef = detectChapterReference(value);
-    if (chapterRef && newMentions.length > 0) {
-      // Try to get chapter title from the first mentioned document
-      const mentionedDoc = documents.find(d => d.id === newMentions[0].id);
-      if (mentionedDoc?.content) {
-        const titles = getChapterTitles(mentionedDoc.content);
-        const matchedChapter = titles.find(t => t.number === chapterRef.number);
-        setDetectedChapter({ number: chapterRef.number, title: matchedChapter?.title });
-      } else {
-        setDetectedChapter({ number: chapterRef.number });
-      }
-    } else {
-      setDetectedChapter(null);
-    }
 
     setInput(formatInputForDisplay(value, newMentions));
   };
@@ -603,7 +634,11 @@ export function DocumentQATab() {
   const handleSendMessage = async () => {
     if (!rawInput.trim() || isProcessing) return;
 
-    const mentionedDocumentIds = mentions.map((m) => m.id);
+    const mentionedDocumentIds = mentions.length > 0
+      ? mentions.map((m) => m.id)
+      : selectedDocumentId
+        ? [selectedDocumentId]
+        : [];
 
     // Detect chapter references in the query
     const chapterRef = detectChapterReference(rawInput);
@@ -801,7 +836,25 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
           <MessageSquare className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-bold text-foreground">{t("toolbar.documentQA")}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {documents.length > 0 && (
+            <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2.5 py-1 text-muted-foreground focus-within:ring-1 focus-within:ring-primary transition-all">
+              <BookOpen className="w-3.5 h-3.5" />
+              <select
+                aria-label="Select focus document"
+                value={selectedDocumentId}
+                onChange={(e) => setSelectedDocumentId(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="" className="bg-background text-foreground">General AI Chat</option>
+                {documents.map((doc) => (
+                  <option key={doc.id} value={doc.id} className="bg-background text-foreground">
+                    {doc.title.length > 30 ? `${doc.title.slice(0, 30)}...` : doc.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {messages.length > 0 && (
             <button
               onClick={clearConversation}
