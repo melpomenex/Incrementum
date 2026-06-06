@@ -303,6 +303,7 @@ export function PDFViewer({
   // Position persistence refs
   const docIdRef = useRef<string>("");
   const lastSavedPositionRef = useRef<DocumentPosition | null>(null);
+  const lastPositionRef = useRef<DocumentPosition | null>(null);
   const positionSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRestoringPositionRef = useRef(false);
 
@@ -986,7 +987,7 @@ export function PDFViewer({
       
       // Also update document progress if it's a page position
       if (position.type === 'page') {
-        await updateDocumentProgressAuto(docId, null, position.page, null);
+        await updateDocumentProgressAuto(docId, position.page, null, null);
       }
       
       lastSavedPositionRef.current = position;
@@ -997,6 +998,7 @@ export function PDFViewer({
 
   // Debounced save for scroll events
   const debouncedSavePosition = useCallback((position: DocumentPosition) => {
+    lastPositionRef.current = position;
     if (positionSaveTimeoutRef.current) {
       clearTimeout(positionSaveTimeoutRef.current);
     }
@@ -1190,6 +1192,9 @@ export function PDFViewer({
     return () => {
       if (positionSaveTimeoutRef.current) {
         clearTimeout(positionSaveTimeoutRef.current);
+        if (lastPositionRef.current) {
+          void saveReadingPosition(lastPositionRef.current);
+        }
       }
       clearNavigationSettleTimeout();
       // Clear selection highlights on unmount
@@ -1206,7 +1211,7 @@ export function PDFViewer({
         if (textLayerTimeoutsRef.current[i] != null) clearTimeout(textLayerTimeoutsRef.current[i]!);
       }
     };
-  }, [clearNavigationSettleTimeout, clearSelectionHighlights]);
+  }, [clearNavigationSettleTimeout, clearSelectionHighlights, saveReadingPosition]);
 
   useEffect(() => {
     if (!pdf || numPages <= 0) return;
@@ -1281,8 +1286,8 @@ export function PDFViewer({
       const chunks: string[] = [];
       for (let page = windowStart; page <= windowEnd; page += 1) {
         const cached = textCacheRef.current.get(page);
-        if (cached) {
-          chunks.push(cached);
+        if (cached !== undefined) {
+          chunks.push(`<page number="${page}"/>${cached}`);
         }
       }
       if (chunks.length > 0) {

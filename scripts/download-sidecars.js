@@ -297,10 +297,30 @@ function renderNotebookLMLauncherScript(targetTriple) {
     'export PATH\n' +
     'for CANDIDATE in "${HOME:-}/.local/bin/notebooklm" /usr/local/bin/notebooklm /usr/bin/notebooklm /bin/notebooklm; do\n' +
     '  if [ -x "$CANDIDATE" ]; then\n' +
-    '    exec "$CANDIDATE" "$@"\n' +
+    '    if [ "$(dirname -- "$CANDIDATE")" != "$SCRIPT_DIR" ]; then\n' +
+    '      exec "$CANDIDATE" "$@"\n' +
+    '    fi\n' +
     '  fi\n' +
     'done\n' +
-    'exec notebooklm "$@"\n'
+    'RESOLVED_PATH=""\n' +
+    'OLD_IFS="$IFS"\n' +
+    'IFS=":"\n' +
+    'for DIR in $PATH; do\n' +
+    '  if [ -x "$DIR/notebooklm" ] && [ ! -d "$DIR/notebooklm" ]; then\n' +
+    '    if [ "$DIR" != "$SCRIPT_DIR" ]; then\n' +
+    '      RESOLVED_PATH="$DIR/notebooklm"\n' +
+    '      break\n' +
+    '    fi\n' +
+    '  fi\n' +
+    'done\n' +
+    'IFS="$OLD_IFS"\n' +
+    'if [ -n "$RESOLVED_PATH" ]; then\n' +
+    '  exec "$RESOLVED_PATH" "$@"\n' +
+    'else\n' +
+    '  echo "error: notebooklm is not installed" >&2\n' +
+    '  echo "Install it with:  pip install notebooklm-py" >&2\n' +
+    '  exit 1\n' +
+    'fi\n'
   );
 }
 
@@ -339,6 +359,36 @@ function renderPocketTTSLauncherScript(targetTriple) {
   return (
     '#!/bin/sh\n' +
     'set -eu\n' +
+    '# Check for --text-file and transform into --text by reading the file\n' +
+    'TEXT_FILE=""\n' +
+    'skip=false\n' +
+    'argc=$#\n' +
+    'i=0\n' +
+    'while [ $i -lt $argc ]; do\n' +
+    '  arg="$1"\n' +
+    '  shift\n' +
+    '  i=$((i + 1))\n' +
+    '  if $skip; then\n' +
+    '    skip=false\n' +
+    '    TEXT_FILE="$arg"\n' +
+    '    continue\n' +
+    '  fi\n' +
+    '  case "$arg" in\n' +
+    '    --text-file)\n' +
+    '      skip=true\n' +
+    '      ;;\n' +
+    '    --text-file=*)\n' +
+    '      TEXT_FILE="${arg#--text-file=}"\n' +
+    '      ;;\n' +
+    '    *)\n' +
+    '      set -- "$@" "$arg"\n' +
+    '      ;;\n' +
+    '  esac\n' +
+    'done\n' +
+    'if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then\n' +
+    '  set -- "$@" "--text" "$(cat "$TEXT_FILE")"\n' +
+    '  rm -f "$TEXT_FILE"\n' +
+    'fi\n' +
     'SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\n' +
     `RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/${targetTriple}"\n` +
     'RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"\n' +
@@ -355,10 +405,31 @@ function renderPocketTTSLauncherScript(targetTriple) {
     'export PATH\n' +
     'for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /bin/pocket-tts; do\n' +
     '  if [ -x "$CANDIDATE" ]; then\n' +
-    '    exec "$CANDIDATE" "$@"\n' +
+    '    if [ "$(dirname -- "$CANDIDATE")" != "$SCRIPT_DIR" ]; then\n' +
+    '      exec "$CANDIDATE" "$@"\n' +
+    '    fi\n' +
     '  fi\n' +
     'done\n' +
-    'exec pocket-tts "$@"\n'
+    'RESOLVED_PATH=""\n' +
+    'OLD_IFS="$IFS"\n' +
+    'IFS=":"\n' +
+    'for DIR in $PATH; do\n' +
+    '  if [ -x "$DIR/pocket-tts" ] && [ ! -d "$DIR/pocket-tts" ]; then\n' +
+    '    if [ "$DIR" != "$SCRIPT_DIR" ]; then\n' +
+    '      RESOLVED_PATH="$DIR/pocket-tts"\n' +
+    '      break\n' +
+    '    fi\n' +
+    '  fi\n' +
+    'done\n' +
+    'IFS="$OLD_IFS"\n' +
+    'if [ -n "$RESOLVED_PATH" ]; then\n' +
+    '  exec "$RESOLVED_PATH" "$@"\n' +
+    'else\n' +
+    '  echo "error: pocket_tts is not installed" >&2\n' +
+    '  echo "Install it with:  uv tool install pocket-tts" >&2\n' +
+    '  echo "Or with pip:      pip install pocket-tts" >&2\n' +
+    '  exit 1\n' +
+    'fi\n'
   );
 }
 

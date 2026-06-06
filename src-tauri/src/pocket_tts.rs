@@ -138,7 +138,10 @@ pub async fn check_pocket_tts_available(app_handle: &AppHandle) -> Result<Pocket
 
             let error = if available {
                 None
-            } else if stderr_buf.contains("ModuleNotFoundError") || stderr_buf.contains("No module named 'pocket_tts'") {
+            } else if stderr_buf.contains("ModuleNotFoundError") 
+                || stderr_buf.contains("No module named 'pocket_tts'")
+                || stderr_buf.contains("pocket_tts is not installed")
+            {
                 Some("pocket_tts is not installed. Install with: uv tool install pocket-tts".to_string())
             } else {
                 Some("Pocket TTS sidecar not found".to_string())

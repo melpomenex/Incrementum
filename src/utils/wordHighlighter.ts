@@ -13,11 +13,18 @@ export class WordHighlighter {
   private useChunkLevel = false;
   private styleElement: HTMLStyleElement | null = null;
   private previousRanges: HighlightRange[] = [];
+  private lastTargetScrollTop: number | null = null;
+  private lastUserScrollTime = 0;
+
+  private userInteractionListener = () => {
+    this.lastUserScrollTime = Date.now();
+  };
 
   init(container: HTMLElement, useChunkLevel = false): void {
     this.container = container;
     this.useChunkLevel = useChunkLevel;
     this.injectStyles();
+    this.setupInteractionListeners();
   }
 
   setEnabled(enabled: boolean): void {
@@ -84,14 +91,139 @@ export class WordHighlighter {
       }
     });
     this.previousRanges = [];
+    this.lastTargetScrollTop = null;
   }
 
   destroy(): void {
     this.clear();
+    this.removeInteractionListeners();
     this.container = null;
     if (this.styleElement?.parentNode) {
       this.styleElement.parentNode.removeChild(this.styleElement);
     }
+    this.lastTargetScrollTop = null;
+  }
+
+  private setupInteractionListeners(): void {
+    if (!this.container) return;
+    const doc = this.container.ownerDocument || document;
+    const win = doc.defaultView || window;
+
+    const events = ["wheel", "touchmove", "pointerdown", "keydown"];
+    events.forEach((event) => {
+      win.addEventListener(event, this.userInteractionListener, { passive: true });
+      doc.addEventListener(event, this.userInteractionListener, { passive: true });
+    });
+  }
+
+  private removeInteractionListeners(): void {
+    if (!this.container) return;
+    const doc = this.container.ownerDocument || document;
+    const win = doc.defaultView || window;
+
+    const events = ["wheel", "touchmove", "pointerdown", "keydown"];
+    events.forEach((event) => {
+      win.removeEventListener(event, this.userInteractionListener);
+      doc.removeEventListener(event, this.userInteractionListener);
+    });
+  }
+
+  private findScrollableContainer(el: HTMLElement): HTMLElement | null {
+    const doc = el.ownerDocument;
+    const win = doc?.defaultView || window;
+
+    let current = el.parentElement;
+    while (current) {
+      const style = win.getComputedStyle(current);
+      const overflowY = style.overflowY;
+      const isScrollable =
+        overflowY === "auto" ||
+        overflowY === "scroll" ||
+        current.hasAttribute("data-document-scroll-container") ||
+        current.getAttribute("data-epub-viewer") === "true";
+      if (isScrollable && current.scrollHeight > current.clientHeight) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+
+    if (win !== win.parent) {
+      try {
+        const parentDoc = win.parent.document;
+        const iframes = parentDoc.querySelectorAll("iframe");
+        let iframeElement: HTMLIFrameElement | null = null;
+        for (const iframe of iframes) {
+          if (iframe.contentWindow === win) {
+            iframeElement = iframe;
+            break;
+          }
+        }
+        if (iframeElement) {
+          let parentEl = iframeElement.parentElement;
+          while (parentEl) {
+            const style = win.parent.getComputedStyle(parentEl);
+            const overflowY = style.overflowY;
+            const isScrollable =
+              overflowY === "auto" ||
+              overflowY === "scroll" ||
+              parentEl.hasAttribute("data-document-scroll-container") ||
+              parentEl.getAttribute("data-epub-viewer") === "true";
+            if (isScrollable && parentEl.scrollHeight > parentEl.clientHeight) {
+              return parentEl;
+            }
+            parentEl = parentEl.parentElement;
+          }
+        }
+      } catch (e) {
+        console.warn("WordHighlighter: Failed to access parent document frame", e);
+      }
+    }
+
+    if (doc) {
+      const docScroll = doc.querySelector("[data-document-scroll-container]");
+      if (docScroll) return docScroll as HTMLElement;
+    }
+    if (win !== win.parent) {
+      try {
+        const parentDoc = win.parent.document;
+        const docScroll = parentDoc.querySelector("[data-document-scroll-container]");
+        if (docScroll) return docScroll as HTMLElement;
+      } catch {}
+    }
+
+    return null;
+  }
+
+  private getElementTopRelativeToContainer(el: HTMLElement, container: HTMLElement): number {
+    let top = el.getBoundingClientRect().top;
+    let currentWin: Window | null = el.ownerDocument?.defaultView || null;
+    const targetWin = container.ownerDocument?.defaultView || window;
+
+    while (currentWin && currentWin !== targetWin) {
+      try {
+        const parentDoc = currentWin.parent.document;
+        const iframes = parentDoc.querySelectorAll("iframe");
+        let foundIframe: HTMLIFrameElement | null = null;
+        for (const iframe of iframes) {
+          if (iframe.contentWindow === currentWin) {
+            foundIframe = iframe;
+            break;
+          }
+        }
+        if (foundIframe) {
+          top += foundIframe.getBoundingClientRect().top;
+        } else {
+          break;
+        }
+      } catch (e) {
+        console.warn("WordHighlighter: Error traversing iframe hierarchy", e);
+        break;
+      }
+      currentWin = currentWin.parent;
+    }
+
+    top -= container.getBoundingClientRect().top;
+    return top;
   }
 
   private getCharOffsetForWord(text: string, wordIndex: number): number {
@@ -184,91 +316,37 @@ export class WordHighlighter {
         parent.normalize();
 
         if (!scrolled) {
-          const win = doc.defaultView;
-          if (win && win !== win.parent) {
-            // We are inside an iframe (like in the EPUB viewer)
-            let iframeElement: HTMLIFrameElement | null = null;
-            try {
-              const parentDoc = win.parent.document;
-              const iframes = parentDoc.querySelectorAll("iframe");
-              for (const iframe of iframes) {
-                if (iframe.contentWindow === win) {
-                  iframeElement = iframe;
-                  break;
-                }
-              }
-            } catch (e) {
-              console.warn("WordHighlighter: Failed to access parent document frame", e);
+          const scrollContainer = this.findScrollableContainer(span);
+          if (scrollContainer) {
+            const spanRect = span.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const containerHeight = scrollContainer.clientHeight || (doc.defaultView || window).innerHeight;
+            const spanHeight = spanRect.height || 20;
+
+            const relativeTop = this.getElementTopRelativeToContainer(span, scrollContainer);
+            const currentScrollTop = scrollContainer.scrollTop;
+            const targetScrollTop = currentScrollTop + relativeTop - containerHeight / 2 + spanHeight / 2;
+
+            const maxScroll = Math.max(0, scrollContainer.scrollHeight - containerHeight);
+            const clampedTarget = Math.max(0, Math.min(maxScroll, targetScrollTop));
+
+            const isUserInteracting = Date.now() - this.lastUserScrollTime < 2000;
+            const lineChanged = this.lastTargetScrollTop === null || Math.abs(clampedTarget - this.lastTargetScrollTop) > 8;
+            const outOfViewport = relativeTop < 40 || relativeTop > containerHeight - 60;
+
+            if (!isUserInteracting && (lineChanged || outOfViewport)) {
+              scrollContainer.scrollTo({
+                top: clampedTarget,
+                behavior: "smooth",
+              });
+              this.lastTargetScrollTop = clampedTarget;
             }
-
-            if (iframeElement) {
-              const parentDoc = win.parent.document;
-
-              // Helper to find the scrollable container in the parent document
-              const findScrollableContainer = (el: HTMLElement): HTMLElement | null => {
-                let current = el.parentElement;
-                while (current) {
-                  const style = win.parent.getComputedStyle(current);
-                  const overflowY = style.overflowY;
-                  const isScrollable =
-                    overflowY === "auto" ||
-                    overflowY === "scroll" ||
-                    current.hasAttribute("data-document-scroll-container") ||
-                    current.getAttribute("data-epub-viewer") === "true";
-                  if (isScrollable && current.scrollHeight > current.clientHeight) {
-                    return current;
-                  }
-                  current = current.parentElement;
-                }
-                const docScroll = parentDoc.querySelector("[data-document-scroll-container]");
-                if (docScroll) return docScroll as HTMLElement;
-                return null;
-              };
-
-              const scrollContainer = findScrollableContainer(iframeElement);
-              if (scrollContainer) {
-                // Calculate absolute offsetTop of span inside iframe
-                let spanOffsetTop = 0;
-                let currentEl: HTMLElement | null = span;
-                while (currentEl) {
-                  spanOffsetTop += currentEl.offsetTop;
-                  currentEl = currentEl.offsetParent as HTMLElement | null;
-                }
-
-                // Calculate absolute offsetTop of iframe inside parent document
-                let iframeOffsetTop = 0;
-                let currentIframe: HTMLElement | null = iframeElement;
-                while (currentIframe) {
-                  iframeOffsetTop += currentIframe.offsetTop;
-                  currentIframe = currentIframe.offsetParent as HTMLElement | null;
-                }
-
-                // Calculate absolute offsetTop of scrollContainer inside parent document
-                let containerOffsetTop = 0;
-                let currentContainer: HTMLElement | null = scrollContainer;
-                while (currentContainer) {
-                  containerOffsetTop += currentContainer.offsetTop;
-                  currentContainer = currentContainer.offsetParent as HTMLElement | null;
-                }
-
-                const totalSpanTop = spanOffsetTop + iframeOffsetTop - containerOffsetTop;
-                const containerHeight = scrollContainer.clientHeight || win.parent.innerHeight;
-                const spanHeight = span.offsetHeight || 20;
-
-                const targetScrollTop = totalSpanTop - containerHeight / 2 + spanHeight / 2;
-
-                scrollContainer.scrollTo({
-                  top: targetScrollTop,
-                  behavior: "smooth",
-                });
-                scrolled = true;
-              }
+            scrolled = true;
+          } else {
+            const isUserInteracting = Date.now() - this.lastUserScrollTime < 2000;
+            if (!isUserInteracting) {
+              span.scrollIntoView({ behavior: "smooth", block: "center" });
             }
-          }
-
-          // Fallback to standard scrollIntoView if not inside iframe or parent scroll failed
-          if (!scrolled) {
-            span.scrollIntoView({ behavior: "smooth", block: "center" });
             scrolled = true;
           }
         }

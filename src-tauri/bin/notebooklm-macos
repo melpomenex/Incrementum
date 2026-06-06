@@ -22,7 +22,29 @@ PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
 for CANDIDATE in "${HOME:-}/.local/bin/notebooklm" /usr/local/bin/notebooklm /usr/bin/notebooklm /bin/notebooklm; do
   if [ -x "$CANDIDATE" ]; then
-    exec "$CANDIDATE" "$@"
+    if [ "$(dirname -- "$CANDIDATE")" != "$SCRIPT_DIR" ]; then
+      exec "$CANDIDATE" "$@"
+    fi
   fi
 done
-exec notebooklm "$@"
+
+RESOLVED_PATH=""
+OLD_IFS="$IFS"
+IFS=":"
+for DIR in $PATH; do
+  if [ -x "$DIR/notebooklm" ] && [ ! -d "$DIR/notebooklm" ]; then
+    if [ "$DIR" != "$SCRIPT_DIR" ]; then
+      RESOLVED_PATH="$DIR/notebooklm"
+      break
+    fi
+  fi
+done
+IFS="$OLD_IFS"
+
+if [ -n "$RESOLVED_PATH" ]; then
+  exec "$RESOLVED_PATH" "$@"
+else
+  echo "error: notebooklm is not installed" >&2
+  echo "Install it with:  pip install notebooklm-py" >&2
+  exit 1
+fi

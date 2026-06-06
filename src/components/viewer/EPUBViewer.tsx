@@ -305,6 +305,17 @@ export function EPUBViewer({
     return null;
   }, [documentId]);
 
+  const loadReadingPositionRef = useRef(loadReadingPosition);
+  loadReadingPositionRef.current = loadReadingPosition;
+  const saveReadingPositionRef = useRef(saveReadingPosition);
+  saveReadingPositionRef.current = saveReadingPosition;
+  const initialCfiRef = useRef(initialCfi);
+  initialCfiRef.current = initialCfi;
+  const metadataRef = useRef(metadata);
+  metadataRef.current = metadata;
+  const onLoadRef = useRef(onLoad);
+  onLoadRef.current = onLoad;
+
   const updateEpubSettings = useCallback((updates: Partial<typeof epubSettings>) => {
     updateSettings({
       documents: {
@@ -590,8 +601,8 @@ export function EPUBViewer({
         const tocData = await epubBook.loaded.navigation;
         
         let filteredToc = tocData.toc;
-        const startIdx = metadata?.chunkStartSpineIndex;
-        const endIdx = metadata?.chunkEndSpineIndex;
+        const startIdx = metadataRef.current?.chunkStartSpineIndex;
+        const endIdx = metadataRef.current?.chunkEndSpineIndex;
         if (startIdx !== undefined || endIdx !== undefined) {
           try {
             await epubBook.loaded.spine;
@@ -603,7 +614,7 @@ export function EPUBViewer({
 
         setToc(filteredToc);
         tocRef.current = filteredToc;
-        onLoad?.(filteredToc);
+        onLoadRef.current?.(filteredToc);
 
         const initializeRendition = async (): Promise<boolean> => {
 
@@ -728,12 +739,12 @@ export function EPUBViewer({
           applyRenditionTheme();
 
           // Display the book at saved position or start
-          const savedPosition = await loadReadingPosition();
-          const startIdx = metadata?.chunkStartSpineIndex;
+          const savedPosition = await loadReadingPositionRef.current();
+          const startIdx = metadataRef.current?.chunkStartSpineIndex;
 
           let displayTarget: any = null;
-          if (initialCfi) {
-            displayTarget = initialCfi;
+          if (initialCfiRef.current) {
+            displayTarget = initialCfiRef.current;
           } else if (savedPosition) {
             displayTarget = savedPosition;
           } else if (startIdx !== undefined) {
@@ -747,6 +758,7 @@ export function EPUBViewer({
           }
 
           if (displayTarget) {
+            lastDisplayedCfiRef.current = displayTarget;
             await rendition.display(displayTarget);
           } else {
             await rendition.display();
@@ -842,7 +854,7 @@ export function EPUBViewer({
               try {
                 const currentLocation = rendition.currentLocation() as any;
                 if (currentLocation && currentLocation.start && mounted) {
-                  saveReadingPosition(currentLocation.start.cfi);
+                  saveReadingPositionRef.current(currentLocation.start.cfi);
                 }
               } catch { /* ignore */ }
             }, 1000); // Save 1 second after last movement
@@ -855,8 +867,8 @@ export function EPUBViewer({
             // Enforce spine boundaries
             const currentSpineIndex = location.start?.index;
             if (typeof currentSpineIndex === 'number') {
-              const startIdx = metadata?.chunkStartSpineIndex;
-              const endIdx = metadata?.chunkEndSpineIndex;
+              const startIdx = metadataRef.current?.chunkStartSpineIndex;
+              const endIdx = metadataRef.current?.chunkEndSpineIndex;
               
               if (startIdx !== undefined && currentSpineIndex < startIdx) {
                 const spine = epubBook.spine || (bookInstance ? bookInstance.spine : null);
@@ -939,7 +951,7 @@ export function EPUBViewer({
           const location = renditionInstance.currentLocation?.();
           const cfi = location?.start?.cfi;
           if (cfi) {
-            void saveReadingPosition(cfi);
+            void saveReadingPositionRef.current(cfi);
           }
         } catch { /* ignore */ }
         try { renditionInstance.destroy(); } catch { /* ignore */ }
@@ -951,7 +963,16 @@ export function EPUBViewer({
     // Note: onLoad, onContextTextChange, onSelectionChange, and onProgressChange are
     // intentionally excluded from deps - they use refs to avoid destroying and
     // recreating the EPUB book when parent callbacks change.
-  }, [fileData, fileUrl, documentId, initialCfi, loadReadingPosition, saveReadingPosition]);
+  }, [fileData, fileUrl, documentId]);
+
+  const lastDisplayedCfiRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (rendition && initialCfi && initialCfi !== lastDisplayedCfiRef.current) {
+      lastDisplayedCfiRef.current = initialCfi;
+      rendition.display(initialCfi);
+    }
+  }, [rendition, initialCfi]);
 
   // Re-apply styles when settings or theme change
   useEffect(() => {

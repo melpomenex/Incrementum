@@ -7,6 +7,38 @@
 
 set -eu
 
+# Check for --text-file and transform into --text by reading the file
+TEXT_FILE=""
+skip=false
+argc=$#
+i=0
+while [ $i -lt $argc ]; do
+  arg="$1"
+  shift
+  i=$((i + 1))
+  if $skip; then
+    skip=false
+    TEXT_FILE="$arg"
+    continue
+  fi
+  case "$arg" in
+    --text-file)
+      skip=true
+      ;;
+    --text-file=*)
+      TEXT_FILE="${arg#--text-file=}"
+      ;;
+    *)
+      set -- "$@" "$arg"
+      ;;
+  esac
+done
+
+if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then
+  set -- "$@" "--text" "$(cat "$TEXT_FILE")"
+  rm -f "$TEXT_FILE"
+fi
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/aarch64-apple-darwin"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
@@ -28,8 +60,30 @@ export PATH
 
 for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /opt/homebrew/bin/pocket-tts; do
   if [ -x "$CANDIDATE" ]; then
-    exec "$CANDIDATE" "$@"
+    if [ "$(dirname -- "$CANDIDATE")" != "$SCRIPT_DIR" ]; then
+      exec "$CANDIDATE" "$@"
+    fi
   fi
 done
 
-exec pocket-tts "$@"
+RESOLVED_PATH=""
+OLD_IFS="$IFS"
+IFS=":"
+for DIR in $PATH; do
+  if [ -x "$DIR/pocket-tts" ] && [ ! -d "$DIR/pocket-tts" ]; then
+    if [ "$DIR" != "$SCRIPT_DIR" ]; then
+      RESOLVED_PATH="$DIR/pocket-tts"
+      break
+    fi
+  fi
+done
+IFS="$OLD_IFS"
+
+if [ -n "$RESOLVED_PATH" ]; then
+  exec "$RESOLVED_PATH" "$@"
+else
+  echo "error: pocket_tts is not installed" >&2
+  echo "Install it with:  uv tool install pocket-tts" >&2
+  echo "Or with pip:      pip install pocket-tts" >&2
+  exit 1
+fi

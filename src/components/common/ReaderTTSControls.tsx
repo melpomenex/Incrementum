@@ -55,16 +55,76 @@ function normalizeText(text: string): string {
     .trim();
 }
 
-function buildChunks(text: string): string[] {
-  const normalized = normalizeText(text);
-  if (!normalized) return [];
+function getWordOffsetAtTime(currentTime: number, duration: number, text: string): number {
+  if (duration <= 0) return 0;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return 0;
 
-  const sentences = normalized
+  // Calculate total character length (excluding spaces)
+  const totalChars = words.reduce((sum, w) => sum + w.length, 0);
+  if (totalChars === 0) return 0;
+
+  // Cumulative character progress for each word
+  const timeFraction = currentTime / duration;
+  let accumulatedChars = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    accumulatedChars += words[i].length;
+    const progressFraction = accumulatedChars / totalChars;
+    if (timeFraction <= progressFraction) {
+      return i;
+    }
+  }
+
+  return words.length - 1;
+}
+
+interface BuildChunksResult {
+  chunks: string[];
+  pageCharOffsets: Map<number, number>;
+}
+
+function buildChunks(text: string): BuildChunksResult {
+  const pageCharOffsets = new Map<number, number>();
+  const pageRegex = /<page number="(\d+)"\s*\/?>/g;
+  
+  // Clean page markers while keeping track of character offsets in the cleaned text
+  let cleanedText = "";
+  let lastIdx = 0;
+  let match;
+  
+  while ((match = pageRegex.exec(text)) !== null) {
+    const pageNum = parseInt(match[1], 10);
+    const fragment = text.slice(lastIdx, match.index);
+    const normalizedFrag = normalizeText(fragment);
+    
+    if (normalizedFrag) {
+      cleanedText += (cleanedText ? " " : "") + normalizedFrag;
+    }
+    
+    // The offset of the page is the length of cleanedText up to this point
+    pageCharOffsets.set(pageNum, cleanedText.length);
+    lastIdx = pageRegex.lastIndex;
+  }
+  
+  const remaining = text.slice(lastIdx);
+  const normalizedRemaining = normalizeText(remaining);
+  if (normalizedRemaining) {
+    cleanedText += (cleanedText ? " " : "") + normalizedRemaining;
+  }
+  
+  if (!cleanedText) {
+    return { chunks: [], pageCharOffsets };
+  }
+
+  const sentences = cleanedText
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
 
-  if (sentences.length === 0) return [normalized];
+  if (sentences.length === 0) {
+    return { chunks: [cleanedText], pageCharOffsets };
+  }
 
   const chunks: string[] = [];
   let current = "";
@@ -100,7 +160,7 @@ function buildChunks(text: string): string[] {
   }
 
   if (current) chunks.push(current);
-  return chunks;
+  return { chunks, pageCharOffsets };
 }
 
 interface BufferedAudio {
@@ -154,6 +214,36 @@ export function ReaderTTSControls({
 
   // Word highlighting
   const [highlightOn, setHighlightOn] = useState(false);
+  const [wordOffset, setWordOffset] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  const startWordTracking = useCallback((audio: HTMLAudioElement, chunkText: string) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+    const track = () => {
+      if (!audio || audio.paused || audio.ended) return;
+
+      const duration = audio.duration;
+      const currentTime = audio.currentTime;
+
+      if (duration > 0 && !isNaN(duration) && isFinite(duration)) {
+        const offset = getWordOffsetAtTime(currentTime, duration, chunkText);
+        setWordOffset(offset);
+      }
+
+      rafRef.current = requestAnimationFrame(track);
+    };
+
+    rafRef.current = requestAnimationFrame(track);
+  }, []);
+
+  const stopWordTracking = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    setWordOffset(0);
+  }, []);
 
   // Buffer underrun indicator
   const [isBuffering, setIsBuffering] = useState(false);
@@ -162,7 +252,7 @@ export function ReaderTTSControls({
   const mountedRef = useRef(true);
   const playbackIdRef = useRef(0);
 
-  const chunks = useMemo(() => buildChunks(text), [text]);
+  const { chunks, pageCharOffsets } = useMemo(() => buildChunks(text), [text]);
 
   // TextPositionIndex for position-aware start
   const positionIndexRef = useRef<TextPositionIndex>(new TextPositionIndex(docType));
@@ -171,8 +261,9 @@ export function ReaderTTSControls({
     positionIndexRef.current = new TextPositionIndex(docType);
     if (chunks.length > 0) {
       positionIndexRef.current.build(chunks);
+      positionIndexRef.current.setPageCharOffsets(pageCharOffsets);
     }
-  }, [chunks, docType]);
+  }, [chunks, pageCharOffsets, docType]);
 
   // Determine initial chunk index from startPosition
   const initialChunkRef = useRef<number | null>(null);
@@ -191,35 +282,82 @@ export function ReaderTTSControls({
 
   const findVisibleChunkIndex = useCallback((): number | null => {
     try {
-      const win = iframeWindow || window;
-      const container = iframeWindow 
-        ? iframeWindow.document.body 
-        : (highlightContainerRef?.current || document.body);
+      const parentContainer = highlightContainerRef?.current || document.body;
+      if (!parentContainer) return null;
 
-      if (!container) return null;
+      const parentRect = parentContainer.getBoundingClientRect();
+      const iframes = Array.from(parentContainer.querySelectorAll("iframe"));
+      
+      let visibleElements: HTMLElement[] = [];
 
-      // Query paragraph-like and span-like elements that contain text content
-      const elements = Array.from(
-        container.querySelectorAll<HTMLElement>(
-          "p, h1, h2, h3, h4, h5, h6, li, .textLayer span, [role='paragraph']"
-        )
-      );
-
-      const isElementVisible = (el: HTMLElement) => {
-        const rect = el.getBoundingClientRect();
-        // Check if the element falls within the visible viewport bounds
-        const visibleHorizontally = rect.right > 10 && rect.left < win.innerWidth - 10;
-        const visibleVertically = rect.bottom > 10 && rect.top < win.innerHeight - 10;
-        return visibleHorizontally && visibleVertically;
-      };
-
-      const visibleElements = elements.filter((el) => {
-        const text = el.textContent?.trim();
-        if (!text || text.length < 3) return false;
-        return isElementVisible(el);
-      });
+      if (iframes.length > 0) {
+        for (const iframe of iframes) {
+          try {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (!iframeDoc) continue;
+            const iframeRect = iframe.getBoundingClientRect();
+            
+            const elements = Array.from(
+              iframeDoc.body.querySelectorAll<HTMLElement>(
+                "p, h1, h2, h3, h4, h5, h6, li, [role='paragraph']"
+              )
+            );
+            
+            for (const el of elements) {
+              const text = el.textContent?.trim();
+              if (!text || text.length < 3) continue;
+              
+              const elRect = el.getBoundingClientRect();
+              const absoluteTop = iframeRect.top + elRect.top;
+              const absoluteBottom = iframeRect.top + elRect.bottom;
+              
+              // Check if element is visible within the parent container's vertical bounds
+              if (absoluteBottom > parentRect.top + 10 && absoluteTop < parentRect.bottom - 10) {
+                visibleElements.push(el);
+              }
+            }
+          } catch (e) {
+            // Ignore iframe cross-origin access issues
+          }
+        }
+      } else {
+        const elements = Array.from(
+          parentContainer.querySelectorAll<HTMLElement>(
+            "p, h1, h2, h3, h4, h5, h6, li, [role='paragraph']"
+          )
+        );
+        for (const el of elements) {
+          const text = el.textContent?.trim();
+          if (!text || text.length < 3) continue;
+          
+          const elRect = el.getBoundingClientRect();
+          if (elRect.bottom > parentRect.top + 10 && elRect.top < parentRect.bottom - 10) {
+            visibleElements.push(el);
+          }
+        }
+      }
 
       if (visibleElements.length === 0) return null;
+
+      // Sort visible elements by their distance from the top of parentRect
+      visibleElements.sort((a, b) => {
+        const rectA = a.getBoundingClientRect();
+        const rectB = b.getBoundingClientRect();
+        
+        let topA = rectA.top;
+        let topB = rectB.top;
+        
+        if (a.ownerDocument !== document) {
+          const iframe = iframes.find(f => f.contentDocument === a.ownerDocument);
+          if (iframe) topA += iframe.getBoundingClientRect().top;
+        }
+        if (b.ownerDocument !== document) {
+          const iframe = iframes.find(f => f.contentDocument === b.ownerDocument);
+          if (iframe) topB += iframe.getBoundingClientRect().top;
+        }
+        
+        return Math.abs(topA - parentRect.top) - Math.abs(topB - parentRect.top);
+      });
 
       const cleanForComparison = (str: string) => {
         return str.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -245,7 +383,7 @@ export function ReaderTTSControls({
       console.warn("TTS: Error finding visible starting chunk index:", error);
     }
     return null;
-  }, [chunks, iframeWindow, highlightContainerRef]);
+  }, [chunks, highlightContainerRef]);
 
   // Sync refs for values read in callbacks (avoids stale closures)
   const isAutoPlayingRef = useRef(isAutoPlaying);
@@ -347,7 +485,8 @@ export function ReaderTTSControls({
     }
     setIsPlaying(false);
     setIsPaused(false);
-  }, []);
+    stopWordTracking();
+  }, [stopWordTracking]);
 
   // Generate audio for a chunk
   const generateChunkAudio = useCallback(async (index: number): Promise<BufferedAudio | null> => {
@@ -461,6 +600,7 @@ export function ReaderTTSControls({
     audio.onplay = () => {
       setIsPlaying(true);
       setIsPaused(false);
+      startWordTracking(audio, chunk);
     };
 
     audio.onpause = () => {
@@ -468,11 +608,13 @@ export function ReaderTTSControls({
         setIsPaused(true);
         setIsPlaying(false);
       }
+      stopWordTracking();
     };
 
     audio.onended = () => {
       setIsPlaying(false);
       setIsPaused(false);
+      stopWordTracking();
 
       if (isAutoPlayingRef.current && autoAdvance && !intentionalStopRef.current) {
         const nextIndex = index + 1;
@@ -491,6 +633,7 @@ export function ReaderTTSControls({
       console.error("Audio playback error");
       setIsPlaying(false);
       setIsPaused(false);
+      stopWordTracking();
     };
 
     try {
@@ -499,8 +642,9 @@ export function ReaderTTSControls({
     } catch (error) {
       console.error("Failed to play audio:", error);
       setIsPlaying(false);
+      stopWordTracking();
     }
-  }, [chunks, playbackRate, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart]);
+  }, [chunks, playbackRate, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart, startWordTracking, stopWordTracking]);
   playChunkAtIndexRef.current = playChunkAtIndex;
 
   useEffect(() => {
@@ -545,6 +689,7 @@ export function ReaderTTSControls({
         await playChunkAtIndex(targetIdx);
       } else {
         audioRef.current.play();
+        startWordTracking(audioRef.current, chunks[chunkIndex]);
       }
       return;
     }
@@ -612,9 +757,9 @@ export function ReaderTTSControls({
       <WordHighlightLayer
         enabled={highlightEnabled}
         chunkText={currentChunk}
-        wordOffset={0}
+        wordOffset={wordOffset}
         containerRef={highlightContainerRef}
-        useChunkLevel={true}
+        useChunkLevel={false}
         iframeWindow={iframeWindow}
       />
     )}

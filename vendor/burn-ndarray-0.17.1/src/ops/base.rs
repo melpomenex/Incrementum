@@ -835,7 +835,7 @@ where
 
         let output = Zip::from(&lhs.array)
             .and(&rhs.array)
-            .map_collect(|&lhs_val, &rhs_val| (lhs_val == rhs_val))
+            .map_collect(|&lhs_val, &rhs_val| lhs_val == rhs_val)
             .into_shared();
         NdArrayTensor::new(output)
     }
@@ -1158,7 +1158,7 @@ impl NdArrayBoolOps {
 
         let output = Zip::from(&lhs.array)
             .and(&rhs.array)
-            .map_collect(|&lhs_val, &rhs_val| (lhs_val == rhs_val))
+            .map_collect(|&lhs_val, &rhs_val| lhs_val == rhs_val)
             .into_shared();
         NdArrayTensor::new(output)
     }
@@ -1172,7 +1172,7 @@ impl NdArrayBoolOps {
 
         let output = Zip::from(&lhs.array)
             .and(&rhs.array)
-            .map_collect(|&lhs_val, &rhs_val| (lhs_val && rhs_val))
+            .map_collect(|&lhs_val, &rhs_val| lhs_val && rhs_val)
             .into_shared();
         NdArrayTensor::new(output)
     }
@@ -1186,7 +1186,7 @@ impl NdArrayBoolOps {
 
         let output = Zip::from(&lhs.array)
             .and(&rhs.array)
-            .map_collect(|&lhs_val, &rhs_val| (lhs_val || rhs_val))
+            .map_collect(|&lhs_val, &rhs_val| lhs_val || rhs_val)
             .into_shared();
         NdArrayTensor::new(output)
     }

@@ -1627,42 +1627,6 @@ export function DocumentViewer({
   useEffect(() => {
     if (!documentId) return;
 
-    const prevDocId = lastDocumentIdRef.current;
-    if (prevDocId && prevDocId !== documentId) {
-      // Capture and save scroll position for the previous document
-      const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
-      if (container) {
-        const scrollTop = container.scrollTop;
-        const scrollLeft = container.scrollLeft;
-        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-        const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
-        const state = {
-          pageNumber: currentPageRef.current,
-          scrollTop,
-          scrollLeft,
-          scrollHeight: container.scrollHeight,
-          clientHeight: container.clientHeight,
-          scrollPercent,
-        };
-        const storageKey = `document-scroll-position:${prevDocId}`;
-        const payload = {
-          pageNumber: state.pageNumber,
-          scrollPercent: state.scrollPercent,
-          scrollTop: state.scrollTop,
-          scrollLeft: state.scrollLeft,
-          scrollHeight: state.scrollHeight,
-          clientHeight: state.clientHeight,
-          updatedAt: Date.now(),
-        };
-        localStorage.setItem(storageKey, JSON.stringify(payload));
-        const viewState = lastViewStateRef.current
-          ? { ...lastViewStateRef.current, updatedAt: Date.now() }
-          : null;
-        updateDocumentProgressAuto(prevDocId, state.pageNumber, state.scrollPercent, null, viewState ?? undefined)
-          .catch((error) => console.warn("Failed to save document progress before switch:", error));
-      }
-    }
-
     setOcrContextText(null);
     setContextMenuState(null);
 
@@ -1697,7 +1661,62 @@ export function DocumentViewer({
           });
       }
     }
-  }, [documentId, setCurrentDocument, loadDocumentData]);
+
+    return () => {
+      // Capture and save scroll position on document switch or unmount
+      const container = document.querySelector("[data-document-scroll-container]") as HTMLElement | null;
+      let state = lastScrollStateRef.current;
+      if (container) {
+        const scrollTop = container.scrollTop;
+        const scrollLeft = container.scrollLeft;
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        const scrollPercent = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+        state = {
+          pageNumber: currentPageRef.current,
+          scrollTop,
+          scrollLeft,
+          scrollHeight: container.scrollHeight,
+          clientHeight: container.clientHeight,
+          scrollPercent,
+        };
+        const storageKey = `document-scroll-position:${documentId}`;
+        const payload = {
+          pageNumber: state.pageNumber,
+          scrollPercent: state.scrollPercent,
+          scrollTop: state.scrollTop,
+          scrollLeft: state.scrollLeft,
+          scrollHeight: state.scrollHeight,
+          clientHeight: state.clientHeight,
+          updatedAt: Date.now(),
+        };
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      }
+
+      const viewState = lastViewStateRef.current
+        ? { ...lastViewStateRef.current, updatedAt: Date.now() }
+        : null;
+
+      const pageNum = state?.pageNumber ?? currentPageRef.current;
+      const pct = state?.scrollPercent ?? lastScrollStateRef.current?.scrollPercent ?? null;
+
+      updateDocumentProgressAuto(documentId, pageNum, pct, null, viewState ?? undefined)
+        .catch((error) => console.warn("Failed to save document progress on cleanup:", error));
+
+      const unifiedPosition = getUnifiedPositionForDocument(docType, state || {
+        pageNumber: pageNum,
+        scrollPercent: pct ?? 0,
+        scrollTop: state?.scrollTop ?? 0,
+        scrollLeft: state?.scrollLeft ?? 0,
+        scrollHeight: state?.scrollHeight ?? 0,
+        clientHeight: state?.clientHeight ?? 0,
+      });
+
+      if (unifiedPosition) {
+        saveDocumentPosition(documentId, unifiedPosition)
+          .catch((error) => console.warn("Failed to save unified position on cleanup:", error));
+      }
+    };
+  }, [documentId, setCurrentDocument, loadDocumentData, docType]);
 
   useEffect(() => {
     if (initialViewMode) {

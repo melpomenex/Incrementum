@@ -8,6 +8,38 @@ set -eu
 # Strip AppImage environment variables that interfere with Python and readline.
 unset APPDIR APPIMAGE OWD LD_LIBRARY_PATH LD_PRELOAD PYTHONHOME PYTHONPATH
 
+# Check for --text-file and transform into --text by reading the file
+TEXT_FILE=""
+skip=false
+argc=$#
+i=0
+while [ $i -lt $argc ]; do
+  arg="$1"
+  shift
+  i=$((i + 1))
+  if $skip; then
+    skip=false
+    TEXT_FILE="$arg"
+    continue
+  fi
+  case "$arg" in
+    --text-file)
+      skip=true
+      ;;
+    --text-file=*)
+      TEXT_FILE="${arg#--text-file=}"
+      ;;
+    *)
+      set -- "$@" "$arg"
+      ;;
+  esac
+done
+
+if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then
+  set -- "$@" "--text" "$(cat "$TEXT_FILE")"
+  rm -f "$TEXT_FILE"
+fi
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/x86_64-unknown-linux-gnu"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
@@ -60,56 +92,4 @@ if [ -d "$RUNTIME_SITE" ]; then
   export PYTHONPATH="$RUNTIME_SITE"
 fi
 
-# Check for --text-file and transform into --text by writing a Python wrapper.
-# We write args to a temp file as JSON to avoid all shell quoting issues.
-TEXT_FILE=""
-NEW_ARGS=""
-skip=false
-for arg in "$@"; do
-  if "$skip"; then
-    skip=false
-    TEXT_FILE="$arg"
-    continue
-  fi
-  case "$arg" in
-    --text-file)
-      skip=true
-      ;;
-    --text-file=*)
-      TEXT_FILE="${arg#--text-file=}"
-      ;;
-    *)
-      NEW_ARGS="$NEW_ARGS
-$arg"
-      ;;
-  esac
-done
-
-if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then
-  ARGS_FILE="$(mktemp "${TMPDIR:-/tmp}/pocket-tts-args-XXXXXX.json")"
-  # Build JSON array of args using Python itself (safe quoting)
-  "$PYTHON" -c "
-import json, sys
-args = ['pocket_tts']
-for a in sys.argv[1:]:
-    args.append(a)
-with open('$ARGS_FILE', 'w') as f:
-    json.dump(args, f)
-" $NEW_ARGS
-  # Write a Python wrapper that reads args from JSON and text from file
-  WRAPPER="$(mktemp "${TMPDIR:-/tmp}/pocket-tts-wrapper-XXXXXX.py")"
-  printf '%s\n' \
-    'import sys, os, json' \
-    "with open('$ARGS_FILE') as f: sys.argv = json.load(f)" \
-    "sys.argv.append('--text')" \
-    "sys.argv.append(open('$TEXT_FILE').read())" \
-    "os.unlink('$ARGS_FILE')" \
-    "os.unlink('$TEXT_FILE')" \
-    "os.unlink('$WRAPPER')" \
-    'from pocket_tts.__main__ import cli_app' \
-    'cli_app()' \
-    > "$WRAPPER"
-  exec "$PYTHON" "$WRAPPER"
-else
-  exec "$PYTHON" -m pocket_tts "$@"
-fi
+exec "$PYTHON" -m pocket_tts "$@"

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.47.8] - 2026-06-06
+
+### Fixed
+- **Fluid TTS word-highlight auto-scrolling** — Refactored the word highlighting scroll engine to perform dynamic, layout-independent relative top calculations. The scroller now throttles scroll actions to line changes or viewport drift to prevent stuttering/jerking, and monitors mouse, wheel, keyboard, and touch events to pause auto-scrolling for 2 seconds when user manual scroll interaction is detected.
+
 ## [1.47.7] - 2026-06-04
 
 ### Added

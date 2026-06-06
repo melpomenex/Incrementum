@@ -5,11 +5,11 @@ interface WordHighlightLayerProps {
   enabled: boolean;
   chunkText: string;
   wordOffset: number;
-  /** Container element where text lives (for Markdown/PDF) */
+  /** Container element where text lives (for Markdown/PDF/EPUB) */
   containerRef: React.RefObject<HTMLElement | null>;
   /** Use chunk-level highlighting instead of word-level */
   useChunkLevel?: boolean;
-  /** Iframe contentWindow for HTML documents */
+  /** Optional fallback iframe contentWindow */
   iframeWindow?: Window | null;
 }
 
@@ -21,67 +21,94 @@ export function WordHighlightLayer({
   useChunkLevel = false,
   iframeWindow,
 }: WordHighlightLayerProps) {
-  const highlighterRef = useRef<WordHighlighter | null>(null);
-  const iframeHighlighterRef = useRef<WordHighlighter | null>(null);
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  // Track highlighters mapped by their HTML container elements to avoid leaks and memory issues
+  const highlightersRef = useRef<Map<HTMLElement, WordHighlighter>>(new Map());
 
+  // Clean up all highlighters on unmount
   useEffect(() => {
     return () => {
-      highlighterRef.current?.destroy();
-      highlighterRef.current = null;
-      iframeHighlighterRef.current?.destroy();
-      iframeHighlighterRef.current = null;
+      highlightersRef.current.forEach((hl) => hl.destroy());
+      highlightersRef.current.clear();
     };
   }, []);
 
   useEffect(() => {
-    if (!containerRef.current || iframeWindow) return;
-
-    if (!highlighterRef.current) {
-      highlighterRef.current = new WordHighlighter();
+    if (!enabled) {
+      highlightersRef.current.forEach((hl) => hl.clear());
+      return;
     }
 
-    const hl = highlighterRef.current;
-    hl.init(containerRef.current, useChunkLevel);
-    hl.setEnabled(enabled);
+    // 1. Gather all active containers (both the main container and any embedded iframes)
+    const targets: HTMLElement[] = [];
 
-    return () => {
-      if (!enabledRef.current) {
-        hl.clear();
+    // Add direct iframe window document body if provided
+    if (iframeWindow && iframeWindow.document?.body) {
+      targets.push(iframeWindow.document.body);
+    }
+
+    // Search the main scroll container or content area
+    let mainContainer = containerRef?.current;
+    if (!mainContainer && typeof document !== "undefined") {
+      mainContainer = (document.querySelector("[data-document-scroll-container]") ||
+                      document.querySelector(".viewer-content-area")) as HTMLElement | null;
+    }
+
+    if (mainContainer) {
+      // Find all iframe bodies (important for EPUB continuous scroll/chapters)
+      const iframes = Array.from(mainContainer.querySelectorAll("iframe"));
+      for (const iframe of iframes) {
+        try {
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDoc && iframeDoc.body) {
+            if (!targets.includes(iframeDoc.body)) {
+              targets.push(iframeDoc.body);
+            }
+          }
+        } catch {
+          // Ignore cross-origin access security warnings
+        }
       }
-    };
-  }, [containerRef.current, iframeWindow, useChunkLevel, enabled]);
 
-  useEffect(() => {
-    if (!iframeWindow || !iframeWindow.document?.body) return;
-
-    if (!iframeHighlighterRef.current) {
-      iframeHighlighterRef.current = new WordHighlighter();
-    }
-
-    const hl = iframeHighlighterRef.current;
-    hl.init(iframeWindow.document.body, useChunkLevel);
-    hl.setEnabled(enabled);
-
-    return () => {
-      if (!enabledRef.current) {
-        hl.clear();
+      // If no iframes are rendered, fall back to the main container itself
+      if (targets.length === 0) {
+        targets.push(mainContainer);
       }
-    };
-  }, [iframeWindow, useChunkLevel, enabled]);
-
-  const activeHighlighter = iframeWindow ? iframeHighlighterRef.current : highlighterRef.current;
-
-  useEffect(() => {
-    if (!activeHighlighter || !enabled) return;
-
-    if (useChunkLevel) {
-      activeHighlighter.highlightChunk(chunkText);
-    } else {
-      activeHighlighter.highlightWord(chunkText, wordOffset);
     }
-  }, [enabled, chunkText, wordOffset, useChunkLevel, activeHighlighter]);
+
+    const currentHighlighters = highlightersRef.current;
+
+    // 2. Synchronize highlighters map with targets
+    // Destroy highlighters for elements that are no longer targets
+    for (const [el, hl] of currentHighlighters.entries()) {
+      if (!targets.includes(el)) {
+        hl.destroy();
+        currentHighlighters.delete(el);
+      }
+    }
+
+    // Initialize highlighters for new targets and clear existing highlights
+    for (const el of targets) {
+      let hl = currentHighlighters.get(el);
+      if (!hl) {
+        hl = new WordHighlighter();
+        hl.init(el, useChunkLevel);
+        currentHighlighters.set(el, hl);
+      }
+      hl.setEnabled(true);
+      hl.clear();
+    }
+
+    // 3. Apply the current segment highlight to all highlighters.
+    // The highlighter internally performs a fast substring lookup and only applies
+    // highlights/scrolling to the specific target body containing the match.
+    for (const hl of currentHighlighters.values()) {
+      if (useChunkLevel) {
+        hl.highlightChunk(chunkText);
+      } else {
+        hl.highlightWord(chunkText, wordOffset);
+      }
+    }
+  }, [enabled, chunkText, wordOffset, useChunkLevel, containerRef, containerRef?.current, iframeWindow]);
 
   return null;
 }
