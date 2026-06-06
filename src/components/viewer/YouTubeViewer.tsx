@@ -47,6 +47,7 @@ interface YouTubeViewerProps {
   onTranscriptSearchStateChange?: (state: TranscriptSearchState) => void;
   initialTranscriptHighlightQuery?: string;
   initialTranscriptSegmentId?: string;
+  onEnded?: () => void;
 }
 
 export function YouTubeViewer({
@@ -66,6 +67,7 @@ export function YouTubeViewer({
   onTranscriptSearchStateChange,
   initialTranscriptHighlightQuery,
   initialTranscriptSegmentId,
+  onEnded,
 }: YouTubeViewerProps) {
   const toast = useToast();
   const { t } = useI18n();
@@ -923,6 +925,7 @@ export function YouTubeViewer({
       if (duration > 0) {
         saveCurrentPosition(duration);
       }
+      onEnded?.();
     }
   };
 

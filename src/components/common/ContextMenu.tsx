@@ -269,14 +269,15 @@ export function ContextMenu({
             <div
               key={item.id}
               className="relative"
-              onMouseEnter={() => {
+              onMouseEnter={(e) => {
                 if (hasSubmenu && menuRef.current) {
                   const menuRect = menuRef.current.getBoundingClientRect();
+                  const itemRect = e.currentTarget.getBoundingClientRect();
                   setSubmenuState({
                     itemId: item.id,
                     position: {
                       x: menuRect.right - 4,
-                      y: pos.y,
+                      y: itemRect.top,
                     },
                   });
                 }
@@ -298,10 +299,28 @@ export function ContextMenu({
                 role="menuitem"
                 tabIndex={index === 0 ? 0 : -1}
                 disabled={item.disabled}
-                onClick={() => {
+                onClick={(e) => {
                   if (!item.disabled) {
-                    item.onClick?.();
-                    onClose();
+                    if (hasSubmenu) {
+                      if (menuRef.current) {
+                        const menuRect = menuRef.current.getBoundingClientRect();
+                        const itemRect = e.currentTarget.getBoundingClientRect();
+                        setSubmenuState(
+                          submenuState?.itemId === item.id
+                            ? null
+                            : {
+                                itemId: item.id,
+                                position: {
+                                  x: menuRect.right - 4,
+                                  y: itemRect.top,
+                                },
+                              }
+                        );
+                      }
+                    } else {
+                      item.onClick?.();
+                      onClose();
+                    }
                   }
                 }}
               >
@@ -343,23 +362,24 @@ export function ContextMenu({
                   </svg>
                 )}
               </button>
+
+              {/* Submenu */}
+              {hasSubmenu && submenuState && submenuState.itemId === item.id && (
+                <ContextMenu
+                  menuId={`${menuId}-${submenuState.itemId}`}
+                  items={item.children || []}
+                  visible={true}
+                  position={submenuState.position}
+                  onClose={() => {
+                    setSubmenuState(null);
+                    onClose();
+                  }}
+                />
+              )}
             </div>
           );
         })}
       </div>
-
-      {/* Submenu */}
-      {submenuState && (
-        <ContextMenu
-          menuId={`${menuId}-${submenuState.itemId}`}
-          items={
-            items.find((i) => i.id === submenuState.itemId)?.children || []
-          }
-          visible={true}
-          position={submenuState.position}
-          onClose={() => setSubmenuState(null)}
-        />
-      )}
     </>
   );
 }

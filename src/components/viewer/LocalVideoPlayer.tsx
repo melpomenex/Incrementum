@@ -63,6 +63,7 @@ interface LocalVideoPlayerProps {
   onLoad?: (metadata: { duration: number; title: string }) => void;
   className?: string;
   mediaType?: "video" | "audio";
+  onEnded?: () => void;
 }
 
 export function LocalVideoPlayer({
@@ -72,6 +73,7 @@ export function LocalVideoPlayer({
   onLoad,
   className = '',
   mediaType = "video",
+  onEnded,
 }: LocalVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1159,6 +1161,7 @@ export function LocalVideoPlayer({
       onSeeked={() => handleTimeUpdate()}
       onVolumeChange={handleVolumeChange}
       onError={handleMediaElementError}
+      onEnded={onEnded}
     />
   ) : (
     <video
@@ -1181,6 +1184,7 @@ export function LocalVideoPlayer({
       onVolumeChange={handleVolumeChange}
       onError={handleMediaElementError}
       onWheel={handleScroll}
+      onEnded={onEnded}
     />
   );
 

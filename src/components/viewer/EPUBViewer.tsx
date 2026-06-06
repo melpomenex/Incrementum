@@ -367,12 +367,12 @@ export function EPUBViewer({
         padding-bottom: 80px !important;
         margin: ${contentMargin} !important;
       }
-      * {
+      body *:not(.epub-persisted-highlight) {
         color: ${textColor} !important;
         background-color: transparent !important;
       }
       .epub-persisted-highlight {
-        background-color: rgba(255, 235, 59, 0.5) !important;
+        background-color: rgba(255, 235, 59, 0.5);
         border-radius: 0.12rem !important;
       }
       .epub-sync-highlight {
@@ -700,8 +700,7 @@ export function EPUBViewer({
               if (!text) return;
               e.preventDefault();
               const mouseEvent = e as unknown as MouseEvent;
-              // Convert iframe coordinates to parent frame coordinates
-              const iframe = viewerRef.current?.querySelector("iframe");
+              const iframe = (contents.window?.frameElement || viewerRef.current?.querySelector("iframe")) as HTMLIFrameElement | null;
               if (iframe) {
                 const iframeRect = iframe.getBoundingClientRect();
                 onContextMenuRef.current?.({

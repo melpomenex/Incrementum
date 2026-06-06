@@ -2091,6 +2091,11 @@ export function QueueScrollPage() {
                     },
                   });
                 }}
+                onEnded={() => {
+                  if (settings.scrollQueue.autoProceed) {
+                    goToNext();
+                  }
+                }}
               />
             );
           })() : renderedItem?.type === "flashcard" && renderedItem.learningItem ? (
@@ -2497,6 +2502,7 @@ export function QueueScrollPage() {
         onClose={() => setShowSettings(false)}
         flashcardPercentage={settings.scrollQueue.flashcardPercentage}
         extractsCountAsFlashcards={settings.scrollQueue.extractsCountAsFlashcards}
+        autoProceed={settings.scrollQueue.autoProceed}
         onUpdateSetting={(key, value) => updateSettingsCategory('scrollQueue', { [key]: value })}
       />
 

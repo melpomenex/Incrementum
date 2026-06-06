@@ -350,6 +350,7 @@ interface SmartQueueSettings {
 interface ScrollQueueSettings {
   flashcardPercentage: number; // 0-100, percentage of queue that should be flashcards
   extractsCountAsFlashcards: boolean; // Whether extracts count towards the flashcard percentage
+  autoProceed: boolean; // Auto-proceed to next item in the queue when a video/audio ends
 }
 
 /**
@@ -659,6 +660,7 @@ export const defaultSettings: Settings = {
   scrollQueue: {
     flashcardPercentage: 30, // 30% of queue should be flashcards by default
     extractsCountAsFlashcards: true, // Extracts count towards the flashcard percentage
+    autoProceed: false, // Auto-proceed to next item in the queue when a video/audio ends
   },
   rssQueue: {
     includeInQueue: true,

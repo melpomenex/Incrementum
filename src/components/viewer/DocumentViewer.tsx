@@ -244,6 +244,7 @@ interface DocumentViewerProps {
     duration?: number;
   } | null) => void;
   hideRatingOrbs?: boolean;
+  onEnded?: () => void;
 }
 
 type ViewerSearchDirection = "next" | "prev";
@@ -281,6 +282,7 @@ export function DocumentViewer({
   extractSourceContext,
   onVideoContextChange,
   hideRatingOrbs = false,
+  onEnded,
 }: DocumentViewerProps) {
   const toast = useToast();
   const { t } = useI18n();
@@ -2604,11 +2606,12 @@ export function DocumentViewer({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't clear if clicking on the floating button, dialog, or within the document content
+      // Don't clear if clicking on the floating button, dialog, context menus, or within the document content
       if (
         target.closest('[data-extract-button="true"]') ||
         target.closest('[role="dialog"]') ||
-        target.closest('[data-document-content="true"]')
+        target.closest('[data-document-content="true"]') ||
+        target.closest('.context-menu')
       ) {
         return;
       }
@@ -5013,6 +5016,7 @@ export function DocumentViewer({
               initialSeekTime={initialJump?.kind === "audio" ? initialJump.timeSeconds : undefined}
               initialTranscriptSegmentId={initialJump?.kind === "audio" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "audio"}
+              onEpisodeEnded={onEnded}
             />
           ) : mediaError ? (
             <div className="flex items-center justify-center h-full">
@@ -5056,6 +5060,7 @@ export function DocumentViewer({
                 title={currentDocument.title}
                 className="h-full w-full"
                 mediaType="video"
+                onEnded={onEnded}
               />
             </div>
           ) : mediaError ? (
@@ -5310,6 +5315,7 @@ export function DocumentViewer({
               initialTranscriptHighlightQuery={jumpHighlightQuery}
               initialTranscriptSegmentId={initialJump?.kind === "youtube" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "youtube"}
+              onEnded={onEnded}
               onArchive={() => {
                 loadQueue();
                 const currentTab = tabs.find(t => t.data?.documentId === documentId);

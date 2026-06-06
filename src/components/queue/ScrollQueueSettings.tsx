@@ -7,6 +7,7 @@ interface ScrollQueueSettingsProps {
   onClose: () => void;
   flashcardPercentage: number;
   extractsCountAsFlashcards: boolean;
+  autoProceed: boolean;
   onUpdateSetting: (key: string, value: number | boolean) => void;
 }
 
@@ -15,6 +16,7 @@ export const ScrollQueueSettings = React.memo(function ScrollQueueSettings({
   onClose,
   flashcardPercentage,
   extractsCountAsFlashcards,
+  autoProceed,
   onUpdateSetting,
 }: ScrollQueueSettingsProps) {
   if (!isOpen) return null;
@@ -69,6 +71,30 @@ export const ScrollQueueSettings = React.memo(function ScrollQueueSettings({
                 className={cn(
                   "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
                   extractsCountAsFlashcards ? "translate-x-6" : "translate-x-1"
+                )}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <label htmlFor="auto-proceed-toggle" className="text-sm font-medium text-foreground">Auto-proceed to next item</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Automatically navigate to the next item when a video or audio ends
+              </p>
+            </div>
+            <button
+              id="auto-proceed-toggle"
+              onClick={() => onUpdateSetting("autoProceed", !autoProceed)}
+              className={cn(
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                autoProceed ? "bg-primary" : "bg-muted"
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                  autoProceed ? "translate-x-6" : "translate-x-1"
                 )}
               />
             </button>
