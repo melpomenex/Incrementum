@@ -22,7 +22,7 @@ This skill automates the workflow for preparing and triggering a new release of 
 Run the release script from the root of the project repository:
 
 ```bash
-node scripts/release.js [version]
+node scripts/release.cjs [version]
 ```
 
 ### Parameters

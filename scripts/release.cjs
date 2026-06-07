@@ -94,8 +94,8 @@ try {
   console.log('Creating tag...');
   execSync(`git tag -a v${newVersion} -m "v${newVersion}"`, { stdio: 'inherit', cwd: rootDir });
   
-  console.log('Pushed code and tags to remote...');
-  execSync('git push origin main && git push origin --tags', { stdio: 'inherit', cwd: rootDir });
+  console.log('Pushed code and tag to remote...');
+  execSync(`git push origin main && git push origin v${newVersion}`, { stdio: 'inherit', cwd: rootDir });
 
   // Create GitHub Release draft
   console.log('Creating GitHub Release draft...');
