@@ -860,10 +860,17 @@ fn augmented_path_env() -> Option<String> {
         .map(|raw| env::split_paths(&raw).collect())
         .unwrap_or_default();
 
-    if cfg!(target_os = "linux") {
-        if let Ok(home) = env::var("HOME") {
+    if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
+        let home = env::var("HOME").ok().or_else(|| dirs::home_dir().map(|p| p.to_string_lossy().to_string()));
+        if let Some(home) = home {
             ordered.push(PathBuf::from(home).join(".local/bin"));
         }
+    }
+    if cfg!(target_os = "macos") {
+        ordered.push(PathBuf::from("/opt/homebrew/bin"));
+        ordered.push(PathBuf::from("/usr/local/bin"));
+    }
+    if cfg!(target_os = "linux") {
         ordered.push(PathBuf::from("/usr/local/sbin"));
         ordered.push(PathBuf::from("/usr/local/bin"));
         ordered.push(PathBuf::from("/usr/sbin"));
@@ -1859,10 +1866,17 @@ fn notebooklm_binary_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     candidates.push(PathBuf::from("bin").join(format!("notebooklm{}", ext)));
     candidates.push(PathBuf::from("../src-tauri/bin").join(format!("notebooklm-{}{}", triple, ext)));
     candidates.push(PathBuf::from("../src-tauri/bin").join(format!("notebooklm{}", ext)));
-    if cfg!(target_os = "linux") {
-        if let Ok(home) = env::var("HOME") {
+    if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
+        let home = env::var("HOME").ok().or_else(|| dirs::home_dir().map(|p| p.to_string_lossy().to_string()));
+        if let Some(home) = home {
             candidates.push(PathBuf::from(home).join(".local/bin").join("notebooklm"));
         }
+    }
+    if cfg!(target_os = "macos") {
+        candidates.push(PathBuf::from("/opt/homebrew/bin/notebooklm"));
+        candidates.push(PathBuf::from("/usr/local/bin/notebooklm"));
+    }
+    if cfg!(target_os = "linux") {
         candidates.push(PathBuf::from("/usr/local/bin/notebooklm"));
         candidates.push(PathBuf::from("/usr/bin/notebooklm"));
         candidates.push(PathBuf::from("/bin/notebooklm"));
@@ -3649,5 +3663,18 @@ mod tests {
         assert_eq!(loaded.jobs[0].status, "expired-auth");
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_augmented_path_env_macos() {
+        let path_env = augmented_path_env();
+        assert!(path_env.is_some(), "Should return augmented PATH");
+        let path_str = path_env.unwrap();
+        assert!(
+            path_str.contains("/opt/homebrew/bin") || path_str.contains("/usr/local/bin"),
+            "Augmented path should contain brew bin or usr local bin: {}",
+            path_str
+        );
     }
 }

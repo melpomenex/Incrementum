@@ -67,12 +67,8 @@ if (fs.existsSync(changelogPath)) {
   // Format the release note
   const releaseHeader = `## [${newVersion}] - ${dateStr}
 
-### Added
-- **Hover to Save Images to Registry** — Elegantly hover over any image in EPUB, HTML, Markdown, or RSS content and save directly to your image library with a pristine, micro-animated glassmorphic overlay button.
-- **Direct Image Pasting & Context Interception** — Focus the Image Registry and press Cmd+V (Mac) or Ctrl+V (Windows/Linux) to paste images directly. Pasting images in the Images tab now correctly ingests them to the Image Registry instead of importing them as documents. Adds fallback toast instructions if programmatic paste is blocked by permissions.
-
 ### Fixed
-- **Standalone Document Rating Orbs** — Rating buttons and queue action "orbs" are now hidden when reading standalone files opened outside the queue, avoiding user confusion.
+- **Assistant Context in Scroll Mode** — Fixed a bug in Optimal Queue / Scroll Mode where the Assistant panel lacked full document text, live PDF page text layers, and prompt-time scroll/selection resolution.
 
 `;
 
@@ -100,12 +96,8 @@ try {
   // Create GitHub Release draft
   console.log('Creating GitHub Release draft...');
   const notesFile = path.join(rootDir, 'release-notes.tmp.md');
-  const notes = `### Added
-- **Hover to Save Images to Registry** — Elegantly hover over any image in EPUB, HTML, Markdown, or RSS content and save directly to your image library with a pristine, micro-animated glassmorphic overlay button.
-- **Direct Image Pasting & Context Interception** — Focus the Image Registry and press Cmd+V (Mac) or Ctrl+V (Windows/Linux) to paste images directly. Pasting images in the Images tab now correctly ingests them to the Image Registry instead of importing them as documents. Adds fallback toast instructions if programmatic paste is blocked by permissions.
-
-### Fixed
-- **Standalone Document Rating Orbs** — Rating buttons and queue action "orbs" are now hidden when reading standalone files opened outside the queue, avoiding user confusion.`;
+  const notes = `### Fixed
+- **Assistant Context in Scroll Mode** — Fixed a bug in Optimal Queue / Scroll Mode where the Assistant panel lacked full document text, live PDF page text layers, and prompt-time scroll/selection resolution.`;
 
   fs.writeFileSync(notesFile, notes, 'utf8');
   execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });

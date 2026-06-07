@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.47.10] - 2026-06-07
+
+### Fixed
+- **Assistant Context in Scroll Mode** — Fixed a bug in Optimal Queue / Scroll Mode where the Assistant panel lacked full document text, live PDF page text layers, and prompt-time scroll/selection resolution.
+
 ## [1.47.9] - 2026-06-07
 
 ### Added

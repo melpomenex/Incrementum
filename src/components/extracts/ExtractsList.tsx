@@ -438,7 +438,7 @@ export function ExtractsList({
         <div className="sticky top-0 z-10 p-3 bg-card border border-border rounded-lg shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">
-              {selectedIds.size} {t("extracts.extractSelected", { count: selectedIds.size })}
+              {t("extracts.extractSelected", { count: selectedIds.size })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -700,7 +700,7 @@ export function ExtractsList({
                       {count ? (
                         <span className="flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-primary" />
-                          {count} {t("extracts.cardsGenerated", { count })}
+                          {t("extracts.cardsGenerated", { count })}
                         </span>
                       ) : (
                         <span>{t("extracts.noCardsGenerated")}</span>

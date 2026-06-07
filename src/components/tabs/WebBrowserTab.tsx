@@ -1243,7 +1243,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             {savedExtracts.length > 0 && (
               <span className="ml-auto text-xs text-primary bg-primary/10 px-2 py-1 rounded-full flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
-                {savedExtracts.length} {t("extracts.extractSaved", { count: savedExtracts.length })}
+                {t("extracts.extractSaved", { count: savedExtracts.length })}
               </span>
             )}
           </div>

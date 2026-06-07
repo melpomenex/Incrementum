@@ -221,12 +221,12 @@ export function DashboardTab() {
                     <div className="flex items-center gap-1 text-xs font-medium text-primary">
                       {action.id === "queue" && (stats.due_documents || stats.cards_due_today || 0) > 0 && (
                         <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                          {(stats.due_documents || stats.cards_due_today || 0)} {t("dashboard.due")}
+                          {t("dashboard.due", { count: stats.due_documents || stats.cards_due_today || 0 })}
                         </span>
                       )}
                       {action.id === "review" && stats.cards_due_today > 0 && (
                         <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                          {stats.cards_due_today} {t("dashboard.due")}
+                          {t("dashboard.due", { count: stats.cards_due_today })}
                         </span>
                       )}
                     </div>
