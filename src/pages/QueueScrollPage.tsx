@@ -2096,6 +2096,9 @@ export function QueueScrollPage() {
                     goToNext();
                   }
                 }}
+                onArchive={() => {
+                  goToNext();
+                }}
               />
             );
           })() : renderedItem?.type === "flashcard" && renderedItem.learningItem ? (
