@@ -44,7 +44,7 @@ import { AssistantPanel, type AssistantContext, type AssistantPosition } from ".
 import { useToast } from "../components/common/Toast";
 import { getDeviceInfo, isPWA } from "../lib/pwa";
 import { RSSQueueSettingsModal } from "../components/settings/RSSQueueSettings";
-import { createDocument, updateDocumentContent, dismissDocument } from "../api/documents";
+import { createDocument, updateDocumentContent, dismissDocument, getDocument, extractDocumentText } from "../api/documents";
 import { trimToTokenWindow } from "../utils/tokenizer";
 import { fetchYouTubeTranscript } from "../api/youtube";
 import { ReaderTTSControls } from "../components/common/ReaderTTSControls";
@@ -54,6 +54,11 @@ import { ScrollQueueSettings } from "../components/queue/ScrollQueueSettings";
 import { ScrollOverlayControls } from "../components/queue/ScrollOverlayControls";
 import type { ExtractSourceContext } from "../types/extractNavigation";
 import { bulkSuspendItems } from "../api/queue";
+import {
+  resolvePdfAssistantContext,
+  resolveGenericAssistantContext,
+  type ResolvedAssistantContext
+} from "../utils/assistantContext";
 
 const buildTranscriptText = (segments: Array<{ text: string }>): string =>
   segments
@@ -1174,6 +1179,42 @@ export function QueueScrollPage() {
   const [scrollState, setScrollState] = useState<{ pageNumber?: number; scrollPercent?: number }>({});
   const [debouncedScrollPercent, setDebouncedScrollPercent] = useState<number | undefined>(undefined);
 
+  const [pdfContextText, setPdfContextText] = useState<string | undefined>(undefined);
+  const [pdfOcrContextText, setPdfOcrContextText] = useState<string | null>(null);
+  const [documentContent, setDocumentContent] = useState<string | undefined>(undefined);
+
+  const selectionRef = useRef(selection);
+  const pdfContextTextRef = useRef(pdfContextText);
+  const pdfOcrContextTextRef = useRef(pdfOcrContextText);
+  const scrollStateRef = useRef(scrollState);
+  const documentsRef = useRef(documents);
+  const documentContentRef = useRef<string | undefined>(documentContent);
+  const assistantContextRef = useRef<AssistantContext | undefined>(undefined);
+
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
+  useEffect(() => {
+    pdfContextTextRef.current = pdfContextText;
+  }, [pdfContextText]);
+
+  useEffect(() => {
+    pdfOcrContextTextRef.current = pdfOcrContextText;
+  }, [pdfOcrContextText]);
+
+  useEffect(() => {
+    scrollStateRef.current = scrollState;
+  }, [scrollState]);
+
+  useEffect(() => {
+    documentsRef.current = documents;
+  }, [documents]);
+
+  useEffect(() => {
+    documentContentRef.current = documentContent;
+  }, [documentContent]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedScrollPercent(scrollState.scrollPercent);
@@ -1185,9 +1226,104 @@ export function QueueScrollPage() {
     setSelection("");
     setScrollState({});
     setDebouncedScrollPercent(undefined);
+    setPdfContextText(undefined);
+    setPdfOcrContextText(null);
+    setDocumentContent(undefined);
   }, [renderedItem?.id]);
 
   const [assistantContext, setAssistantContext] = useState<AssistantContext | undefined>(undefined);
+
+  useEffect(() => {
+    assistantContextRef.current = assistantContext;
+  }, [assistantContext]);
+
+  useEffect(() => {
+    let isActive = true;
+    const assistantItem = renderedItem ?? currentItem;
+    if (!assistantItem || assistantItem.type !== "document" || !assistantItem.documentId) {
+      setDocumentContent(undefined);
+      return;
+    }
+
+    const loadDocContent = async () => {
+      try {
+        const doc = await getDocument(assistantItem.documentId!);
+        if (isActive) {
+          setDocumentContent(doc?.content ?? undefined);
+        }
+      } catch (err) {
+        console.error("[QueueScroll] Failed to load document content for assistant:", err);
+        if (isActive) {
+          setDocumentContent(undefined);
+        }
+      }
+    };
+
+    void loadDocContent();
+    return () => {
+      isActive = false;
+    };
+  }, [renderedItem?.id, currentItem?.id]);
+
+  const resolveContextForPrompt = useCallback(
+    async (_prompt: string): Promise<ResolvedAssistantContext> => {
+      const maxTokens = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 2000;
+      const assistantItem = renderedItem ?? currentItem;
+      const activeSelection = selectionRef.current;
+      const pageNumber = scrollStateRef.current.pageNumber;
+
+      if (!assistantItem) {
+        return resolveGenericAssistantContext(undefined, "none");
+      }
+
+      if (assistantItem.type === "document" && assistantItem.documentId) {
+        const doc = documentsRef.current.find((d) => d.id === assistantItem.documentId);
+        if (doc?.fileType === "youtube") {
+          return resolveGenericAssistantContext(assistantContextRef.current?.content, "video-transcript");
+        }
+
+        if (doc?.fileType === "pdf") {
+          const preferOcr = settings.documents.ocr.autoOCR || settings.documents.ocr.autoExtractOnLoad;
+          const resolution = await resolvePdfAssistantContext({
+            document: doc,
+            liveWindowText: pdfContextTextRef.current,
+            storedDocumentText: doc.content ?? documentContentRef.current,
+            ocrText: pdfOcrContextTextRef.current,
+            selection: activeSelection,
+            pageNumber,
+            contextPageWindow: 2,
+            preferOcr,
+            extractedTextLoader: doc.id
+              ? async () => {
+                  const result = await extractDocumentText(doc.id);
+                  return result.content;
+                }
+              : undefined,
+          });
+
+          if (resolution.status !== "ready" || !resolution.content) {
+            return resolution;
+          }
+
+          try {
+            const trimmed = await trimToTokenWindow(resolution.content, maxTokens, aiModel, activeSelection);
+            return {
+              ...resolution,
+              content: trimmed,
+            };
+          } catch {
+            return {
+              ...resolution,
+              content: resolution.content.slice(0, maxTokens * 4),
+            };
+          }
+        }
+      }
+
+      return resolveGenericAssistantContext(assistantContextRef.current?.content, "document");
+    },
+    [aiModel, contextWindowTokens, settings.documents.ocr.autoExtractOnLoad, settings.documents.ocr.autoOCR, renderedItem?.id, currentItem?.id]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1238,16 +1374,52 @@ export function QueueScrollPage() {
                 content: trimmed || undefined,
                 contextWindowTokens: maxTokens,
                 selection: selection || undefined,
+                status: "ready",
+                source: "video-transcript",
                 metadata: {
                   title: title || undefined,
                 },
+                resolveForPrompt: resolveContextForPrompt,
               });
             }
             return;
           }
         }
 
-        const content = [titleLine, doc?.content]
+        let contentText = doc?.content ?? documentContent;
+        let sourceVal = "document";
+        if (doc?.fileType === "pdf") {
+          const preferOcr = settings.documents.ocr.autoOCR || settings.documents.ocr.autoExtractOnLoad;
+          const preferredBody = preferOcr
+            ? (pdfOcrContextText || pdfContextText)
+            : (pdfContextText || pdfOcrContextText);
+
+          contentText = preferredBody || contentText || selection;
+          sourceVal = preferredBody === pdfOcrContextText ? "ocr" : (preferredBody === pdfContextText ? "pdf-window" : "document");
+        }
+
+        if (!contentText) {
+          if (!cancelled) {
+            setAssistantContext({
+              type: "document",
+              documentId: assistantItem.documentId,
+              content: undefined,
+              contextWindowTokens: maxTokens,
+              selection: selection || undefined,
+              status: doc?.fileType === "pdf" ? "loading" : "unavailable",
+              statusMessage: doc?.fileType === "pdf"
+                ? "Document context is still loading. Try again in a moment."
+                : "No text content available for this document.",
+              metadata: {
+                title: title || undefined,
+              },
+              resolveForPrompt: resolveContextForPrompt,
+            });
+          }
+          return;
+        }
+
+        const content = [titleLine, contentText]
           .filter(Boolean)
           .join("\n\n");
         const trimmed = content ? await trimToTokenWindow(content, maxTokens, aiModel, selection, debouncedScrollPercent) : undefined;
@@ -1258,9 +1430,12 @@ export function QueueScrollPage() {
             content: trimmed || undefined,
             contextWindowTokens: maxTokens,
             selection: selection || undefined,
+            status: "ready",
+            source: sourceVal,
             metadata: {
               title: title || undefined,
             },
+            resolveForPrompt: resolveContextForPrompt,
           });
         }
         return;
@@ -1280,9 +1455,12 @@ export function QueueScrollPage() {
             content: trimmed || undefined,
             contextWindowTokens: maxTokens,
             selection: selection || undefined,
+            status: "ready",
+            source: "document",
             metadata: {
               title: assistantItem.documentTitle || undefined,
             },
+            resolveForPrompt: resolveContextForPrompt,
           });
         }
         return;
@@ -1300,9 +1478,12 @@ export function QueueScrollPage() {
             content: trimmed || undefined,
             contextWindowTokens: maxTokens,
             selection: rssSelectedText || undefined,
+            status: "ready",
+            source: "document",
             metadata: {
               title: assistantItem.rssItem?.title || undefined,
             },
+            resolveForPrompt: resolveContextForPrompt,
           });
         }
         return;
@@ -1315,7 +1496,22 @@ export function QueueScrollPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentItem, renderedItem, documents, contextWindowTokens, aiModel, selection, rssSelectedText, debouncedScrollPercent]);
+  }, [
+    currentItem,
+    renderedItem,
+    documents,
+    contextWindowTokens,
+    aiModel,
+    selection,
+    rssSelectedText,
+    debouncedScrollPercent,
+    pdfContextText,
+    pdfOcrContextText,
+    documentContent,
+    resolveContextForPrompt,
+    settings.documents.ocr.autoOCR,
+    settings.documents.ocr.autoExtractOnLoad,
+  ]);
 
   useEffect(() => {
     if (currentItem) {
@@ -2112,6 +2308,9 @@ export function QueueScrollPage() {
                 hideRatingOrbs={true}
                 onSelectionChange={setSelection}
                 onScrollPositionChange={setScrollState}
+                onPdfContextTextChange={setPdfContextText}
+                onPdfOcrContextTextChange={setPdfOcrContextText}
+                contextPageWindow={2}
                 extractPostCreateBehavior="stay-in-reader"
                 onExtractCreated={(extract, sourceContext) => {
                   const effectiveContext = sourceContext ?? buildQueueExtractSourceContext({
