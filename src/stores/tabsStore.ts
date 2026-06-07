@@ -353,13 +353,11 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
   // Add a new tab
   addTab: (tab, targetPaneId?) => {
-    const id = generateId();
-    const newTab: Tab = { ...tab, id };
+    const state = get();
+    const existingTab = findReusableTab(state, tab);
 
-    set((state) => {
-      const existingTab = findReusableTab(state, tab);
-
-      if (existingTab) {
+    if (existingTab) {
+      set((state) => {
         // Find the pane containing this tab and activate it
         const pane = findPaneContainingTabRecursive(state.rootPane, existingTab.id);
         if (pane) {
@@ -371,8 +369,15 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           };
         }
         return {};
-      }
+      });
+      get().saveTabs();
+      return existingTab.id;
+    }
 
+    const id = generateId();
+    const newTab: Tab = { ...tab, id };
+
+    set((state) => {
       // Use provided targetPaneId if valid, otherwise find the first tab pane
       let finalTargetPaneId: string;
       
@@ -444,16 +449,17 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
   // Add a new tab in background
   addTabInBackground: (tab, targetPaneId?) => {
+    const state = get();
+    const existingTab = findReusableTab(state, tab);
+
+    if (existingTab) {
+      return existingTab.id;
+    }
+
     const id = generateId();
     const newTab: Tab = { ...tab, id };
 
     set((state) => {
-      const existingTab = findReusableTab(state, tab);
-
-      if (existingTab) {
-        return state;
-      }
-
       // Use provided targetPaneId if valid, otherwise find the first tab pane
       let finalTargetPaneId: string;
       

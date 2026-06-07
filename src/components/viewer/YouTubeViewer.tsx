@@ -292,7 +292,9 @@ export function YouTubeViewer({
   }, [videoFeaturesWidth]);
 
   useEffect(() => {
-    if (!effectiveTranscriptSearchQuery.trim() && !initialTranscriptSegmentId && activeTranscriptMatchIndex === undefined) {
+    const hasQuery = !!effectiveTranscriptSearchQuery.trim();
+    const hasSegmentId = !!initialTranscriptSegmentId;
+    if (!hasQuery && !hasSegmentId) {
       return;
     }
     setShowTranscript(true);

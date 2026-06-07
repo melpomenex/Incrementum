@@ -245,6 +245,7 @@ interface DocumentViewerProps {
   } | null) => void;
   hideRatingOrbs?: boolean;
   onEnded?: () => void;
+  onArchive?: () => void;
 }
 
 type ViewerSearchDirection = "next" | "prev";
@@ -283,6 +284,7 @@ export function DocumentViewer({
   onVideoContextChange,
   hideRatingOrbs = false,
   onEnded,
+  onArchive,
 }: DocumentViewerProps) {
   const toast = useToast();
   const { t } = useI18n();
@@ -5317,6 +5319,7 @@ export function DocumentViewer({
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "youtube"}
               onEnded={onEnded}
               onArchive={() => {
+                onArchive?.();
                 loadQueue();
                 const currentTab = tabs.find(t => t.data?.documentId === documentId);
                 if (currentTab) {
