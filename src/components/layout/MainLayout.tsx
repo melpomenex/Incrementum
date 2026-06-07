@@ -12,6 +12,7 @@ import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
+import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
 import {
   LayoutDashboard,
   ListTodo,
@@ -900,6 +901,7 @@ export function MainLayout() {
           isOpen={isShortcutsHelpOpen}
           onClose={() => setIsShortcutsHelpOpen(false)}
         />
+        <ImageSaveOverlay />
       </VimiumNavigationProvider>
     </MobileLayoutWrapper>
   );

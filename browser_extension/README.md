@@ -61,8 +61,8 @@ A powerful browser extension that seamlessly integrates with Incrementum to capt
 2. Click "Add to Firefox" — signed and auto-updates
 
 **Option B: Signed XPI (Manual Install)**
-1. Pull the repo and locate `browser_extension/incrementum-browser-sync.xpi`
-2. Drag the `.xpi` file into a Firefox window
+1. Download the extension (`incrementum-browser-sync-1.6.0.xpi`) from [GitHub Releases](https://github.com/melpomenex/incrementum-tauri/releases/latest/download/incrementum-browser-sync-1.6.0.xpi)
+2. Drag the `.xpi` file into a Firefox window (or open it via Firefox)
 3. Click "Add" in the confirmation prompt
 
 **Option C: Developer Mode (Temporary, reloads on restart)**

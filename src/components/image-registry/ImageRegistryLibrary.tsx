@@ -87,6 +87,16 @@ export function ImageRegistryLibrary({
   }, [loadAssets]);
 
   useEffect(() => {
+    const handleRefresh = () => {
+      void loadAssets();
+    };
+    window.addEventListener("refresh-image-registry", handleRefresh);
+    return () => {
+      window.removeEventListener("refresh-image-registry", handleRefresh);
+    };
+  }, [loadAssets]);
+
+  useEffect(() => {
     if (previewAssetId) return;
     if (assets.length === 0) return;
     setPreviewAssetId(assets[0].id);
@@ -185,7 +195,11 @@ export function ImageRegistryLibrary({
       );
       mergeImportedAssets(imported);
     } catch (error) {
-      toast.error(t("imageRegistry.pasteFailed"), error instanceof Error ? error.message : undefined);
+      console.warn("Programmatic clipboard paste failed, instructing keyboard shortcut:", error);
+      toast.info(
+        "Use keyboard shortcut to paste",
+        "Your system blocks programmatic clipboard reading. Please copy an image and use Cmd+V (Mac) or Ctrl+V (Windows/Linux) directly on this page to paste your image."
+      );
     } finally {
       setIsBusy(false);
     }

@@ -87,7 +87,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 - Text-to-Speech (TTS) for reading documents and review cards aloud
 - Audio/video transcription with local Whisper.cpp or cloud providers (OpenAI, Groq)
 - NotebookLM workspace for research/chat/artifact generation and sync-to-learning flows
-- Browser extension bridge for web capture
+- Browser extension bridge for web capture ([Install Firefox Extension](https://github.com/melpomenex/incrementum-tauri/releases/latest/download/incrementum-browser-sync-1.6.0.xpi))
 - Obsidian integration (export and sync workflows)
 - Backup/restore tools (local and cloud-backed), plus import/export utilities
 

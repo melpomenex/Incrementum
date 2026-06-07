@@ -330,6 +330,46 @@ export function QueueScrollPage() {
     sessionStorage.setItem(SESSION_KEYS.ITEMS_REVIEWED, String(itemsReviewedThisSession));
   }, [itemsReviewedThisSession]);
 
+  // Image Save hover listener for RSS articles / direct images inside QueueScrollPage
+  useEffect(() => {
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+        window.dispatchEvent(
+          new CustomEvent("image-hover", {
+            detail: {
+              src: img.src,
+              rect: {
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+              },
+            },
+          })
+        );
+      }
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === "IMG") {
+        window.dispatchEvent(new CustomEvent("image-leave"));
+      }
+    };
+
+    const doc = window.document;
+    doc.addEventListener("mouseover", handleMouseOver);
+    doc.addEventListener("mouseout", handleMouseOut);
+
+    return () => {
+      doc.removeEventListener("mouseover", handleMouseOver);
+      doc.removeEventListener("mouseout", handleMouseOut);
+    };
+  }, []);
+
   const handleExtractUpdate = useCallback((extractId: string, updates: { content: string; notes?: string }) => {
     setScrollItems(prev => prev.map((item) => (
       item.type === "extract" && item.extract?.id === extractId

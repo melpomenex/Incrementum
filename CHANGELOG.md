@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.47.9] - 2026-06-07
+
+### Added
+- **Hover to Save Images to Registry** — Elegantly hover over any image in EPUB, HTML, Markdown, or RSS content and save directly to your image library with a pristine, micro-animated glassmorphic overlay button.
+- **Direct Image Pasting & Context Interception** — Focus the Image Registry and press Cmd+V (Mac) or Ctrl+V (Windows/Linux) to paste images directly. Pasting images in the Images tab now correctly ingests them to the Image Registry instead of importing them as documents. Adds fallback toast instructions if programmatic paste is blocked by permissions.
+
+### Fixed
+- **Standalone Document Rating Orbs** — Rating buttons and queue action "orbs" are now hidden when reading standalone files opened outside the queue, avoiding user confusion.
+
 ## [1.47.8] - 2026-06-06
 
 ### Fixed

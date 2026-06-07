@@ -5,6 +5,7 @@ import { importDocument } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "./Toast";
+import { useTabsStore } from "../../stores";
 
 /**
  * Determines whether a paste event should be intercepted.
@@ -338,6 +339,38 @@ export function GlobalPasteHandler() {
     const ext = file.name?.split(".").pop()?.toLowerCase() || "";
     const isImage = file.mimeType.startsWith("image/");
     const isPdf = file.mimeType === "application/pdf" || ext === "pdf";
+
+    // Detect if we are on the image-registry tab
+    const findFirstTabPane = (pane: any): any => {
+      if (pane.type === "tabs") return pane;
+      if (pane.type === "split") {
+        for (const child of pane.children) {
+          const found = findFirstTabPane(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const rootPane = useTabsStore.getState().rootPane;
+    const firstPane = findFirstTabPane(rootPane);
+    const activeTab = useTabsStore.getState().tabs.find((t) => t.id === firstPane?.activeTabId);
+
+    if (activeTab?.type === "image-registry" && isImage) {
+      try {
+        const { ingestImageBlob } = await import("../../api/image-registry");
+        await ingestImageBlob(file.blob, file.name);
+        toast.success(
+          t("imageRegistry.assetsAdded") || "Image added to Image Registry",
+          t("imageRegistry.assetsAddedDesc", { count: 1 }) || `Successfully added "${file.name}" to registry.`
+        );
+        window.dispatchEvent(new CustomEvent("refresh-image-registry"));
+        setPastedContent(null);
+      } catch (err) {
+        console.error("Failed to paste image directly to registry:", err);
+        toast.error("Failed to save image", err instanceof Error ? err.message : undefined);
+      }
+      return;
+    }
 
     if (isTauri()) {
       try {

@@ -693,6 +693,41 @@ export function EPUBViewer({
             contents.document.addEventListener("mouseup", selectionHandler);
             contents.document.addEventListener("touchend", selectionHandler);
 
+            const handleEpubMouseOver = (e: MouseEvent) => {
+              const target = e.target as HTMLElement;
+              if (target && target.tagName === "IMG") {
+                const img = target as HTMLImageElement;
+                const rect = img.getBoundingClientRect();
+                const iframe = (contents.window?.frameElement || viewerRef.current?.querySelector("iframe")) as HTMLIFrameElement | null;
+                const iframeRect = iframe?.getBoundingClientRect();
+                if (iframeRect) {
+                  window.dispatchEvent(
+                    new CustomEvent("image-hover", {
+                      detail: {
+                        src: img.src,
+                        rect: {
+                          left: rect.left + iframeRect.left,
+                          top: rect.top + iframeRect.top,
+                          width: rect.width,
+                          height: rect.height,
+                        },
+                      },
+                    })
+                  );
+                }
+              }
+            };
+
+            const handleEpubMouseOut = (e: MouseEvent) => {
+              const target = e.target as HTMLElement;
+              if (target && target.tagName === "IMG") {
+                window.dispatchEvent(new CustomEvent("image-leave"));
+              }
+            };
+
+            contents.document.addEventListener("mouseover", handleEpubMouseOver);
+            contents.document.addEventListener("mouseout", handleEpubMouseOut);
+
             // Right-click context menu for selected text inside the EPUB iframe
             contents.document.addEventListener("contextmenu", (e: Event) => {
               const selection = contents.window.getSelection();

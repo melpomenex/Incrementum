@@ -1264,6 +1264,10 @@ export function DocumentViewer({
 
   const queueNav = useQueueNavigation();
 
+  const isDocumentInQueue = useMemo(() => {
+    return queueNav.documentGroups.some(group => group.documentId === documentId);
+  }, [queueNav.documentGroups, documentId]);
+
   // Inline extraction handlers
   const handleInlineExtract = useCallback(async (options: { documentId: string; text: string; context?: string }) => {
     try {
@@ -1734,6 +1738,105 @@ export function DocumentViewer({
     if (docType !== "pdf") return;
     setPagesRendered(false);
   }, [docType, scale, zoomMode, currentDocument?.id]);
+
+  // Image Save hover listener
+  useEffect(() => {
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+        window.dispatchEvent(
+          new CustomEvent("image-hover", {
+            detail: {
+              src: img.src,
+              rect: {
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+              },
+            },
+          })
+        );
+      }
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === "IMG") {
+        window.dispatchEvent(new CustomEvent("image-leave"));
+      }
+    };
+
+    const mainDoc = window.document;
+    mainDoc.addEventListener("mouseover", handleMouseOver);
+    mainDoc.addEventListener("mouseout", handleMouseOut);
+
+    const iframe = iframeRef.current;
+    let iframeDoc: Document | null = null;
+    const handleIframeMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+        const iframeRect = iframe?.getBoundingClientRect();
+        if (iframeRect) {
+          window.dispatchEvent(
+            new CustomEvent("image-hover", {
+              detail: {
+                src: img.src,
+                rect: {
+                  left: rect.left + iframeRect.left,
+                  top: rect.top + iframeRect.top,
+                  width: rect.width,
+                  height: rect.height,
+                },
+              },
+            })
+          );
+        }
+      }
+    };
+
+    const handleIframeMouseOut = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === "IMG") {
+        window.dispatchEvent(new CustomEvent("image-leave"));
+      }
+    };
+
+    const attachToIframe = () => {
+      try {
+        iframeDoc = iframe?.contentDocument || iframe?.contentWindow?.document || null;
+        if (iframeDoc) {
+          iframeDoc.addEventListener("mouseover", handleIframeMouseOver);
+          iframeDoc.addEventListener("mouseout", handleIframeMouseOut);
+        }
+      } catch (err) {
+        console.warn("Could not attach hover listeners to HTML iframe", err);
+      }
+    };
+
+    if (iframe) {
+      iframe.addEventListener("load", attachToIframe);
+      attachToIframe();
+    }
+
+    return () => {
+      mainDoc.removeEventListener("mouseover", handleMouseOver);
+      mainDoc.removeEventListener("mouseout", handleMouseOut);
+      if (iframe) {
+        iframe.removeEventListener("load", attachToIframe);
+      }
+      if (iframeDoc) {
+        try {
+          iframeDoc.removeEventListener("mouseover", handleIframeMouseOver);
+          iframeDoc.removeEventListener("mouseout", handleIframeMouseOut);
+        } catch { /* ignore */ }
+      }
+    };
+  }, []);
 
   // Save scroll progress when switching away from document view (e.g., to extracts or cards)
   const prevViewModeRef = useRef<ViewMode | null>(null);
@@ -5364,7 +5467,7 @@ export function DocumentViewer({
         )}
 
         {/* Orb Rating Buttons - right side of viewer */}
-        {!hideRatingOrbs && viewMode === "document" && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && queueNav.totalDocuments > 0 && (
+        {!hideRatingOrbs && viewMode === "document" && docType !== "pdf" && docType !== "youtube" && docType !== "audio" && isDocumentInQueue && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto z-40">
             {!hasDocumentHistory ? (
               <button

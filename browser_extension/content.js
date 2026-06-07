@@ -416,8 +416,24 @@
     try {
       const root = getPrimaryContentRoot();
       const text = normalizeArticleText(root?.innerText || root?.textContent || document.body.innerText || '');
-      const htmlContent = captureStyledArticleHtml(root);
-      const extractedImages = extractArticleImages(root);
+      
+      const isYoutube = window.location.hostname.includes('youtube.com') || window.location.hostname.includes('youtu.be');
+      
+      let htmlContent = '';
+      let extractedImages = [];
+      
+      if (!isYoutube) {
+        htmlContent = captureStyledArticleHtml(root);
+        extractedImages = extractArticleImages(root);
+      }
+      
+      // Cap html_content size to 5MB to avoid HTTP 413 Payload Too Large
+      const MAX_HTML_SIZE = 5 * 1024 * 1024; // 5MB
+      if (htmlContent && htmlContent.length > MAX_HTML_SIZE) {
+        console.warn('[Content] Captured HTML is too large, skipping html_content to avoid HTTP 413.');
+        htmlContent = '';
+      }
+
       const title =
         document.title?.trim() ||
         root?.querySelector?.('h1')?.textContent?.trim() ||
