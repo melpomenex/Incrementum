@@ -878,6 +878,91 @@ async fn handle_import_request(
         });
     }
 
+    let mut title = payload.title.clone();
+    let mut cover_image_url = None;
+    let mut cover_image_source = None;
+    let mut author = None;
+
+    if matches!(file_type, FileType::Youtube) {
+        let collection_id = crate::models::collection::DEFAULT_COLLECTION_ID.to_string();
+        info!("Importing YouTube video from URL: {}", payload.url);
+        match crate::youtube::import_youtube_video_internal(&payload.url, Some(collection_id), &state.repo).await {
+            Ok(created) => {
+                let _ = state.app_handle.emit("browser-sync://document-saved", DocumentSavedEvent {
+                    document_id: created.id.clone(),
+                    title: created.title.clone(),
+                    url: payload.url.clone(),
+                });
+                return Ok(ExtensionResponse {
+                    success: true,
+                    document_id: Some(created.id),
+                    extract_id: None,
+                    error: None,
+                });
+            }
+            Err(e) => {
+                warn!("Failed to import YouTube video via yt-dlp internal importer: {}. Falling back to noembed metadata fetch.", e);
+                if let Some(video_id) = crate::youtube::extract_video_id(&payload.url) {
+                    let noembed_url = format!("https://noembed.com/embed?url=https://www.youtube.com/watch?v={}", video_id);
+                    let client = reqwest::Client::new();
+                    if let Ok(resp) = client.get(&noembed_url).send().await {
+                        if resp.status().is_success() {
+                            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                                if let Some(t) = json.get("title").and_then(|v| v.as_str()) {
+                                    if !t.trim().is_empty() {
+                                        title = t.to_string();
+                                    }
+                                }
+                                if let Some(thumb) = json.get("thumbnail_url").and_then(|v| v.as_str()) {
+                                    if !thumb.trim().is_empty() {
+                                        cover_image_url = Some(thumb.to_string());
+                                        cover_image_source = Some("youtube".to_string());
+                                    }
+                                }
+                                if let Some(auth) = json.get("author_name").and_then(|v| v.as_str()) {
+                                    if !auth.trim().is_empty() {
+                                        author = Some(auth.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        let is_title_url = title.trim().is_empty()
+            || title.starts_with("http://")
+            || title.starts_with("https://")
+            || title == payload.url
+            || (title.contains('.') && !title.contains(' ') && (title.contains('/') || title.contains("youtu.be") || title.contains("youtube.com")));
+
+        if is_title_url {
+            if let Ok(preview) = crate::commands::document::fetch_web_page_preview(payload.url.clone()).await {
+                if let Some(fetched_title) = preview.get("title").and_then(|t| t.as_str()) {
+                    if !fetched_title.trim().is_empty() {
+                        title = fetched_title.to_string();
+                    }
+                }
+                if let Some(image_url) = preview.get("image").and_then(|i| i.as_str()) {
+                    if !image_url.trim().is_empty() {
+                        cover_image_url = Some(image_url.to_string());
+                        cover_image_source = Some("web".to_string());
+                    }
+                }
+            }
+        } else {
+            if let Ok(preview) = crate::commands::document::fetch_web_page_preview(payload.url.clone()).await {
+                if let Some(image_url) = preview.get("image").and_then(|i| i.as_str()) {
+                    if !image_url.trim().is_empty() {
+                        cover_image_url = Some(image_url.to_string());
+                        cover_image_source = Some("web".to_string());
+                    }
+                }
+            }
+        }
+    }
+
     // For YouTube, we skip fetching raw HTML content as it's not useful for reading
     let content = if payload_content.is_empty() {
         if matches!(file_type, FileType::Youtube) {
@@ -900,20 +985,36 @@ async fn handle_import_request(
     let category = if matches!(file_type, FileType::Youtube) { Some("YouTube Videos".to_string()) } else { None };
     let is_html = matches!(file_type, FileType::Html);
     let content_len = content.len();
-    let metadata = if is_html {
+    let mut metadata = if is_html {
         Some(build_browser_import_metadata_with_article(
             payload,
             payload.html_content.clone(),
             payload_images.clone(),
         ))
+    } else if matches!(file_type, FileType::Youtube) {
+        Some(crate::models::DocumentMetadata {
+            author: author.clone(),
+            source: Some("youtube".to_string()),
+            fetched_at: Some(chrono::Utc::now()),
+            site_name: Some("YouTube".to_string()),
+            ..Default::default()
+        })
     } else {
         None
     };
 
+    if is_html {
+        if let Some(ref mut meta) = metadata {
+            if meta.author.is_none() && author.is_some() {
+                meta.author = author;
+            }
+        }
+    }
+
     let document = Document {
         id: uuid::Uuid::new_v4().to_string(),
         collection_id: crate::models::collection::DEFAULT_COLLECTION_ID.to_string(),
-        title: payload.title.clone(),
+        title,
         file_path: payload.url.clone(),
         file_type,
         content: Some(content),
@@ -939,8 +1040,8 @@ async fn handle_import_request(
         is_favorite: false,
         is_dismissed: false,
         metadata,
-        cover_image_url: None,
-        cover_image_source: None,
+        cover_image_url,
+        cover_image_source,
         next_reading_date: None,
         reading_count: 0,
         stability: None,
