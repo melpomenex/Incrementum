@@ -874,9 +874,12 @@ export function PDFViewer({
               // Retry without a worker so PDFs still render. Create a fresh source:
               // PDF.js may detach data buffers while trying to transfer them to its worker.
               try {
-                console.warn("[PDFViewer] Worker/source load failed, retrying with disableWorker=true:", workerError);
+                console.warn("[PDFViewer] Worker/source load failed, retrying with workerSrc cleared:", workerError);
+                // Clear the workerSrc so PDF.js falls back to the inline fake worker.
+                pdfjsLib.GlobalWorkerOptions.workerSrc = "";
                 const source = sourceFactory.create();
-                const fallbackTask = pdfjsLib.getDocument({ ...(source as any), disableWorker: true } as any);
+                // Pass source directly without disableWorker since it's deprecated/removed in modern PDF.js
+                const fallbackTask = pdfjsLib.getDocument(source as any);
                 return await fallbackTask.promise;
               } catch (fallbackError) {
                 lastError = fallbackError;
@@ -3112,6 +3115,9 @@ export function PDFViewer({
                       <canvas
                         ref={(el) => {
                           canvasRefs.current[index] = el;
+                          if (!el) {
+                            renderedPagesRef.current.delete(pageNum);
+                          }
                         }}
                         className="block"
                       />
