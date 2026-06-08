@@ -917,8 +917,10 @@ export function PDFViewer({
         renderedPagesRef.current.clear();
         // Windowed rendering: start with a small range around the initial page.
         const initialBuffer = 2;
-        const start = Math.max(1, pageNumber - initialBuffer);
-        const end = Math.min(pdfDoc.numPages, pageNumber + initialBuffer);
+        const startPage = metadata?.chunkStartPage ?? 1;
+        const endPage = metadata?.chunkEndPage ?? pdfDoc.numPages;
+        const start = Math.max(startPage, pageNumber - initialBuffer);
+        const end = Math.min(endPage, pageNumber + initialBuffer);
         setRenderedPageRange({ start, end });
         renderedPageRangeRef.current = { start, end };
         onLoad?.(pdfDoc.numPages, []);
@@ -956,12 +958,14 @@ export function PDFViewer({
   useEffect(() => {
     if (!pdf || numPages <= 0) return;
     const buffer = 2;
-    const start = Math.max(1, pageNumber - buffer);
-    const end = Math.min(numPages, pageNumber + buffer);
+    const startPage = metadata?.chunkStartPage ?? 1;
+    const endPage = metadata?.chunkEndPage ?? numPages;
+    const start = Math.max(startPage, pageNumber - buffer);
+    const end = Math.min(endPage, pageNumber + buffer);
     const current = renderedPageRangeRef.current;
     if (current.start === start && current.end === end) return;
     setRenderedPageRange({ start, end });
-  }, [pdf, numPages, pageNumber]);
+  }, [pdf, numPages, pageNumber, metadata]);
 
   // Store documentId in ref for use in callbacks
   useEffect(() => {
