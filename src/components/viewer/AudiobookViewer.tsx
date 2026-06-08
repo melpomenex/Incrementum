@@ -56,7 +56,7 @@ import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { startTranscription, saveTranscript, enqueueAutoTranscription } from "../../api/transcription";
-import { convertFileSrc, isTauri } from "../../lib/tauri";
+import { convertFileSrc, isTauri, listen } from "../../lib/tauri";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto, updateDocumentContent, getDocument } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
 import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath } from "../../api/podcast";
@@ -87,6 +87,33 @@ interface AudiobookBookmark {
   title: string;
   note?: string;
   createdAt: string;
+}
+
+// Map elapsed time in a pre-cut audio file back to the original uncut timeline (for transcripts/chapters)
+function mapCutTimeToOriginalTime(t: number, cuts: SponsorBlockCut[]): number {
+  let mappedTime = t;
+  const sortedCuts = [...cuts].sort((a, b) => a.cutStart - b.cutStart);
+  for (const cut of sortedCuts) {
+    if (t > cut.cutStart) {
+      mappedTime += (cut.originalEnd - cut.originalStart);
+    }
+  }
+  return mappedTime;
+}
+
+// Map a time in the original uncut timeline to the corresponding time in the pre-cut file (for seeking)
+function mapOriginalTimeToCutTime(t: number, cuts: SponsorBlockCut[]): number {
+  let reduction = 0;
+  const sortedCuts = [...cuts].sort((a, b) => a.originalStart - b.originalStart);
+  for (const cut of sortedCuts) {
+    if (t >= cut.originalEnd) {
+      reduction += (cut.originalEnd - cut.originalStart);
+    } else if (t > cut.originalStart) {
+      reduction += (t - cut.originalStart);
+      break;
+    }
+  }
+  return t - reduction;
 }
 
 interface SleepTimer {
@@ -190,6 +217,13 @@ export function AudiobookViewer({
   const [preparedPlaybackPath, setPreparedPlaybackPath] = useState<string | null>(null);
   const [preparedPlaybackSrc, setPreparedPlaybackSrc] = useState<string | null>(null);
   const [podcastLocalSrc, setPodcastLocalSrc] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadStatus, setDownloadStatus] = useState<string>("");
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const shouldPlayAfterDownloadRef = useRef(false);
+  const pendingAutoplayAfterDownloadRef = useRef(false);
 
   const documentIdRef = useRef(document.id);
   const currentTimeRef = useRef(0);
@@ -384,31 +418,76 @@ export function AudiobookViewer({
   useEffect(() => {
     if (!isTauri() || !episodeId) {
       setPodcastLocalSrc(null);
+      setIsDownloading(false);
       return;
     }
 
     let cancelled = false;
+    let unlistenProgress: (() => void) | null = null;
+
     void (async () => {
       try {
         const localPath = await getDownloadedEpisodePath(episodeId);
-        if (localPath && !cancelled) {
-          const localUrl = await convertFileSrc(localPath);
-          setPodcastLocalSrc(localUrl);
+        if (localPath) {
+          if (!cancelled) {
+            const localUrl = await convertFileSrc(localPath);
+            setPodcastLocalSrc(localUrl);
+            setIsDownloading(false);
+          }
+          return;
+        }
+
+        if (remoteAudioUrl) {
+          if (cancelled) return;
+          setIsDownloading(true);
+          setDownloadProgress(0);
+          setDownloadStatus("downloading");
+          setDownloadError(null);
+
+          const unlisten = await listen<{ episodeId: string; progress: number; status?: string }>(
+            "podcast://download-progress",
+            (e) => {
+              if (e.payload.episodeId === episodeId && !cancelled) {
+                setDownloadProgress(e.payload.progress);
+                if (e.payload.status) {
+                  setDownloadStatus(e.payload.status);
+                }
+              }
+            }
+          );
+          unlistenProgress = unlisten;
+
+          const downloadedPath = await downloadEpisodeAudio(episodeId, remoteAudioUrl, undefined);
+          
+          if (!cancelled) {
+            const localUrl = await convertFileSrc(downloadedPath);
+            setPodcastLocalSrc(localUrl);
+            setIsDownloading(false);
+            
+            // Auto play if requested
+            if (shouldPlayAfterDownloadRef.current || autoPlayOnOpen) {
+              pendingAutoplayAfterDownloadRef.current = true;
+            }
+          }
         } else if (!cancelled) {
           setPodcastLocalSrc(null);
         }
       } catch (error) {
-        console.warn("[AudiobookViewer] Failed to check for downloaded episode path:", error);
+        console.warn("[AudiobookViewer] Auto-download failed:", error);
         if (!cancelled) {
-          setPodcastLocalSrc(null);
+          setIsDownloading(false);
+          setDownloadError(error instanceof Error ? error.message : "Download failed");
         }
       }
     })();
 
     return () => {
       cancelled = true;
+      if (unlistenProgress) {
+        unlistenProgress();
+      }
     };
-  }, [episodeId]);
+  }, [episodeId, remoteAudioUrl, autoPlayOnOpen]);
 
   useEffect(() => {
     if (!isTauri() || !document.filePath || multiPartInfo) {
@@ -709,11 +788,14 @@ export function AudiobookViewer({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allSegments: any[] = transcript?.segments || activeSegments;
       if (allSegments.length > 0) {
+        const checkTime = sponsorBlockCuts.length > 0
+          ? mapCutTimeToOriginalTime(time, sponsorBlockCuts)
+          : time;
         const segment = allSegments.find(
           s => {
             const start = s.startTime ?? s.start_ms / 1000;
             const end = s.endTime ?? s.end_ms / 1000;
-            return time >= start && time < end;
+            return checkTime >= start && checkTime < end;
           }
         );
         const id = segment ? (segment.id || `seg-${allSegments.indexOf(segment)}`) : null;
@@ -831,7 +913,11 @@ export function AudiobookViewer({
       durationRef.current = audioRef.current.duration;
       attemptPendingSeek();
 
-      if (autoPlayOnOpen && appliedInitialSeekRef.current === `${document.id}:${initialSeekTime}`) {
+      if (
+        (autoPlayOnOpen && appliedInitialSeekRef.current === `${document.id}:${initialSeekTime}`) ||
+        pendingAutoplayAfterDownloadRef.current
+      ) {
+        pendingAutoplayAfterDownloadRef.current = false;
         audioRef.current.play().catch(() => {
           setIsPlaying(false);
         });
@@ -994,6 +1080,11 @@ export function AudiobookViewer({
 
   // Playback controls
   const togglePlay = async () => {
+    if (isDownloading) {
+      shouldPlayAfterDownloadRef.current = !shouldPlayAfterDownloadRef.current;
+      setIsPlaying(shouldPlayAfterDownloadRef.current);
+      return;
+    }
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
@@ -1450,6 +1541,7 @@ export function AudiobookViewer({
   
   // Progress bar click handler
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDownloading) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
     seek(percent * duration);
@@ -1499,7 +1591,7 @@ export function AudiobookViewer({
       {/* Audio element - use podcastLocalSrc (downloaded podcast), remoteAudioUrl (podcast stream), fileContent (blob URL), otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={podcastLocalSrc || remoteAudioUrl || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
+        src={podcastLocalSrc || (!isTauri() || downloadError ? remoteAudioUrl : undefined) || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onProgress={handleProgress}
@@ -1659,6 +1751,36 @@ export function AudiobookViewer({
                     ))}
                   </div>
                 )}
+
+                {isDownloading && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 cursor-default" onClick={(e) => e.stopPropagation()}>
+                    <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                    <h3 className="font-semibold text-foreground mb-1 text-sm">
+                      {downloadStatus === "cutting" ? "Stripping Sponsor Segments..." : "Downloading Episode..."}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-4 max-w-[220px]">
+                      {downloadStatus === "cutting"
+                        ? "Using SponsorBlock and ffmpeg to cut sponsored segments"
+                        : `Downloaded ${downloadProgress}%`}
+                    </p>
+                    <div className="w-full bg-muted rounded-full h-1.5 max-w-[180px] overflow-hidden mb-3">
+                      <div 
+                        className="bg-primary h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${downloadProgress}%` }}
+                      />
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        shouldPlayAfterDownloadRef.current = !shouldPlayAfterDownloadRef.current;
+                        setIsPlaying(shouldPlayAfterDownloadRef.current);
+                      }}
+                      className="px-3 py-1 bg-primary/25 text-primary hover:bg-primary/35 text-xs font-semibold rounded-lg transition-all"
+                    >
+                      {isPlaying ? "Cancel Auto-Play" : "Play When Ready"}
+                    </button>
+                  </div>
+                )}
               </div>
               
               {/* Info */}
@@ -1689,23 +1811,26 @@ export function AudiobookViewer({
             {/* Progress bar */}
             <div className="mb-4">
               <div 
-                className="h-2 bg-muted rounded-full cursor-pointer relative group"
+                className={cn(
+                  "h-2 bg-muted rounded-full relative group",
+                  isDownloading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                )}
                 onClick={handleProgressClick}
               >
                 {/* Buffered */}
                 <div 
                   className="absolute h-full bg-muted-foreground/30 rounded-full"
-                  style={{ width: `${(buffered / duration) * 100}%` }}
+                  style={{ width: `${duration > 0 ? (buffered / duration) * 100 : 0}%` }}
                 />
                 {/* Played */}
                 <div 
                   className="absolute h-full bg-primary rounded-full"
-                  style={{ width: `${(currentTime / duration) * 100}%` }}
+                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
                 />
                 {/* Handle */}
                 <div 
-                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ left: `calc(${(currentTime / duration) * 100}% - 8px)` }}
+                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow transition-transform scale-75 group-hover:scale-110 duration-200"
+                  style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 8px)` }}
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
@@ -1770,7 +1895,11 @@ export function AudiobookViewer({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => skip(-30)}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                  disabled={isDownloading}
+                  className={cn(
+                    "p-2 rounded-lg transition-colors",
+                    isDownloading ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
                   title={t("viewer.skipBack30s")}
                 >
                   <SkipBack className="h-5 w-5" />
@@ -1781,7 +1910,9 @@ export function AudiobookViewer({
                   className="p-4 bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity"
                   title={t("viewer.playPause")}
                 >
-                  {isPlaying ? (
+                  {isDownloading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-primary-foreground" />
+                  ) : isPlaying ? (
                     <Pause className="h-6 w-6" />
                   ) : (
                     <Play className="h-6 w-6" />
@@ -1790,7 +1921,11 @@ export function AudiobookViewer({
                 
                 <button
                   onClick={() => skip(30)}
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                  disabled={isDownloading}
+                  className={cn(
+                    "p-2 rounded-lg transition-colors",
+                    isDownloading ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
                   title={t("viewer.skipForward30s")}
                 >
                   <SkipForward className="h-5 w-5" />
@@ -1925,6 +2060,9 @@ export function AudiobookViewer({
                     {(transcript?.segments || activeSegments).map((segment, idx) => {
                       const id = (segment as any).id || `seg-${idx}`;
                       const startTime = (segment as any).startTime ?? (segment as any).start_ms / 1000;
+                      const displayTime = sponsorBlockCuts.length > 0
+                        ? mapOriginalTimeToCutTime(startTime, sponsorBlockCuts)
+                        : startTime;
                       
                       return (
                         <div
@@ -1936,11 +2074,16 @@ export function AudiobookViewer({
                               ? "bg-primary/10 border-l-4 border-primary"
                               : "hover:bg-muted/50 border-l-4 border-transparent"
                           )}
-                          onClick={() => seek(startTime)}
+                          onClick={() => {
+                            const targetTime = sponsorBlockCuts.length > 0
+                              ? mapOriginalTimeToCutTime(startTime, sponsorBlockCuts)
+                              : startTime;
+                            seek(targetTime);
+                          }}
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs text-muted-foreground">
-                              {audiobookApi.formatDuration(startTime)}
+                              {audiobookApi.formatDuration(displayTime)}
                             </span>
                             {(segment as any).speaker && (
                               <span className="text-xs text-primary">{(segment as any).speaker}</span>

@@ -1487,11 +1487,12 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                 : new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             } as any}
-            remoteAudioUrl={downloadedEpisodes.has(playingEpisode.episode.id) ? undefined : playingEpisode.episode.audioUrl}
+            remoteAudioUrl={playingEpisode.episode.audioUrl}
             episodeId={playingEpisode.episode.id}
             episodeTitle={playingEpisode.episode.title}
             podcastTitle={playingEpisode.feed.title}
             onEpisodeEnded={handleEpisodeEnded}
+            autoPlayOnOpen={true}
           />
           </div>
         </div>

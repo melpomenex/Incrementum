@@ -31,6 +31,11 @@
   --color-primary-800: #075985;
   --color-primary-900: #0c4a6e;
 
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #64748b;
+  --color-secondary-foreground: #ffffff;
+
   /* Base Colors */
   --color-background: #ffffff;
   --color-foreground: #020817;
