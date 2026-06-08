@@ -26,4 +26,22 @@ export function installUint8ArrayCompat(target: typeof globalThis = globalThis):
       return hex.join("");
     };
   }
+
+  // Polyfill Map.prototype.getOrInsertComputed for PDF.js v5 in Webview/Tauri
+  const mapProto = (target.Map ? target.Map.prototype : null) as any;
+  if (mapProto && typeof mapProto.getOrInsertComputed !== "function") {
+    mapProto.getOrInsertComputed = function getOrInsertComputed(
+      this: Map<any, any>,
+      key: any,
+      callback: (k: any, m: Map<any, any>) => any
+    ): any {
+      if (this.has(key)) {
+        return this.get(key);
+      }
+      const value = callback(key, this);
+      this.set(key, value);
+      return value;
+    };
+  }
 }
+
