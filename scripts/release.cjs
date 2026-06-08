@@ -68,7 +68,7 @@ if (fs.existsSync(changelogPath)) {
   const releaseHeader = `## [${newVersion}] - ${dateStr}
 
 ### Fixed
-- **Assistant Context in Scroll Mode** — Fixed a bug in Optimal Queue / Scroll Mode where the Assistant panel lacked full document text, live PDF page text layers, and prompt-time scroll/selection resolution.
+- **PDF Blank Page Rendering** — Fixed regression where PDFs displayed as blank pages in Tauri WebView. Resolved by fallback to main-thread rendering via clearing \`workerSrc\`, polyfilling the missing \`Map.prototype.getOrInsertComputed\` API in the main thread global Map context, and clamping rendering range window updates to chunk boundaries to prevent canvas render cancel-storms.
 
 `;
 
@@ -97,7 +97,7 @@ try {
   console.log('Creating GitHub Release draft...');
   const notesFile = path.join(rootDir, 'release-notes.tmp.md');
   const notes = `### Fixed
-- **Assistant Context in Scroll Mode** — Fixed a bug in Optimal Queue / Scroll Mode where the Assistant panel lacked full document text, live PDF page text layers, and prompt-time scroll/selection resolution.`;
+- **PDF Blank Page Rendering** — Fixed regression where PDFs displayed as blank pages in Tauri WebView. Resolved by fallback to main-thread rendering via clearing \`workerSrc\`, polyfilling the missing \`Map.prototype.getOrInsertComputed\` API in the main thread global Map context, and clamping rendering range window updates to chunk boundaries to prevent canvas render cancel-storms.`;
 
   fs.writeFileSync(notesFile, notes, 'utf8');
   execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });

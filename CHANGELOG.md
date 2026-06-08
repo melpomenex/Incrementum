@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.47.11] - 2026-06-08
+
+### Fixed
+- **PDF Blank Page Rendering** — Fixed regression where PDFs displayed as blank pages in Tauri WebView. Resolved by fallback to main-thread rendering via clearing `workerSrc`, polyfilling the missing `Map.prototype.getOrInsertComputed` API in the main thread global Map context, and clamping rendering range window updates to chunk boundaries to prevent canvas render cancel-storms.
+
 ## [1.47.10] - 2026-06-07
 
 ### Fixed
