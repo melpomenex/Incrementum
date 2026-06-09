@@ -7,6 +7,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Theme, ThemeContextValue, ThemeId } from "../types/theme";
 import { builtInThemes } from "../themes/builtin";
 import { loadGoogleFont } from "../utils/fonts";
+import { invokeCommand } from "../lib/tauri";
 
 /**
  * Maps font family name to CSS font-family value
@@ -247,6 +248,21 @@ export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps) {
     applyThemeToDOM(currentTheme, savedFontFamily);
     if (savedFontFamily) loadGoogleFont(savedFontFamily);
     saveLastThemeId(currentThemeId);
+
+    // Apply native platform vibrancy if supported
+    invokeCommand<boolean>("apply_theme_vibrancy", { themeId: currentThemeId })
+      .then((success) => {
+        const root = document.documentElement;
+        if (success) {
+          root.setAttribute("data-vibrancy-active", "true");
+        } else {
+          root.removeAttribute("data-vibrancy-active");
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to apply vibrancy:", err);
+        document.documentElement.removeAttribute("data-vibrancy-active");
+      });
   }, [currentTheme, currentThemeId]);
 
   const setTheme = (themeId: ThemeId) => {

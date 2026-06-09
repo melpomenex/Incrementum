@@ -330,11 +330,30 @@ export function EPUBViewer({
 
   const applyContentOverrides = useCallback((contents: any) => {
     const textColor = themeRef.current.colors.onBackground || themeRef.current.colors.text;
-    const bgColor = themeRef.current.colors.background;
+    const rawBgColor = themeRef.current.colors.background;
     const fontFamily = FONT_FAMILY_MAP[fontFamilyRef.current] || FONT_FAMILY_MAP.serif;
     const contentPadding = isMobileRef.current ? "1.25rem 1rem 4.5rem" : "2rem 3rem";
     const contentMaxWidth = isMobileRef.current ? "40rem" : "100%";
     const contentMargin = isMobileRef.current ? "0 auto" : "0";
+
+    const isTransparentTheme = rawBgColor === "transparent" || !rawBgColor;
+    
+    const makeColorOpaque = (colorStr: string, fallback: string): string => {
+      const trimmed = colorStr.trim();
+      if (trimmed.startsWith("rgba(")) {
+        const match = trimmed.match(/rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (match) {
+          return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+        }
+      }
+      return trimmed === "transparent" ? fallback : trimmed;
+    };
+
+    // For transparent/glass themes, use a dark opaque background inside the iframe
+    // to ensure text readability. The host-side frosted glass provides the visual effect.
+    const bgColor = isTransparentTheme
+      ? makeColorOpaque(themeRef.current.colors.toolbar || themeRef.current.colors.surface || "rgba(15, 23, 42, 0.55)", "rgb(15, 23, 42)")
+      : rawBgColor;
 
     const existing = contents.document.getElementById("epub-override-styles");
     if (existing) {
@@ -367,12 +386,12 @@ export function EPUBViewer({
         padding-bottom: 80px !important;
         margin: ${contentMargin} !important;
       }
-      body *:not(.epub-persisted-highlight) {
+      body *:not(.epub-persisted-highlight):not(.epub-search-highlight):not(.epub-search-highlight-active):not(.epub-sync-highlight) {
         color: ${textColor} !important;
         background-color: transparent !important;
       }
       .epub-persisted-highlight {
-        background-color: rgba(255, 235, 59, 0.5);
+        background-color: rgba(255, 235, 59, 0.5) !important;
         border-radius: 0.12rem !important;
       }
       .epub-sync-highlight {
@@ -453,6 +472,12 @@ export function EPUBViewer({
         -webkit-font-smoothing: antialiased !important;
         -moz-osx-font-smoothing: grayscale !important;
       }
+      ${isTransparentTheme ? `
+      body *:not(.epub-persisted-highlight):not(.epub-search-highlight):not(.epub-search-highlight-active):not(.epub-sync-highlight) {
+        background-color: transparent !important;
+        background-image: none !important;
+      }
+      ` : ""}
     `;
     contents.document.head.appendChild(style);
   }, []);
@@ -462,6 +487,11 @@ export function EPUBViewer({
 
     const textColor = themeRef.current.colors.onBackground || themeRef.current.colors.text;
     const fontFamily = FONT_FAMILY_MAP[fontFamilyRef.current] || FONT_FAMILY_MAP.serif;
+    const rawBg = themeRef.current.colors.background;
+    const isTransparent = rawBg === "transparent" || !rawBg;
+    const bg = isTransparent
+      ? (themeRef.current.colors.toolbar || themeRef.current.colors.surface || "rgba(15, 23, 42, 0.55)")
+      : rawBg;
     rendition.themes.default({
       body: {
         "font-size": `${fontSizeRef.current}px !important`,
@@ -469,7 +499,12 @@ export function EPUBViewer({
         "margin": "0 !important",
         "padding": "0 !important",
         "color": `${textColor} !important`,
-        "background": `${themeRef.current.colors.background} !important`,
+        "background": `${bg} !important`,
+        ...(isTransparent
+          ? {
+              "background-image": "none !important",
+            }
+          : {}),
         "font-family": `${fontFamily} !important`,
       },
       p: {

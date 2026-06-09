@@ -2141,7 +2141,10 @@ export function DocumentViewer({
   }, [currentDocument?.id]);
 
   useEffect(() => {
-    if (viewModeRef.current !== "document") return;
+    if (viewMode !== "document") {
+      restoreScrollDoneRef.current = false;
+      return;
+    }
     if (docType !== "pdf" && docType !== "html") return;
     if (isLoading) return;
     if (!currentDocument?.id) return;
@@ -2344,7 +2347,7 @@ export function DocumentViewer({
       setPageNumber(selectedViewState.pageNumber);
     }
     // Note: restorationInProgressRef will be cleared by the verification effect after restoration completes
-  }, [currentDocument, docType, initialJump, isLoading, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, scrollStorageKey]);
+  }, [currentDocument, docType, initialJump, isLoading, resolvePreferredViewStateKey, resolveViewStateKeyCandidates, scrollStorageKey, viewMode]);
 
   useEffect(() => {
     if (viewMode !== "document") return;
@@ -3989,15 +3992,57 @@ export function DocumentViewer({
     const primary = cs.getPropertyValue("--color-primary").trim() || appTheme.colors.primary;
     const card = cs.getPropertyValue("--color-card").trim() || appTheme.colors.card || appTheme.colors.surface;
 
+    const isTransparentTheme = bg === "transparent" || !bg;
+
+    const makeColorOpaque = (colorStr: string, fallback: string): string => {
+      const trimmed = colorStr.trim();
+      if (trimmed.startsWith("rgba(")) {
+        const match = trimmed.match(/rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (match) {
+          return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+        }
+      }
+      return trimmed === "transparent" ? fallback : trimmed;
+    };
+
+    // Resolve opaque backgrounds to ensure readability when the theme background is transparent (like Liquid Glass)
+    const resolvedCard = isTransparentTheme
+      ? makeColorOpaque(card, "rgb(30, 41, 59)")
+      : card;
+    const resolvedMuted = isTransparentTheme
+      ? makeColorOpaque(muted, "rgb(15, 23, 42)")
+      : muted;
+    const resolvedBodyBg = isTransparentTheme
+      ? makeColorOpaque(appTheme.colors.surface || appTheme.colors.toolbar || "rgb(15, 23, 42)", "rgb(15, 23, 42)")
+      : bg;
+
+    const hasPages = doc.querySelector(".page") !== null;
+
+    if (isTransparentTheme) {
+      try {
+        doc.documentElement.style.setProperty("background", "transparent", "important");
+        doc.documentElement.style.setProperty("background-color", "transparent", "important");
+        if (hasPages) {
+          doc.body.style.setProperty("background", "transparent", "important");
+          doc.body.style.setProperty("background-color", "transparent", "important");
+        } else {
+          doc.body.style.setProperty("background", resolvedBodyBg, "important");
+          doc.body.style.setProperty("background-color", resolvedBodyBg, "important");
+        }
+      } catch (e) {
+        console.warn("HTMLViewer: Failed to force transparency:", e);
+      }
+    }
+
     style.textContent = `
       :root {
         --bg-color: ${bg} !important;
         --text-color: ${fg} !important;
         --page-border: ${border} !important;
-        --page-bg: ${card} !important;
+        --page-bg: ${resolvedCard} !important;
       }
       html, body {
-        background: ${bg} !important;
+        background: ${hasPages && isTransparentTheme ? "transparent" : resolvedBodyBg} !important;
         color: ${fg} !important;
       }
       html {
@@ -4037,13 +4082,16 @@ export function DocumentViewer({
         box-sizing: border-box !important;
       }
       /* Ensure no element overflows the viewport horizontally */
-      body, body * {
+      body {
+        box-sizing: border-box !important;
+      }
+      body * {
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
       /* Preserve explicit background on page cards and header */
       .page {
-        background-color: ${card} !important;
+        background-color: ${resolvedCard} !important;
         border: 1px solid ${border} !important;
         border-radius: 8px !important;
         padding: 2.5rem 2.75rem !important;
@@ -4111,7 +4159,7 @@ export function DocumentViewer({
       }
       .page-content th {
         font-weight: 600 !important;
-        background: ${muted} !important;
+        background: ${resolvedMuted} !important;
       }
       .page-content ul,
       .page-content ol {
@@ -4122,7 +4170,7 @@ export function DocumentViewer({
         margin-bottom: 0.25em !important;
       }
       code, pre {
-        background: ${muted} !important;
+        background: ${resolvedMuted} !important;
         color: ${fg} !important;
         border: 1px solid ${border} !important;
         border-radius: 4px !important;
@@ -4483,6 +4531,48 @@ export function DocumentViewer({
             priorityRating={currentDocument.priorityRating}
             variant="compact"
           />
+
+          <div className="hidden sm:block h-6 w-px bg-border mx-1" />
+
+          {/* View Mode Toggle */}
+          <div className="flex flex-shrink-0 items-center bg-muted rounded-md p-1">
+            <button
+              onClick={() => setViewMode("document")}
+              className={cn(
+                "p-2 rounded-md transition-colors",
+                viewMode === "document"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={t("viewer.viewDocument")}
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("extracts")}
+              className={cn(
+                "p-2 rounded-md transition-colors",
+                viewMode === "extracts"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={t("viewer.viewExtracts")}
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("cards")}
+              className={cn(
+                "p-2 rounded-md transition-colors",
+                viewMode === "cards"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={t("viewer.viewLearningCards")}
+            >
+              <Brain className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex w-full max-w-full flex-shrink-0 items-center justify-end gap-1 overflow-x-auto overscroll-x-contain pr-1 sm:w-auto sm:max-w-none sm:gap-2 sm:overflow-visible sm:pr-0">
@@ -4641,46 +4731,6 @@ export function DocumentViewer({
               </button>
             </div>
           )}
-
-          {/* View Mode Toggle */}
-          <div className="flex flex-shrink-0 items-center bg-muted rounded-md p-1 sm:mr-2">
-            <button
-              onClick={() => setViewMode("document")}
-              className={cn(
-                "p-2 rounded-md transition-colors",
-                viewMode === "document"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title={t("viewer.viewDocument")}
-            >
-              <FileText className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("extracts")}
-              className={cn(
-                "p-2 rounded-md transition-colors",
-                viewMode === "extracts"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title={t("viewer.viewExtracts")}
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("cards")}
-              className={cn(
-                "p-2 rounded-md transition-colors",
-                viewMode === "cards"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title={t("viewer.viewLearningCards")}
-            >
-              <Brain className="w-4 h-4" />
-            </button>
-          </div>
 
           {canUseEditPalette && (
             <div className="flex flex-shrink-0 items-center bg-muted rounded-md p-1 sm:mr-2">
@@ -4927,7 +4977,7 @@ export function DocumentViewer({
         ) : docType === "pdf" && (fileData || pdfUrl) ? (
           pdfViewMode === "ocr-html" && ocrResult ? (
             ocrResult.format === "html" ? (
-              <div ref={htmlViewerContainerRef} className="h-full w-full overflow-hidden bg-background relative">
+              <div ref={htmlViewerContainerRef} data-html-viewer="true" className="h-full w-full overflow-hidden bg-background relative">
                 {/* Floating settings toggle */}
                 <button
                   onClick={() => setShowHtmlSettings(!showHtmlSettings)}
@@ -5265,7 +5315,7 @@ export function DocumentViewer({
             />
           </div>
         ) : docType === "html" ? (
-          <div ref={htmlViewerContainerRef} className="h-full w-full overflow-hidden bg-background relative">
+          <div ref={htmlViewerContainerRef} data-html-viewer="true" className="h-full w-full overflow-hidden bg-background relative">
             {/* Floating settings toggle */}
             <button
               onClick={() => setShowHtmlSettings(!showHtmlSettings)}

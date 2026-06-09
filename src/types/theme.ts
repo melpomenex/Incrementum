@@ -164,6 +164,7 @@ export const BUILTIN_THEMES = {
   ESPRESSO_ROAST: 'espresso-roast',
   NORDIC_SLATE: 'nordic-slate',
   COZY_WINDOWPANE: 'cozy-windowpane',
+  LIQUID_GLASS: 'liquid-glass',
 } as const;
 
 export type BuiltInThemeId = typeof BUILTIN_THEMES[keyof typeof BUILTIN_THEMES];

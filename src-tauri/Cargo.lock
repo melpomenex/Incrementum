@@ -3812,7 +3812,7 @@ dependencies = [
 
 [[package]]
 name = "incrementum-tauri"
-version = "1.47.10"
+version = "1.47.11"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -3871,6 +3871,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "walkdir",
+ "window-vibrancy",
  "xcap",
  "zip 0.6.6",
 ]
@@ -6074,7 +6075,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.60.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

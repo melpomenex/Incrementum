@@ -104,6 +104,44 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[cfg(target_os = "macos")]
+fn apply_platform_vibrancy(window: &tauri::WebviewWindow, theme_id: &str) -> bool {
+    use window_vibrancy::{apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial};
+    if theme_id == "liquid-glass" {
+        apply_vibrancy(window, NSVisualEffectMaterial::UnderWindowBackground, None, None).is_ok()
+    } else {
+        let _ = clear_vibrancy(window);
+        false
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn apply_platform_vibrancy(window: &tauri::WebviewWindow, theme_id: &str) -> bool {
+    use window_vibrancy::{apply_mica, apply_acrylic, clear_mica, clear_acrylic};
+    if theme_id == "liquid-glass" {
+        if apply_mica(window, None).is_ok() {
+            true
+        } else {
+            apply_acrylic(window, Some((15, 23, 42, 120))).is_ok()
+        }
+    } else {
+        let _ = clear_mica(window);
+        let _ = clear_acrylic(window);
+        false
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn apply_platform_vibrancy(_window: &tauri::WebviewWindow, _theme_id: &str) -> bool {
+    false
+}
+
+#[tauri::command]
+fn apply_theme_vibrancy(window: tauri::WebviewWindow, theme_id: String) -> bool {
+    apply_platform_vibrancy(&window, &theme_id)
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // EARLY LOG: Entry point
@@ -555,6 +593,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            apply_theme_vibrancy,
             commands::get_documents,
             commands::get_document,
             commands::resolve_document_cover,

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.47.12] - 2026-06-09
+
+### Fixed
+- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.
+
 ## [1.47.11] - 2026-06-08
 
 ### Fixed

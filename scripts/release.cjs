@@ -68,7 +68,7 @@ if (fs.existsSync(changelogPath)) {
   const releaseHeader = `## [${newVersion}] - ${dateStr}
 
 ### Fixed
-- **PDF Blank Page Rendering** — Fixed regression where PDFs displayed as blank pages in Tauri WebView. Resolved by fallback to main-thread rendering via clearing \`workerSrc\`, polyfilling the missing \`Map.prototype.getOrInsertComputed\` API in the main thread global Map context, and clamping rendering range window updates to chunk boundaries to prevent canvas render cancel-storms.
+- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.
 
 `;
 
@@ -97,7 +97,7 @@ try {
   console.log('Creating GitHub Release draft...');
   const notesFile = path.join(rootDir, 'release-notes.tmp.md');
   const notes = `### Fixed
-- **PDF Blank Page Rendering** — Fixed regression where PDFs displayed as blank pages in Tauri WebView. Resolved by fallback to main-thread rendering via clearing \`workerSrc\`, polyfilling the missing \`Map.prototype.getOrInsertComputed\` API in the main thread global Map context, and clamping rendering range window updates to chunk boundaries to prevent canvas render cancel-storms.`;
+- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.`;
 
   fs.writeFileSync(notesFile, notes, 'utf8');
   execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });
