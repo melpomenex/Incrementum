@@ -6,6 +6,7 @@
 import { memo } from "react";
 import { CheckCircle2, ExternalLink, Plus, Rss, Trash2 } from "lucide-react";
 import type { RssDiscoveredSite } from "../../api/rss-discovery";
+import { useI18n } from "../../lib/i18n";
 
 interface DiscoverSiteCardProps {
   site: RssDiscoveredSite;
@@ -32,6 +33,7 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
   onSubscribe,
   onDismiss,
 }: DiscoverSiteCardProps) {
+  const { t } = useI18n();
   const domain = getDomainLabel(site.url);
   const accent = site.title.trim().charAt(0).toUpperCase() || "S";
 
@@ -50,13 +52,13 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
               {site.feed_url && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                   <Rss className="h-3 w-3" />
-                  Feed Ready
+                  {t("discoverSites.feedReady")}
                 </span>
               )}
               {isSubscribed && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                   <CheckCircle2 className="h-3 w-3" />
-                  Subscribed
+                  {t("discoverSites.subscribed")}
                 </span>
               )}
             </div>
@@ -67,7 +69,7 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
         <button
           onClick={() => onDismiss?.(site.id)}
           className="rounded-lg p-2 text-muted-foreground opacity-60 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-          title="Dismiss site"
+          title={t("discoverSites.dismissSite")}
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -75,14 +77,14 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
 
       <div className="flex-1">
         <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
-          {site.description?.trim() || "No summary available yet. Open the site or subscribe to inspect its feed directly."}
+          {site.description?.trim() || t("discoverSites.noSummary")}
         </p>
         <div className="mt-4 rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
           <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Source
+            {t("discoverSites.source")}
           </p>
           <p className="mt-1 line-clamp-1 text-xs text-foreground">
-            {site.similarity_source || "Discovered"}
+            {site.similarity_source || t("discoverSites.discovered")}
           </p>
         </div>
       </div>
@@ -97,12 +99,12 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
             {isSubscribing ? (
               <>
                 <Rss className="h-4 w-4 animate-pulse" />
-                Subscribing
+                {t("discoverSites.subscribing")}
               </>
             ) : (
               <>
                 <Plus className="h-4 w-4" />
-                Subscribe
+                {t("discoverSites.subscribe")}
               </>
             )}
           </button>
@@ -110,12 +112,12 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
         {isSubscribed && (
           <div className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2.5 text-sm font-medium text-primary">
             <CheckCircle2 className="h-4 w-4" />
-            Added to Library
+            {t("discoverSites.addedToLibrary")}
           </div>
         )}
         {!site.feed_url && (
           <div className="inline-flex flex-1 items-center justify-center rounded-xl border border-border/70 bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground">
-            Feed not available
+            {t("discoverSites.feedNotAvailable")}
           </div>
         )}
         <a
@@ -123,10 +125,10 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted/50"
-          title="Open site"
+          title={t("discoverSites.openSite")}
         >
           <ExternalLink className="h-4 w-4" />
-          Visit
+          {t("discoverSites.visit")}
         </a>
       </div>
     </article>

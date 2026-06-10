@@ -13,6 +13,7 @@ import {
   Link2
 } from "lucide-react";
 import { type Feed, type FeedItem, formatFeedDate } from "../../api/rss";
+import { useI18n } from "../../lib/i18n";
 
 interface RSSDashboardProps {
   feeds: Feed[];
@@ -41,6 +42,8 @@ export function RSSDashboard({
   onSyncAll,
   isSyncing
 }: RSSDashboardProps) {
+  const { t } = useI18n();
+
   // Counts
   const feedsCount = feeds.length;
   const unreadCount = useMemo(() => feeds.reduce((acc, f) => acc + f.unreadCount, 0), [feeds]);
@@ -68,10 +71,10 @@ export function RSSDashboard({
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Rss className="w-6 h-6 text-orange-500" />
-              Feed Overview
+              {t("rssDashboard.feedOverview")}
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Your personalized hub for articles, news, and newsletters.
+              {t("rssDashboard.feedOverviewDesc")}
             </p>
           </div>
           <button
@@ -80,7 +83,7 @@ export function RSSDashboard({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg border border-border/80 transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-orange-500" : ""}`} />
-            <span>{isSyncing ? "Syncing..." : "Sync Feening"}</span>
+            <span>{isSyncing ? t("rssReader.syncing") : t("rssReader.syncAllFeeds")}</span>
           </button>
         </div>
 
@@ -90,9 +93,9 @@ export function RSSDashboard({
             <Rss className="w-24 h-24 text-orange-500" />
           </div>
           <div className="max-w-xl">
-            <h3 className="text-base font-bold text-foreground mb-1.5">Welcome to your RSS Dashboard</h3>
+            <h3 className="text-base font-bold text-foreground mb-1.5">{t("rssDashboard.welcomeTitle")}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Read articles, save highlights, and organize knowledge. Select a feed or article from the sidebar to start reading, or click any unread card below.
+              {t("rssDashboard.welcomeDesc")}
             </p>
           </div>
         </div>
@@ -102,14 +105,14 @@ export function RSSDashboard({
           {/* Subscribed Feeds */}
           <div className="bg-card border border-border/60 rounded-xl p-4 flex flex-col justify-between hover:shadow-md hover:border-blue-500/30 transition-all duration-300">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">Feeds</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("rssReader.feeds")}</span>
               <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
                 <Rss className="w-4 h-4" />
               </div>
             </div>
             <div>
               <h4 className="text-2xl font-bold text-foreground">{feedsCount}</h4>
-              <span className="text-[10px] text-muted-foreground">active subscriptions</span>
+              <span className="text-[10px] text-muted-foreground">{t("rssDashboard.activeSubscriptions")}</span>
             </div>
           </div>
 
@@ -119,14 +122,14 @@ export function RSSDashboard({
             className="bg-card border border-border/60 rounded-xl p-4 flex flex-col justify-between hover:shadow-md hover:border-orange-500/30 cursor-pointer transition-all duration-300 group"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">Unread</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("rssReader.unread")}</span>
               <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 group-hover:scale-110 transition-transform">
                 <BookOpen className="w-4 h-4" />
               </div>
             </div>
             <div>
               <h4 className="text-2xl font-bold text-foreground">{unreadCount}</h4>
-              <span className="text-[10px] text-orange-500 dark:text-orange-400 font-medium group-hover:underline">Click to view unread</span>
+              <span className="text-[10px] text-orange-500 dark:text-orange-400 font-medium group-hover:underline">{t("rssDashboard.clickToViewUnread")}</span>
             </div>
           </div>
 
@@ -136,14 +139,14 @@ export function RSSDashboard({
             className="bg-card border border-border/60 rounded-xl p-4 flex flex-col justify-between hover:shadow-md hover:border-yellow-500/30 cursor-pointer transition-all duration-300 group"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">Favorites</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("rssReader.favorites")}</span>
               <div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-500 group-hover:scale-110 transition-transform">
                 <Star className="w-4 h-4" />
               </div>
             </div>
             <div>
               <h4 className="text-2xl font-bold text-foreground">{favoritesCount}</h4>
-              <span className="text-[10px] text-yellow-500 dark:text-yellow-400 font-medium group-hover:underline">Click to view favorites</span>
+              <span className="text-[10px] text-yellow-500 dark:text-yellow-400 font-medium group-hover:underline">{t("rssDashboard.clickToViewFavorites")}</span>
             </div>
           </div>
 
@@ -153,14 +156,14 @@ export function RSSDashboard({
             className="bg-card border border-border/60 rounded-xl p-4 flex flex-col justify-between hover:shadow-md hover:border-purple-500/30 cursor-pointer transition-all duration-300 group"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">Semantic Study</span>
+              <span className="text-xs text-muted-foreground font-medium">{t("rssDashboard.semanticStudy")}</span>
               <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform">
                 <Brain className="w-4 h-4" />
               </div>
             </div>
             <div>
               <h4 className="text-2xl font-bold text-foreground">{selectedRssItemsCount}</h4>
-              <span className="text-[10px] text-purple-500 dark:text-purple-400 font-medium group-hover:underline">Open visual graph</span>
+              <span className="text-[10px] text-purple-500 dark:text-purple-400 font-medium group-hover:underline">{t("rssDashboard.openVisualGraph")}</span>
             </div>
           </div>
         </div>
@@ -171,7 +174,7 @@ export function RSSDashboard({
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-orange-500" />
-              Quick Actions
+              {t("rssDashboard.quickActions")}
             </h4>
             <div className="grid grid-cols-1 gap-3">
               {/* Discover Sites */}
@@ -183,8 +186,8 @@ export function RSSDashboard({
                   <Compass className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-xs font-semibold text-foreground block">Discover Sites</span>
-                  <span className="text-[10px] text-muted-foreground block truncate">Search and subscribe to popular news sources</span>
+                  <span className="text-xs font-semibold text-foreground block">{t("rssDashboard.discoverSites")}</span>
+                  <span className="text-[10px] text-muted-foreground block truncate">{t("rssDashboard.discoverSitesDesc")}</span>
                 </div>
               </button>
 
@@ -197,8 +200,8 @@ export function RSSDashboard({
                   <Plus className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-xs font-semibold text-foreground block">Subscribe to URL</span>
-                  <span className="text-[10px] text-muted-foreground block truncate">Add a custom XML feed, RSS link, or Newsletter</span>
+                  <span className="text-xs font-semibold text-foreground block">{t("rssDashboard.subscribeToUrl")}</span>
+                  <span className="text-[10px] text-muted-foreground block truncate">{t("rssDashboard.subscribeToUrlDesc")}</span>
                 </div>
               </button>
 
@@ -211,8 +214,8 @@ export function RSSDashboard({
                   <Link2 className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-xs font-semibold text-foreground block">OPML & Newsletters</span>
-                  <span className="text-[10px] text-muted-foreground block truncate">Import newsletter subscriptions or OPML backup files</span>
+                  <span className="text-xs font-semibold text-foreground block">{t("rssDashboard.opmlAndNewsletters")}</span>
+                  <span className="text-[10px] text-muted-foreground block truncate">{t("rssDashboard.opmlAndNewslettersDesc")}</span>
                 </div>
               </button>
             </div>
@@ -222,11 +225,11 @@ export function RSSDashboard({
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <Keyboard className="w-4 h-4 text-orange-500" />
-              Keyboard Navigation
+              {t("rssDashboard.keyboardNavigation")}
             </h4>
             <div className="bg-card border border-border/60 rounded-xl p-4 space-y-3.5 shadow-sm">
               <div className="flex items-center justify-between text-xs border-b border-border/40 pb-2.5">
-                <span className="text-muted-foreground">Select next/prev article</span>
+                <span className="text-muted-foreground">{t("rssDashboard.selectNextPrev")}</span>
                 <div className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm">j</kbd>
                   <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm">k</kbd>
@@ -236,7 +239,7 @@ export function RSSDashboard({
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/40 pb-2.5">
-                <span className="text-muted-foreground">Navigate RSS feeds</span>
+                <span className="text-muted-foreground">{t("rssDashboard.navigateRss")}</span>
                 <div className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm">Shift</kbd>
                   <span className="text-muted-foreground text-[10px] font-medium">+</span>
@@ -245,19 +248,19 @@ export function RSSDashboard({
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/40 pb-2.5">
-                <span className="text-muted-foreground">Star/Favorite article</span>
+                <span className="text-muted-foreground">{t("rssDashboard.starFavorite")}</span>
                 <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm">s</kbd>
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/40 pb-2.5">
-                <span className="text-muted-foreground">Toggle read status</span>
+                <span className="text-muted-foreground">{t("rssDashboard.toggleRead")}</span>
                 <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm">m</kbd>
               </div>
               <div className="flex items-center justify-between text-xs border-b border-border/40 pb-2.5">
-                <span className="text-muted-foreground">Open original link</span>
+                <span className="text-muted-foreground">{t("rssDashboard.openOriginal")}</span>
                 <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm">v</kbd>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Show shortcuts cheat sheet</span>
+                <span className="text-muted-foreground">{t("rssDashboard.showShortcuts")}</span>
                 <button 
                   onClick={onOpenShortcutsHelp}
                   className="px-1.5 py-0.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 border border-orange-500/20 rounded text-[10px] font-mono font-bold shadow-sm transition-all"
@@ -273,11 +276,11 @@ export function RSSDashboard({
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
             <History className="w-4 h-4 text-orange-500" />
-            Recent Stories
+            {t("rssDashboard.recentStories")}
           </h4>
           {recentArticles.length === 0 ? (
             <div className="text-center p-8 bg-card border border-border/60 rounded-xl text-xs text-muted-foreground shadow-sm">
-              No articles loaded yet. Click sync above or select a feed to download articles.
+              {t("rssDashboard.noArticles")}
             </div>
           ) : (
             <div className="bg-card border border-border/60 rounded-xl overflow-hidden divide-y divide-border/40 shadow-sm">

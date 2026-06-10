@@ -632,10 +632,10 @@ export function RSSReader() {
         setShowAddDialog(false);
         setNewFeedUrl("");
       } else {
-        alert("Failed to parse feed. Please check the URL.");
+        alert(t("rssReader.failedParseFeed"));
       }
     } catch (error) {
-      alert("Error adding feed: " + (error as Error).message);
+      alert(t("rssReader.errorAddingFeed", { error: (error as Error).message }));
     } finally {
       setIsAdding(false);
     }
@@ -663,7 +663,7 @@ export function RSSReader() {
         await loadFeeds();
       }
     } catch (error) {
-      alert("Failed to refresh feed: " + (error as Error).message);
+      alert(t("rssReader.failedRefreshFeed", { error: (error as Error).message }));
     }
   };
 
@@ -854,7 +854,7 @@ export function RSSReader() {
             }
           }
           await loadFeeds();
-          alert(`Imported ${importedFeeds.length || "feeds"} successfully`);
+          alert(t("rssReader.importOpmlSuccess", { count: importedFeeds.length }));
         };
         reader.readAsText(file);
       }
@@ -2231,7 +2231,7 @@ export function RSSReader() {
                             setSelectedItemFeed(null);
                           }}
                           className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                          title="Close Article / Open Dashboard"
+                          title={t("rssReader.closeArticleOpenDashboard")}
                         >
                           <X className="w-4 h-4" />
                         </button>

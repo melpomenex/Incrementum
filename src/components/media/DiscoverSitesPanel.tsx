@@ -28,6 +28,7 @@ import {
 } from "../../api/rss";
 import { invokeCommand, isTauri } from "../../lib/tauri";
 import { DiscoverSiteCard } from "./DiscoverSiteCard";
+import { useI18n } from "../../lib/i18n";
 
 interface DiscoverSitesPanelProps {
   onClose: () => void;
@@ -66,6 +67,7 @@ function getDomain(url: string | undefined): string {
 }
 
 export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelProps) {
+  const { t } = useI18n();
   const [catalogVisibleCount, setCatalogVisibleCount] = useState(24);
   const [sites, setSites] = useState<RssDiscoveredSite[]>([]);
   const [subscribedFeeds, setSubscribedFeeds] = useState<Feed[]>([]);
@@ -376,7 +378,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
     }
   };
 
-  const selectedCategoryLabel = activeCategory === ALL_CATEGORY ? "Everything" : activeCategory;
+  const selectedCategoryLabel = activeCategory === ALL_CATEGORY ? t("discoverSites.everything") : activeCategory;
 
   return (
     <div 
@@ -390,17 +392,17 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
               <button
                 onClick={onClose}
                 className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                title="Close discover sites"
+                title={t("common.close")}
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <div>
                 <div className="flex items-center gap-2">
                   <Globe className="h-5 w-5 text-orange-400" />
-                  <h2 className="text-2xl font-semibold tracking-tight">Discover Sites</h2>
+                  <h2 className="text-2xl font-semibold tracking-tight">{t("discoverSites.title")}</h2>
                 </div>
                 <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                  Browse a curated catalog and recently discovered RSS sources in a layout built for scanning, filtering, and subscribing.
+                  {t("discoverSites.subtitle")}
                 </p>
               </div>
             </div>
@@ -413,7 +415,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                     : "border-border/70 bg-card/70 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
               >
-                Feed Ready Only
+                {t("discoverSites.feedReadyOnly")}
               </button>
               <button
                 onClick={() => void handleSeed()}
@@ -421,7 +423,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                 className="inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 transition-colors hover:bg-amber-500/15 disabled:opacity-60"
               >
                 <Sparkles className={`h-4 w-4 ${isSeeding ? "animate-spin" : ""}`} />
-                Seed Curated
+                {t("discoverSites.seedCurated")}
               </button>
               <button
                 onClick={() => void handleRefresh()}
@@ -429,14 +431,14 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                 className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                Refresh
+                {t("common.refresh")}
               </button>
               <button
                 onClick={onClose}
                 className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground lg:hidden"
               >
                 <X className="h-4 w-4" />
-                Close
+                {t("common.close")}
               </button>
             </div>
           </div>
@@ -447,7 +449,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search by site, domain, description, or category"
+                  placeholder={t("discoverSites.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-xl border border-border/70 bg-background/80 py-3 pl-10 pr-4 text-sm outline-none transition-colors focus:border-primary/40"
@@ -455,20 +457,20 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="rounded-full bg-background/70 px-2.5 py-1">{selectedCategoryLabel}</span>
-                <span className="rounded-full bg-background/70 px-2.5 py-1">{visibleSites.length} visible</span>
+                <span className="rounded-full bg-background/70 px-2.5 py-1">{t("discoverSites.visibleCount", { count: visibleSites.length })}</span>
                 {searchQuery.trim() && (
                   <button
                     onClick={() => setSearchQuery("")}
                     className="rounded-full border border-border/70 px-2.5 py-1 text-foreground transition-colors hover:bg-background/80"
                   >
-                    Clear Search
+                    {t("discoverSites.clearSearch")}
                   </button>
                 )}
               </div>
             </div>
-            <StatCard label="Sites" value={String(sites.length)} />
-            <StatCard label="Categories" value={String(categoryCount)} />
-            <StatCard label="Feed Ready" value={String(feedReadyCount)} />
+            <StatCard label={t("discoverSites.sites")} value={String(sites.length)} />
+            <StatCard label={t("discoverSites.categories")} value={String(categoryCount)} />
+            <StatCard label={t("discoverSites.feedReady")} value={String(feedReadyCount)} />
           </div>
         </div>
       </div>
@@ -477,7 +479,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
         <aside className="hidden w-[280px] shrink-0 self-start lg:block">
           <div className="sticky top-5 max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl border border-border/70 bg-card/80 p-3">
             <p className="px-2 pb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Categories
+              {t("discoverSites.categories")}
             </p>
             <div className="space-y-1">
               <CategoryButton
@@ -523,14 +525,14 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
           {(isLoading || isSeeding) ? (
             <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/70 bg-card/40 text-muted-foreground">
               <Loader2 className="h-7 w-7 animate-spin" />
-              <p className="text-sm">{isSeeding ? "Loading curated sites..." : "Loading discovered sites..."}</p>
+              <p className="text-sm">{isSeeding ? t("discoverSites.loadingCurated") : t("discoverSites.loadingDiscovered")}</p>
             </div>
           ) : visibleSites.length === 0 ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-border/70 bg-card/40 px-6 text-center">
               <Globe className="h-10 w-10 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">Nothing matches this view</h3>
+              <h3 className="mt-4 text-lg font-semibold">{t("discoverSites.nothingMatches")}</h3>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Try a different category, clear the search, or seed curated sources to populate the library.
+                {t("discoverSites.nothingMatchesDesc")}
               </p>
             </div>
           ) : (
@@ -543,10 +545,10 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                         <div>
                           <div className="flex items-center gap-2">
                             <Star className="h-4 w-4 text-amber-400" />
-                            <h3 className="text-lg font-semibold">Recommended</h3>
+                            <h3 className="text-lg font-semibold">{t("discoverSites.recommended")}</h3>
                           </div>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Ranked from your current subscriptions, category overlap, content keywords, and freshness.
+                            {t("discoverSites.recommendedDesc")}
                           </p>
                         </div>
                       </div>
@@ -575,7 +577,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                     <section>
                       <div className="mb-4 flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-orange-400" />
-                        <h3 className="text-lg font-semibold">Trending Categories</h3>
+                        <h3 className="text-lg font-semibold">{t("discoverSites.trendingCategories")}</h3>
                       </div>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {trendingCategories.map(([category, groupSites]) => (
@@ -605,10 +607,10 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                         <div>
                           <div className="flex items-center gap-2">
                             <Globe className="h-4 w-4 text-sky-400" />
-                            <h3 className="text-lg font-semibold">Recently Discovered</h3>
+                            <h3 className="text-lg font-semibold">{t("discoverSites.recentlyDiscovered")}</h3>
                           </div>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Fresh additions across the catalog.
+                            {t("discoverSites.recentlyDiscoveredDesc")}
                           </p>
                         </div>
                       </div>
@@ -641,10 +643,10 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                     <h3 className="text-lg font-semibold">{selectedCategoryLabel}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {searchQuery.trim()
-                        ? `Filtered results for "${searchQuery.trim()}".`
+                        ? t("discoverSites.resultsFor", { query: searchQuery.trim() })
                         : activeCategory === ALL_CATEGORY
-                          ? "Complete discovery catalog."
-                          : `All sources in ${activeCategory}.`}
+                          ? t("discoverSites.everythingDesc")
+                          : t("discoverSites.categoryDesc", { category: activeCategory })}
                     </p>
                   </div>
                 </div>
@@ -672,9 +674,9 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                       onClick={() => setCatalogVisibleCount((prev) => prev + 24)}
                       className="rounded-xl border border-border/70 bg-card/70 px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-muted/50"
                     >
-                      Show 24 More
+                      {t("discoverSites.showMore", { count: 24 })}
                       {` `}
-                      <span className="text-muted-foreground">({hiddenCatalogCount} remaining)</span>
+                      <span className="text-muted-foreground">{t("discoverSites.remaining", { count: hiddenCatalogCount })}</span>
                     </button>
                   </div>
                 )}
@@ -709,6 +711,7 @@ function CategoryButton({
   onClick: () => void;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const baseClass = compact
     ? "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm"
     : "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm";
@@ -722,7 +725,7 @@ function CategoryButton({
           : "border border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
       }`}
     >
-      <span className="truncate">{label}</span>
+      <span className="truncate">{label === ALL_CATEGORY ? t("discoverSites.everything") : label}</span>
       <span className={`rounded-full px-2 py-0.5 text-[11px] ${isActive ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
         {count}
       </span>

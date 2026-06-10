@@ -6,22 +6,15 @@
 import { useEffect } from "react";
 import { X, Keyboard } from "lucide-react";
 import { useKeyboardShortcutsStore, type KeyboardShortcut } from "../../stores/keyboardShortcutsStore";
+import { useI18n } from "../../lib/i18n";
 
 interface KeyboardHelpOverlayProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  navigation: "Navigation",
-  article: "Article Actions",
-  feed: "Feed Actions",
-  view: "View",
-  training: "Intelligence Training",
-  search: "Search",
-};
-
 export function KeyboardHelpOverlay({ isOpen, onClose }: KeyboardHelpOverlayProps) {
+  const { t } = useI18n();
   const { shortcuts } = useKeyboardShortcutsStore();
 
   useEffect(() => {
@@ -49,7 +42,7 @@ export function KeyboardHelpOverlay({ isOpen, onClose }: KeyboardHelpOverlayProp
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Keyboard className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Keyboard Shortcuts</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("shortcut.title")}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground rounded">
             <X className="w-4 h-4" />
@@ -60,12 +53,12 @@ export function KeyboardHelpOverlay({ isOpen, onClose }: KeyboardHelpOverlayProp
           {Object.entries(grouped).map(([category, categoryShortcuts]) => (
             <div key={category}>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {CATEGORY_LABELS[category] || category}
+                {t(`shortcut.category.${category}`) || category}
               </h3>
               <div className="space-y-1">
                 {categoryShortcuts.map((sc) => (
                   <div key={sc.id} className="flex items-center justify-between py-1">
-                    <span className="text-sm text-foreground">{sc.description}</span>
+                    <span className="text-sm text-foreground">{t(`shortcut.desc.${sc.id}`) || sc.description}</span>
                     <kbd className="px-2 py-0.5 text-xs font-mono bg-muted border border-border rounded text-muted-foreground">
                       {sc.keys}
                     </kbd>
