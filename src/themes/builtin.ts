@@ -3709,6 +3709,773 @@ export const liquidGlassTheme: Theme = {
   `,
 };
 
+// ═══════════════════════════════════════════════════════════════
+// Obsidian Noir — Polished obsidian stone catching firelight
+// ═══════════════════════════════════════════════════════════════
+export const obsidianNoirTheme: Theme = {
+  id: 'obsidian-noir',
+  name: 'Obsidian Noir',
+  variant: 'dark',
+  description: 'Polished black obsidian with amber firelight — deep, luxurious, volcanic.',
+  colors: {
+    background: '#08090c',
+    onBackground: '#ede4d3',
+    surface: '#111318',
+    onSurface: '#ede4d3',
+    surfaceVariant: '#1a1c22',
+    primary: '#e8a840',
+    onPrimary: '#1a1002',
+    primaryContainer: 'rgba(232, 168, 64, 0.15)',
+    onPrimaryContainer: '#fce8c2',
+    secondary: '#5a5550',
+    onSecondary: '#ede4d3',
+    outline: 'rgba(232, 168, 64, 0.18)',
+    outlineVariant: 'rgba(232, 168, 64, 0.08)',
+    error: '#f87171',
+    onError: '#1a0202',
+    errorContainer: 'rgba(248, 113, 113, 0.18)',
+    onErrorContainer: '#fecaca',
+    success: '#4ade80',
+    warning: '#fbbf24',
+    toolbar: '#0c0d12',
+    sidebar: '#0a0b0f',
+    card: '#111318',
+    input: '#15171d',
+    border: 'rgba(232, 168, 64, 0.15)',
+    text: '#ede4d3',
+    textSecondary: '#9d9484',
+    link: '#e8a840',
+  },
+  typography: {
+    fontFamily: '"Crimson Text", "Lora", Georgia, serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.6, relaxed: 1.8 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.125rem', md: '0.375rem', lg: '0.5rem', xl: '0.75rem', '2xl': '1rem', full: '9999px' },
+  shadows: {
+    sm: '0 2px 4px rgba(0,0,0,0.5)',
+    md: '0 4px 12px rgba(0,0,0,0.6)',
+    lg: '0 8px 24px rgba(0,0,0,0.7)',
+    xl: '0 16px 40px rgba(0,0,0,0.8)',
+  },
+  customCSS: `
+    :root[data-theme-id="obsidian-noir"] .sidebar-item-active {
+      background: rgba(232, 168, 64, 0.1) !important;
+      border-left: 3px solid #e8a840 !important;
+      box-shadow: inset 0 0 20px rgba(232, 168, 64, 0.06);
+    }
+    :root[data-theme-id="obsidian-noir"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(232, 168, 64, 0.04) !important;
+    }
+    :root[data-theme-id="obsidian-noir"] input:focus,
+    :root[data-theme-id="obsidian-noir"] textarea:focus {
+      border-color: rgba(232, 168, 64, 0.5) !important;
+      box-shadow: 0 0 12px rgba(232, 168, 64, 0.15) !important;
+    }
+    :root[data-theme-id="obsidian-noir"] .card:hover {
+      border-color: rgba(232, 168, 64, 0.2) !important;
+      box-shadow: 0 4px 20px rgba(232, 168, 64, 0.08) !important;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Velvet Twilight — Deep plum velvet with rose gold at dusk
+// ═══════════════════════════════════════════════════════════════
+export const velvetTwilightTheme: Theme = {
+  id: 'velvet-twilight',
+  name: 'Velvet Twilight',
+  variant: 'dark',
+  description: 'Deep aubergine velvet drapes kissed by rose gold — opulent, moody, refined.',
+  colors: {
+    background: '#100b14',
+    onBackground: '#f0e6f6',
+    surface: '#1a1222',
+    onSurface: '#f0e6f6',
+    surfaceVariant: '#241a30',
+    primary: '#d4a0b5',
+    onPrimary: '#2d0a1a',
+    primaryContainer: 'rgba(212, 160, 181, 0.15)',
+    onPrimaryContainer: '#fce4ec',
+    secondary: '#7d6b87',
+    onSecondary: '#f0e6f6',
+    outline: 'rgba(212, 160, 181, 0.18)',
+    outlineVariant: 'rgba(212, 160, 181, 0.07)',
+    error: '#f48b8b',
+    onError: '#2d0a0a',
+    errorContainer: 'rgba(244, 139, 139, 0.18)',
+    onErrorContainer: '#fce4e4',
+    success: '#86d9b5',
+    warning: '#f0c78e',
+    toolbar: '#140e1a',
+    sidebar: '#0e0a12',
+    card: '#1a1222',
+    input: '#1e1628',
+    border: 'rgba(212, 160, 181, 0.14)',
+    text: '#f0e6f6',
+    textSecondary: '#b09eb8',
+    link: '#d4a0b5',
+  },
+  typography: {
+    fontFamily: '"Cormorant Garamond", "EB Garamond", Georgia, serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.6, relaxed: 1.8 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.25rem', md: '0.5rem', lg: '0.75rem', xl: '1rem', '2xl': '1.5rem', full: '9999px' },
+  shadows: {
+    sm: '0 2px 6px rgba(0,0,0,0.4)',
+    md: '0 4px 14px rgba(0,0,0,0.5)',
+    lg: '0 8px 28px rgba(0,0,0,0.6)',
+    xl: '0 16px 44px rgba(0,0,0,0.7)',
+  },
+  customCSS: `
+    :root[data-theme-id="velvet-twilight"] .sidebar-item-active {
+      background: rgba(212, 160, 181, 0.1) !important;
+      border-left: 3px solid #d4a0b5 !important;
+    }
+    :root[data-theme-id="velvet-twilight"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(212, 160, 181, 0.04) !important;
+    }
+    :root[data-theme-id="velvet-twilight"] input:focus,
+    :root[data-theme-id="velvet-twilight"] textarea:focus {
+      border-color: rgba(212, 160, 181, 0.45) !important;
+      box-shadow: 0 0 14px rgba(212, 160, 181, 0.12) !important;
+    }
+    :root[data-theme-id="velvet-twilight"] .card {
+      border: 1px solid rgba(212, 160, 181, 0.08) !important;
+    }
+    :root[data-theme-id="velvet-twilight"] .card:hover {
+      border-color: rgba(212, 160, 181, 0.18) !important;
+    }
+    :root[data-theme-id="velvet-twilight"] ::selection {
+      background: rgba(212, 160, 181, 0.35);
+      color: #f0e6f6;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Neon Pulse — Synthwave streets, cyan & magenta electricity
+// ═══════════════════════════════════════════════════════════════
+export const neonPulseTheme: Theme = {
+  id: 'neon-pulse',
+  name: 'Neon Pulse',
+  variant: 'dark',
+  description: 'Electric cyan and hot magenta cutting through midnight — cyberpunk, high-voltage, alive.',
+  colors: {
+    background: '#0a0a14',
+    onBackground: '#e8e8ff',
+    surface: '#10101f',
+    onSurface: '#e8e8ff',
+    surfaceVariant: '#181830',
+    primary: '#00e5ff',
+    onPrimary: '#001a1a',
+    primaryContainer: 'rgba(0, 229, 255, 0.12)',
+    onPrimaryContainer: '#b3f5ff',
+    secondary: '#ff2d95',
+    onSecondary: '#1a0010',
+    outline: 'rgba(0, 229, 255, 0.2)',
+    outlineVariant: 'rgba(0, 229, 255, 0.07)',
+    error: '#ff4466',
+    onError: '#1a0006',
+    errorContainer: 'rgba(255, 68, 102, 0.18)',
+    onErrorContainer: '#ffccd5',
+    success: '#00ff88',
+    warning: '#ffe040',
+    toolbar: '#0d0d1a',
+    sidebar: '#080812',
+    card: '#10101f',
+    input: '#141428',
+    border: 'rgba(0, 229, 255, 0.18)',
+    text: '#e8e8ff',
+    textSecondary: '#9898c8',
+    link: '#00e5ff',
+  },
+  typography: {
+    fontFamily: '"Space Grotesk", "Inter", system-ui, sans-serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.2, normal: 1.5, relaxed: 1.7 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.125rem', md: '0.25rem', lg: '0.375rem', xl: '0.5rem', '2xl': '0.75rem', full: '9999px' },
+  shadows: {
+    sm: '0 0 6px rgba(0, 229, 255, 0.15)',
+    md: '0 0 16px rgba(0, 229, 255, 0.2)',
+    lg: '0 0 30px rgba(0, 229, 255, 0.25)',
+    xl: '0 0 50px rgba(0, 229, 255, 0.3)',
+  },
+  effects: { backgroundAnimation: 'cyberhighway' },
+  customCSS: `
+    :root[data-theme-id="neon-pulse"] .sidebar-item-active {
+      background: rgba(0, 229, 255, 0.08) !important;
+      border-left: 3px solid #00e5ff !important;
+      box-shadow: inset 0 0 16px rgba(0, 229, 255, 0.1), 0 0 10px rgba(0, 229, 255, 0.08);
+      color: #00e5ff !important;
+    }
+    :root[data-theme-id="neon-pulse"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(255, 45, 149, 0.04) !important;
+      border-left: 3px solid rgba(255, 45, 149, 0.3) !important;
+    }
+    :root[data-theme-id="neon-pulse"] input:focus,
+    :root[data-theme-id="neon-pulse"] textarea:focus {
+      border-color: #00e5ff !important;
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.25), inset 0 0 8px rgba(0, 229, 255, 0.06) !important;
+    }
+    :root[data-theme-id="neon-pulse"] .card {
+      border: 1px solid rgba(0, 229, 255, 0.08) !important;
+    }
+    :root[data-theme-id="neon-pulse"] .card:hover {
+      border-color: rgba(0, 229, 255, 0.25) !important;
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.12), 0 0 40px rgba(255, 45, 149, 0.06) !important;
+    }
+    :root[data-theme-id="neon-pulse"] ::selection {
+      background: rgba(0, 229, 255, 0.4);
+      color: #0a0a14;
+    }
+    :root[data-theme-id="neon-pulse"] ::-webkit-scrollbar-thumb {
+      background: rgba(0, 229, 255, 0.2) !important;
+    }
+    :root[data-theme-id="neon-pulse"] ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 229, 255, 0.35) !important;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Ember Dusk — Smoldering campfire coals in charcoal night
+// ═══════════════════════════════════════════════════════════════
+export const emberDuskTheme: Theme = {
+  id: 'ember-dusk',
+  name: 'Ember Dusk',
+  variant: 'dark',
+  description: 'Glowing embers in a bed of charcoal — warm, smoldering, quietly fierce.',
+  colors: {
+    background: '#0f0c0a',
+    onBackground: '#efe4d8',
+    surface: '#191410',
+    onSurface: '#efe4d8',
+    surfaceVariant: '#241d16',
+    primary: '#f47b3a',
+    onPrimary: '#1f0a02',
+    primaryContainer: 'rgba(244, 123, 58, 0.14)',
+    onPrimaryContainer: '#ffe0cc',
+    secondary: '#6b5d52',
+    onSecondary: '#efe4d8',
+    outline: 'rgba(244, 123, 58, 0.16)',
+    outlineVariant: 'rgba(244, 123, 58, 0.06)',
+    error: '#f06050',
+    onError: '#1f0502',
+    errorContainer: 'rgba(240, 96, 80, 0.16)',
+    onErrorContainer: '#ffd8d0',
+    success: '#5cb878',
+    warning: '#e8a840',
+    toolbar: '#13100c',
+    sidebar: '#0c0a07',
+    card: '#191410',
+    input: '#1d1812',
+    border: 'rgba(244, 123, 58, 0.14)',
+    text: '#efe4d8',
+    textSecondary: '#a89a8a',
+    link: '#f47b3a',
+  },
+  typography: {
+    fontFamily: '"Merriweather", "Georgia", serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.55, relaxed: 1.75 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.25rem', md: '0.5rem', lg: '0.625rem', xl: '0.875rem', '2xl': '1.25rem', full: '9999px' },
+  shadows: {
+    sm: '0 2px 6px rgba(244, 123, 58, 0.08)',
+    md: '0 4px 14px rgba(244, 123, 58, 0.1)',
+    lg: '0 8px 28px rgba(244, 123, 58, 0.14)',
+    xl: '0 16px 44px rgba(244, 123, 58, 0.18)',
+  },
+  customCSS: `
+    :root[data-theme-id="ember-dusk"] .sidebar-item-active {
+      background: rgba(244, 123, 58, 0.1) !important;
+      border-left: 3px solid #f47b3a !important;
+      box-shadow: inset 0 0 18px rgba(244, 123, 58, 0.06);
+    }
+    :root[data-theme-id="ember-dusk"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(244, 123, 58, 0.03) !important;
+    }
+    :root[data-theme-id="ember-dusk"] input:focus,
+    :root[data-theme-id="ember-dusk"] textarea:focus {
+      border-color: rgba(244, 123, 58, 0.5) !important;
+      box-shadow: 0 0 12px rgba(244, 123, 58, 0.2), inset 0 0 6px rgba(244, 123, 58, 0.04) !important;
+    }
+    :root[data-theme-id="ember-dusk"] .card {
+      border: 1px solid rgba(244, 123, 58, 0.06) !important;
+    }
+    :root[data-theme-id="ember-dusk"] .card:hover {
+      border-color: rgba(244, 123, 58, 0.18) !important;
+      box-shadow: 0 4px 16px rgba(244, 123, 58, 0.1) !important;
+    }
+    :root[data-theme-id="ember-dusk"] ::selection {
+      background: rgba(244, 123, 58, 0.35);
+      color: #efe4d8;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Abyssal Depths — Bioluminescent trench, crushing deep ocean
+// ═══════════════════════════════════════════════════════════════
+export const abyssalDepthsTheme: Theme = {
+  id: 'abyssal-depths',
+  name: 'Abyssal Depths',
+  variant: 'dark',
+  description: 'Deep-ocean abyss with bioluminescent teal — crushing pressure, otherworldly glow.',
+  colors: {
+    background: '#030b10',
+    onBackground: '#c8e6f0',
+    surface: '#081820',
+    onSurface: '#c8e6f0',
+    surfaceVariant: '#0c2430',
+    primary: '#00d4c8',
+    onPrimary: '#001a18',
+    primaryContainer: 'rgba(0, 212, 200, 0.12)',
+    onPrimaryContainer: '#b0faf4',
+    secondary: '#2d6b78',
+    onSecondary: '#c8e6f0',
+    outline: 'rgba(0, 212, 200, 0.16)',
+    outlineVariant: 'rgba(0, 212, 200, 0.05)',
+    error: '#ff6677',
+    onError: '#1a0206',
+    errorContainer: 'rgba(255, 102, 119, 0.14)',
+    onErrorContainer: '#ffced4',
+    success: '#3dd9a0',
+    warning: '#f0d060',
+    toolbar: '#050e14',
+    sidebar: '#02080c',
+    card: '#081820',
+    input: '#0b1e28',
+    border: 'rgba(0, 212, 200, 0.14)',
+    text: '#c8e6f0',
+    textSecondary: '#6b9aaa',
+    link: '#00d4c8',
+  },
+  typography: {
+    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.2, normal: 1.5, relaxed: 1.7 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.125rem', md: '0.25rem', lg: '0.375rem', xl: '0.5rem', '2xl': '0.75rem', full: '9999px' },
+  shadows: {
+    sm: '0 0 4px rgba(0, 212, 200, 0.1)',
+    md: '0 0 12px rgba(0, 212, 200, 0.15)',
+    lg: '0 0 24px rgba(0, 212, 200, 0.2)',
+    xl: '0 0 40px rgba(0, 212, 200, 0.25)',
+  },
+  effects: { backgroundAnimation: 'bioglow' },
+  customCSS: `
+    :root[data-theme-id="abyssal-depths"] .sidebar-item-active {
+      background: rgba(0, 212, 200, 0.08) !important;
+      border-left: 3px solid #00d4c8 !important;
+      box-shadow: inset 0 0 14px rgba(0, 212, 200, 0.08);
+    }
+    :root[data-theme-id="abyssal-depths"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(0, 212, 200, 0.03) !important;
+    }
+    :root[data-theme-id="abyssal-depths"] input:focus,
+    :root[data-theme-id="abyssal-depths"] textarea:focus {
+      border-color: #00d4c8 !important;
+      box-shadow: 0 0 14px rgba(0, 212, 200, 0.25), inset 0 0 8px rgba(0, 212, 200, 0.04) !important;
+    }
+    :root[data-theme-id="abyssal-depths"] .card:hover {
+      border-color: rgba(0, 212, 200, 0.2) !important;
+      box-shadow: 0 0 18px rgba(0, 212, 200, 0.1) !important;
+    }
+    :root[data-theme-id="abyssal-depths"] ::selection {
+      background: rgba(0, 212, 200, 0.35);
+      color: #030b10;
+    }
+    :root[data-theme-id="abyssal-depths"] ::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 200, 0.15) !important;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Pearl Haze — Iridescent pearl with lavender whispers (LIGHT)
+// ═══════════════════════════════════════════════════════════════
+export const pearlHazeTheme: Theme = {
+  id: 'pearl-haze',
+  name: 'Pearl Haze',
+  variant: 'light',
+  description: 'Soft pearl white with iridescent lavender and pink whispers — ethereal, luminous, delicate.',
+  colors: {
+    background: '#faf7fc',
+    onBackground: '#2d2330',
+    surface: '#ffffff',
+    onSurface: '#2d2330',
+    surfaceVariant: '#f3eef8',
+    primary: '#9b7ec4',
+    onPrimary: '#ffffff',
+    primaryContainer: '#ede4f8',
+    onPrimaryContainer: '#2a1840',
+    secondary: '#b8a0c8',
+    onSecondary: '#2d2330',
+    outline: '#d4c8e0',
+    outlineVariant: '#e8ddf0',
+    error: '#e0556a',
+    onError: '#ffffff',
+    errorContainer: '#ffe8ec',
+    onErrorContainer: '#4a1018',
+    success: '#58b894',
+    warning: '#e0a840',
+    toolbar: '#f5f0fa',
+    sidebar: '#f8f4fc',
+    card: '#ffffff',
+    input: '#f8f5fb',
+    border: '#e0d4ec',
+    text: '#2d2330',
+    textSecondary: '#7d6b88',
+    link: '#9b7ec4',
+  },
+  typography: {
+    fontFamily: '"DM Sans", "Inter", system-ui, sans-serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.5, relaxed: 1.75 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.25rem', md: '0.5rem', lg: '0.75rem', xl: '1rem', '2xl': '1.5rem', full: '9999px' },
+  shadows: {
+    sm: '0 1px 3px rgba(155, 126, 196, 0.06)',
+    md: '0 4px 12px rgba(155, 126, 196, 0.08)',
+    lg: '0 8px 24px rgba(155, 126, 196, 0.1)',
+    xl: '0 16px 40px rgba(155, 126, 196, 0.12)',
+  },
+  customCSS: `
+    :root[data-theme-id="pearl-haze"] .sidebar-item-active {
+      background: linear-gradient(135deg, rgba(155, 126, 196, 0.12), rgba(200, 160, 220, 0.08)) !important;
+      border-left: 3px solid #9b7ec4 !important;
+    }
+    :root[data-theme-id="pearl-haze"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(155, 126, 196, 0.04) !important;
+    }
+    :root[data-theme-id="pearl-haze"] input:focus,
+    :root[data-theme-id="pearl-haze"] textarea:focus {
+      border-color: #9b7ec4 !important;
+      box-shadow: 0 0 0 3px rgba(155, 126, 196, 0.12) !important;
+    }
+    :root[data-theme-id="pearl-haze"] .card:hover {
+      box-shadow: 0 8px 30px rgba(155, 126, 196, 0.1) !important;
+    }
+    :root[data-theme-id="pearl-haze"] ::selection {
+      background: rgba(155, 126, 196, 0.2);
+      color: #2d2330;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Golden Hour — The last hour of sunlight, honey & amber (LIGHT)
+// ═══════════════════════════════════════════════════════════════
+export const goldenHourTheme: Theme = {
+  id: 'golden-hour',
+  name: 'Golden Hour',
+  variant: 'light',
+  description: 'Warm honeyed sunlight flooding through tall grass — rich amber, soft cream, radiant.',
+  colors: {
+    background: '#fef9f0',
+    onBackground: '#3d2e1a',
+    surface: '#fffdf8',
+    onSurface: '#3d2e1a',
+    surfaceVariant: '#fdf3e0',
+    primary: '#d4913e',
+    onPrimary: '#ffffff',
+    primaryContainer: '#fde8cc',
+    onPrimaryContainer: '#3d2004',
+    secondary: '#c8a060',
+    onSecondary: '#3d2e1a',
+    outline: '#e0c898',
+    outlineVariant: '#f0dcc0',
+    error: '#d05345',
+    onError: '#ffffff',
+    errorContainer: '#ffe6e0',
+    onErrorContainer: '#4a1410',
+    success: '#5ca870',
+    warning: '#e0a840',
+    toolbar: '#fdf5e8',
+    sidebar: '#fef8ee',
+    card: '#fffdf8',
+    input: '#fefaf2',
+    border: '#ecd8b0',
+    text: '#3d2e1a',
+    textSecondary: '#8a7048',
+    link: '#d4913e',
+  },
+  typography: {
+    fontFamily: '"Fraunces", "Georgia", serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.55, relaxed: 1.75 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.25rem', md: '0.5rem', lg: '0.625rem', xl: '0.875rem', '2xl': '1.25rem', full: '9999px' },
+  shadows: {
+    sm: '0 1px 4px rgba(212, 145, 62, 0.08)',
+    md: '0 4px 14px rgba(212, 145, 62, 0.1)',
+    lg: '0 8px 28px rgba(212, 145, 62, 0.14)',
+    xl: '0 16px 44px rgba(212, 145, 62, 0.18)',
+  },
+  effects: { backgroundAnimation: 'sunbeams' },
+  customCSS: `
+    :root[data-theme-id="golden-hour"] .sidebar-item-active {
+      background: linear-gradient(135deg, rgba(212, 145, 62, 0.12), rgba(232, 180, 100, 0.06)) !important;
+      border-left: 3px solid #d4913e !important;
+    }
+    :root[data-theme-id="golden-hour"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(212, 145, 62, 0.05) !important;
+    }
+    :root[data-theme-id="golden-hour"] input:focus,
+    :root[data-theme-id="golden-hour"] textarea:focus {
+      border-color: #d4913e !important;
+      box-shadow: 0 0 0 3px rgba(212, 145, 62, 0.15) !important;
+    }
+    :root[data-theme-id="golden-hour"] .card:hover {
+      box-shadow: 0 6px 24px rgba(212, 145, 62, 0.12) !important;
+    }
+    :root[data-theme-id="golden-hour"] ::selection {
+      background: rgba(212, 145, 62, 0.25);
+      color: #3d2e1a;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Seafoam Breeze — Fresh ocean mist, mint & sand (LIGHT)
+// ═══════════════════════════════════════════════════════════════
+export const seafoamBreezeTheme: Theme = {
+  id: 'seafoam-breeze',
+  name: 'Seafoam Breeze',
+  variant: 'light',
+  description: 'Cool seafoam green with warm sandy beige — a calm morning on the shore, crisp and airy.',
+  colors: {
+    background: '#f5faf8',
+    onBackground: '#1e3028',
+    surface: '#ffffff',
+    onSurface: '#1e3028',
+    surfaceVariant: '#e8f4ee',
+    primary: '#5aad8a',
+    onPrimary: '#ffffff',
+    primaryContainer: '#d4f0e2',
+    onPrimaryContainer: '#0e3020',
+    secondary: '#a0c8b0',
+    onSecondary: '#1e3028',
+    outline: '#c0dcc8',
+    outlineVariant: '#d8ece0',
+    error: '#d06860',
+    onError: '#ffffff',
+    errorContainer: '#ffe8e4',
+    onErrorContainer: '#401410',
+    success: '#4ab878',
+    warning: '#e0b850',
+    toolbar: '#f0f8f4',
+    sidebar: '#f3faf6',
+    card: '#ffffff',
+    input: '#f7fcfa',
+    border: '#d4e8dc',
+    text: '#1e3028',
+    textSecondary: '#6d8878',
+    link: '#5aad8a',
+  },
+  typography: {
+    fontFamily: '"Work Sans", "Inter", system-ui, sans-serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.5, relaxed: 1.7 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.25rem', md: '0.5rem', lg: '0.625rem', xl: '0.875rem', '2xl': '1.25rem', full: '9999px' },
+  shadows: {
+    sm: '0 1px 3px rgba(90, 173, 138, 0.06)',
+    md: '0 4px 12px rgba(90, 173, 138, 0.08)',
+    lg: '0 8px 24px rgba(90, 173, 138, 0.1)',
+    xl: '0 16px 40px rgba(90, 173, 138, 0.12)',
+  },
+  customCSS: `
+    :root[data-theme-id="seafoam-breeze"] .sidebar-item-active {
+      background: linear-gradient(135deg, rgba(90, 173, 138, 0.1), rgba(130, 200, 160, 0.05)) !important;
+      border-left: 3px solid #5aad8a !important;
+    }
+    :root[data-theme-id="seafoam-breeze"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(90, 173, 138, 0.04) !important;
+    }
+    :root[data-theme-id="seafoam-breeze"] input:focus,
+    :root[data-theme-id="seafoam-breeze"] textarea:focus {
+      border-color: #5aad8a !important;
+      box-shadow: 0 0 0 3px rgba(90, 173, 138, 0.12) !important;
+    }
+    :root[data-theme-id="seafoam-breeze"] .card:hover {
+      box-shadow: 0 6px 24px rgba(90, 173, 138, 0.08) !important;
+    }
+    :root[data-theme-id="seafoam-breeze"] ::selection {
+      background: rgba(90, 173, 138, 0.2);
+      color: #1e3028;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Rose Quartz — Soft dusty rose, mauve, and warm cream (LIGHT)
+// ═══════════════════════════════════════════════════════════════
+export const roseQuartzTheme: Theme = {
+  id: 'rose-quartz',
+  name: 'Rose Quartz',
+  variant: 'light',
+  description: 'Polished rose quartz crystal with dusty mauve — gentle, elegant, healing warmth.',
+  colors: {
+    background: '#fcf7f7',
+    onBackground: '#38282a',
+    surface: '#ffffff',
+    onSurface: '#38282a',
+    surfaceVariant: '#f8edee',
+    primary: '#c47a7a',
+    onPrimary: '#ffffff',
+    primaryContainer: '#f8e0e0',
+    onPrimaryContainer: '#381818',
+    secondary: '#c8a0a0',
+    onSecondary: '#38282a',
+    outline: '#e0c8c8',
+    outlineVariant: '#f0dcdc',
+    error: '#c85050',
+    onError: '#ffffff',
+    errorContainer: '#ffe0e0',
+    onErrorContainer: '#381010',
+    success: '#68a878',
+    warning: '#d8a850',
+    toolbar: '#faf2f3',
+    sidebar: '#fcf5f5',
+    card: '#ffffff',
+    input: '#fdf8f8',
+    border: '#ecd8d8',
+    text: '#38282a',
+    textSecondary: '#907878',
+    link: '#c47a7a',
+  },
+  typography: {
+    fontFamily: '"Libre Baskerville", "Georgia", serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.25, normal: 1.55, relaxed: 1.75 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.25rem', md: '0.5rem', lg: '0.75rem', xl: '1rem', '2xl': '1.5rem', full: '9999px' },
+  shadows: {
+    sm: '0 1px 3px rgba(196, 122, 122, 0.06)',
+    md: '0 4px 12px rgba(196, 122, 122, 0.08)',
+    lg: '0 8px 24px rgba(196, 122, 122, 0.1)',
+    xl: '0 16px 40px rgba(196, 122, 122, 0.12)',
+  },
+  customCSS: `
+    :root[data-theme-id="rose-quartz"] .sidebar-item-active {
+      background: linear-gradient(135deg, rgba(196, 122, 122, 0.1), rgba(220, 160, 160, 0.05)) !important;
+      border-left: 3px solid #c47a7a !important;
+    }
+    :root[data-theme-id="rose-quartz"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(196, 122, 122, 0.04) !important;
+    }
+    :root[data-theme-id="rose-quartz"] input:focus,
+    :root[data-theme-id="rose-quartz"] textarea:focus {
+      border-color: #c47a7a !important;
+      box-shadow: 0 0 0 3px rgba(196, 122, 122, 0.12) !important;
+    }
+    :root[data-theme-id="rose-quartz"] .card:hover {
+      box-shadow: 0 6px 24px rgba(196, 122, 122, 0.1) !important;
+    }
+    :root[data-theme-id="rose-quartz"] ::selection {
+      background: rgba(196, 122, 122, 0.2);
+      color: #38282a;
+    }
+  `,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Alpine Snow — Crisp mountain snow, cool blue-gray (LIGHT)
+// ═══════════════════════════════════════════════════════════════
+export const alpineSnowTheme: Theme = {
+  id: 'alpine-snow',
+  name: 'Alpine Snow',
+  variant: 'light',
+  description: 'Crisp alpine snowfields under a cerulean sky — clean, sharp, soaringly fresh.',
+  colors: {
+    background: '#f8fafb',
+    onBackground: '#1e282e',
+    surface: '#ffffff',
+    onSurface: '#1e282e',
+    surfaceVariant: '#ecf2f6',
+    primary: '#4a8ab5',
+    onPrimary: '#ffffff',
+    primaryContainer: '#d8ecf8',
+    onPrimaryContainer: '#0c2840',
+    secondary: '#90b8d0',
+    onSecondary: '#1e282e',
+    outline: '#c4d8e4',
+    outlineVariant: '#dce8f0',
+    error: '#c86060',
+    onError: '#ffffff',
+    errorContainer: '#ffe4e4',
+    onErrorContainer: '#381010',
+    success: '#50a870',
+    warning: '#d8b050',
+    toolbar: '#f2f6f9',
+    sidebar: '#f6f9fb',
+    card: '#ffffff',
+    input: '#fafcfd',
+    border: '#dce8f0',
+    text: '#1e282e',
+    textSecondary: '#6d8088',
+    link: '#4a8ab5',
+  },
+  typography: {
+    fontFamily: '"Inter", "SF Pro Display", system-ui, sans-serif',
+    fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' },
+    fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+    lineHeight: { tight: 1.2, normal: 1.5, relaxed: 1.65 },
+  },
+  spacing: { xs: '0.25rem', sm: '0.5rem', md: '1rem', lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem' },
+  radius: { none: '0', sm: '0.125rem', md: '0.25rem', lg: '0.375rem', xl: '0.5rem', '2xl': '0.75rem', full: '9999px' },
+  shadows: {
+    sm: '0 1px 3px rgba(74, 138, 181, 0.05)',
+    md: '0 4px 12px rgba(74, 138, 181, 0.07)',
+    lg: '0 8px 24px rgba(74, 138, 181, 0.09)',
+    xl: '0 16px 40px rgba(74, 138, 181, 0.1)',
+  },
+  customCSS: `
+    :root[data-theme-id="alpine-snow"] .sidebar-item-active {
+      background: rgba(74, 138, 181, 0.08) !important;
+      border-left: 3px solid #4a8ab5 !important;
+    }
+    :root[data-theme-id="alpine-snow"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(74, 138, 181, 0.03) !important;
+    }
+    :root[data-theme-id="alpine-snow"] input:focus,
+    :root[data-theme-id="alpine-snow"] textarea:focus {
+      border-color: #4a8ab5 !important;
+      box-shadow: 0 0 0 3px rgba(74, 138, 181, 0.1) !important;
+    }
+    :root[data-theme-id="alpine-snow"] .card:hover {
+      box-shadow: 0 4px 20px rgba(74, 138, 181, 0.08) !important;
+    }
+    :root[data-theme-id="alpine-snow"] ::selection {
+      background: rgba(74, 138, 181, 0.18);
+      color: #1e282e;
+    }
+  `,
+};
+
 // Export all built-in themes
 export const builtInThemes: Theme[] = [
   ...legacyIndexThemes,
@@ -3751,4 +4518,14 @@ export const builtInThemes: Theme[] = [
   nordicSlateTheme,
   cozyWindowpaneTheme,
   liquidGlassTheme,
+  obsidianNoirTheme,
+  velvetTwilightTheme,
+  neonPulseTheme,
+  emberDuskTheme,
+  abyssalDepthsTheme,
+  pearlHazeTheme,
+  goldenHourTheme,
+  seafoamBreezeTheme,
+  roseQuartzTheme,
+  alpineSnowTheme,
 ];

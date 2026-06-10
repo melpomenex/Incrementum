@@ -165,6 +165,16 @@ export const BUILTIN_THEMES = {
   NORDIC_SLATE: 'nordic-slate',
   COZY_WINDOWPANE: 'cozy-windowpane',
   LIQUID_GLASS: 'liquid-glass',
+  OBSIDIAN_NOIR: 'obsidian-noir',
+  VELVET_TWILIGHT: 'velvet-twilight',
+  NEON_PULSE: 'neon-pulse',
+  EMBER_DUSK: 'ember-dusk',
+  ABYSSAL_DEPTHS: 'abyssal-depths',
+  PEARL_HAZE: 'pearl-haze',
+  GOLDEN_HOUR: 'golden-hour',
+  SEAFOAM_BREEZE: 'seafoam-breeze',
+  ROSE_QUARTZ: 'rose-quartz',
+  ALPINE_SNOW: 'alpine-snow',
 } as const;
 
 export type BuiltInThemeId = typeof BUILTIN_THEMES[keyof typeof BUILTIN_THEMES];
