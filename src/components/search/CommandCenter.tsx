@@ -649,6 +649,7 @@ export function CommandCenter() {
           ui.setPasteExtractDialogOpen(true);
         },
         keywords: ["clipboard", "paste", "save", "new", "extract", "import"],
+        shortcut: undefined,
       },
       ...navigationCommands,
       ...themeCommands,
@@ -730,6 +731,7 @@ export function CommandCenter() {
             metadata: {
               action: cmd.action,
               resultKind: "command",
+              shortcut: cmd.shortcut,
             },
           });
         });
@@ -871,6 +873,7 @@ export function CommandCenter() {
             metadata: {
               action: cmd.action,
               resultKind: "command",
+              shortcut: cmd.shortcut,
             },
           });
         });
@@ -938,6 +941,7 @@ export function CommandCenter() {
         metadata: {
           action: cmd.action,
           resultKind: "command",
+          shortcut: cmd.shortcut,
         },
       });
     });

@@ -54,6 +54,7 @@ export interface SearchResult {
     articleId?: string;
     feedId?: string;
     episodeId?: string;
+    shortcut?: string;
   };
 }
 
@@ -608,6 +609,11 @@ export function GlobalSearch({
                         )}
 
                         <div className="flex items-center gap-2 mt-1">
+                          {result.metadata?.shortcut && (
+                            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted text-muted-foreground rounded border border-border">
+                              {result.metadata.shortcut}
+                            </kbd>
+                          )}
                           {result.metadata?.transcriptMatch && (
                             <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
                               Transcript
