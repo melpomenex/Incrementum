@@ -70,6 +70,8 @@ import { IntelligenceIndicator } from "./IntelligenceIndicator";
 import { TrainingMenu } from "./TrainingMenu";
 import { KeyboardShortcutProvider } from "./KeyboardShortcutProvider";
 import { KeyboardHelpOverlay } from "./KeyboardHelpOverlay";
+import { AnnotationsPanel } from "./AnnotationsPanel";
+import { RSSDashboard } from "./RSSDashboard";
 import { SearchResults } from "./SearchResults";
 import { OriginalView } from "./OriginalView";
 import { StoryView } from "./StoryView";
@@ -1715,7 +1717,9 @@ export function RSSReader() {
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
             {/* Items list */}
             <div
-              className={`w-full lg:w-[420px] border-b lg:border-b-0 lg:border-r border-border/70 flex-col min-h-0 ${showItemsList ? "flex" : "hidden"}`}
+              className={`w-full ${
+                (!isMobile && (selectedItem !== null || articleLayout === "list")) ? "lg:w-[420px]" : "lg:flex-1"
+              } border-b lg:border-b-0 lg:border-r border-border/70 flex-col min-h-0 transition-all duration-300 ease-in-out ${showItemsList ? "flex" : "hidden"}`}
             >
               {/* Tag filter sidebar for saved stories */}
               {viewMode === "favorites" && tags.length > 0 && (
@@ -1885,7 +1889,8 @@ export function RSSReader() {
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto transition-all duration-300">
-                  {items.map(({ feed, item }) => {
+                  <div className={`mx-auto w-full ${selectedItem ? "" : "max-w-4xl p-4"}`}>
+                    {items.map(({ feed, item }) => {
                     const imageUrl = item.enclosure?.type?.startsWith("image/")
                       ? item.enclosure.url
                       : undefined;
@@ -2061,219 +2066,249 @@ export function RSSReader() {
                       </article>
                     );
                   })}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Article preview */}
-            <div
-              className={`flex-1 flex flex-col min-h-0 bg-card/40 ${showReader ? "flex" : "hidden"}`}
-            >
-              {selectedItem ? (
-                <>
-                  <div className="px-6 py-4 border-b border-border/70 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex items-center gap-3">
-                      {isMobile && (
+            {/* Article preview / Dashboard */}
+            {(selectedItem || (!isMobile && articleLayout === "list")) && (
+              <div
+                className={`flex-1 flex flex-col min-h-0 bg-card/40 transition-all duration-300 ${showReader ? "flex" : "hidden"}`}
+              >
+                {selectedItem ? (
+                  <>
+                    <div className="px-6 py-4 border-b border-border/70 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex items-center gap-3">
+                        {isMobile && (
+                          <button
+                            onClick={() => setMobileView("items")}
+                            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
+                            title={t("rssReader.backToArticles")}
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                          </button>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground uppercase tracking-[0.18em]">
+                            {selectedItemFeed?.title ?? t("rssReader.article")}
+                          </p>
+                          <h2 className="text-lg font-semibold text-foreground truncate">
+                            {selectedItem.title}
+                          </h2>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedItemFeed && (
+                          <button
+                            onClick={() => handleToggleFavorite(selectedItemFeed, selectedItem)}
+                            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
+                            title={
+                              selectedItem.favorite
+                                ? t("rssReader.removeFavorite")
+                                : t("rssReader.addFavorite")
+                            }
+                          >
+                            {selectedItem.favorite ? (
+                              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                            ) : (
+                              <StarOff className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        {/* View Full Content Toggle */}
                         <button
-                          onClick={() => setMobileView("items")}
-                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                          title={t("rssReader.backToArticles")}
+                          onClick={() => setShowFullContent(!showFullContent)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            showFullContent
+                              ? "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                          }`}
+                          title={showFullContent ? "Show RSS Content" : "View Full Content"}
                         >
-                          <ArrowLeft className="w-4 h-4" />
+                          <FileText className="w-4 h-4" />
                         </button>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground uppercase tracking-[0.18em]">
-                          {selectedItemFeed?.title ?? t("rssReader.article")}
-                        </p>
-                        <h2 className="text-lg font-semibold text-foreground truncate">
-                          {selectedItem.title}
-                        </h2>
+                        {/* Add to Semantic Batch Toggle */}
+                        <button
+                          onClick={() => {
+                            const isInBatch = rssStudy.selectedRssItems.some(i => i.id === selectedItem.id);
+                            if (isInBatch) {
+                              rssStudy.removeRssItemFromBatch(selectedItem.id);
+                            } else {
+                              rssStudy.addRssItemToBatch(selectedItem);
+                            }
+                          }}
+                          className={`p-2 rounded-lg transition-all duration-200 ${
+                            rssStudy.selectedRssItems.some(i => i.id === selectedItem.id)
+                              ? "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-950/40 border border-orange-500/20"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                          }`}
+                          title={
+                            rssStudy.selectedRssItems.some(i => i.id === selectedItem.id)
+                              ? "Remove from Semantic Study Batch"
+                              : "Add to Semantic Study Batch"
+                          }
+                        >
+                          <Brain className="w-4 h-4" />
+                        </button>
+                        {/* Annotations toggle */}
+                        <button
+                          onClick={() => setShowAnnotations(!showAnnotations)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            showAnnotations
+                              ? "text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                          }`}
+                          title="Annotations"
+                        >
+                          <Tag className="w-4 h-4" />
+                        </button>
+                        <a
+                          href={selectedItem.link}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            void handleOpenOriginal(selectedItem.link);
+                          }}
+                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
+                          title={t("rssReader.openOriginal")}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {selectedItemFeed && (
+                    {/* Tag input bar */}
+                    {selectedItem && (
+                      <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2">
                         <button
-                          onClick={() => handleToggleFavorite(selectedItemFeed, selectedItem)}
-                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                          title={
-                            selectedItem.favorite
-                              ? t("rssReader.removeFavorite")
-                              : t("rssReader.addFavorite")
-                          }
+                          onClick={() => setShowTagInput(!showTagInput)}
+                          className={`p-1 rounded transition-colors ${showTagInput ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/70"}`}
+                          title="Tags"
                         >
-                          {selectedItem.favorite ? (
-                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                          ) : (
-                            <StarOff className="w-4 h-4" />
-                          )}
+                          <Tag className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      {/* View Full Content Toggle */}
-                      <button
-                        onClick={() => setShowFullContent(!showFullContent)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          showFullContent
-                            ? "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
-                        }`}
-                        title={showFullContent ? "Show RSS Content" : "View Full Content"}
-                      >
-                        <FileText className="w-4 h-4" />
-                      </button>
-                      {/* Add to Semantic Batch Toggle */}
-                      <button
-                        onClick={() => {
-                          const isInBatch = rssStudy.selectedRssItems.some(i => i.id === selectedItem.id);
-                          if (isInBatch) {
-                            rssStudy.removeRssItemFromBatch(selectedItem.id);
-                          } else {
-                            rssStudy.addRssItemToBatch(selectedItem);
-                          }
+                        {selectedArticleTags.length > 0 && !showTagInput && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {selectedArticleTags.map((tag) => (
+                              <span key={tag.id} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full">
+                                {tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {showTagInput && selectedItem && (
+                          <div className="flex-1">
+                            <TagInput
+                              articleId={selectedItem.id}
+                              selectedTags={selectedArticleTags}
+                              onTagAdd={(tag) => {
+                                setSelectedArticleTags((prev) => [...prev, tag]);
+                              }}
+                              onTagRemove={(tagId) => {
+                                setSelectedArticleTags((prev) => prev.filter((t) => t.id !== tagId));
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-1 flex min-h-0 relative overflow-hidden">
+                      <div
+                        className="flex-1 overflow-y-auto transition-colors duration-200"
+                        style={{
+                          backgroundColor: preferences?.theme_mode === "light"
+                            ? "#ffffff"
+                            : preferences?.theme_mode === "dark"
+                            ? "#0f172a"
+                            : undefined,
+                          color: preferences?.theme_mode === "light"
+                            ? "#0f172a"
+                            : preferences?.theme_mode === "dark"
+                            ? "#f8fafc"
+                            : undefined
                         }}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          rssStudy.selectedRssItems.some(i => i.id === selectedItem.id)
-                            ? "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-950/40 border border-orange-500/20"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
-                        }`}
-                        title={
-                          rssStudy.selectedRssItems.some(i => i.id === selectedItem.id)
-                            ? "Remove from Semantic Study Batch"
-                            : "Add to Semantic Study Batch"
-                        }
                       >
-                        <Brain className="w-4 h-4" />
-                      </button>
-                      {/* Annotations toggle */}
-                      <button
-                        onClick={() => setShowAnnotations(!showAnnotations)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          showAnnotations
-                            ? "text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
-                        }`}
-                        title="Annotations"
-                      >
-                        <Tag className="w-4 h-4" />
-                      </button>
-                      <a
-                        href={selectedItem.link}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          void handleOpenOriginal(selectedItem.link);
-                        }}
-                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
-                        title={t("rssReader.openOriginal")}
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    </div>
-                  </div>
-                  {/* Tag input bar */}
-                  {selectedItem && (
-                    <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2">
-                      <button
-                        onClick={() => setShowTagInput(!showTagInput)}
-                        className={`p-1 rounded transition-colors ${showTagInput ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/70"}`}
-                        title="Tags"
-                      >
-                        <Tag className="w-3.5 h-3.5" />
-                      </button>
-                      {selectedArticleTags.length > 0 && !showTagInput && (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {selectedArticleTags.map((tag) => (
-                            <span key={tag.id} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full">
-                              {tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {showTagInput && selectedItem && (
-                        <div className="flex-1">
-                          <TagInput
+                        {/* Conditional view rendering based on storyViewMode */}
+                        {storyViewMode === "original" && selectedItem.link ? (
+                          <OriginalView item={selectedItem} />
+                        ) : storyViewMode === "story" && selectedItemFeed ? (
+                          <StoryView
+                            item={selectedItem}
+                            feed={selectedItemFeed}
+                            items={items.map((i) => i.item)}
+                            onSelectItem={(item) => {
+                              const match = items.find((i) => i.item.id === item.id);
+                              if (match) {
+                                setSelectedItem(item);
+                                setSelectedItemFeed(match.feed);
+                              }
+                            }}
+                            onToggleFavorite={handleToggleFavorite}
+                          />
+                        ) : showFullContent ? (
+                          <RSSFullContentView
+                            item={selectedItem}
+                          />
+                        ) : (
+                          <div className="reading-surface" style={readingStyles}>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4 reading-meta">
+                              {(preferences?.show_date ?? true) && (
+                                <span>{formatFeedDate(selectedItem.pubDate)}</span>
+                              )}
+                              {(preferences?.show_author ?? true) && selectedItem.author && (
+                                <span>by {selectedItem.author}</span>
+                              )}
+                            </div>
+                            <div
+                              className="prose prose-sm max-w-none text-foreground dark:prose-invert reading-prose"
+                              onClick={(e) => {
+                                const target = e.target as HTMLElement;
+                                const link = target.closest("a[href]") as HTMLAnchorElement | null;
+                                if (!link) return;
+                                e.preventDefault();
+                                void handleOpenOriginal(link.href);
+                              }}
+                              dangerouslySetInnerHTML={{
+                                  __html: sanitizeHtml(selectedItem.content || selectedItem.description || ""),
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {showAnnotations && (
+                        <div className="w-80 border-l border-border/70 flex-shrink-0 h-full bg-card">
+                          <AnnotationsPanel
                             articleId={selectedItem.id}
-                            selectedTags={selectedArticleTags}
-                            onTagAdd={(tag) => {
-                              setSelectedArticleTags((prev) => [...prev, tag]);
-                            }}
-                            onTagRemove={(tagId) => {
-                              setSelectedArticleTags((prev) => prev.filter((t) => t.id !== tagId));
-                            }}
+                            onClose={() => setShowAnnotations(false)}
                           />
                         </div>
                       )}
                     </div>
-                  )}
-                  <div
-                    className="flex-1 overflow-y-auto transition-colors duration-200"
-                    style={{
-                      backgroundColor: preferences?.theme_mode === "light"
-                        ? "#ffffff"
-                        : preferences?.theme_mode === "dark"
-                        ? "#0f172a"
-                        : undefined,
-                      color: preferences?.theme_mode === "light"
-                        ? "#0f172a"
-                        : preferences?.theme_mode === "dark"
-                        ? "#f8fafc"
-                        : undefined
+                  </>
+                ) : (
+                  <RSSDashboard
+                    feeds={feeds}
+                    selectedRssItemsCount={rssStudy.selectedRssItems.length}
+                    onViewModeChange={handleViewModeChange}
+                    onSelectArticle={(feed, item) => {
+                      setSelectedFeed(feed);
+                      setSelectedItem(item);
+                      setSelectedItemFeed(feed);
                     }}
-                  >
-                    {/* Conditional view rendering based on storyViewMode */}
-                    {storyViewMode === "original" && selectedItem.link ? (
-                      <OriginalView item={selectedItem} />
-                    ) : storyViewMode === "story" && selectedItemFeed ? (
-                      <StoryView
-                        item={selectedItem}
-                        feed={selectedItemFeed}
-                        items={items.map((i) => i.item)}
-                        onSelectItem={(item) => {
-                          const match = items.find((i) => i.item.id === item.id);
-                          if (match) {
-                            setSelectedItem(item);
-                            setSelectedItemFeed(match.feed);
-                          }
-                        }}
-                        onToggleFavorite={handleToggleFavorite}
-                      />
-                    ) : showFullContent ? (
-                      <RSSFullContentView
-                        item={selectedItem}
-                      />
-                    ) : (
-                      <div className="reading-surface" style={readingStyles}>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4 reading-meta">
-                          {(preferences?.show_date ?? true) && (
-                            <span>{formatFeedDate(selectedItem.pubDate)}</span>
-                          )}
-                          {(preferences?.show_author ?? true) && selectedItem.author && (
-                            <span>by {selectedItem.author}</span>
-                          )}
-                        </div>
-                        <div
-                          className="prose prose-sm max-w-none text-foreground dark:prose-invert reading-prose"
-                          onClick={(e) => {
-                            const target = e.target as HTMLElement;
-                            const link = target.closest("a[href]") as HTMLAnchorElement | null;
-                            if (!link) return;
-                            e.preventDefault();
-                            void handleOpenOriginal(link.href);
-                          }}
-                          dangerouslySetInnerHTML={{
-                            __html: sanitizeHtml(selectedItem.content || selectedItem.description || ""),
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                  <Rss className="w-10 h-10 mb-3 opacity-60" />
-                  <p>{t("rssReader.selectStory")}</p>
-                </div>
-              )}
-            </div>
+                    onSelectFeed={(feed) => {
+                      setSelectedFeed(feed);
+                      handleViewModeChange("all");
+                    }}
+                    onOpenDiscover={() => setShowDiscoverSites(true)}
+                    onOpenAddFeed={() => setShowAddDialog(true)}
+                    onOpenSemanticGraph={() => setSemanticGraphOpen(true)}
+                    onOpenShortcutsHelp={() => setShowKeyboardHelp(true)}
+                    onSyncAll={() => refreshAllFeeds("manual")}
+                    isSyncing={isAutoRefreshing}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
 
