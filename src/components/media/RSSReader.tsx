@@ -742,18 +742,81 @@ export function RSSReader() {
 
   const handleItemClick = async (feed: Feed, item: FeedItem) => {
     setUserClosedReader(false);
-    await markItemReadAuto(feed.id, item.id, true);
-    await loadFeeds();
-    setSelectedItem(item);
+    
+    // Update local state synchronously first
+    setFeeds((prevFeeds) =>
+      prevFeeds.map((f) => {
+        if (f.id === feed.id) {
+          const wasUnread = f.items.find((i) => i.id === item.id && !i.read);
+          return {
+            ...f,
+            unreadCount: wasUnread ? Math.max(0, f.unreadCount - 1) : f.unreadCount,
+            items: f.items.map((i) => (i.id === item.id ? { ...i, read: true } : i)),
+          };
+        }
+        return f;
+      })
+    );
+    setItems((prevItems) =>
+      prevItems.map((itemObj) => {
+        if (itemObj.item.id === item.id) {
+          return {
+            ...itemObj,
+            item: { ...itemObj.item, read: true },
+          };
+        }
+        return itemObj;
+      })
+    );
+
+    // Update selectedItem locally
+    setSelectedItem({ ...item, read: true });
     setSelectedItemFeed(feed);
+
+    // Call API in background
+    markItemReadAuto(feed.id, item.id, true).catch((err) => {
+      console.error("Failed to mark item read in backend:", err);
+    });
+
     if (isMobile) {
       setMobileView("reader");
     }
   };
 
   const handleToggleFavorite = async (feed: Feed, item: FeedItem) => {
-    await toggleItemFavoriteAuto(feed.id, item.id);
-    await loadFeeds();
+    const nextFavorite = !item.favorite;
+
+    // Update local state synchronously
+    setFeeds((prevFeeds) =>
+      prevFeeds.map((f) => {
+        if (f.id === feed.id) {
+          return {
+            ...f,
+            items: f.items.map((i) => (i.id === item.id ? { ...i, favorite: nextFavorite } : i)),
+          };
+        }
+        return f;
+      })
+    );
+    setItems((prevItems) =>
+      prevItems.map((itemObj) => {
+        if (itemObj.item.id === item.id) {
+          return {
+            ...itemObj,
+            item: { ...itemObj.item, favorite: nextFavorite },
+          };
+        }
+        return itemObj;
+      })
+    );
+    if (selectedItem?.id === item.id) {
+      setSelectedItem((prev) => (prev ? { ...prev, favorite: nextFavorite } : null));
+    }
+
+    // Call API in background
+    toggleItemFavoriteAuto(feed.id, item.id).catch((err) => {
+      console.error("Failed to toggle favorite in backend:", err);
+    });
   };
 
   const handleMarkAllRead = async (feedId: string) => {
@@ -977,6 +1040,32 @@ export function RSSReader() {
           setSelectedItem(next.item);
           setSelectedItemFeed(next.feed);
           if (!next.item.read) {
+            // Update local state synchronously first
+            setFeeds((prevFeeds) =>
+              prevFeeds.map((f) => {
+                if (f.id === next.feed.id) {
+                  return {
+                    ...f,
+                    unreadCount: Math.max(0, f.unreadCount - 1),
+                    items: f.items.map((i) => (i.id === next.item.id ? { ...i, read: true } : i)),
+                  };
+                }
+                return f;
+              })
+            );
+            setItems((prevItems) =>
+              prevItems.map((itemObj) => {
+                if (itemObj.item.id === next.item.id) {
+                  return {
+                    ...itemObj,
+                    item: { ...itemObj.item, read: true },
+                  };
+                }
+                return itemObj;
+              })
+            );
+            setSelectedItem((prev) => (prev ? { ...prev, read: true } : null));
+
             void markItemReadAuto(next.feed.id, next.item.id, true);
           }
         }
@@ -990,11 +1079,65 @@ export function RSSReader() {
         break;
       case "markRead":
         if (selectedItem && selectedItemFeed) {
+          // Update local state synchronously
+          setFeeds((prevFeeds) =>
+            prevFeeds.map((f) => {
+              if (f.id === selectedItemFeed.id) {
+                const wasUnread = f.items.find((i) => i.id === selectedItem.id && !i.read);
+                return {
+                  ...f,
+                  unreadCount: wasUnread ? Math.max(0, f.unreadCount - 1) : f.unreadCount,
+                  items: f.items.map((i) => (i.id === selectedItem.id ? { ...i, read: true } : i)),
+                };
+              }
+              return f;
+            })
+          );
+          setItems((prevItems) =>
+            prevItems.map((itemObj) => {
+              if (itemObj.item.id === selectedItem.id) {
+                return {
+                  ...itemObj,
+                  item: { ...itemObj.item, read: true },
+                };
+              }
+              return itemObj;
+            })
+          );
+          setSelectedItem((prev) => (prev ? { ...prev, read: true } : null));
+
           void markItemReadAuto(selectedItemFeed.id, selectedItem.id, true);
         }
         break;
       case "markUnread":
-        if (selectedItem) {
+        if (selectedItem && selectedItemFeed) {
+          // Update local state synchronously
+          setFeeds((prevFeeds) =>
+            prevFeeds.map((f) => {
+              if (f.id === selectedItemFeed.id) {
+                const wasRead = f.items.find((i) => i.id === selectedItem.id && i.read);
+                return {
+                  ...f,
+                  unreadCount: wasRead ? f.unreadCount + 1 : f.unreadCount,
+                  items: f.items.map((i) => (i.id === selectedItem.id ? { ...i, read: false } : i)),
+                };
+              }
+              return f;
+            })
+          );
+          setItems((prevItems) =>
+            prevItems.map((itemObj) => {
+              if (itemObj.item.id === selectedItem.id) {
+                return {
+                  ...itemObj,
+                  item: { ...itemObj.item, read: false },
+                };
+              }
+              return itemObj;
+            })
+          );
+          setSelectedItem((prev) => (prev ? { ...prev, read: false } : null));
+
           void markArticleUnreadAuto(selectedItem.id);
         }
         break;
@@ -1062,6 +1205,35 @@ export function RSSReader() {
 
   // Mark article unread handler
   const handleMarkUnread = async (feed: Feed, item: FeedItem) => {
+    // Update local state synchronously
+    setFeeds((prevFeeds) =>
+      prevFeeds.map((f) => {
+        if (f.id === feed.id) {
+          const wasRead = f.items.find((i) => i.id === item.id && i.read);
+          return {
+            ...f,
+            unreadCount: wasRead ? f.unreadCount + 1 : f.unreadCount,
+            items: f.items.map((i) => (i.id === item.id ? { ...i, read: false } : i)),
+          };
+        }
+        return f;
+      })
+    );
+    setItems((prevItems) =>
+      prevItems.map((itemObj) => {
+        if (itemObj.item.id === item.id) {
+          return {
+            ...itemObj,
+            item: { ...itemObj.item, read: false },
+          };
+        }
+        return itemObj;
+      })
+    );
+    if (selectedItem?.id === item.id) {
+      setSelectedItem((prev) => (prev ? { ...prev, read: false } : null));
+    }
+
     try {
       await markItemReadAuto(feed.id, item.id, false);
     } catch (err) {

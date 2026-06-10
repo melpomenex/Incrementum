@@ -5,6 +5,7 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { useKeyboardShortcutsStore } from "../../stores/keyboardShortcutsStore";
+import { useUIStore } from "../../stores/uiStore";
 
 interface KeyboardShortcutProviderProps {
   onAction: (action: string) => void;
@@ -19,6 +20,9 @@ export function KeyboardShortcutProvider({ onAction, enabled = true }: KeyboardS
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!enabled) return;
+
+      // Don't capture shortcuts when command palette is open
+      if (useUIStore.getState().commandPaletteOpen) return;
 
       // Don't capture when typing in inputs
       const target = e.target as HTMLElement;

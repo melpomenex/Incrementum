@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useUIStore } from "../../stores/uiStore";
 
 /**
  * Keyboard key combination
@@ -583,6 +584,11 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if command palette is open
+      if (useUIStore.getState().commandPaletteOpen) {
+        return;
+      }
+
       // Ignore if typing in input
       const target = e.target as HTMLElement;
       const isInput =

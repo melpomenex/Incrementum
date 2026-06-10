@@ -55,6 +55,7 @@ import { sanitizeHtml } from "../common/RichContentRenderer";
 import { createDocument, updateDocumentContent } from "../../api/documents";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
+import { useUIStore } from "../../stores/uiStore";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { EditExtractDialog } from "../extracts/EditExtractDialog";
 import type { Extract } from "../../api/extracts";
@@ -624,6 +625,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if command palette is open
+      if (useUIStore.getState().commandPaletteOpen) {
+        return;
+      }
+
       // Don't trigger if typing in input
       if (
         (e.target as HTMLElement).tagName === "INPUT" ||

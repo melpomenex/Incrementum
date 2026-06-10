@@ -35,7 +35,8 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { findMatchingSections } from "./sectionRegistry";
 import type { ExactSearchHitLocation, SearchHit } from "../../types/searchHit";
 import { registerCommandPaletteOpenEvents } from "../../utils/commandPaletteEvents";
-import { getSubscribedFeedsAuto } from "../../api/rss";
+import { getSubscribedFeedsAuto, type FeedItem } from "../../api/rss";
+import { searchArticlesAuto } from "../../api/rss-search";
 import { useRssStudyStore } from "../../stores/rssStudyStore";
 import { getSubscribedPodcasts, getPodcastEpisodes, getPodcastTranscript } from "../../api/podcast";
 
@@ -237,11 +238,57 @@ export function CommandCenter() {
   extractsRef.current = extracts;
   const { theme, themes, setTheme } = useTheme();
 
+  const rssArticlesCacheRef = useRef<Array<{ item: FeedItem; feedId: string; feedTitle: string }>>([]);
+  const isRssCacheLoadingRef = useRef(false);
+
   useEffect(() => {
     if (!documentsLoading && documents.length === 0) {
       void loadDocuments();
     }
   }, [documents.length, documentsLoading, loadDocuments]);
+
+  // Pre-fetch all RSS articles once when command palette opens in RSS view
+  useEffect(() => {
+    const getActiveTab = () => {
+      const state = useTabsStore.getState();
+      const paneIds = state.getTabPaneIds();
+      if (paneIds.length === 0) return null;
+      const pane = state.findPaneById(paneIds[0]);
+      if (!pane || pane.type !== "tabs" || !pane.activeTabId) return null;
+      return state.tabs.find(t => t.id === pane.activeTabId) || null;
+    };
+    const activeTab = getActiveTab();
+    const isRssView = activeTab?.type === "rss";
+
+    if (commandPaletteOpen && isRssView) {
+      const loadRssArticlesToCache = async () => {
+        if (isRssCacheLoadingRef.current) return;
+        isRssCacheLoadingRef.current = true;
+        try {
+          const feeds = await getSubscribedFeedsAuto();
+          const cached: Array<{ item: FeedItem; feedId: string; feedTitle: string }> = [];
+          feeds.forEach((feed) => {
+            (feed.items || []).forEach((item) => {
+              cached.push({
+                item,
+                feedId: feed.id,
+                feedTitle: feed.title,
+              });
+            });
+          });
+          rssArticlesCacheRef.current = cached;
+        } catch (err) {
+          console.warn("[CommandCenter] Failed to pre-fetch RSS articles for cache", err);
+        } finally {
+          isRssCacheLoadingRef.current = false;
+        }
+      };
+      
+      void loadRssArticlesToCache();
+    } else if (!commandPaletteOpen) {
+      rssArticlesCacheRef.current = [];
+    }
+  }, [commandPaletteOpen]);
 
   useEffect(() => {
     if (documents.length > 0) {
@@ -590,12 +637,29 @@ export function CommandCenter() {
 
     if (isRssView) {
       try {
-        const feeds = await getSubscribedFeedsAuto();
         const lowerQuery = query.query.toLowerCase().trim();
         const matches: SearchResult[] = [];
         
-        feeds.forEach((feed) => {
-          (feed.items || []).forEach((item) => {
+        if (lowerQuery) {
+          let cachedArticles = rssArticlesCacheRef.current;
+          if (cachedArticles.length === 0) {
+            // Fallback if cache is not loaded yet
+            const feeds = await getSubscribedFeedsAuto();
+            const cached: Array<{ item: FeedItem; feedId: string; feedTitle: string }> = [];
+            feeds.forEach((feed) => {
+              (feed.items || []).forEach((item) => {
+                cached.push({
+                  item,
+                  feedId: feed.id,
+                  feedTitle: feed.title,
+                });
+              });
+            });
+            rssArticlesCacheRef.current = cached;
+            cachedArticles = cached;
+          }
+
+          cachedArticles.forEach(({ item, feedId }) => {
             const title = item.title || "";
             const desc = item.description || "";
             const content = item.content || "";
@@ -621,13 +685,13 @@ export function CommandCenter() {
                 metadata: {
                   resultKind: "rss-article",
                   articleId: item.id,
-                  feedId: feed.id,
+                  feedId: feedId,
                   category: "RSS Article",
                 } as any
               });
             }
           });
-        });
+        }
         
         const matchedCommands = allCommands.filter((cmd) => {
           const label = cmd.label.toLowerCase();
