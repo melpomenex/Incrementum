@@ -379,7 +379,10 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
   const selectedCategoryLabel = activeCategory === ALL_CATEGORY ? "Everything" : activeCategory;
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
+    <div 
+      className="flex h-full flex-col text-foreground"
+      style={{ backgroundColor: "var(--color-background)" }}
+    >
       <div className="border-b border-border/70 bg-background/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-5 py-5 lg:px-8">
           <div className="flex flex-wrap items-start justify-between gap-4">

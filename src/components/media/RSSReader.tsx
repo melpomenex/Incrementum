@@ -1093,12 +1093,18 @@ export function RSSReader() {
       <KeyboardShortcutProvider onAction={handleKeyboardAction} />
       <KeyboardHelpOverlay isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
       {showManageTraining && (
-        <div className="fixed inset-0 z-50 bg-background">
+        <div 
+          className="fixed inset-0 z-50 backdrop-blur-md"
+          style={{ backgroundColor: "var(--color-background)" }}
+        >
           <ManageTrainingView onClose={() => setShowManageTraining(false)} />
         </div>
       )}
       {showDiscoverSites && (
-        <div className="fixed inset-0 z-50 bg-background">
+        <div 
+          className="fixed inset-0 z-50 backdrop-blur-md animate-tab-enter"
+          style={{ backgroundColor: "var(--color-background)" }}
+        >
           <DiscoverSitesPanel
             onClose={() => setShowDiscoverSites(false)}
             onSubscribe={(feed) => void handleDiscoverSiteSubscribe(feed)}
@@ -2425,8 +2431,11 @@ export function RSSReader() {
 
       {/* Newsletter Directory Modal */}
       {showNewsletterDirectory && (
-        <div className="fixed inset-0 z-50 bg-black/50">
-          <div className="h-full w-full bg-background">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div 
+            className="h-full w-full backdrop-blur-md"
+            style={{ backgroundColor: "var(--color-background)" }}
+          >
             <button
               onClick={() => setShowNewsletterDirectory(false)}
               className="absolute top-4 right-4 z-10 p-2 bg-muted/80 hover:bg-muted text-foreground rounded-lg backdrop-blur-sm transition-colors"
