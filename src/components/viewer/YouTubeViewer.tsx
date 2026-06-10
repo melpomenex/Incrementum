@@ -809,6 +809,13 @@ export function YouTubeViewer({
       toast.error(t("viewer.invalidYouTubeUrlToast"), t("viewer.invalidYouTubeUrlDesc"));
       return;
     }
+    const videoDuration = duration;
+    const isNearEnd = videoDuration > 0 && startTime >= videoDuration - 1.5;
+    if (isNearEnd) {
+      setStartTime(0);
+      desiredStartTimeRef.current = 0;
+      initialSeekAppliedRef.current = true;
+    }
     setShowInlinePlayer(true);
   };
 
@@ -882,7 +889,20 @@ export function YouTubeViewer({
     void (async () => {
       try {
         const playerDuration = await event.target.getDuration();
-        if (typeof playerDuration === "number" && playerDuration > 0) setDuration(playerDuration);
+        if (typeof playerDuration === "number" && playerDuration > 0) {
+          setDuration(playerDuration);
+          const desired = desiredStartTimeRef.current;
+          if (desired >= playerDuration - 1.5) {
+            setStartTime(0);
+            desiredStartTimeRef.current = 0;
+            initialSeekAppliedRef.current = true;
+            try {
+              await event.target.seekTo(0, true);
+            } catch (seekError) {
+              console.warn("[YouTubeViewer] Failed to seek to 0 on ready:", seekError);
+            }
+          }
+        }
       } catch {
         // Ignore duration failures.
       }

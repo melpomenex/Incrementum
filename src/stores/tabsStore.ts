@@ -121,6 +121,7 @@ export interface TabsState {
   tabs: Tab[];
   rootPane: Pane;
   closedTabs: Tab[];
+  activeTabHistory: string[];
 
   // Actions
   addTab: (tab: Omit<Tab, "id">, targetPaneId?: string) => string;
@@ -346,6 +347,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   tabs: [],
   rootPane: createTabPane(),
   closedTabs: [],
+  activeTabHistory: [],
 
   getDefaultTabs: () => {
     return [];
@@ -366,6 +368,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
               ...(p as TabPane),
               activeTabId: existingTab.id,
             })),
+            activeTabHistory: [...state.activeTabHistory.filter((x) => x !== existingTab.id), existingTab.id],
           };
         }
         return {};
@@ -406,6 +409,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
             return {
               tabs: [...state.tabs, newTab],
               rootPane: newPane,
+              activeTabHistory: [...state.activeTabHistory.filter((x) => x !== id), id],
             };
           }
         }
@@ -429,6 +433,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           return {
             tabs: [...state.tabs, newTab],
             rootPane: newPane,
+            activeTabHistory: [...state.activeTabHistory.filter((x) => x !== id), id],
           };
         }
       }
@@ -440,6 +445,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           tabIds: [...(p as TabPane).tabIds, id],
           activeTabId: id,
         })),
+        activeTabHistory: [...state.activeTabHistory.filter((x) => x !== id), id],
       };
     });
 
@@ -552,10 +558,24 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       const newTabIds = pane.tabIds.filter((id) => id !== tabId);
       let newActiveTabId = pane.activeTabId;
 
+      const newHistory = state.activeTabHistory.filter((x) => x !== tabId);
+
       if (pane.activeTabId === tabId) {
-        const closedIndex = pane.tabIds.findIndex((id) => id === tabId);
-        const newIndex = Math.max(0, closedIndex - 1);
-        newActiveTabId = newTabIds[newIndex] || null;
+        let foundPreviousActive = false;
+        for (let i = newHistory.length - 1; i >= 0; i--) {
+          const candidateId = newHistory[i];
+          if (newTabIds.includes(candidateId)) {
+            newActiveTabId = candidateId;
+            foundPreviousActive = true;
+            break;
+          }
+        }
+
+        if (!foundPreviousActive) {
+          const closedIndex = pane.tabIds.findIndex((id) => id === tabId);
+          const newIndex = Math.max(0, closedIndex - 1);
+          newActiveTabId = newTabIds[newIndex] || null;
+        }
       }
 
       const isLastTabInOnlyPane = newTabIds.length === 0 && 
@@ -580,6 +600,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         tabs: newTabs,
         rootPane: newRootPane,
         closedTabs,
+        activeTabHistory: newHistory,
       };
     });
   },
@@ -591,6 +612,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         ...(p as TabPane),
         activeTabId: tabId,
       })),
+      activeTabHistory: [...state.activeTabHistory.filter((x) => x !== tabId), tabId],
     }));
     get().saveTabs();
   },
@@ -638,6 +660,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           activeTabId: lastClosed.id,
         })),
         closedTabs,
+        activeTabHistory: [...state.activeTabHistory.filter((x) => x !== lastClosed.id), lastClosed.id],
       };
     });
     setTimeout(() => get().saveTabs(), 0);
@@ -671,6 +694,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           activeTabId: tabId,
         })),
         closedTabs: newClosedTabs,
+        activeTabHistory: [tabId],
       };
     });
   },
@@ -700,6 +724,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           tabIds: (p as TabPane).tabIds.filter((id) => !tabsToClose.includes(id)),
         })),
         closedTabs: newClosedTabs,
+        activeTabHistory: state.activeTabHistory.filter((id) => !tabsToClose.includes(id)),
       };
     });
   },
@@ -719,6 +744,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           tabs: [firstNonClosable],
           rootPane: createTabPane([firstNonClosable.id], firstNonClosable.id),
           closedTabs: newClosedTabs,
+          activeTabHistory: [firstNonClosable.id],
         };
       }
 
@@ -726,6 +752,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         tabs: [],
         rootPane: createTabPane(),
         closedTabs: newClosedTabs,
+        activeTabHistory: [],
       };
     });
   },
@@ -793,10 +820,11 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         activeTabId: newFromActiveTabId,
       }));
 
+      const finalActiveId = toPane.activeTabId || tabId;
       newRootPane = updatePaneInTree(newRootPane, toPaneId, (p) => ({
         ...(p as TabPane),
         tabIds: newToTabIds,
-        activeTabId: toPane.activeTabId || tabId,
+        activeTabId: finalActiveId,
       }));
 
       const finalPane = findPaneByIdRecursive(newRootPane, fromPaneId) as TabPane;
@@ -806,7 +834,17 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
       setTimeout(() => get().saveTabs(), 0);
 
-      return { rootPane: newRootPane };
+      const historyWithActives = [...state.activeTabHistory];
+      if (newFromActiveTabId) {
+        historyWithActives.push(newFromActiveTabId);
+      }
+      historyWithActives.push(finalActiveId);
+      const finalHistory = Array.from(new Set(historyWithActives));
+
+      return {
+        rootPane: newRootPane,
+        activeTabHistory: finalHistory,
+      };
     });
   },
 
@@ -855,7 +893,17 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
       setTimeout(() => get().saveTabs(), 0);
 
-      return { rootPane: newRootPane };
+      const historyWithBoth = [...state.activeTabHistory];
+      if (newActiveTabId) {
+        historyWithBoth.push(newActiveTabId);
+      }
+      historyWithBoth.push(tabId);
+      const finalHistory = Array.from(new Set(historyWithBoth));
+
+      return {
+        rootPane: newRootPane,
+        activeTabHistory: finalHistory,
+      };
     });
   },
 
@@ -889,7 +937,11 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       }
 
       setTimeout(() => get().saveTabs(), 0);
-      return { tabs: [...state.tabs, clonedTab], rootPane: newRootPane };
+      return {
+        tabs: [...state.tabs, clonedTab],
+        rootPane: newRootPane,
+        activeTabHistory: [...state.activeTabHistory.filter((x) => x !== newTabId), newTabId],
+      };
     });
   },
 
@@ -942,7 +994,17 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
       setTimeout(() => get().saveTabs(), 0);
 
-      return { rootPane: newRootPane };
+      const historyWithBoth = [...state.activeTabHistory];
+      if (newFromActiveTabId) {
+        historyWithBoth.push(newFromActiveTabId);
+      }
+      historyWithBoth.push(tabId);
+      const finalHistory = Array.from(new Set(historyWithBoth));
+
+      return {
+        rootPane: newRootPane,
+        activeTabHistory: finalHistory,
+      };
     });
   },
 
@@ -1078,9 +1140,21 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
       const cleanedPane = cleanupEmptyPanes(filteredRootPane);
 
+      // Collect all active tab IDs from restored pane tree to initialize history
+      const activeIds: string[] = [];
+      const collectActiveTabIds = (p: Pane) => {
+        if (p.type === "tabs" && p.activeTabId) {
+          activeIds.push(p.activeTabId);
+        } else if (p.type === "split") {
+          p.children.forEach(collectActiveTabIds);
+        }
+      };
+      collectActiveTabIds(cleanedPane);
+
       set({
         tabs: rehydratedTabs,
         rootPane: cleanedPane,
+        activeTabHistory: activeIds,
       });
 
       // Restore UI state

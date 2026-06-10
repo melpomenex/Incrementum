@@ -179,6 +179,12 @@ export function AudioPlayer({
       if (isPlaying) {
         audioRef.current.pause();
       } else {
+        const audioDuration = duration > 0 ? duration : (audioRef.current.duration || 0);
+        const isNearEnd = audioDuration > 0 && audioRef.current.currentTime >= audioDuration - 1;
+        if (audioRef.current.ended || isNearEnd) {
+          audioRef.current.currentTime = 0;
+          setCurrentTime(0);
+        }
         audioRef.current.play();
       }
       setIsPlaying(!isPlaying);

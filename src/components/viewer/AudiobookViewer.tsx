@@ -1107,6 +1107,13 @@ export function AudiobookViewer({
       if (isPlaying) {
         audioRef.current.pause();
       } else {
+        const audioDuration = durationRef.current || duration || audioRef.current.duration || 0;
+        const isNearEnd = audioDuration > 0 && audioRef.current.currentTime >= audioDuration - 1;
+        if (audioRef.current.ended || isNearEnd) {
+          audioRef.current.currentTime = 0;
+          setCurrentTime(0);
+          currentTimeRef.current = 0;
+        }
         try {
           await audioRef.current.play();
         } catch (err) {

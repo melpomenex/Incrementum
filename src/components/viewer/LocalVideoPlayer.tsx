@@ -801,6 +801,13 @@ export function LocalVideoPlayer({
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       setPlayError(null);
+      const videoDuration = duration > 0 ? duration : (videoRef.current.duration || 0);
+      const isNearEnd = videoDuration > 0 && videoRef.current.currentTime >= videoDuration - 1;
+      if (videoRef.current.ended || isNearEnd) {
+        videoRef.current.currentTime = 0;
+        setCurrentTime(0);
+        currentTimeRef.current = 0;
+      }
       await attemptPlay('toggle');
     } else {
       videoRef.current.pause();
