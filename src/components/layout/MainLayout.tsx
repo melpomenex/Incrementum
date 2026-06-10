@@ -14,6 +14,7 @@ import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
+import { PasteExtractDialog } from "../extracts/PasteExtractDialog";
 import {
   LayoutDashboard,
   ListTodo,
@@ -917,6 +918,10 @@ export function MainLayout() {
         <KeyboardShortcutsHelp
           isOpen={isShortcutsHelpOpen}
           onClose={() => setIsShortcutsHelpOpen(false)}
+        />
+        <PasteExtractDialog
+          isOpen={useUIStore((s) => s.pasteExtractDialogOpen)}
+          onClose={() => useUIStore.getState().setPasteExtractDialogOpen(false)}
         />
         <ImageSaveOverlay />
       </VimiumNavigationProvider>

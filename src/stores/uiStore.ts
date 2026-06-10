@@ -19,6 +19,9 @@ interface UIState {
   commandPaletteOpen: boolean;
   commandPaletteQuery: string;
 
+  // Paste Extract Dialog
+  pasteExtractDialogOpen: boolean;
+
   // Theme
   theme: "light" | "dark";
 
@@ -32,6 +35,7 @@ interface UIState {
   removeToast: (id: string) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setCommandPaletteQuery: (query: string) => void;
+  setPasteExtractDialogOpen: (open: boolean) => void;
   setTheme: (theme: "light" | "dark") => void;
 }
 
@@ -45,6 +49,7 @@ export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   commandPaletteOpen: false,
   commandPaletteQuery: "",
+  pasteExtractDialogOpen: false,
   theme: "dark",
 
   // Actions
@@ -89,6 +94,7 @@ export const useUIStore = create<UIState>((set) => ({
     }),
 
   setCommandPaletteQuery: (commandPaletteQuery) => set({ commandPaletteQuery }),
+  setPasteExtractDialogOpen: (pasteExtractDialogOpen) => set({ pasteExtractDialogOpen }),
 
   setTheme: (theme) => set({ theme }),
 }));

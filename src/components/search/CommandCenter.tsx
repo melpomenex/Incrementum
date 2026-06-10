@@ -26,6 +26,7 @@ import {
   Sun,
   Moon,
   Images,
+  Clipboard,
 } from "lucide-react";
 import type { Document, Extract } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
@@ -608,21 +609,7 @@ export function CommandCenter() {
       ],
     }));
 
-    const allCommands = [
-      ...getDefaultCommands().filter((cmd) => ![
-        "go-documents",
-        "go-queue",
-        "go-analytics",
-        "go-image-registry",
-        "open-settings",
-        "start-review",
-      ].includes(cmd.id)),
-      ...navigationCommands,
-      ...themeCommands,
-      ...themeSwitchCommands,
-    ];
-
-    // Detect active tab view
+    // Detect active document for contextual commands
     const getActiveTab = () => {
       const state = useTabsStore.getState();
       const paneIds = state.getTabPaneIds();
@@ -632,8 +619,41 @@ export function CommandCenter() {
       return state.tabs.find(t => t.id === pane.activeTabId) || null;
     };
     const activeTab = getActiveTab();
+    const selectedDocumentTitle = activeTab?.type === "document-viewer" && activeTab.data?.documentId
+      ? (documents.find(d => d.id === activeTab.data.documentId)?.title ?? null)
+      : null;
     const isRssView = activeTab?.type === "rss";
     const isPodcastView = activeTab?.type === "podcast";
+
+    const allCommands = [
+      ...getDefaultCommands().filter((cmd) => ![
+        "go-documents",
+        "go-queue",
+        "go-analytics",
+        "go-image-registry",
+        "open-settings",
+        "start-review",
+      ].includes(cmd.id)),
+      // Paste Extract command
+      {
+        id: "paste-extract",
+        label: "Paste Extract",
+        description: selectedDocumentTitle
+          ? `Save pasted content as an extract in "${selectedDocumentTitle}"`
+          : "Paste content from clipboard and save as an extract",
+        icon: <Clipboard className="w-4 h-4" />,
+        category: CommandCategory.Extracts,
+        action: () => {
+          const ui = useUIStore.getState();
+          ui.setCommandPaletteOpen(false);
+          ui.setPasteExtractDialogOpen(true);
+        },
+        keywords: ["clipboard", "paste", "save", "new", "extract", "import"],
+      },
+      ...navigationCommands,
+      ...themeCommands,
+      ...themeSwitchCommands,
+    ];
 
     if (isRssView) {
       try {
