@@ -9,6 +9,7 @@ import { Tabs } from "../common/Tabs";
 import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, SettingsTab, WebBrowserTab, RssTab, PodcastTab, KnowledgeSphereTab, KnowledgeNetworkTab, NewsletterDirectoryTab, DocumentQATab, NotebookLMTab, ImageRegistryTab } from "../tabs/TabRegistry";
 import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
+import { useToast } from "../common/Toast";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
@@ -70,6 +71,7 @@ export function MainLayout() {
   const loadDocuments = useDocumentStore((state) => state.loadDocuments);
   const initializedRef = useRef(false);
   const { t } = useI18n();
+  const toast = useToast();
   const [vimiumEnabled] = useVimiumEnabled();
   const documentsLoadedRef = useRef(false);
   const [activePaneTabId, setActivePaneTabId] = useState<string | null>(null);
@@ -97,15 +99,30 @@ export function MainLayout() {
   }, [rootPane]);
 
   useGlobalShortcuts();
-  useShortcut("gen.screenshot", (event) => {
+  /* useShortcut("gen.screenshot", (event) => {
     const target = event.target as HTMLElement;
     const isInput =
       target?.tagName === "INPUT" ||
       target?.tagName === "TEXTAREA" ||
       target?.isContentEditable;
     if (isInput) return;
-    void captureAndSaveScreenshot().then(() => loadDocuments());
-  });
+    void captureAndSaveScreenshot()
+      .then((asset) => {
+        if (asset) {
+          toast.success(
+            t("imageRegistry.assetsAdded"),
+            t("imageRegistry.assetsAddedDesc", { count: 1 })
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to capture screenshot:", error);
+        toast.error(
+          t("toolbar.screenshotFailed"),
+          error instanceof Error ? error.message : undefined
+        );
+      });
+  }); */
 
   useShortcut("gen.help", () => {
     setIsShortcutsHelpOpen((prev) => !prev);

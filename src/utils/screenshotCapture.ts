@@ -108,6 +108,34 @@ export async function saveScreenshotAsDocument(
 }
 
 /**
+ * Save a screenshot to the image registry
+ */
+export async function saveScreenshotToRegistry(
+  base64Image: string,
+  fileName?: string
+): Promise<any> {
+  try {
+    const timestamp = new Date().toISOString();
+    const name = fileName || `screenshot-${Date.now()}.png`;
+
+    const savedAsset = await invokeCommand("ingest_image_asset", {
+      base64Data: base64Image,
+      mimeType: "image/png",
+      fileName: name,
+    });
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("refresh-image-registry"));
+    }
+
+    return savedAsset;
+  } catch (error) {
+    console.error("Failed to save screenshot to registry:", error);
+    throw error;
+  }
+}
+
+/**
  * Generate a simple hash from a string
  */
 async function generateHash(content: string): Promise<string> {

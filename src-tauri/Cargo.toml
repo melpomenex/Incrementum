@@ -18,7 +18,7 @@ tauri-build = { version = "2", features = [] }
 # blocks all custom IPC commands. Incrementum only loads its own bundled assets,
 # so the origin-confusion CVE vector does not apply. See also:
 # https://github.com/tauri-apps/tauri/security/advisories/GHSA-7gmj-67g7-phm9
-tauri = { version = "=2.11.0", features = ["unstable"] }
+tauri = { version = "=2.11.0", features = ["unstable", "macos-private-api"] }
 
 # Note: "devtools" feature is intentionally not enabled unconditionally.
 # DevTools are opened at runtime via INCREMENTUM_OPEN_DEVTOOLS env var.
@@ -124,7 +124,7 @@ pbkdf2 = "0.12"
 [features]
 # Disable custom-protocol to use http://localhost instead of tauri://
 # This allows YouTube iframe embeds to work properly without Error 153
-default = []
+default = ["screenshot"]
 custom-protocol = ["tauri/custom-protocol"]
 screenshot = ["xcap"]
 devtools = ["tauri/devtools"]

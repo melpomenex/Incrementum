@@ -178,39 +178,75 @@ export function useGlobalShortcuts() {
         });
 
         unlistenShortcutNative = await listen<string>("global-shortcut-native", (event) => {
-          const key = event.payload;
-          switch (key) {
-            case "KeyQ":
-              window.dispatchEvent(new CustomEvent("navigate", { detail: "/queue" }));
-              break;
-            case "KeyR":
-              window.dispatchEvent(new CustomEvent("navigate", { detail: "/review" }));
-              break;
-            case "KeyD":
-              window.dispatchEvent(new CustomEvent("navigate", { detail: "/dashboard" }));
-              break;
-            case "Comma":
-              window.dispatchEvent(new CustomEvent("navigate", { detail: "/settings" }));
-              break;
-            case "KeyO":
-            case "KeyN":
-              window.dispatchEvent(new CustomEvent("navigate", { detail: "/documents" }));
-              window.setTimeout(() => {
-                window.dispatchEvent(new CustomEvent("import-document"));
-              }, 0);
-              break;
-            case "KeyB":
-              window.dispatchEvent(new CustomEvent("toggle-sidebar"));
-              break;
-            case "KeyE":
-              window.dispatchEvent(new CustomEvent("extract-text"));
-              break;
-            case "BracketLeft":
-              window.dispatchEvent(new CustomEvent("document-prev"));
-              break;
-            case "BracketRight":
-              window.dispatchEvent(new CustomEvent("document-next"));
-              break;
+          try {
+            const parsed = JSON.parse(event.payload);
+            const { key, ctrl, alt, shift, meta } = parsed;
+
+            // Map code (like KeyQ, KeyS, Comma, BracketLeft) to KeyboardEvent.key / code
+            let keyChar = "";
+            if (key.startsWith("Key")) {
+              keyChar = key.slice(3).toLowerCase();
+            } else if (key === "Comma") {
+              keyChar = ",";
+            } else if (key === "BracketLeft") {
+              keyChar = "[";
+            } else if (key === "BracketRight") {
+              keyChar = "]";
+            } else if (key === "Slash") {
+              keyChar = "/";
+            } else {
+              keyChar = key.toLowerCase();
+            }
+
+            // Create and dispatch synthetic KeyboardEvent
+            const keyboardEvent = new KeyboardEvent("keydown", {
+              key: keyChar,
+              code: key,
+              ctrlKey: ctrl,
+              altKey: alt,
+              shiftKey: shift,
+              metaKey: meta,
+              bubbles: true,
+              cancelable: true,
+            });
+            window.dispatchEvent(keyboardEvent);
+
+            // Also keep the existing custom event navigation fallback for compatibility
+            switch (key) {
+              case "KeyQ":
+                window.dispatchEvent(new CustomEvent("navigate", { detail: "/queue" }));
+                break;
+              case "KeyR":
+                window.dispatchEvent(new CustomEvent("navigate", { detail: "/review" }));
+                break;
+              case "KeyD":
+                window.dispatchEvent(new CustomEvent("navigate", { detail: "/dashboard" }));
+                break;
+              case "Comma":
+                window.dispatchEvent(new CustomEvent("navigate", { detail: "/settings" }));
+                break;
+              case "KeyO":
+              case "KeyN":
+                window.dispatchEvent(new CustomEvent("navigate", { detail: "/documents" }));
+                window.setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent("import-document"));
+                }, 0);
+                break;
+              case "KeyB":
+                window.dispatchEvent(new CustomEvent("toggle-sidebar"));
+                break;
+              case "KeyE":
+                window.dispatchEvent(new CustomEvent("extract-text"));
+                break;
+              case "BracketLeft":
+                window.dispatchEvent(new CustomEvent("document-prev"));
+                break;
+              case "BracketRight":
+                window.dispatchEvent(new CustomEvent("document-next"));
+                break;
+            }
+          } catch (err) {
+            console.error("Failed to parse global shortcut native payload:", err);
           }
         });
       } catch (err) {

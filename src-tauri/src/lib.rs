@@ -401,12 +401,22 @@ pub fn run() {
                     let key_str = format!("{:?}", shortcut.key);
                     tracing::debug!("global-shortcut fired: {}", key_str);
                     if let Some(window) = shortcut_app.get_webview_window("main") {
-                        let event_name = if matches!(key_str.as_str(), "KeyK" | "KeyP") {
+                        let ctrl = shortcut.mods.contains(Modifiers::CONTROL);
+                        let alt = shortcut.mods.contains(Modifiers::ALT);
+                        let shift = shortcut.mods.contains(Modifiers::SHIFT);
+                        let meta = shortcut.mods.contains(Modifiers::SUPER);
+
+                        let payload = format!(
+                            "{{\"key\":\"{}\",\"ctrl\":{},\"alt\":{},\"shift\":{},\"meta\":{}}}",
+                            key_str, ctrl, alt, shift, meta
+                        );
+
+                        let event_name = if matches!(key_str.as_str(), "KeyK" | "KeyP") && meta && !ctrl && !shift && !alt {
                             "command-palette-open"
                         } else {
                             "global-shortcut-native"
                         };
-                        let _ = shortcut_app.emit_to("main", event_name, key_str.as_str());
+                        let _ = shortcut_app.emit_to("main", event_name, &payload);
                     }
                 }) {
                     tracing::warn!("Failed to register global shortcuts: {}", e);

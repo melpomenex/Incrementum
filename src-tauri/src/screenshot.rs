@@ -17,7 +17,7 @@ pub async fn capture_screenshot() -> Result<String> {
         .map_err(|err| IncrementumError::Internal(format!("Failed to enumerate monitors: {err}")))?;
     let monitor = monitors
         .iter()
-        .find(|m| m.is_primary())
+        .find(|m| m.is_primary().unwrap_or(false))
         .or_else(|| monitors.first())
         .ok_or_else(|| IncrementumError::NotFound("No monitors available".to_string()))?;
 
@@ -54,12 +54,12 @@ pub fn get_screen_info() -> Vec<ScreenInfo> {
         .enumerate()
         .map(|(index, monitor)| ScreenInfo {
             index,
-            width: monitor.width(),
-            height: monitor.height(),
-            x: monitor.x(),
-            y: monitor.y(),
-            scale_factor: monitor.scale_factor(),
-            is_primary: monitor.is_primary(),
+            width: monitor.width().unwrap_or(0),
+            height: monitor.height().unwrap_or(0),
+            x: monitor.x().unwrap_or(0),
+            y: monitor.y().unwrap_or(0),
+            scale_factor: monitor.scale_factor().unwrap_or(1.0),
+            is_primary: monitor.is_primary().unwrap_or(false),
         })
         .collect()
 }
@@ -72,7 +72,7 @@ pub async fn capture_app_window() -> Result<String> {
         .map_err(|err| IncrementumError::Internal(format!("Failed to enumerate windows: {err}")))?;
     let window = windows
         .iter()
-        .find(|w| w.title() == "Incrementum")
+        .find(|w| w.title().as_deref().unwrap_or("") == "Incrementum")
         .or_else(|| windows.first())
         .ok_or_else(|| IncrementumError::NotFound("No windows available".to_string()))?;
 

@@ -551,7 +551,7 @@ export function eventMatchesCombo(event: KeyboardEvent, combo: KeyCombo): boolea
     ? true
     : !!event.metaKey === !!combo.meta;
   const primaryModifierMatches = usesPrimaryModifier
-    ? (isMac ? event.metaKey : event.ctrlKey)
+    ? (isMac ? (event.metaKey || event.ctrlKey) : event.ctrlKey)
     : true;
 
   return (

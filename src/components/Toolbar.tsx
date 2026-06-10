@@ -372,12 +372,20 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   // Screenshot button
   const handleScreenshot = () => {
     void captureAndSaveScreenshot()
-      .then(async () => {
-        await loadDocuments();
+      .then((asset) => {
+        if (asset) {
+          toast.success(
+            t("imageRegistry.assetsAdded"),
+            t("imageRegistry.assetsAddedDesc", { count: 1 })
+          );
+        }
       })
       .catch((error) => {
         console.error("Failed to capture screenshot:", error);
-        alert(t("toolbar.screenshotFailed"));
+        toast.error(
+          t("toolbar.screenshotFailed"),
+          error instanceof Error ? error.message : undefined
+        );
       });
   };
 
@@ -583,14 +591,14 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       backgroundAction: handleNotebookLMBackground,
       group: 3,
     },
-    {
+    /* {
       id: "screenshot",
       icon: Camera,
       label: t("toolbar.screenshot"),
       shortcut: "Ctrl+Shift+S",
       action: handleScreenshot,
       group: 3,
-    },
+    }, */
     // Group 4: Settings & Tools
     {
       id: "settings",

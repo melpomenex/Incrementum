@@ -38,6 +38,43 @@ export default function ScreenshotOverlay() {
     }
   }, []);
 
+  // Make document backgrounds transparent so that the window's transparency works
+  useEffect(() => {
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    const rootEl = document.getElementById("root");
+
+    const origHtmlBg = htmlEl.style.background;
+    const origHtmlBgColor = htmlEl.style.backgroundColor;
+    const origBodyBg = bodyEl.style.background;
+    const origBodyBgColor = bodyEl.style.backgroundColor;
+    let origRootBg = "";
+    let origRootBgColor = "";
+
+    htmlEl.style.setProperty("background", "transparent", "important");
+    htmlEl.style.setProperty("background-color", "transparent", "important");
+    bodyEl.style.setProperty("background", "transparent", "important");
+    bodyEl.style.setProperty("background-color", "transparent", "important");
+
+    if (rootEl) {
+      origRootBg = rootEl.style.background;
+      origRootBgColor = rootEl.style.backgroundColor;
+      rootEl.style.setProperty("background", "transparent", "important");
+      rootEl.style.setProperty("background-color", "transparent", "important");
+    }
+
+    return () => {
+      htmlEl.style.background = origHtmlBg;
+      htmlEl.style.backgroundColor = origHtmlBgColor;
+      bodyEl.style.background = origBodyBg;
+      bodyEl.style.backgroundColor = origBodyBgColor;
+      if (rootEl) {
+        rootEl.style.background = origRootBg;
+        rootEl.style.backgroundColor = origRootBgColor;
+      }
+    };
+  }, []);
+
   const [mode, setMode] = useState<CaptureMode>("region");
   const [dragState, setDragState] = useState<DragState>(null);
 

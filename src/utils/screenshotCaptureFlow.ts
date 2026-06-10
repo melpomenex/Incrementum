@@ -6,6 +6,7 @@ import {
   captureScreenByIndex,
   getScreenInfo,
   saveScreenshotAsDocument,
+  saveScreenshotToRegistry,
   ScreenInfo,
 } from "./screenshotCapture";
 
@@ -59,13 +60,13 @@ export async function captureScreenshotWithOverlay(
   return await cropBase64Image(base64Image, selection.rect);
 }
 
-export async function captureAndSaveScreenshot(screenIndex?: number): Promise<void> {
+export async function captureAndSaveScreenshot(screenIndex?: number): Promise<any> {
   const base64Image = await captureScreenshotWithOverlay(screenIndex);
   if (!base64Image) {
-    return;
+    return null;
   }
 
-  await saveScreenshotAsDocument(base64Image);
+  return await saveScreenshotToRegistry(base64Image);
 }
 
 async function resolveScreenInfo(screenIndex?: number): Promise<ScreenInfo | null> {
@@ -120,6 +121,16 @@ async function openOverlay(screen: ScreenInfo): Promise<ScreenshotSelection | nu
     resizable: false,
     skipTaskbar: true,
     focus: true,
+  });
+
+  // Wait for the window to be successfully created on the backend
+  await new Promise<void>((resolve, reject) => {
+    overlay.once("tauri://created", () => {
+      resolve();
+    });
+    overlay.once("tauri://error", (err) => {
+      reject(err);
+    });
   });
 
   await overlay.show();
