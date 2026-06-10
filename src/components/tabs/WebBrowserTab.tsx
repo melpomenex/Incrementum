@@ -699,17 +699,19 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
     if (nativeOffsetRef.current !== null) return;
 
     const platform = getPlatform();
-    if (platform === 'linux') {
-      // On Linux/Wayland, outerWidth - innerWidth is unreliable and often
-      // produces incorrect values. WebKitGTK doesn't need this offset anyway.
+    if (platform === 'mac') {
+      // On macOS, Tauri v2 child webviews are positioned relative to the window frame (outer window),
+      // which includes the native title bar. Since CSS coordinates (rect.top) are relative to the
+      // client area (excluding the title bar), we must add the title bar height (outerHeight - innerHeight)
+      // to position it correctly. We represent this as a negative offset so that (rect.top - offset.y)
+      // becomes (rect.top + titleBarHeight).
+      const dy = window.outerHeight - window.innerHeight;
+      nativeOffsetRef.current = { x: 0, y: -dy };
+    } else {
+      // On Windows and Linux, child webviews are positioned relative to the client area,
+      // so no offset is required.
       nativeOffsetRef.current = { x: 0, y: 0 };
-      return;
     }
-
-    // On macOS/Windows the outer-inner diff can detect title-bar offsets
-    const dx = window.outerWidth - window.innerWidth;
-    const dy = window.outerHeight - window.innerHeight;
-    nativeOffsetRef.current = { x: dx, y: dy };
   }, []);
 
   const updateWebviewBounds = useCallback(async () => {
@@ -783,26 +785,34 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       setIsLoading(true);
       setWebviewError(null);
 
+      console.log(`[WebBrowserTab] starting createWebview for url: ${currentUrl}`);
+
       if (webviewRef.current) {
+        console.log("[WebBrowserTab] closing current webviewRef instance");
         await webviewRef.current.close().catch(() => undefined);
         webviewRef.current = null;
       }
 
       if (isTauri()) {
         const { Webview } = await import("@tauri-apps/api/webview");
-        const existing = await Webview.getByLabel("web-browser");
-        if (existing) {
-          await existing.close().catch(() => undefined);
+        const all = await Webview.getAll();
+        for (const w of all) {
+          if (w.label.startsWith("web-browser-") || w.label === "web-browser") {
+            console.log("[WebBrowserTab] closing existing/zombie webview:", w.label);
+            await w.close().catch(() => undefined);
+          }
         }
       }
 
       if (!webviewContainerRef.current || !isMountedRef.current || isCancelled) {
+        console.log("[WebBrowserTab] container not ready or component unmounted/cancelled");
         setIsLoading(false);
         return;
       }
 
       try {
         if (!isTauri()) {
+          console.log("[WebBrowserTab] not in Tauri, skipped native webview creation");
           setIsLoading(false);
           return;
         }
@@ -815,11 +825,15 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
           if (appWindow.label) {
             resolve();
           } else {
+            console.log("[WebBrowserTab] appWindow has no label, waiting for tauri://created event");
             appWindow.once("tauri://created", () => resolve());
           }
         });
 
-        if (!webviewContainerRef.current || !isMountedRef.current || isCancelled) return;
+        if (!webviewContainerRef.current || !isMountedRef.current || isCancelled) {
+          console.log("[WebBrowserTab] cancelled during window check");
+          return;
+        }
 
         detectNativeOffset();
 
@@ -831,7 +845,10 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         const width = Math.round(rect.width);
         const height = Math.round(rect.height);
 
-        const webview = new Webview(appWindow, "web-browser", {
+        const label = `web-browser-${Date.now()}`;
+        console.log(`[WebBrowserTab] instantiating Webview with label ${label}: x=${x}, y=${y}, width=${width}, height=${height}`);
+
+        const webview = new Webview(appWindow, label, {
           url: currentUrl,
           x,
           y,
@@ -840,6 +857,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         });
 
         if (!isMountedRef.current || isCancelled) {
+          console.log("[WebBrowserTab] component unmounted/cancelled right after constructor. closing webview.");
           await webview.close().catch(() => undefined);
           return;
         }
@@ -856,6 +874,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             if (lastInjectedUrl === currentUrl) return;
             lastInjectedUrl = currentUrl;
             
+            console.log("[WebBrowserTab] injecting bridge script into webview");
             await (webview as any).evaluateJavaScript(
               "(function(){" + WEBVIEW_EXTRACT_BRIDGE_SCRIPT + "})();"
             );
@@ -865,6 +884,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         };
         
         webview.once("tauri://created", async () => {
+          console.log("[WebBrowserTab] webview tauri://created event fired");
           if (!isCancelled) {
             await updateWebviewBounds();
             setIsLoading(false);
@@ -887,6 +907,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         if (typeof (webview as any).on === 'function') {
    
           (webview as any).on("tauri://url-changed", () => {
+            console.log("[WebBrowserTab] webview tauri://url-changed event fired");
             lastInjectedUrl = ""; // Reset so script will be injected on new page
             setTimeout(injectBridgeScript, 1500);
             setTimeout(injectBridgeScript, 4000);
@@ -896,6 +917,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
         }
 
         webview.once("tauri://error", (event: unknown) => {
+          console.error("[WebBrowserTab] webview tauri://error event fired:", event);
           if (!isCancelled) {
             setIsLoading(false);
    
@@ -908,12 +930,13 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
 
         setTimeout(() => {
           if (!isCancelled && webviewRef.current === webview) {
+            console.log("[WebBrowserTab] 3000ms safety timeout reached for webview loading");
             setIsLoading(false);
             void updateWebviewBounds();
           }
         }, 3000);
       } catch (error) {
-        console.error("Exception creating webview:", error);
+        console.error("[WebBrowserTab] Exception creating webview:", error);
         if (!isCancelled) {
           setIsLoading(false);
           setWebviewError(`Exception: ${error instanceof Error ? error.message : String(error)}`);
@@ -1000,8 +1023,14 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
       }
       if (isTauri()) {
         import("@tauri-apps/api/webview").then(({ Webview }) => {
-          Webview.getByLabel("web-browser")
-            .then((existing) => existing?.close())
+          Webview.getAll()
+            .then((all) => {
+              all.forEach((w) => {
+                if (w.label.startsWith("web-browser-") || w.label === "web-browser") {
+                  void w.close().catch(() => undefined);
+                }
+              });
+            })
             .catch(() => undefined);
         });
       }

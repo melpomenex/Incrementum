@@ -15,7 +15,7 @@
     "screenshot-overlay"
   ],
   "webviews": [
-    "web-browser",
+    "web-browser-*",
     "main",
     "screenshot-overlay"
   ],
