@@ -67,8 +67,14 @@ if (fs.existsSync(changelogPath)) {
   // Format the release note
   const releaseHeader = `## [${newVersion}] - ${dateStr}
 
+### Added
+- **Premium RSS Dashboard** — Introduced a feature-rich, high-fidelity RSS dashboard that populates the empty workspace when no feed or folder is active.
+- **Vim & Keyboard Navigation for RSS** — Added advanced keyboard shortcuts (\`Shift+J\` / \`Shift+K\`) for shifting active feeds, standard arrow key navigation, contextual command palette search integrations, and an interactive RSS keyboard shortcut help modal.
+- **Close Action in RSS Reader** — Added an explicit close button inside the reader layout, allowing easy navigation back to the RSS Dashboard view.
+
 ### Fixed
 - **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.
+- **RSS Layout & Badge Optimizations** — Fine-tuned feed selection highlights, unread badge formatting to prevent overflow overlaps, and patched transparency backgrounds in Discover Sites, Manage Training, and Newsletter Directory modals.
 
 `;
 
@@ -96,8 +102,14 @@ try {
   // Create GitHub Release draft
   console.log('Creating GitHub Release draft...');
   const notesFile = path.join(rootDir, 'release-notes.tmp.md');
-  const notes = `### Fixed
-- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.`;
+  const notes = `### Added
+- **Premium RSS Dashboard** — Introduced a feature-rich, high-fidelity RSS dashboard that populates the empty workspace when no feed or folder is active.
+- **Vim & Keyboard Navigation for RSS** — Added advanced keyboard shortcuts (\`Shift+J\` / \`Shift+K\`) for shifting active feeds, standard arrow key navigation, contextual command palette search integrations, and an interactive RSS keyboard shortcut help modal.
+- **Close Action in RSS Reader** — Added an explicit close button inside the reader layout, allowing easy navigation back to the RSS Dashboard view.
+
+### Fixed
+- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.
+- **RSS Layout & Badge Optimizations** — Fine-tuned feed selection highlights, unread badge formatting to prevent overflow overlaps, and patched transparency backgrounds in Discover Sites, Manage Training, and Newsletter Directory modals.`;
 
   fs.writeFileSync(notesFile, notes, 'utf8');
   execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });
