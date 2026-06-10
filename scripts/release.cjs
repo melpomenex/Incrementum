@@ -68,13 +68,18 @@ if (fs.existsSync(changelogPath)) {
   const releaseHeader = `## [${newVersion}] - ${dateStr}
 
 ### Added
-- **Premium RSS Dashboard** — Introduced a feature-rich, high-fidelity RSS dashboard that populates the empty workspace when no feed or folder is active.
-- **Vim & Keyboard Navigation for RSS** — Added advanced keyboard shortcuts (\`Shift+J\` / \`Shift+K\`) for shifting active feeds, standard arrow key navigation, contextual command palette search integrations, and an interactive RSS keyboard shortcut help modal.
-- **Close Action in RSS Reader** — Added an explicit close button inside the reader layout, allowing easy navigation back to the RSS Dashboard view.
+- **10 Stunning New Themes** — Added 10 brand-new user interface themes (5 dark and 5 light variants).
+- **Start Optimal Session Command** — Added a new "Start Optimal Session" command to the command palette.
+- **Paste Extract Command** — Added a new "Paste Extract" command to the command palette.
+- **Keyboard Shortcut Propagation** — Keyboard shortcuts are now propagated directly to command palette search results.
+- **Auto-Reset Playback & Tab History** — Introduced auto-resetting playback for ended/near-ended media alongside active tab history tracking.
+- **RSS i18n Translation Keys** — Added i18n translation keys for the RSS dashboard, discover panel, and help overlays.
 
-### Fixed
-- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.
-- **RSS Layout & Badge Optimizations** — Fine-tuned feed selection highlights, unread badge formatting to prevent overflow overlaps, and patched transparency backgrounds in Discover Sites, Manage Training, and Newsletter Directory modals.
+### Fixed & Improved
+- **Podcast Playback Issue** — Resolved a \`NotSupportedError\` when attempting to play podcast audio within macOS WKWebView.
+- **Document Viewer Guard** — Guarded \`Node.contains\` against non-Node event targets to prevent crashes in the Document Viewer.
+- **RSS Performance & Navigation** — Optimized search/interaction performance and resolved arrow key navigation issues in the RSS view.
+- **RSS & Web Browser Translations** — Updated translations for RSS features and web browser tab improvements.
 
 `;
 
@@ -103,13 +108,18 @@ try {
   console.log('Creating GitHub Release draft...');
   const notesFile = path.join(rootDir, 'release-notes.tmp.md');
   const notes = `### Added
-- **Premium RSS Dashboard** — Introduced a feature-rich, high-fidelity RSS dashboard that populates the empty workspace when no feed or folder is active.
-- **Vim & Keyboard Navigation for RSS** — Added advanced keyboard shortcuts (\`Shift+J\` / \`Shift+K\`) for shifting active feeds, standard arrow key navigation, contextual command palette search integrations, and an interactive RSS keyboard shortcut help modal.
-- **Close Action in RSS Reader** — Added an explicit close button inside the reader layout, allowing easy navigation back to the RSS Dashboard view.
+- **10 Stunning New Themes** — Added 10 brand-new user interface themes (5 dark and 5 light variants).
+- **Start Optimal Session Command** — Added a new "Start Optimal Session" command to the command palette.
+- **Paste Extract Command** — Added a new "Paste Extract" command to the command palette.
+- **Keyboard Shortcut Propagation** — Keyboard shortcuts are now propagated directly to command palette search results.
+- **Auto-Reset Playback & Tab History** — Introduced auto-resetting playback for ended/near-ended media alongside active tab history tracking.
+- **RSS i18n Translation Keys** — Added i18n translation keys for the RSS dashboard, discover panel, and help overlays.
 
-### Fixed
-- **Liquid Glass Theme HTML Readability & Centering** — Fixed text readability and centering issues for converted PDFs, HTML documents, and EPUBs in the Liquid Glass theme. Resolved by forcing absolute layout positioning of the reader container, resolving semi-transparent background colors to opaque versions for readable contrast inside the iframe, and fixing the horizontal viewport body centering constraint.
-- **RSS Layout & Badge Optimizations** — Fine-tuned feed selection highlights, unread badge formatting to prevent overflow overlaps, and patched transparency backgrounds in Discover Sites, Manage Training, and Newsletter Directory modals.`;
+### Fixed & Improved
+- **Podcast Playback Issue** — Resolved a \`NotSupportedError\` when attempting to play podcast audio within macOS WKWebView.
+- **Document Viewer Guard** — Guarded \`Node.contains\` against non-Node event targets to prevent crashes in the Document Viewer.
+- **RSS Performance & Navigation** — Optimized search/interaction performance and resolved arrow key navigation issues in the RSS view.
+- **RSS & Web Browser Translations** — Updated translations for RSS features and web browser tab improvements.`;
 
   fs.writeFileSync(notesFile, notes, 'utf8');
   execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });

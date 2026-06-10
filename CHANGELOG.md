@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.49.0] - 2026-06-10
+
+### Added
+- **10 Stunning New Themes** — Added 10 brand-new user interface themes (5 dark and 5 light variants).
+- **Start Optimal Session Command** — Added a new "Start Optimal Session" command to the command palette.
+- **Paste Extract Command** — Added a new "Paste Extract" command to the command palette.
+- **Keyboard Shortcut Propagation** — Keyboard shortcuts are now propagated directly to command palette search results.
+- **Auto-Reset Playback & Tab History** — Introduced auto-resetting playback for ended/near-ended media alongside active tab history tracking.
+- **RSS i18n Translation Keys** — Added i18n translation keys for the RSS dashboard, discover panel, and help overlays.
+
+### Fixed & Improved
+- **Podcast Playback Issue** — Resolved a `NotSupportedError` when attempting to play podcast audio within macOS WKWebView.
+- **Document Viewer Guard** — Guarded `Node.contains` against non-Node event targets to prevent crashes in the Document Viewer.
+- **RSS Performance & Navigation** — Optimized search/interaction performance and resolved arrow key navigation issues in the RSS view.
+- **RSS & Web Browser Translations** — Updated translations for RSS features and web browser tab improvements.
+
 ## [1.48.0] - 2026-06-10
 
 ### Added

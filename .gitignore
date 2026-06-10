@@ -30,6 +30,8 @@ rss_podcast_search.py
 .vscode
 .idea
 .DS_Store
+.codegraph/
+.reasonix/
 *.suo
 *.ntvs*
 *.njsproj
