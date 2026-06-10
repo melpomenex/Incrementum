@@ -1030,6 +1030,8 @@ export const zh: Dict = {
   "commandPalette.viewAllDocuments": "查看所有文档",
   "commandPalette.viewAllShortcuts": "查看所有键盘快捷键",
   "commandPalette.viewReviewQueue": "查看复习队列",
+  "commandPalette.startOptimalSession": "开始最佳会话",
+  "commandPalette.startOptimalSessionDesc": "在滚动模式下开始最佳阅读队列会话",
   "commandPalette.viewStatsAndProgress": "查看统计与进度",
   "common.add": "添加",
   "common.addFeed": "添加订阅",

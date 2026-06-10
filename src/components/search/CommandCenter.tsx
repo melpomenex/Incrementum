@@ -12,6 +12,7 @@ import {
   DocumentViewer,
 } from "../../components/tabs/TabRegistry";
 import { Command, CommandCategory, getDefaultCommands } from "../common/CommandPalette";
+import { useI18n } from "../../lib/i18n";
 import {
   BookOpen,
   BarChart3,
@@ -27,6 +28,7 @@ import {
   Moon,
   Images,
   Clipboard,
+  Play,
 } from "lucide-react";
 import type { Document, Extract } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
@@ -238,6 +240,7 @@ export function CommandCenter() {
   const extractsRef = useRef(extracts);
   extractsRef.current = extracts;
   const { theme, themes, setTheme } = useTheme();
+  const { t } = useI18n();
 
   const rssArticlesCacheRef = useRef<Array<{ item: FeedItem; feedId: string; feedTitle: string }>>([]);
   const isRssCacheLoadingRef = useRef(false);
@@ -521,6 +524,15 @@ export function CommandCenter() {
         action: () => navigateTo("/image-registry"),
         keywords: ["images", "screenshots", "registry", "library", "flashcards"],
       },
+      {
+        id: "nav-optimal-queue",
+        label: t("commandPalette.startOptimalSession"),
+        description: t("commandPalette.startOptimalSessionDesc"),
+        icon: <Play className="w-4 h-4" />,
+        category: CommandCategory.Navigation,
+        action: () => navigateTo("/queue-scroll"),
+        keywords: ["start", "session", "optimal", "queue", "scroll", "reading", "study", "learn", "tiktok"],
+      },
     ];
 
     const cycleTheme = (direction: 1 | -1) => {
@@ -633,6 +645,7 @@ export function CommandCenter() {
         "go-image-registry",
         "open-settings",
         "start-review",
+        "start-optimal-session",
       ].includes(cmd.id)),
       // Paste Extract command
       {

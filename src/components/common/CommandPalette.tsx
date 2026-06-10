@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, Command as CommandIcon, FileText, Zap, Settings, Plus, List, BarChart3, Palette, Images } from "lucide-react";
+import { Search, Command as CommandIcon, FileText, Zap, Settings, Plus, List, BarChart3, Palette, Images, Play } from "lucide-react";
 import { useI18n, t } from "../../lib/i18n";
 
 /**
@@ -427,6 +427,15 @@ export function getDefaultCommands(): Command[] {
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/review' })); },
       keywords: ["study", "practice", "learn", "review"],
       shortcut: "⌘R",
+    }),
+    createCommand({
+      id: "start-optimal-session",
+      label: t("commandPalette.startOptimalSession"),
+      description: t("commandPalette.startOptimalSessionDesc"),
+      icon: <Play className="w-4 h-4" />,
+      category: CommandCategory.Review,
+      action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/queue-scroll' })); },
+      keywords: ["start", "session", "optimal", "queue", "scroll", "reading", "study", "learn", "tiktok"],
     }),
     createCommand({
       id: "go-analytics",

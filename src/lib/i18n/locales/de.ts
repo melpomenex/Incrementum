@@ -876,6 +876,8 @@ export const de: Dict = {
   "commandPalette.viewAllDocuments": "Alle Dokumente anzeigen",
   "commandPalette.viewAllShortcuts": "Alle Tastenkürzel anzeigen",
   "commandPalette.viewReviewQueue": "Wiederholungswarteschlange anzeigen",
+  "commandPalette.startOptimalSession": "Optimale Sitzung starten",
+  "commandPalette.startOptimalSessionDesc": "Starten Sie eine optimale Lesewarteschlangen-Sitzung im Scroll-Modus",
   "commandPalette.viewStatsAndProgress": "Statistik und Fortschritt anzeigen",
   "common.add": "Hinzufügen",
   "common.addFeed": "Feed hinzufügen",

@@ -6,7 +6,7 @@ import { useShortcut } from "../common/KeyboardShortcuts";
 import { VimiumNavigationProvider, useVimiumEnabled, type VimiumCommand } from "../common/VimiumNavigation";
 import { Toolbar } from "../Toolbar";
 import { Tabs } from "../common/Tabs";
-import { DashboardTab, QueueTab, DocumentsTab, ReviewTab, AnalyticsTab, SettingsTab, WebBrowserTab, RssTab, PodcastTab, KnowledgeSphereTab, KnowledgeNetworkTab, NewsletterDirectoryTab, DocumentQATab, NotebookLMTab, ImageRegistryTab } from "../tabs/TabRegistry";
+import { DashboardTab, QueueTab, QueueScrollPage, DocumentsTab, ReviewTab, AnalyticsTab, SettingsTab, WebBrowserTab, RssTab, PodcastTab, KnowledgeSphereTab, KnowledgeNetworkTab, NewsletterDirectoryTab, DocumentQATab, NotebookLMTab, ImageRegistryTab } from "../tabs/TabRegistry";
 import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { useToast } from "../common/Toast";
@@ -25,6 +25,7 @@ const TAB_TYPE_ALIASES: Record<string, TabType> = {
   dash: "dashboard", dashboard: "dashboard", home: "dashboard",
   docs: "documents", documents: "documents", doc: "documents",
   queue: "queue", q: "queue",
+  "queue-scroll": "queue-scroll", qs: "queue-scroll", scroll: "queue-scroll", "scroll-mode": "queue-scroll", "optimal-queue": "queue-scroll",
   rev: "review", review: "review",
   anal: "analytics", analytics: "analytics", stats: "analytics",
   set: "settings", settings: "settings",
@@ -40,7 +41,7 @@ const TAB_TYPE_ALIASES: Record<string, TabType> = {
 };
 
 const TAB_TYPE_ICONS: Record<string, string> = {
-  dashboard: "📊", documents: "📂", queue: "📚", review: "🧠",
+  dashboard: "📊", documents: "📂", queue: "📚", "queue-scroll": "📜", review: "🧠",
   analytics: "📈", settings: "⚙️", rss: "📡", newsletter: "📰",
   podcast: "🎙️", "knowledge-sphere": "🌐", "knowledge-network": "🕸️",
   "doc-qa": "💬", notebooklm: "🤖", "image-registry": "🖼️",
@@ -281,6 +282,7 @@ export function MainLayout() {
       dashboard: { title: "Dashboard", content: DashboardTab, closable: false },
       documents: { title: "Documents", content: DocumentsTab, closable: true },
       queue: { title: "Queue", content: QueueTab, closable: true },
+      "queue-scroll": { title: "Scroll Mode", content: QueueScrollPage, closable: true },
       review: { title: "Review", content: ReviewTab, closable: true },
       analytics: { title: "Statistics", content: AnalyticsTab, closable: true },
       settings: { title: "Settings", content: SettingsTab, closable: true },

@@ -866,6 +866,8 @@ export const ja: Dict = {
   "commandPalette.viewAllDocuments": "すべてのドキュメントを表示",
   "commandPalette.viewAllShortcuts": "すべてのキーボードショートカットを表示",
   "commandPalette.viewReviewQueue": "復習キューを表示",
+  "commandPalette.startOptimalSession": "最適セッションを開始",
+  "commandPalette.startOptimalSessionDesc": "スクロールモードで最適な読書キューセッションを開始します",
   "commandPalette.viewStatsAndProgress": "統計と進捗を表示",
   "common.add": "追加",
   "common.addFeed": "フィードを追加",

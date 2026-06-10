@@ -747,6 +747,8 @@ export const en: Dict = {
   "commandPalette.viewAllDocuments": "View all documents",
   "commandPalette.viewReviewQueue": "View review queue",
   "commandPalette.beginReviewSession": "Begin flashcard review session",
+  "commandPalette.startOptimalSession": "Start Optimal Session",
+  "commandPalette.startOptimalSessionDesc": "Start an optimal reading queue session in Scroll Mode",
   "commandPalette.goToAnalytics": "Go to Analytics",
   "commandPalette.viewStatsAndProgress": "View statistics and progress",
   "commandPalette.openAppSettings": "Open application settings",

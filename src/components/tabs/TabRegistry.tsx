@@ -21,6 +21,7 @@ function debugLazy<T extends ComponentType<unknown>>(
 export const DashboardTab = debugLazy("DashboardTab", () => import("./DashboardTab").then(m => ({ default: m.DashboardTab })));
 export const ContinueReadingTab = debugLazy("ContinueReadingTab", () => import("./ContinueReadingTab").then(m => ({ default: m.ContinueReadingTab })));
 export const QueueTab = debugLazy("QueueTab", () => import("./QueueTab").then(m => ({ default: m.QueueTab })));
+export const QueueScrollPage = debugLazy("QueueScrollPage", () => import("../../pages/QueueScrollPage").then(m => ({ default: m.QueueScrollPage })));
 export const ReviewTab = debugLazy("ReviewTab", () => import("./ReviewTab").then(m => ({ default: m.ReviewTab })));
 export const DocumentsTab = debugLazy("DocumentsTab", () => import("./DocumentsTab").then(m => ({ default: m.DocumentsTab })));
 export const AnalyticsTab = debugLazy("AnalyticsTab", () => import("./AnalyticsTab").then(m => ({ default: m.AnalyticsTab })));
@@ -52,7 +53,7 @@ export const tabContentRegistry: Record<TabType, { content: ComponentType; title
   dashboard: { content: DashboardTab, title: "Dashboard", icon: "📊", closable: false },
   "continue-reading": { content: ContinueReadingTab, title: "Continue Reading", icon: "📖", closable: true },
   queue: { content: QueueTab, title: "Queue", icon: "📚", closable: true },
-  "queue-scroll": { content: QueueTab, title: "Queue", icon: "📜", closable: true },
+  "queue-scroll": { content: QueueScrollPage, title: "Scroll Mode", icon: "📜", closable: true },
   review: { content: ReviewTab, title: "Review", icon: "🧠", closable: true },
   documents: { content: DocumentsTab, title: "Documents", icon: "📂", closable: true },
   "document-viewer": { content: DocumentViewer, title: "Document", icon: "📄", closable: true },

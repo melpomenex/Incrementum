@@ -883,6 +883,8 @@ export const es: Dict = {
   "commandPalette.viewAllDocuments": "Ver todos los documentos",
   "commandPalette.viewAllShortcuts": "Ver todos los atajos de teclado",
   "commandPalette.viewReviewQueue": "Ver cola de repaso",
+  "commandPalette.startOptimalSession": "Iniciar sesión óptima",
+  "commandPalette.startOptimalSessionDesc": "Iniciar una sesión de cola de lectura óptima en modo de desplazamiento",
   "commandPalette.viewStatsAndProgress": "Ver estadísticas y progreso",
   "common.add": "Añadir",
   "common.addFeed": "Añadir fuente",

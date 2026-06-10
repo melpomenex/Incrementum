@@ -884,6 +884,8 @@ export const fr: Dict = {
   "commandPalette.viewAllDocuments": "Voir tous les documents",
   "commandPalette.viewAllShortcuts": "Voir tous les raccourcis clavier",
   "commandPalette.viewReviewQueue": "Voir la file de révision",
+  "commandPalette.startOptimalSession": "Démarrer la session optimale",
+  "commandPalette.startOptimalSessionDesc": "Démarrer une session de file de lecture optimale en mode défilement",
   "commandPalette.viewStatsAndProgress": "Voir les statistiques et la progression",
   "common.add": "Ajouter",
   "common.addFeed": "Ajouter un flux",
