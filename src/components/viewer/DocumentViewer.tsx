@@ -2782,7 +2782,7 @@ export function DocumentViewer({
       }
       const isFocusedInViewer = 
         e.target === document.body || 
-        containerRef.current?.contains(e.target as Node);
+        (e.target instanceof Node && containerRef.current?.contains(e.target));
       if (!isFocusedInViewer) return;
 
       const mod = e.ctrlKey || e.metaKey;
