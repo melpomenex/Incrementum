@@ -1015,7 +1015,7 @@ export function AudiobookViewer({
 
     setHasTriedFallback(true);
 
-    // For podcast episodes with a remote URL, download via backend and play locally
+    // For podcast episodes with a remote URL, download via backend and play locally via blob URL (to support macOS)
     if (isTauri() && remoteAudioUrl && episodeId) {
       try {
         showInfo(t("viewer.loadingAudio"), t("viewer.directPlaybackFailed"));
@@ -1023,21 +1023,39 @@ export function AudiobookViewer({
         if (!localPath) {
           localPath = await downloadEpisodeAudio(episodeId, remoteAudioUrl, undefined);
         }
-        const localUrl = await convertFileSrc(localPath);
-        setFallbackSrc((prev) => {
-          if (prev?.startsWith("blob:")) {
-            URL.revokeObjectURL(prev);
+        
+        if (localPath) {
+          try {
+            const base64Data = await readDocumentFile(localPath);
+            if (base64Data) {
+              const binaryString = atob(base64Data);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              const mimeType = getAudioMimeType(localPath);
+              const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+              setFallbackSrc((prev) => {
+                if (prev?.startsWith("blob:")) {
+                  URL.revokeObjectURL(prev);
+                }
+                return blobUrl;
+              });
+              return true;
+            }
+          } catch (blobErr) {
+            console.warn("[AudiobookViewer] Local blob fallback failed, falling back to streaming:", blobErr);
           }
-          return localUrl;
-        });
+        }
+        
+        // Streaming fallback
+        setFallbackSrc(remoteAudioUrl);
         return true;
       } catch (err) {
-        console.error("[AudiobookViewer] Podcast download fallback failed:", err);
-        showError(
-          t("viewer.playbackFailed"),
-          err instanceof Error ? err.message : t("viewer.unableToLoadAudio")
-        );
-        return false;
+        console.error("[AudiobookViewer] Podcast fallback failed:", err);
+        // Last resort: try streaming remote URL directly
+        setFallbackSrc(remoteAudioUrl);
+        return true;
       }
     }
 
@@ -1093,7 +1111,13 @@ export function AudiobookViewer({
           await audioRef.current.play();
         } catch (err) {
           console.error('[AudiobookViewer] Play error:', err);
-          if (err instanceof DOMException && err.name === "NotSupportedError") {
+          const isNotSupportedError = 
+            (err instanceof DOMException && err.name === "NotSupportedError") ||
+            (err instanceof Error && err.name === "NotSupportedError") ||
+            (typeof err === "object" && err !== null && "name" in err && err.name === "NotSupportedError") ||
+            String(err).includes("NotSupportedError");
+
+          if (isNotSupportedError) {
             pendingAutoplayAfterFallbackRef.current = true;
             const loadedFallback = await loadFallbackAudioSource();
             if (!loadedFallback) {
@@ -1588,10 +1612,10 @@ export function AudiobookViewer({
           </div>
         </div>
       )}
-      {/* Audio element - use podcastLocalSrc (downloaded podcast), remoteAudioUrl (podcast stream), fileContent (blob URL), otherwise fall back to partSources */}
+      {/* Audio element - use fallbackSrc (to override failing custom protocol sources), podcastLocalSrc (downloaded podcast), remoteAudioUrl (podcast stream), fileContent (blob URL), otherwise fall back to partSources */}
       <audio
         ref={audioRef}
-        src={podcastLocalSrc || (!isTauri() || downloadError ? remoteAudioUrl : undefined) || fallbackSrc || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
+        src={fallbackSrc || podcastLocalSrc || (!isTauri() || downloadError ? remoteAudioUrl : undefined) || preparedPlaybackSrc || fileContent || (multiPartInfo ? partSources[currentPartIndex] || null : null) || undefined}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onProgress={handleProgress}
