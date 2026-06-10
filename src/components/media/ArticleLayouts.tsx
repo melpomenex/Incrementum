@@ -11,6 +11,7 @@ interface ArticleLayoutProps {
   items: Array<{ feed: Feed; item: FeedItem }>;
   onSelect: (feed: Feed, item: FeedItem) => void;
   onToggleFavorite: (feed: Feed, item: FeedItem) => void;
+  selectedItemId?: string;
   showThumbnails?: boolean;
   showAuthor?: boolean;
   showDate?: boolean;
@@ -21,6 +22,7 @@ export function MagazineLayout({
   items,
   onSelect,
   onToggleFavorite,
+  selectedItemId,
   showThumbnails = true,
   showAuthor = true,
   showDate = true,
@@ -31,11 +33,14 @@ export function MagazineLayout({
       {items.map(({ feed, item }) => (
         <article
           key={item.id}
+          data-article-id={item.id}
           role="button"
           tabIndex={0}
           onClick={() => onSelect(feed, item)}
           onKeyDown={(e) => { if (e.key === 'Enter') onSelect(feed, item); }}
-          className="break-inside-avoid bg-card border border-border/50 rounded-xl overflow-hidden hover:border-border cursor-pointer transition-all group"
+          className={`break-inside-avoid bg-card border rounded-xl overflow-hidden hover:border-border cursor-pointer transition-all group ${
+            selectedItemId === item.id ? "ring-2 ring-primary border-transparent bg-muted/30" : "border-border/50"
+          }`}
         >
           {/* Thumbnail */}
           {showThumbnails && item.thumbnail && (
@@ -101,12 +106,14 @@ export function GridLayout({
   columnCount = 3,
   showThumbnails = true,
   showDate = true,
+  selectedItemId,
 }: {
   items: Array<{ feed: Feed; item: FeedItem }>;
   onSelect: (feed: Feed, item: FeedItem) => void;
   columnCount?: number;
   showThumbnails?: boolean;
   showDate?: boolean;
+  selectedItemId?: string;
 }) {
   const colsClass = {
     1: "grid-cols-1",
@@ -122,11 +129,14 @@ export function GridLayout({
       {items.map(({ feed, item }) => (
         <article
           key={item.id}
+          data-article-id={item.id}
           role="button"
           tabIndex={0}
           onClick={() => onSelect(feed, item)}
           onKeyDown={(e) => { if (e.key === 'Enter') onSelect(feed, item); }}
-          className="bg-card border border-border/50 rounded-lg overflow-hidden hover:border-border cursor-pointer transition-all group"
+          className={`bg-card border rounded-lg overflow-hidden hover:border-border cursor-pointer transition-all group ${
+            selectedItemId === item.id ? "ring-2 ring-primary border-transparent bg-muted/30" : "border-border/50"
+          }`}
         >
           {showThumbnails && item.thumbnail ? (
             <div className="aspect-video overflow-hidden">

@@ -437,6 +437,16 @@ export function RSSReader() {
     }
   }, [items, selectedItem, selectedItemFeed]);
 
+  // Scroll active item into view
+  useEffect(() => {
+    if (selectedItem?.id) {
+      const activeEl = document.querySelector(`[data-article-id="${selectedItem.id}"]`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [selectedItem?.id]);
+
   useEffect(() => {
     if (!isMobile) return;
     if (!selectedFeed) {
@@ -1852,6 +1862,7 @@ export function RSSReader() {
                     items={items}
                     onSelect={(feed, item) => handleItemClick(feed, item)}
                     onToggleFavorite={handleToggleFavorite}
+                    selectedItemId={selectedItem?.id}
                     showThumbnails={preferences?.show_thumbnails ?? true}
                     showAuthor={preferences?.show_author ?? true}
                     showDate={preferences?.show_date ?? true}
@@ -1863,6 +1874,7 @@ export function RSSReader() {
                   <GridLayout
                     items={items}
                     onSelect={(feed, item) => handleItemClick(feed, item)}
+                    selectedItemId={selectedItem?.id}
                     columnCount={preferences?.column_count ?? 3}
                     showThumbnails={preferences?.show_thumbnails ?? true}
                     showDate={preferences?.show_date ?? true}
@@ -1892,9 +1904,10 @@ export function RSSReader() {
                     return (
                       <article
                         key={`${feed.id}-${item.id}`}
+                        data-article-id={item.id}
                         onClick={() => handleItemClick(feed, item)}
-                        className={`group border-b border-border/60 hover:bg-muted/40 cursor-pointer transition-colors ${paddingClass} ${
-                          selectedItem?.id === item.id ? "bg-muted/50" : ""
+                        className={`group border-b border-border/60 hover:bg-muted/40 cursor-pointer transition-all ${paddingClass} ${
+                          selectedItem?.id === item.id ? "bg-muted/50 border-l-2 border-primary" : "border-l-2 border-transparent"
                         }`}
                       >
                         <div className="flex items-start gap-3">

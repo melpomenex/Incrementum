@@ -98,6 +98,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [playingEpisode, setPlayingEpisode] = useState<{ episode: PodcastEpisode; feed: PodcastFeed } | null>(null);
+  const [playerInitialSeekTime, setPlayerInitialSeekTime] = useState<number | undefined>(undefined);
   const [playerWidth, setPlayerWidth] = useState(() => {
     const saved = localStorage.getItem("podcast-player-width");
     return saved ? parseInt(saved, 10) : 320;
@@ -235,6 +236,31 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       u2.then((f) => f());
     };
   }, []);
+
+  // Handle play-podcast-episode custom event from command palette
+  useEffect(() => {
+    const handlePlayPodcastEpisode = async (
+      e: CustomEvent<{ feedId: string; episodeId: string; seekTime?: number }>
+    ) => {
+      const { feedId, episodeId, seekTime } = e.detail;
+      setSelectedFeedId(feedId);
+      
+      try {
+        const eps = await getPodcastEpisodes(feedId, true);
+        const ep = eps.find((item) => item.id === episodeId);
+        const feed = feeds.find((f) => f.id === feedId) || await getSubscribedPodcasts().then(list => list.find(f => f.id === feedId));
+        if (ep && feed) {
+          setPlayingEpisode({ episode: ep, feed });
+          setPlayerInitialSeekTime(seekTime);
+        }
+      } catch (err) {
+        console.error("Failed to handle play-podcast-episode event:", err);
+      }
+    };
+
+    window.addEventListener("play-podcast-episode" as any, handlePlayPodcastEpisode);
+    return () => window.removeEventListener("play-podcast-episode" as any, handlePlayPodcastEpisode);
+  }, [feeds]);
 
   // Check downloaded paths and probe duration for episodes missing it
   useEffect(() => {
@@ -1493,6 +1519,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             podcastTitle={playingEpisode.feed.title}
             onEpisodeEnded={handleEpisodeEnded}
             autoPlayOnOpen={true}
+            initialSeekTime={playerInitialSeekTime}
           />
           </div>
         </div>

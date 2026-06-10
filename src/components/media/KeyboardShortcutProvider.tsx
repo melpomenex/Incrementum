@@ -47,6 +47,18 @@ export function KeyboardShortcutProvider({ onAction, enabled = true }: KeyboardS
         e.preventDefault();
         e.stopPropagation();
         onActionRef.current(shortcut.action);
+      } else if (combo === "ArrowDown" || combo === "j") {
+        e.preventDefault();
+        e.stopPropagation();
+        onActionRef.current("nextArticle");
+      } else if (combo === "ArrowUp" || combo === "k") {
+        e.preventDefault();
+        e.stopPropagation();
+        onActionRef.current("prevArticle");
+      } else if (combo === "Shift+?" || combo === "?") {
+        e.preventDefault();
+        e.stopPropagation();
+        onActionRef.current("showHelp");
       }
     },
     [enabled, shortcuts]

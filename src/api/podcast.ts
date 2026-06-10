@@ -219,7 +219,7 @@ export async function refreshFeed(feedId: string): Promise<PodcastFeed> {
  * Get episodes for a podcast feed.
  */
 export async function getPodcastEpisodes(
-  feedId: string,
+  feedId: string | null,
   includePlayed: boolean = true,
 ): Promise<PodcastEpisode[]> {
   if (isTauri()) {
@@ -230,7 +230,10 @@ export async function getPodcastEpisodes(
   }
   if (shouldUseHttp()) {
     const params = new URLSearchParams({ include_played: String(includePlayed) });
-    const res = await fetch(`${getApiBaseUrl()}/api/podcast/feeds/${feedId}/episodes?${params}`);
+    const url = feedId
+      ? `${getApiBaseUrl()}/api/podcast/feeds/${feedId}/episodes?${params}`
+      : `${getApiBaseUrl()}/api/podcast/feeds/episodes?${params}`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to get episodes: ${res.statusText}`);
     return res.json();
   }

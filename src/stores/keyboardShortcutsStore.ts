@@ -16,10 +16,10 @@ export interface KeyboardShortcut {
 
 export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
   // Navigation
-  { id: "feed-next", action: "nextFeed", keys: "j", description: "Next feed", category: "navigation" },
-  { id: "feed-prev", action: "prevFeed", keys: "k", description: "Previous feed", category: "navigation" },
-  { id: "article-next", action: "nextArticle", keys: "n", description: "Next article", category: "navigation" },
-  { id: "article-prev", action: "prevArticle", keys: "p", description: "Previous article", category: "navigation" },
+  { id: "feed-next", action: "nextFeed", keys: "Shift+j", description: "Next feed", category: "navigation" },
+  { id: "feed-prev", action: "prevFeed", keys: "Shift+k", description: "Previous feed", category: "navigation" },
+  { id: "article-next", action: "nextArticle", keys: "j", description: "Next article", category: "navigation" },
+  { id: "article-prev", action: "prevArticle", keys: "k", description: "Previous article", category: "navigation" },
 
   // Article actions
   { id: "mark-read", action: "markRead", keys: "m", description: "Mark article as read", category: "article" },

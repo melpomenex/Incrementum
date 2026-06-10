@@ -35,6 +35,9 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { findMatchingSections } from "./sectionRegistry";
 import type { ExactSearchHitLocation, SearchHit } from "../../types/searchHit";
 import { registerCommandPaletteOpenEvents } from "../../utils/commandPaletteEvents";
+import { getSubscribedFeedsAuto } from "../../api/rss";
+import { useRssStudyStore } from "../../stores/rssStudyStore";
+import { getSubscribedPodcasts, getPodcastEpisodes, getPodcastTranscript } from "../../api/podcast";
 
 const STOPWORDS = new Set([
   "a",
@@ -572,6 +575,246 @@ export function CommandCenter() {
       ...themeSwitchCommands,
     ];
 
+    // Detect active tab view
+    const getActiveTab = () => {
+      const state = useTabsStore.getState();
+      const paneIds = state.getTabPaneIds();
+      if (paneIds.length === 0) return null;
+      const pane = state.findPaneById(paneIds[0]);
+      if (!pane || pane.type !== "tabs" || !pane.activeTabId) return null;
+      return state.tabs.find(t => t.id === pane.activeTabId) || null;
+    };
+    const activeTab = getActiveTab();
+    const isRssView = activeTab?.type === "rss";
+    const isPodcastView = activeTab?.type === "podcast";
+
+    if (isRssView) {
+      try {
+        const feeds = await getSubscribedFeedsAuto();
+        const lowerQuery = query.query.toLowerCase().trim();
+        const matches: SearchResult[] = [];
+        
+        feeds.forEach((feed) => {
+          (feed.items || []).forEach((item) => {
+            const title = item.title || "";
+            const desc = item.description || "";
+            const content = item.content || "";
+            
+            const titleMatch = title.toLowerCase().includes(lowerQuery);
+            const descMatch = desc.toLowerCase().includes(lowerQuery);
+            const contentMatch = content.toLowerCase().includes(lowerQuery);
+            
+            if (titleMatch || descMatch || contentMatch) {
+              let score = 0.5;
+              if (titleMatch) score = 0.9;
+              else if (descMatch) score = 0.7;
+              
+              const cleanDesc = desc.replace(/<[^>]+>/g, " ").trim();
+              const excerpt = cleanDesc.length > 150 ? cleanDesc.slice(0, 150) + "..." : cleanDesc;
+              
+              matches.push({
+                id: `rss-${item.id}`,
+                type: SearchResultType.Document,
+                title: item.title,
+                excerpt: excerpt || "Read article",
+                score,
+                metadata: {
+                  resultKind: "rss-article",
+                  articleId: item.id,
+                  feedId: feed.id,
+                  category: "RSS Article",
+                } as any
+              });
+            }
+          });
+        });
+        
+        const matchedCommands = allCommands.filter((cmd) => {
+          const label = cmd.label.toLowerCase();
+          const description = cmd.description?.toLowerCase() ?? "";
+          const keywords = cmd.keywords?.map((keyword) => keyword.toLowerCase()) ?? [];
+          return label.includes(lowerQuery) || description.includes(lowerQuery) || keywords.some((keyword) => keyword.includes(lowerQuery));
+        });
+        
+        matchedCommands.forEach((cmd) => {
+          matches.push({
+            id: `cmd-${cmd.id}`,
+            type: SearchResultType.Command,
+            title: cmd.label,
+            excerpt: cmd.description,
+            score: 0.8,
+            metadata: {
+              action: cmd.action,
+              resultKind: "command",
+            },
+          });
+        });
+        
+        const sectionMatches = findMatchingSections(query.query);
+        sectionMatches.forEach(({ section, score }) => {
+          matches.push({
+            id: `section-${section.id}`,
+            type: SearchResultType.Command,
+            title: section.label,
+            excerpt: `Open ${section.label}`,
+            score,
+            metadata: {
+              category: "Section",
+              sectionId: section.id,
+              targetPath: section.path,
+              resultKind: "section",
+              action: () => navigateTo(section.path),
+            },
+          });
+        });
+        
+        return matches.sort((a, b) => b.score - a.score).slice(0, maxResults);
+      } catch (err) {
+        console.error("RSS Search error:", err);
+      }
+    }
+
+    if (isPodcastView) {
+      try {
+        const podcasts = await getSubscribedPodcasts();
+        const lowerQuery = query.query.toLowerCase().trim();
+        const matches: SearchResult[] = [];
+        
+        const episodesLists = await Promise.all(
+          podcasts.map(feed => getPodcastEpisodes(feed.id, true).catch(() => []))
+        );
+        
+        for (let fIdx = 0; fIdx < podcasts.length; fIdx++) {
+          const feed = podcasts[fIdx];
+          const eps = episodesLists[fIdx];
+          
+          for (const ep of eps) {
+            const title = ep.title || "";
+            const desc = ep.description || "";
+            const transcriptText = ep.transcriptText || "";
+            
+            const titleMatch = title.toLowerCase().includes(lowerQuery);
+            const descMatch = desc.toLowerCase().includes(lowerQuery);
+            const transcriptMatch = transcriptText.toLowerCase().includes(lowerQuery);
+            
+            if (titleMatch || descMatch || transcriptMatch) {
+              let score = 0.5;
+              if (titleMatch) score = 0.9;
+              else if (descMatch) score = 0.7;
+              else if (transcriptMatch) score = 0.6;
+              
+              const cleanDesc = desc.replace(/<[^>]+>/g, " ").trim();
+              let excerpt = cleanDesc.length > 150 ? cleanDesc.slice(0, 150) + "..." : cleanDesc;
+              
+              let primaryHit: SearchHit | undefined = undefined;
+              const secondaryHits: SearchHit[] = [];
+              
+              if (transcriptMatch) {
+                try {
+                  const transcriptData = await getPodcastTranscript(ep.id);
+                  if (transcriptData?.segments) {
+                    const matchingSegments = transcriptData.segments.filter(
+                      (seg) => seg.text.toLowerCase().includes(lowerQuery)
+                    );
+                    
+                    matchingSegments.forEach((seg, sIdx) => {
+                      const startSec = seg.start / 1000;
+                      const mm = String(Math.floor(startSec / 60)).padStart(2, "0");
+                      const ss = String(Math.floor(startSec % 60)).padStart(2, "0");
+                      const label = `${mm}:${ss}`;
+                      
+                      const hit: SearchHit = {
+                        id: `pod-hit-${ep.id}-${sIdx}`,
+                        location: {
+                          kind: "audio",
+                          timeSeconds: startSec,
+                          textQuote: seg.text,
+                        },
+                        label,
+                        excerptHtml: seg.text.replace(new RegExp(`(${lowerQuery})`, "ig"), "<mark class='bg-amber-200 dark:bg-amber-800 text-foreground'>$1</mark>"),
+                      };
+                      
+                      if (!primaryHit) {
+                        primaryHit = hit;
+                      } else {
+                        secondaryHits.push(hit);
+                      }
+                    });
+                  }
+                } catch (e) {
+                  console.warn("[PodcastSearch] Failed to fetch transcript segments", ep.id, e);
+                }
+              }
+              
+              if (primaryHit) {
+                excerpt = `Transcript match: ${primaryHit.excerptHtml}`;
+              }
+              
+              matches.push({
+                id: `podcast-ep-${ep.id}`,
+                type: SearchResultType.Document,
+                title: ep.title,
+                excerpt: excerpt || "Listen to episode",
+                score,
+                metadata: {
+                  resultKind: "podcast-episode",
+                  episodeId: ep.id,
+                  feedId: feed.id,
+                  category: "Podcast Episode",
+                  transcriptMatch,
+                  primaryHit,
+                  secondaryHits: secondaryHits.length > 0 ? secondaryHits : undefined,
+                } as any
+              });
+            }
+          }
+        }
+        
+        const matchedCommands = allCommands.filter((cmd) => {
+          const label = cmd.label.toLowerCase();
+          const description = cmd.description?.toLowerCase() ?? "";
+          const keywords = cmd.keywords?.map((keyword) => keyword.toLowerCase()) ?? [];
+          return label.includes(lowerQuery) || description.includes(lowerQuery) || keywords.some((keyword) => keyword.includes(lowerQuery));
+        });
+        
+        matchedCommands.forEach((cmd) => {
+          matches.push({
+            id: `cmd-${cmd.id}`,
+            type: SearchResultType.Command,
+            title: cmd.label,
+            excerpt: cmd.description,
+            score: 0.8,
+            metadata: {
+              action: cmd.action,
+              resultKind: "command",
+            },
+          });
+        });
+        
+        const sectionMatches = findMatchingSections(query.query);
+        sectionMatches.forEach(({ section, score }) => {
+          matches.push({
+            id: `section-${section.id}`,
+            type: SearchResultType.Command,
+            title: section.label,
+            excerpt: `Open ${section.label}`,
+            score,
+            metadata: {
+              category: "Section",
+              sectionId: section.id,
+              targetPath: section.path,
+              resultKind: "section",
+              action: () => navigateTo(section.path),
+            },
+          });
+        });
+        
+        return matches.sort((a, b) => b.score - a.score).slice(0, maxResults);
+      } catch (err) {
+        console.error("Podcast search error:", err);
+      }
+    }
+
     const matchedCommands = allCommands.filter((cmd) => {
       const label = cmd.label.toLowerCase();
       const description = cmd.description?.toLowerCase() ?? "";
@@ -940,6 +1183,29 @@ export function CommandCenter() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleResultClick = useCallback((result: SearchResult) => {
+    if (result.metadata?.resultKind === "rss-article") {
+      const articleId = result.metadata.articleId;
+      useRssStudyStore.getState().setActiveArticleToView(articleId);
+      window.dispatchEvent(new CustomEvent("navigate", { detail: "/rss" }));
+      return;
+    }
+
+    if (result.metadata?.resultKind === "podcast-episode") {
+      const feedId = result.metadata.feedId;
+      const episodeId = result.metadata.episodeId;
+      const primaryHit = result.metadata.primaryHit;
+      const location = primaryHit?.location;
+      const seekTime = (location && (location.kind === "audio" || location.kind === "youtube"))
+        ? location.timeSeconds
+        : 0;
+      
+      window.dispatchEvent(new CustomEvent("play-podcast-episode", {
+        detail: { feedId, episodeId, seekTime }
+      }));
+      window.dispatchEvent(new CustomEvent("navigate", { detail: "/podcast" }));
+      return;
+    }
+
     if (result.type === SearchResultType.Command) {
       const action = result.metadata?.action;
       if (typeof action === 'function') {
