@@ -1033,8 +1033,32 @@ export function RSSReader() {
           setTrainingMenuPosition({ x: window.innerWidth - 200, y: 100 });
         }
         break;
+      case "nextFeed": {
+        if (feeds.length === 0) break;
+        const currentIdx = selectedFeed
+          ? feeds.findIndex((f) => f.id === selectedFeed.id)
+          : -1;
+        const nextIdx = (currentIdx + 1) % feeds.length;
+        const nextFeed = feeds[nextIdx];
+        setSelectedFeed(nextFeed);
+        setViewMode("all");
+        setUserClosedReader(false);
+        break;
+      }
+      case "prevFeed": {
+        if (feeds.length === 0) break;
+        const currentIdx = selectedFeed
+          ? feeds.findIndex((f) => f.id === selectedFeed.id)
+          : -1;
+        const prevIdx = currentIdx <= 0 ? feeds.length - 1 : currentIdx - 1;
+        const prevFeed = feeds[prevIdx];
+        setSelectedFeed(prevFeed);
+        setViewMode("all");
+        setUserClosedReader(false);
+        break;
+      }
     }
-  }, [items, selectedItem, selectedItemFeed, selectedFeed, handleToggleFavorite, refreshAllFeeds]);
+  }, [items, selectedItem, selectedItemFeed, selectedFeed, feeds, viewMode, setUserClosedReader, handleToggleFavorite, refreshAllFeeds]);
 
   // Mark article unread handler
   const handleMarkUnread = async (feed: Feed, item: FeedItem) => {
