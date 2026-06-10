@@ -1335,9 +1335,9 @@ export function RSSReader() {
               <div className="grid grid-cols-4 gap-1">
                 <button
                   onClick={() => handleViewModeChange("all")}
-                  className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
+                  className={`px-1 py-1.5 text-xs font-medium rounded-md transition-all ${
                     viewMode === "all"
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                       : "text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
@@ -1345,24 +1345,27 @@ export function RSSReader() {
                 </button>
                 <button
                   onClick={() => handleViewModeChange("unread")}
-                  className={`px-2 py-1.5 text-xs rounded-md transition-colors relative ${
+                  className={`px-1 py-1.5 text-xs font-medium rounded-md transition-all relative flex items-center justify-center gap-1 ${
                     viewMode === "unread"
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                       : "text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
-                  {t("rssReader.unread")}
+                  <span className="truncate">{t("rssReader.unread")}</span>
                   {unreadCount > 0 && (
-                    <span className="ml-1 px-1 bg-red-500 text-white text-[10px] rounded-full">
-                      {unreadCount}
+                    <span
+                      title={`${unreadCount} unread stories`}
+                      className="px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex-shrink-0 min-w-[16px] text-center"
+                    >
+                      {unreadCount > 999 ? `${(unreadCount / 1000).toFixed(1)}k` : unreadCount}
                     </span>
                   )}
                 </button>
                 <button
                   onClick={() => handleViewModeChange("favorites")}
-                  className={`px-2 py-1.5 text-xs rounded-md transition-colors ${
+                  className={`px-1 py-1.5 text-xs font-medium rounded-md transition-all truncate ${
                     viewMode === "favorites"
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                       : "text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
@@ -1370,7 +1373,7 @@ export function RSSReader() {
                 </button>
                 <button
                   onClick={() => setShowReadStories(true)}
-                  className="px-2 py-1.5 text-xs rounded-md transition-colors bg-primary text-primary-foreground shadow-sm"
+                  className="px-1 py-1.5 text-xs font-medium rounded-md transition-all text-muted-foreground hover:bg-muted/70"
                 >
                   Read
                 </button>
