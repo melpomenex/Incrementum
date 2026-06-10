@@ -149,6 +149,11 @@ export function RSSReader() {
   const rssStudy = useRssStudyStore();
   const [isSemanticGraphOpen, setSemanticGraphOpen] = useState(false);
   const [embeddingConfig, setEmbeddingConfig] = useState<any>(undefined);
+  const [userClosedReader, setUserClosedReader] = useState(false);
+
+  useEffect(() => {
+    setUserClosedReader(false);
+  }, [selectedFeed?.id, viewMode]);
 
   const queueItems = useQueueStore((state) => state.items);
   const loadQueue = useQueueStore((state) => state.loadQueue);
@@ -431,13 +436,18 @@ export function RSSReader() {
       }
     }
 
-    if (selectedItem !== items[0].item) {
-      setSelectedItem(items[0].item);
+    if (!userClosedReader) {
+      if (selectedItem !== items[0].item) {
+        setSelectedItem(items[0].item);
+      }
+      if (selectedItemFeed !== items[0].feed) {
+        setSelectedItemFeed(items[0].feed);
+      }
+    } else {
+      if (selectedItem !== null) setSelectedItem(null);
+      if (selectedItemFeed !== null) setSelectedItemFeed(null);
     }
-    if (selectedItemFeed !== items[0].feed) {
-      setSelectedItemFeed(items[0].feed);
-    }
-  }, [items, selectedItem, selectedItemFeed]);
+  }, [items, selectedItem, selectedItemFeed, userClosedReader]);
 
   // Scroll active item into view
   useEffect(() => {
@@ -731,6 +741,7 @@ export function RSSReader() {
   };
 
   const handleItemClick = async (feed: Feed, item: FeedItem) => {
+    setUserClosedReader(false);
     await markItemReadAuto(feed.id, item.id, true);
     await loadFeeds();
     setSelectedItem(item);
@@ -2174,6 +2185,17 @@ export function RSSReader() {
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>
+                        <button
+                          onClick={() => {
+                            setUserClosedReader(true);
+                            setSelectedItem(null);
+                            setSelectedItemFeed(null);
+                          }}
+                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
+                          title="Close Article / Open Dashboard"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                     {/* Tag input bar */}
