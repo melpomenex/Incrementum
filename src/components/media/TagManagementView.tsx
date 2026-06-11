@@ -1,11 +1,13 @@
 /**
  * TagManagementView
- * Rename and merge tags
+ * Rename and merge tags, plus TAS prerequisite management
  */
 
 import { useState, useEffect } from "react";
-import { Tag, Pencil, GitMerge, Trash2, X, Search } from "lucide-react";
+import { Tag, Pencil, GitMerge, Trash2, X, Search, GitBranch } from "lucide-react";
 import { useTagsStore } from "../../stores/tagsStore";
+import { useTASStore } from "../../stores/tasStore";
+import { TagPrerequisiteEditor, TasDependencyGraph } from "../tas";
 import type { RssTag } from "../../api/rss-tags";
 
 interface TagManagementViewProps {
@@ -14,14 +16,18 @@ interface TagManagementViewProps {
 
 export function TagManagementView({ onClose }: TagManagementViewProps) {
   const { tags, loadTags, renameTag, mergeTags, deleteTag } = useTagsStore();
+  const tasStore = useTASStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showTasPanel, setShowTasPanel] = useState(false);
 
   useEffect(() => {
     void loadTags();
+    // Sync TAS tags and load them
+    void tasStore.syncTags().then(() => tasStore.loadTags());
   }, [loadTags]);
 
   const filtered = searchQuery
@@ -42,6 +48,14 @@ export function TagManagementView({ onClose }: TagManagementViewProps) {
     }
   };
 
+  // Find the TAS tag ID by matching name
+  const tasTagIdByName = (name: string): string | null => {
+    return tasStore.tags.find((t) => t.name === name)?.id ?? null;
+  };
+
+  // Currently selected TAS tag for prerequisite editing
+  const [editingTasTagId, setEditingTasTagId] = useState<string | null>(null);
+
   return (
     <div className="h-full flex flex-col bg-card">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -50,9 +64,23 @@ export function TagManagementView({ onClose }: TagManagementViewProps) {
           <h2 className="text-lg font-semibold text-foreground">Tag Management</h2>
           <span className="text-xs text-muted-foreground">({tags.length} tags)</span>
         </div>
-        <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTasPanel(!showTasPanel)}
+            className={`px-3 py-1.5 text-xs rounded flex items-center gap-1.5 transition-colors ${
+              showTasPanel
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+            }`}
+            title="Manage tag prerequisites"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            Prerequisites
+          </button>
+          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="px-4 py-2 border-b border-border">
@@ -67,6 +95,36 @@ export function TagManagementView({ onClose }: TagManagementViewProps) {
           />
         </div>
       </div>
+
+      {/* TAS Prerequisites Panel */}
+      {showTasPanel && (
+        <div className="border-b border-border p-4 space-y-4 bg-muted/20">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              Prerequisite Dependencies
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {tasStore.tags.length} tags synced
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TagPrerequisiteEditor
+              selectedTagId={editingTasTagId}
+              onPrerequisitesChanged={() => tasStore.loadTags()}
+            />
+            <TasDependencyGraph
+              tags={tasStore.tags}
+              selectedTagId={editingTasTagId}
+              width={400}
+              height={280}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Select a tag below to edit its prerequisites. The graph shows prerequisite
+            relationships — arrows point from prerequisite to dependent tag.
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto p-4 space-y-1">
         {filtered.length === 0 ? (
@@ -90,7 +148,22 @@ export function TagManagementView({ onClose }: TagManagementViewProps) {
                 />
               ) : (
                 <>
-                  <span className="text-sm text-foreground flex-1">{tag.name}</span>
+                  <button
+                    onClick={() => {
+                      const tasId = tasTagIdByName(tag.name);
+                      if (tasId && showTasPanel) {
+                        setEditingTasTagId(tasId);
+                      }
+                    }}
+                    className={`text-sm flex-1 text-left truncate ${
+                      showTasPanel
+                        ? "cursor-pointer hover:text-primary"
+                        : "text-foreground cursor-default"
+                    }`}
+                    title={showTasPanel ? "Click to edit prerequisites" : tag.name}
+                  >
+                    {tag.name}
+                  </button>
                   {tag.article_count != null && (
                     <span className="text-xs text-muted-foreground">{tag.article_count}</span>
                   )}

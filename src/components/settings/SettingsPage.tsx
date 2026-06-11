@@ -40,6 +40,7 @@ import { HandbookSettings } from "./HandbookSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { AudioTranscriptionSettings } from "./AudioTranscriptionSettings";
 import { TTSSettings } from "./TTSSettings";
+import { SmartQueuesSettings } from "./SmartQueuesSettings";
 import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
 import { getDeviceInfo } from "../../lib/pwa";
@@ -128,7 +129,7 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
     id: SettingsTab.Documents,
     label: "settings.documents",
     icon: BookOpen,
-    keywords: ["import", "pdf", "epub", "reading", "extract", "annotation", "highlight"],
+    keywords: ["import", "pdf", "epub", "reading", "extract", "annotation", "highlight", "tas", "tag", "scheduling", "prerequisite", "interference", "jitter", "maturity", "coherence"],
     description: "Document import and reading preferences",
   },
   {

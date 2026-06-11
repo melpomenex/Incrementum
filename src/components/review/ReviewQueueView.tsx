@@ -27,6 +27,7 @@ import { useQueueStore } from "../../stores/queueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useTabsStore } from "../../stores/tabsStore";
 import { useRssStudyStore } from "../../stores/rssStudyStore";
+import { useTASStore } from "../../stores/tasStore";
 import { RssTab } from "../tabs/TabRegistry";
 import type { QueueItem } from "../../types/queue";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../common/ItemDetailsPopover";
@@ -52,6 +53,8 @@ import {
 } from "./SessionCustomizeModal";
 import { SemanticGraphPanel } from "./SemanticGraphPanel";
 import type { EmbeddingConfig } from "../../utils/semanticEngine";
+import { TASQueueBadge } from "../tas";
+import { TASQueueIndicator } from "../tas";
 import { postponeItem } from "../../api/queue";
 import { dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
@@ -266,6 +269,21 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
     sessionCustomization.semanticStudy?.enabled,
     sessionCustomization.semanticStudy?.focalTopic,
   ]);
+
+  // --- TAS (Tag-Aware Scheduling) integration ---
+  // Build the TAS-annotated queue on mount and when toggled on
+  const tasBuildQueue = useTASStore((s) => s.buildQueue);
+  const tasConfig = useTASStore((s) => s.config);
+
+  useEffect(() => {
+    if (tasConfig.enabled) {
+      const today = new Date().toISOString().split("T")[0];
+      tasBuildQueue(today);
+    } else {
+      useTASStore.getState().resetQueue();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasConfig.enabled]);
 
   function getLearningHint(item: QueueItem) {
     if (item.itemType !== "learning-item") return null;
@@ -899,7 +917,10 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               </button>
             </div>
           )}
-          
+
+          {/* TAS Status Indicator */}
+          <TASQueueIndicator />
+
           {/* File Type Filter */}
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground" />
@@ -1254,6 +1275,10 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                   RSS
                                 </span>
                               )}
+                              <TASQueueBadge
+                                item={item}
+                                onForceShow={(id) => useTASStore.getState().forceShowItem(id)}
+                              />
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold text-foreground line-clamp-1">
                                   {item.documentTitle}
@@ -1438,6 +1463,10 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 </span>
                               );
                             })()}
+                            <TASQueueBadge
+                              item={item}
+                              onForceShow={(id) => useTASStore.getState().forceShowItem(id)}
+                            />
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-foreground line-clamp-1">
                                 {item.documentTitle}

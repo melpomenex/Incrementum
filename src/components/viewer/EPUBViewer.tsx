@@ -1864,9 +1864,29 @@ export function EPUBViewer({
     const selectedText = selection?.toString().trim() || "";
     const hasSelection = selectedText.length > 0;
     selectionActiveRef.current = hasSelection;
+
+    let ctx: EpubSelectionContext | null = null;
+    if (hasSelection && selection && selection.rangeCount > 0) {
+      try {
+        const range = selection.getRangeAt(0);
+        const cfiRange = contents.cfiFromRange?.(range);
+        if (cfiRange) {
+          ctx = {
+            type: "epub",
+            documentId: documentId ?? "",
+            cfiRange: String(cfiRange),
+            selectedText: selectedText,
+          };
+          lastEpubSelectionContextRef.current = ctx;
+        }
+      } catch (e) {
+        console.warn("EPUBViewer: Failed to generate cfiRange for selection:", e);
+      }
+    }
+
     // Always notify parent of selection changes (both selection and clearing)
-    onSelectionChange?.(selectedText);
-  }, [onSelectionChange]);
+    onSelectionChange?.(selectedText, ctx);
+  }, [onSelectionChange, documentId]);
 
   return (
     <div

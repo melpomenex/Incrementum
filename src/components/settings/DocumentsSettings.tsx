@@ -1,6 +1,7 @@
 import { useSettingsStore } from "../../stores/settingsStore";
 import { OCRSettings } from "./OCRSettings";
 import { useI18n } from "../../lib/i18n";
+import TASSettingsPanel from "../tas/TASSettingsPanel";
 
 export function DocumentsSettings() {
   const { settings, updateSettings } = useSettingsStore();
@@ -429,6 +430,9 @@ export function DocumentsSettings() {
           </div>
         </div>
       </div>
+
+      {/* Tag-Aware Scheduling */}
+      <TASSettingsPanel />
     </div>
   );
 }

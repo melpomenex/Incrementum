@@ -129,6 +129,7 @@ interface PDFViewerProps {
   metadata?: DocumentMetadata;
   ttsQuery?: string;
   ttsHighlightEnabled?: boolean;
+  onTextLayerRootsChange?: (roots: (HTMLDivElement | null)[], scrollContainer: HTMLElement | null) => void;
 }
 
 type PdfSearchMatch = {
@@ -189,6 +190,7 @@ export function PDFViewer({
   metadata,
   ttsQuery,
   ttsHighlightEnabled,
+  onTextLayerRootsChange,
 }: PDFViewerProps) {
   const { t } = useI18n();
 
@@ -281,6 +283,17 @@ export function PDFViewer({
   const [nativeSelectedText, setNativeSelectedText] = useState("");
   const [fallbackPageSize, setFallbackPageSize] = useState<{ width: number; height: number } | null>(null);
   const [renderPass, setRenderPass] = useState(0);
+
+  const notifyTextLayersChange = useCallback(() => {
+    onTextLayerRootsChange?.([...textLayerRootsRef.current], scrollContainerRef.current);
+  }, [onTextLayerRootsChange]);
+
+  // Update parent with text layer roots and scroll container on load/mount
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      notifyTextLayersChange();
+    }
+  }, [pdf, notifyTextLayersChange]);
   const [textSelectionCapability, setTextSelectionCapability] = useState<PdfTextSelectionCapability>(() =>
     derivePdfTextSelectionCapability(pageTextSelectionAvailabilityRef.current, 0, pageNumber),
   );
@@ -1921,6 +1934,7 @@ export function PDFViewer({
     textLayerContainer.style.width = `${viewport.width}px`;
     textLayerContainer.style.height = `${viewport.height}px`;
     textLayerRootsRef.current[pageIndex] = null;
+    notifyTextLayersChange();
 
     // Render PDF page to canvas
     // Scale the 2D context so PDF.js paints at CSS-pixel coordinates
@@ -1981,6 +1995,7 @@ export function PDFViewer({
       textLayerContainer.style.width = `${viewport.width}px`;
       textLayerContainer.style.height = `${viewport.height}px`;
       textLayerRootsRef.current[pageIndex] = null;
+      notifyTextLayersChange();
 
       const mountTextLayer = () => {
         const layer = document.createElement("div");
@@ -1992,6 +2007,7 @@ export function PDFViewer({
         layer.style.webkitUserSelect = "text";
         textLayerContainer.appendChild(layer);
         textLayerRootsRef.current[pageIndex] = layer;
+        notifyTextLayersChange();
         return layer;
       };
 
@@ -2022,6 +2038,7 @@ export function PDFViewer({
       } else {
         textLayerRoot.remove();
         textLayerRootsRef.current[pageIndex] = null;
+        notifyTextLayersChange();
 
         const textLayerBuilder = new TextLayerBuilder({
           pdfPage: page,
@@ -2033,6 +2050,7 @@ export function PDFViewer({
             (layer.style as any).webkitUserSelect = "text";
             textLayerContainer.appendChild(layer);
             textLayerRootsRef.current[pageIndex] = layer;
+            notifyTextLayersChange();
           },
         });
 

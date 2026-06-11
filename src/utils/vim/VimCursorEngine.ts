@@ -254,12 +254,29 @@ export class VimCursorEngine {
     const token = this.tokens[store.cursorIndex];
     if (!token) return;
 
+    // Fetch a live rect from the DOM so the caret is positioned at the
+    // token's current screen location — the cached token.rect may be stale
+    // after scrolling or reflow.
+    const doc = this.adapter.getDocument();
+    const range = doc.createRange();
+    try {
+      range.setStart(token.node, token.startOffset);
+      range.setEnd(token.node, token.endOffset);
+      token.rect = range.getBoundingClientRect();
+    } catch {
+      // Fall back to cached rect if the node is detached
+    } finally {
+      range.detach();
+    }
+
     const style: CaretStyle = store.mode === "normal" ? "block" : "underline";
+    const scrollContainer = doc === document ? this.adapter.getScrollContainer() : null;
     this.caretElement = updateCaret(
       this.caretElement,
       token,
       style,
-      this.adapter.getDocument(),
+      doc,
+      scrollContainer,
     );
   }
 
@@ -276,10 +293,9 @@ export class VimCursorEngine {
     const tokenMid = (tokenRect.top + tokenRect.bottom) / 2;
 
     if (isInIframe && win) {
-      // Token rects are viewport-relative (0 = top of iframe viewport).
-      // If token is outside [0, innerHeight], scroll to center it.
       const viewportHeight = win.innerHeight;
-      if (tokenMid < 0 || tokenMid > viewportHeight) {
+      const margin = viewportHeight * 0.2;
+      if (tokenMid < margin || tokenMid > viewportHeight - margin) {
         const scrollEl = doc.scrollingElement ?? doc.documentElement ?? doc.body;
         const currentScroll = scrollEl.scrollTop;
         const targetScroll = currentScroll + tokenMid - viewportHeight / 2;
@@ -287,8 +303,11 @@ export class VimCursorEngine {
       }
     } else {
       const scrollContainer = this.adapter.getScrollContainer();
+      if (!scrollContainer) return;
       const containerRect = scrollContainer.getBoundingClientRect();
-      if (tokenMid < containerRect.top || tokenMid > containerRect.bottom) {
+      const visibleHeight = containerRect.bottom - containerRect.top;
+      const margin = visibleHeight * 0.2;
+      if (tokenMid < containerRect.top + margin || tokenMid > containerRect.bottom - margin) {
         scrollContainer.scrollBy({ top: tokenMid - (containerRect.top + containerRect.bottom) / 2, behavior: "smooth" });
       }
     }

@@ -41,6 +41,14 @@ export interface QueueItem {
   retrievability?: number;
   lapses?: number;
   reps?: number; // review_count
+
+  // TAS ephemeral fields (not persisted)
+  /** Whether this item is blocked by prerequisites (ephemeral, computed daily) */
+  prerequisiteBlocked?: boolean;
+  /** ISO datetime until which this item is delayed by interference (ephemeral, computed daily) */
+  interferenceDelayUntil?: string;
+  /** Human-readable reason for blocking/delay */
+  blockReason?: string;
 }
 
 export interface ReviewSession {

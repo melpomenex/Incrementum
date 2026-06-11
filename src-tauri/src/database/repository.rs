@@ -4360,6 +4360,517 @@ impl Repository {
         .await?;
         Ok(rows.iter().map(map_row_to_podcast_episode).collect())
     }
+
+    // ===========================================================================
+    // Tag-Aware Scheduling (TAS) — Tag CRUD
+    // ===========================================================================
+
+    /// Sync tags: scan all items for tag names and insert any that don't yet
+    /// exist in the `tags` table. Returns the count of newly created tags.
+    pub async fn sync_tags_from_items(&self) -> Result<usize> {
+        // Collect all unique tag names from learning_items, extracts, and documents
+        let mut all_names = std::collections::HashSet::new();
+
+        // From learning_items
+        let item_rows = sqlx::query("SELECT tags FROM learning_items")
+            .fetch_all(self.pool())
+            .await?;
+        for row in &item_rows {
+            let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".into());
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            all_names.extend(tags);
+        }
+
+        // From extracts
+        let extract_rows = sqlx::query("SELECT tags FROM extracts")
+            .fetch_all(self.pool())
+            .await?;
+        for row in &extract_rows {
+            let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".into());
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            all_names.extend(tags);
+        }
+
+        // From documents
+        let doc_rows = sqlx::query("SELECT tags FROM documents")
+            .fetch_all(self.pool())
+            .await?;
+        for row in &doc_rows {
+            let tags_json: String = row.try_get("tags").unwrap_or_else(|_| "[]".into());
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            all_names.extend(tags);
+        }
+
+        // Get existing tag names
+        let existing_rows = sqlx::query("SELECT name FROM tags")
+            .fetch_all(self.pool())
+            .await?;
+        let existing_names: std::collections::HashSet<String> = existing_rows
+            .iter()
+            .map(|r: &sqlx::sqlite::SqliteRow| r.get("name"))
+            .collect();
+
+        // Insert new tags
+        let now = chrono::Utc::now().to_rfc3339();
+        let mut created = 0usize;
+
+        for name in &all_names {
+            if existing_names.contains(name) {
+                continue;
+            }
+            let id = uuid::Uuid::new_v4().to_string();
+            sqlx::query(
+                "INSERT INTO tags (id, name, prerequisites, maturity_threshold, item_count, mature_count, date_created, date_modified)
+                 VALUES (?, ?, '[]', 0.8, 0, 0, ?, ?)"
+            )
+            .bind(&id)
+            .bind(name)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.pool())
+            .await?;
+            created += 1;
+        }
+
+        // Update item counts for all tags
+        for name in &all_names {
+            let tag = self.get_tag_by_name(name).await?;
+            if let Some(tag) = tag {
+                let items = self.get_learning_items_for_tag(name).await?;
+                let stabilities: Vec<Option<f64>> = items
+                    .iter()
+                    .map(|item| item.memory_state.as_ref().map(|ms| ms.stability))
+                    .collect();
+                let stats = crate::tas::maturity::recompute_tag_stability_stats(&stabilities, &tag);
+                self.update_tag_stability_stats(&tag.id, stats.item_count, stats.avg_stability, stats.mature_count).await?;
+            }
+        }
+
+        Ok(created)
+    }
+
+    /// Get a tag by name
+    pub async fn get_tag_by_name(&self, name: &str) -> Result<Option<crate::models::Tag>> {
+        let row = sqlx::query(
+            "SELECT id, name, prerequisites, maturity_threshold, centroid, coherence,
+                    item_count, avg_stability, mature_count, date_created, date_modified
+             FROM tags WHERE name = ?"
+        )
+        .bind(name)
+        .fetch_optional(self.pool())
+        .await?;
+
+        match row {
+            Some(row) => {
+                let prereqs_json: String = row.try_get("prerequisites").unwrap_or_else(|_| "[]".into());
+                let prerequisites: Vec<String> = serde_json::from_str(&prereqs_json).unwrap_or_default();
+                let centroid_blob: Option<Vec<u8>> = row.try_get("centroid").ok();
+                let centroid: Option<Vec<f32>> = centroid_blob.and_then(|b| {
+                    if b.len() % 4 != 0 { return None; }
+                    let mut vec = Vec::with_capacity(b.len() / 4);
+                    for chunk in b.chunks_exact(4) {
+                        vec.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+                    }
+                    Some(vec)
+                });
+
+                Ok(Some(crate::models::Tag {
+                    id: row.try_get("id")?,
+                    name: row.try_get("name")?,
+                    prerequisites,
+                    maturity_threshold: row.try_get("maturity_threshold").unwrap_or(0.8),
+                    centroid,
+                    coherence: row.try_get("coherence").ok(),
+                    item_count: row.try_get("item_count").unwrap_or(0),
+                    avg_stability: row.try_get("avg_stability").ok(),
+                    mature_count: row.try_get("mature_count").unwrap_or(0),
+                    date_created: row.try_get("date_created")?,
+                    date_modified: row.try_get("date_modified")?,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn get_all_tags(&self) -> Result<Vec<crate::models::Tag>> {
+        let rows = sqlx::query(
+            "SELECT id, name, prerequisites, maturity_threshold, centroid, coherence,
+                    item_count, avg_stability, mature_count, date_created, date_modified
+             FROM tags ORDER BY name"
+        )
+        .fetch_all(self.pool())
+        .await?;
+
+        let mut tags = Vec::new();
+        for row in rows {
+            let prereqs_json: String = row.try_get("prerequisites").unwrap_or_else(|_| "[]".into());
+            let prerequisites: Vec<String> = serde_json::from_str(&prereqs_json).unwrap_or_default();
+            let centroid_blob: Option<Vec<u8>> = row.try_get("centroid").ok();
+            let centroid: Option<Vec<f32>> = centroid_blob.and_then(|b| {
+                if b.len() % 4 != 0 {
+                    return None;
+                }
+                let mut vec = Vec::with_capacity(b.len() / 4);
+                for chunk in b.chunks_exact(4) {
+                    vec.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+                }
+                Some(vec)
+            });
+
+            tags.push(crate::models::Tag {
+                id: row.try_get("id")?,
+                name: row.try_get("name")?,
+                prerequisites,
+                maturity_threshold: row.try_get("maturity_threshold").unwrap_or(0.8),
+                centroid,
+                coherence: row.try_get("coherence").ok(),
+                item_count: row.try_get("item_count").unwrap_or(0),
+                avg_stability: row.try_get("avg_stability").ok(),
+                mature_count: row.try_get("mature_count").unwrap_or(0),
+                date_created: row.try_get("date_created")?,
+                date_modified: row.try_get("date_modified")?,
+            });
+        }
+        Ok(tags)
+    }
+
+    pub async fn get_tag(&self, tag_id: &str) -> Result<crate::models::Tag> {
+        let row = sqlx::query(
+            "SELECT id, name, prerequisites, maturity_threshold, centroid, coherence,
+                    item_count, avg_stability, mature_count, date_created, date_modified
+             FROM tags WHERE id = ?"
+        )
+        .bind(tag_id)
+        .fetch_optional(self.pool())
+        .await?
+        .ok_or_else(|| IncrementumError::NotFound(format!("Tag not found: {tag_id}")))?;
+
+        let prereqs_json: String = row.try_get("prerequisites").unwrap_or_else(|_| "[]".into());
+        let prerequisites: Vec<String> = serde_json::from_str(&prereqs_json).unwrap_or_default();
+        let centroid_blob: Option<Vec<u8>> = row.try_get("centroid").ok();
+        let centroid: Option<Vec<f32>> = centroid_blob.and_then(|b| {
+            if b.len() % 4 != 0 {
+                return None;
+            }
+            let mut vec = Vec::with_capacity(b.len() / 4);
+            for chunk in b.chunks_exact(4) {
+                vec.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+            }
+            Some(vec)
+        });
+
+        Ok(crate::models::Tag {
+            id: row.try_get("id")?,
+            name: row.try_get("name")?,
+            prerequisites,
+            maturity_threshold: row.try_get("maturity_threshold").unwrap_or(0.8),
+            centroid,
+            coherence: row.try_get("coherence").ok(),
+            item_count: row.try_get("item_count").unwrap_or(0),
+            avg_stability: row.try_get("avg_stability").ok(),
+            mature_count: row.try_get("mature_count").unwrap_or(0),
+            date_created: row.try_get("date_created")?,
+            date_modified: row.try_get("date_modified")?,
+        })
+    }
+
+    pub async fn set_tag_prerequisites(
+        &self,
+        tag_id: &str,
+        prerequisite_ids: &[String],
+    ) -> Result<crate::models::Tag> {
+        let prereqs_json = serde_json::to_string(prerequisite_ids)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to serialize prerequisites: {e}")))?;
+        let now = Utc::now().to_rfc3339();
+
+        sqlx::query(
+            "UPDATE tags SET prerequisites = ?, date_modified = ? WHERE id = ?"
+        )
+        .bind(&prereqs_json)
+        .bind(&now)
+        .bind(tag_id)
+        .execute(self.pool())
+        .await?;
+
+        self.get_tag(tag_id).await
+    }
+
+    pub async fn upsert_tag(
+        &self,
+        name: &str,
+        prerequisites: &[String],
+        maturity_threshold: f64,
+    ) -> Result<crate::models::Tag> {
+        // Check if tag exists by name
+        let existing = sqlx::query("SELECT id FROM tags WHERE name = ?")
+            .bind(name)
+            .fetch_optional(self.pool())
+            .await?;
+
+        let now = Utc::now().to_rfc3339();
+
+        if let Some((id,)) = existing.map(|row: sqlx::sqlite::SqliteRow| {
+            (row.get::<String, _>("id"),)
+        }) {
+            // Update existing
+            let prereqs_json = serde_json::to_string(prerequisites)
+                .map_err(|e| IncrementumError::Internal(format!("Failed to serialize prerequisites: {e}")))?;
+            sqlx::query(
+                "UPDATE tags SET prerequisites = ?, maturity_threshold = ?, date_modified = ? WHERE id = ?"
+            )
+            .bind(&prereqs_json)
+            .bind(maturity_threshold)
+            .bind(&now)
+            .bind(&id)
+            .execute(self.pool())
+            .await?;
+            self.get_tag(&id).await
+        } else {
+            // Create new
+            let id = uuid::Uuid::new_v4().to_string();
+            let prereqs_json = serde_json::to_string(prerequisites)
+                .map_err(|e| IncrementumError::Internal(format!("Failed to serialize prerequisites: {e}")))?;
+            sqlx::query(
+                "INSERT INTO tags (id, name, prerequisites, maturity_threshold, item_count, mature_count, date_created, date_modified)
+                 VALUES (?, ?, ?, ?, 0, 0, ?, ?)"
+            )
+            .bind(&id)
+            .bind(name)
+            .bind(&prereqs_json)
+            .bind(maturity_threshold)
+            .bind(&now)
+            .bind(&now)
+            .execute(self.pool())
+            .await?;
+            self.get_tag(&id).await
+        }
+    }
+
+    pub async fn delete_tag(&self, tag_id: &str) -> Result<()> {
+        let rows = sqlx::query("DELETE FROM tags WHERE id = ?")
+            .bind(tag_id)
+            .execute(self.pool())
+            .await?
+            .rows_affected();
+
+        if rows == 0 {
+            return Err(IncrementumError::NotFound(format!("Tag not found: {tag_id}")));
+        }
+        Ok(())
+    }
+
+    pub async fn remove_tag_from_prerequisites(&self, tag_id: &str) -> Result<()> {
+        // Get all tags that reference this tag as a prerequisite
+        let all_tags = self.get_all_tags().await?;
+        let now = Utc::now().to_rfc3339();
+
+        for mut tag in all_tags {
+            if tag.prerequisites.contains(&tag_id.to_string()) {
+                tag.prerequisites.retain(|p| p != tag_id);
+                let prereqs_json = serde_json::to_string(&tag.prerequisites)
+                    .map_err(|e| IncrementumError::Internal(format!("Failed to serialize prerequisites: {e}")))?;
+                sqlx::query(
+                    "UPDATE tags SET prerequisites = ?, date_modified = ? WHERE id = ?"
+                )
+                .bind(&prereqs_json)
+                .bind(&now)
+                .bind(&tag.id)
+                .execute(self.pool())
+                .await?;
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn get_learning_items_for_tag(
+        &self,
+        tag_name: &str,
+    ) -> Result<Vec<crate::models::LearningItem>> {
+        // Learning items store tags as JSON array in a TEXT column
+        // We search for tag_name appearing in the JSON array
+        let all_items = self.get_all_learning_items().await?;
+        Ok(all_items
+            .into_iter()
+            .filter(|item| item.tags.contains(&tag_name.to_string()))
+            .collect())
+    }
+
+    /// Generic setting getter (key-value store)
+    pub async fn get_setting(&self, key: &str) -> Result<Option<String>> {
+        let row = sqlx::query("SELECT value FROM settings WHERE key = ?")
+            .bind(key)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(row.map(|r: sqlx::sqlite::SqliteRow| r.get("value")))
+    }
+
+    /// Generic setting setter (key-value store)
+    pub async fn set_setting(&self, key: &str, value: &str) -> Result<()> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO settings (key, value, date_modified) VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, date_modified = excluded.date_modified"
+        )
+        .bind(key)
+        .bind(value)
+        .bind(&now)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    /// Update tag stability stats in the database
+    pub async fn update_tag_stability_stats(
+        &self,
+        tag_id: &str,
+        item_count: i32,
+        avg_stability: Option<f64>,
+        mature_count: i32,
+    ) -> Result<()> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE tags SET item_count = ?, avg_stability = ?, mature_count = ?, date_modified = ? WHERE id = ?"
+        )
+        .bind(item_count)
+        .bind(avg_stability)
+        .bind(mature_count)
+        .bind(&now)
+        .bind(tag_id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    /// Compute tag centroids and coherence from existing item embeddings.
+    ///
+    /// For each tag, collects embeddings of all learning items with that tag,
+    /// computes the centroid (mean vector) and coherence (avg pairwise cosine
+    /// similarity of items within the tag), and writes them to the `tags` table.
+    /// Returns the number of tags updated.
+    pub async fn compute_tag_centroids(&self) -> Result<usize> {
+        // 1. Load all tags
+        let tags = self.get_all_tags().await?;
+        if tags.is_empty() {
+            return Ok(0);
+        }
+
+        // 2. Load all learning items with their tags
+        let all_items = self.get_all_learning_items().await?;
+
+        // 3. Build map: learning_item.id -> tags
+        let item_tags: std::collections::HashMap<String, Vec<String>> = all_items
+            .iter()
+            .map(|item| (item.id.clone(), item.tags.clone()))
+            .collect();
+
+        // 4. Collect all relevant item IDs and load embeddings in one query
+        let all_item_ids: Vec<String> = item_tags.keys().cloned().collect();
+        let embeddings = self.get_embeddings_for_items(&all_item_ids).await?;
+        let emb_map: std::collections::HashMap<String, &[f32]> = embeddings
+            .iter()
+            .map(|e| (e.item_id.clone(), e.embedding.as_slice()))
+            .collect();
+
+        // 5. For each tag, collect embeddings and compute centroid + coherence
+        let now = Utc::now().to_rfc3339();
+        let mut updated = 0usize;
+
+        for tag in &tags {
+            // Find all items with this tag
+            let mut tag_embeddings: Vec<&[f32]> = Vec::new();
+
+            for (item_id, item_tag_list) in &item_tags {
+                if item_tag_list.contains(&tag.name) {
+                    if let Some(emb) = emb_map.get(item_id.as_str()) {
+                        tag_embeddings.push(emb);
+                    }
+                }
+            }
+
+            if tag_embeddings.is_empty() {
+                continue;
+            }
+
+            // Compute centroid
+            let dim = tag_embeddings[0].len();
+            if dim == 0 {
+                continue;
+            }
+
+            let centroid = compute_centroid(&tag_embeddings, dim);
+            let coherence = if tag_embeddings.len() >= 2 {
+                compute_avg_pairwise_cosine(&tag_embeddings)
+            } else {
+                // Single item: maximum coherence by definition
+                1.0
+            };
+
+            // Serialize centroid to blob
+            let centroid_blob: Vec<u8> = centroid
+                .iter()
+                .flat_map(|v| v.to_le_bytes())
+                .collect();
+
+            // Write to tags table
+            sqlx::query(
+                "UPDATE tags SET centroid = ?, coherence = ?, date_modified = ? WHERE id = ?"
+            )
+            .bind(&centroid_blob)
+            .bind(coherence)
+            .bind(&now)
+            .bind(&tag.id)
+            .execute(self.pool())
+            .await?;
+
+            updated += 1;
+        }
+
+        Ok(updated)
+    }
+}
+
+/// Compute the centroid (element-wise mean) of a set of equal-length vectors.
+fn compute_centroid(embeddings: &[&[f32]], dim: usize) -> Vec<f32> {
+    let mut centroid = vec![0.0f32; dim];
+    let count = embeddings.len() as f32;
+    for emb in embeddings {
+        for (i, &val) in emb.iter().enumerate() {
+            centroid[i] += val;
+        }
+    }
+    for val in &mut centroid {
+        *val /= count;
+    }
+    centroid
+}
+
+/// Compute average pairwise cosine similarity among a set of vectors.
+fn compute_avg_pairwise_cosine(embeddings: &[&[f32]]) -> f64 {
+    let n = embeddings.len();
+    if n < 2 {
+        return 1.0;
+    }
+    let mut total: f64 = 0.0;
+    let mut pairs: usize = 0;
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let sim = cosine_similarity_f32(embeddings[i], embeddings[j]);
+            total += sim as f64;
+            pairs += 1;
+        }
+    }
+    total / pairs as f64
+}
+
+/// Cosine similarity between two f32 slices.
+fn cosine_similarity_f32(a: &[f32], b: &[f32]) -> f32 {
+    let (dot, norm_a, norm_b) = a.iter()
+        .zip(b.iter())
+        .fold((0.0f32, 0.0f32, 0.0f32), |(d, na, nb), (&x, &y)| {
+            (d + x * y, na + x * x, nb + y * y)
+        });
+    let denom = (norm_a.sqrt() * norm_b.sqrt()).max(1e-12);
+    (dot / denom).clamp(-1.0, 1.0)
 }
 
 // Helper struct for study statistics rows

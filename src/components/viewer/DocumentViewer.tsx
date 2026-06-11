@@ -416,6 +416,8 @@ export function DocumentViewer({
   const [ttsChunkText, setTtsChunkText] = useState("");
   const [wordHighlightEnabled, setWordHighlightEnabled] = useState(false);
   const [epubIframeWindow, setEpubIframeWindow] = useState<Window | null>(null);
+  const [pdfTextLayerRoots, setPdfTextLayerRoots] = useState<(HTMLDivElement | null)[]>([]);
+  const [pdfScrollContainer, setPdfScrollContainer] = useState<HTMLElement | null>(null);
   const highlightContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll TTS state
@@ -1351,8 +1353,8 @@ export function DocumentViewer({
     iframeRef,
     contentRef: undefined,
     scrollContainerRef: null,
-    pdfTextLayerRoots: undefined,
-    pdfScrollContainer: null,
+    pdfTextLayerRoots: pdfTextLayerRoots,
+    pdfScrollContainer: pdfScrollContainer,
     actionContext: currentDocument ? {
       documentId: currentDocument.id,
       getSelectedText: () => selectedTextRef.current || window.getSelection()?.toString() || "",
@@ -2886,6 +2888,9 @@ export function DocumentViewer({
       // Escape to close dialogs, clear selection, or exit fullscreen
       if (e.key === "Escape") {
         if (showSearch) closeViewerSearch();
+        if (dictionaryResult) {
+          setDictionaryResult(null);
+        }
         if (isExtractDialogOpen) {
           setIsExtractDialogOpen(false);
           clearTextSelection();
@@ -4418,6 +4423,15 @@ export function DocumentViewer({
       if (isCommandPaletteOpenShortcut(e)) {
         e.preventDefault();
         dispatchCommandPaletteOpen();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (dictionaryResult) {
+          setDictionaryResult(null);
+        }
+        if (activeExtractSelection) {
+          clearTextSelection();
+        }
       } else if (lowerKey === "j") {
         e.preventDefault();
         scrollHtmlIframe("down");
@@ -4429,7 +4443,8 @@ export function DocumentViewer({
 
     win.addEventListener("keydown", handler, true);
     return () => win.removeEventListener("keydown", handler, true);
-  }, [currentDocument, currentDocument?.id, isHtmlViewer, scrollHtmlIframe]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- iframe keydown handler with stable callbacks
+  }, [currentDocument, currentDocument?.id, isHtmlViewer, scrollHtmlIframe, dictionaryResult, activeExtractSelection, clearTextSelection]);
 
   // Capture scroll position from HTML iframe for persistence.
   useEffect(() => {
@@ -5059,6 +5074,10 @@ export function DocumentViewer({
             documentId={currentDocument.id}
             fileData={fileData}
             fileUrl={pdfUrl}
+            onTextLayerRootsChange={(roots, container) => {
+              setPdfTextLayerRoots(roots);
+              setPdfScrollContainer(container);
+            }}
             pageNumber={pageNumber}
             scale={scale}
             zoomMode={zoomMode}

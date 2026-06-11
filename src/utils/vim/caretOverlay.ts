@@ -13,9 +13,9 @@ const CARET_CSS = `
     z-index: 10 !important;
   }
   .vim-cursor-visual {
-    background-color: transparent !important;
-    border-bottom: 2px solid rgba(59, 130, 246, 0.8) !important;
-    border-radius: 0 !important;
+    background-color: rgba(239, 68, 68, 0.25) !important;
+    border: 2px solid rgba(239, 68, 68, 0.85) !important;
+    border-radius: 2px !important;
   }
 `;
 
@@ -32,6 +32,7 @@ export function updateCaret(
   token: WordToken,
   style: CaretStyle,
   doc: Document,
+  scrollContainer?: HTMLElement | null,
 ): HTMLSpanElement {
   const el = existingElement ?? doc.createElement("span");
   el.id = OVERLAY_ID;
@@ -42,25 +43,25 @@ export function updateCaret(
   // Inline styles as fallback (in case CSS injection fails)
   if (style === "block") {
     el.style.backgroundColor = "rgba(59, 130, 246, 0.3)";
+    el.style.border = "none";
     el.style.borderRadius = "2px";
   } else {
-    el.style.backgroundColor = "transparent";
-    el.style.borderBottom = "2px solid rgba(59, 130, 246, 0.8)";
+    el.style.backgroundColor = "rgba(239, 68, 68, 0.25)";
+    el.style.border = "2px solid rgba(239, 68, 68, 0.85)";
+    el.style.borderRadius = "2px";
   }
-
-  const rect = token.rect;
-  el.style.position = "absolute";
-  el.style.left = `${rect.left}px`;
-  el.style.top = `${rect.top}px`;
-  el.style.width = `${rect.width}px`;
-  el.style.height = `${rect.height}px`;
-  el.style.pointerEvents = "none";
-  el.style.zIndex = "10";
 
   const isInIframe = doc !== document;
 
+  let top = token.rect.top;
+  let left = token.rect.left;
+
   if (isInIframe) {
-    // Ensure body has position:relative so absolute positioning works
+    // Convert viewport-relative rect to document-relative coordinates
+    const scrollEl = doc.scrollingElement ?? doc.documentElement ?? doc.body;
+    top += scrollEl.scrollTop || 0;
+    left += scrollEl.scrollLeft || 0;
+
     const body = doc.body;
     if (body) {
       const originalPosition = body.style.position;
@@ -68,12 +69,29 @@ export function updateCaret(
         body.style.position = "relative";
       }
     }
-    // Inject caret CSS into iframe
     injectCaretStyles(doc);
+  } else if (scrollContainer) {
+    // Non-iframe (PDF, Markdown): position relative to the scroll container
+    const containerRect = scrollContainer.getBoundingClientRect();
+    top = token.rect.top - containerRect.top + scrollContainer.scrollTop;
+    left = token.rect.left - containerRect.left + scrollContainer.scrollLeft;
+
+    const originalPosition = scrollContainer.style.position;
+    if (!originalPosition || originalPosition === "static") {
+      scrollContainer.style.position = "relative";
+    }
   }
 
-  // Append to the document
-  const parent = isInIframe ? doc.body : document.body;
+  el.style.position = "absolute";
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  el.style.width = `${token.rect.width}px`;
+  el.style.height = `${token.rect.height}px`;
+  el.style.pointerEvents = "none";
+  el.style.zIndex = "10";
+
+  // Append to scroll container for non-iframe, iframe body for iframe docs
+  const parent = isInIframe ? doc.body : (scrollContainer ?? document.body);
   if (parent && !el.parentNode) {
     parent.appendChild(el);
   }

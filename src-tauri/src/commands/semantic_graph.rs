@@ -226,6 +226,10 @@ pub async fn embed_queue_items(
         });
     }
 
+    // After embedding, recompute tag centroids and coherence
+    let tags_updated = repo.compute_tag_centroids().await.unwrap_or(0);
+    eprintln!("Tag centroids updated for {tags_updated} tags");
+
     Ok(total_embedded)
 }
 

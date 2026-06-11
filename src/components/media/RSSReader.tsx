@@ -79,6 +79,7 @@ import { StoryViewModeSwitcher, type StoryViewMode } from "./StoryViewModeSwitch
 import { ManageTrainingView } from "./ManageTrainingView";
 import { DiscoverSitesPanel } from "./DiscoverSitesPanel";
 import { TagInput } from "./TagInput";
+import { TagManagementView } from "./TagManagementView";
 import { searchArticlesAuto, type RssSearchResult } from "../../api/rss-search";
 import { markArticleUnreadAuto, migrateFoldersFromLocalStorageAuto } from "../../api/rss-folders";
 import { useClassifiersStore } from "../../stores/classifiersStore";
@@ -143,6 +144,7 @@ export function RSSReader() {
   const { intelligenceFilter, showDisliked, setIntelligenceFilter, toggleShowDisliked } = useClassifiersStore();
   const { tags, loadTags, loadArticleTags, articleTags, setTagFilter, selectedTagFilter } = useTagsStore();
   const [showTagInput, setShowTagInput] = useState(false);
+  const [showTagManagement, setShowTagManagement] = useState(false);
   const [selectedArticleTags, setSelectedArticleTags] = useState<import("../../api/rss-tags").RssTag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
 
@@ -1902,6 +1904,13 @@ export function RSSReader() {
                       <div className="w-full px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-[0.18em]">
                         <Tag className="w-3.5 h-3.5" />
                         Tags
+                        <button
+                          onClick={() => setShowTagManagement(!showTagManagement)}
+                          className={`ml-auto p-0.5 rounded transition-colors ${showTagManagement ? "text-primary" : "hover:text-foreground"}`}
+                          title="Manage tags and prerequisites"
+                        >
+                          <Settings className="w-3 h-3" />
+                        </button>
                       </div>
                       {tags.filter((t) => t.article_count && t.article_count > 0).map((tag) => (
                         <button
@@ -2514,6 +2523,12 @@ export function RSSReader() {
                             articleId={selectedItem.id}
                             onClose={() => setShowAnnotations(false)}
                           />
+                        </div>
+                      )}
+
+                      {showTagManagement && (
+                        <div className="w-80 border-l border-border/70 flex-shrink-0 h-full bg-card">
+                          <TagManagementView onClose={() => setShowTagManagement(false)} />
                         </div>
                       )}
                     </div>

@@ -1,4 +1,5 @@
 export { useQueueStore } from "./queueStore";
+export { useTASStore } from "./tasStore";
 export { useReviewStore } from "./reviewStore";
 export { useDocumentStore } from "./documentStore";
 export { useSettingsStore } from "./settingsStore";

@@ -10,6 +10,7 @@ mod processor;
 mod generator;
 mod podcast;
 mod algorithms;
+mod tas;
 mod ai;
 mod anki;
 mod study_json_import;
@@ -1075,6 +1076,17 @@ pub fn run() {
             commands::podcast::delete_downloaded_episode,
             commands::podcast::save_podcast_transcript,
             sponsorblock::get_sponsorblock_cuts,
+            // TAS (Tag-Aware Scheduling) commands
+            commands::tas::build_tas_queue,
+            commands::tas::set_tag_prerequisites,
+            commands::tas::get_tag_maturity_stats,
+            commands::tas::get_tags,
+            commands::tas::upsert_tag,
+            commands::tas::delete_tag,
+            commands::tas::sync_tags,
+            commands::tas::compute_tag_centroids,
+            commands::tas::get_tas_config,
+            commands::tas::update_tas_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

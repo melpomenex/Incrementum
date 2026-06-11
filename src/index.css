@@ -1367,9 +1367,9 @@
 }
 
 .vim-cursor-visual {
-  background-color: transparent;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.8);
-  border-radius: 0;
+  background-color: rgba(239, 68, 68, 0.25);
+  border: 2px solid rgba(239, 68, 68, 0.85);
+  border-radius: 2px;
 }
 
 .vim-mode-indicator {

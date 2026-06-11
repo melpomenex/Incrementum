@@ -40,8 +40,7 @@ pub mod substack;
 pub mod rss_features;
 pub mod curated_feeds;
 pub mod podcast;
-
-// Re-export error types for use in commands
+pub mod tas;
 pub use crate::error::Result;
 
 pub use analytics::*;
@@ -80,7 +79,7 @@ pub use rss_features::*;
 pub use mcp::*;
 
 pub use podcast::*;
-
+pub use tas::*;
 pub use cloud::oauth::*;
 pub use cloud::backup::*;
 pub use cloud::sync::*;

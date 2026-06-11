@@ -587,6 +587,115 @@ Erstellen Sie benutzerdefinierte Warteschlangen mit Filtern:
 3. Legen Sie Filter und Sortierreihenfolge fest
 4. Benennen und speichern
 
+### Tag-Aware Scheduling (TAS)
+
+<!-- English original below — please translate to German -->
+
+Tag-Aware Scheduling adds semantic intelligence to the review queue.
+When enabled in Settings, TAS applies two post-processing passes over
+your due items without changing underlying SM-20/FSRS intervals:
+
+- **Prerequisite Gating**: Blocks items whose tag prerequisites haven't
+  reached the configured maturity threshold.  Foundational material is
+  stabilized before advanced topics appear.
+- **Interference Jitter**: Separates items sharing high-coherence tags
+  by a minimum time window, reducing semantic interference during review.
+
+TAS is **opt-in** and **non-destructive** — toggle it off at any time
+to return to the default queue order.  Blocked or delayed items keep
+their original due dates and intervals.
+
+#### Enabling TAS
+
+1. Open **Settings → Tag-Aware Scheduling**.
+2. Toggle **Enable TAS** on.
+3. Optionally enable/disable the **Interference** and **Prerequisites**
+   subsystems independently.
+4. Adjust each slider to your preference.
+
+| Setting | Range | Default | Description |
+|---|---|---|---|
+| Minimum Separation | 0–24 h | 4 h | Hours between items sharing a high-coherence tag |
+| Coherence Threshold | 0.50–1.00 | 0.75 | Only tags with coherence ≥ this are separated |
+| Maturity Ratio | 0.50–1.00 | 0.70 | Fraction of items in a prerequisite tag that must be mature |
+
+#### Setting Up Prerequisites
+
+Tag prerequisites let you control the order in which topics surface:
+
+1. Open **Tag Management** (from the media panel or library toolbar).
+2. Click the **Prerequisites** button at the top.
+3. Click a tag name to select it for editing.
+4. In the editor panel, check the tags that must be learned **before**
+   this tag's items can appear in the queue.
+5. Click **Save Prerequisites**.
+
+The **dependency graph** on the right visualizes relationships — arrows
+point from prerequisite to dependent tag.  Circular dependencies are
+detected and rejected at save time.
+
+> **Note**: Tags are synced from your existing items automatically.
+> If a tag doesn't appear, tag some items first, then reopen Tag
+> Management — TAS will detect and register them.
+
+#### Reading the Queue
+
+When TAS is active, the queue header shows a **TAS Active** badge
+with counts of ready and blocked items.
+
+| Badge | Means |
+|---|---|
+| 🟡 "Waiting on `tag` maturity (45%)" | Blocked — a prerequisite tag is only 45% mature |
+| 🔵 "Delayed to avoid interference with `tag`" | Delayed — an item sharing a high-coherence tag was recently scheduled |
+
+#### Forcing Items
+
+You can override TAS for individual items:
+
+- Click the **Force show** link next to any blocked or delayed item
+  to add it to the current review session immediately.
+- The override is session-only — the item is re-evaluated against TAS
+  rules in the next session.
+
+#### How Coherence Is Computed
+
+Coherence measures how semantically tight a tag's items are:
+
+1. Use **Compute Semantic Graph** from the queue view.  This requires
+   a configured embedding provider (OpenAI, Ollama, Cohere, OpenRouter).
+2. Each item's title, content, and tags are sent to your chosen LLM
+   provider and an embedding vector is stored.
+3. After embedding, TAS automatically computes each tag's **centroid**
+   (mean vector of all items with that tag) and **coherence** (average
+   pairwise cosine similarity of those items).
+4. Coherence values appear in Tag Management next to each tag.
+
+Tags with no embeddings yet are treated as coherence = 0 — no
+interference jitter is applied for those tags.
+
+#### Tag Maturity
+
+A tag is **mature** for an item when that item's SM-20/FSRS stability
+meets or exceeds the tag's `maturityThreshold` (default 0.8).  The
+overall maturity ratio is `matureCount / itemCount`.
+
+- Progress bars in the Prerequisite Editor show each tag's current
+  maturity ratio.
+- Prerequisite gating uses the configured `maturityRatio` to decide
+  whether a prerequisite tag is "satisfied" enough to unlock dependent
+  tags for review.
+
+#### Tips
+
+- **Start with prerequisites only**. Keep interference jitter off until
+  you've run the embedding pipeline and have coherence values.
+- **Use granular tags**. `calculus.limits` → `calculus.derivatives` is
+  more effective than one broad `calculus` tag.
+- **Watch the block rate**. If many items sit blocked, lower the maturity
+  ratio or simplify the prerequisite graph.
+- **Force-show is your safety valve**. If TAS is too aggressive for a
+  particular item, force-show it — no underlying scheduling data is harmed.
+
 ---
 
 ## Analysen und Fortschrittsverfolgung

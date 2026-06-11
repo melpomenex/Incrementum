@@ -1623,6 +1623,26 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_rss_feeds_collection ON rss_feeds(collection_id);
         "#,
     ),
+    // Migration 048: Create tags table for Tag-Aware Scheduling
+    Migration::new(
+        "048_create_tags_table",
+        r#"
+        CREATE TABLE IF NOT EXISTS tags (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            prerequisites TEXT NOT NULL DEFAULT '[]',
+            maturity_threshold REAL NOT NULL DEFAULT 0.8,
+            centroid BLOB,
+            coherence REAL,
+            item_count INTEGER NOT NULL DEFAULT 0,
+            avg_stability REAL,
+            mature_count INTEGER NOT NULL DEFAULT 0,
+            date_created TEXT NOT NULL,
+            date_modified TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path
