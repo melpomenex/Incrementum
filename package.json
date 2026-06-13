@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.50.0",
+  "version": "1.50.1",
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
@@ -112,8 +112,6 @@
     "@fontsource/work-sans": "^5.2.8",
     "@fontsource/xanh-mono": "^5.2.8",
     "@huggingface/transformers": "^4.2.0",
-    "@noble/ciphers": "^1.0.0",
-    "@noble/hashes": "^1.5.0",
     "@tanstack/react-query": "^5.90.16",
     "@tanstack/react-virtual": "^3.13.17",
     "@tauri-apps/api": "^2.11.0",
@@ -128,7 +126,6 @@
     "clsx": "^2.1.1",
     "dompurify": "^3.4.2",
     "epubjs": "^0.3.93",
-    "hash-wasm": "^4.12.0",
     "https-proxy-agent": "^7.0.6",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",

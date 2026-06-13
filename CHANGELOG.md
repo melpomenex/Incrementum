@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.50.1] - 2026-06-13
+
+### Fixed
+- **Release Build** — Re-cut release after v1.50.0's `npm ci` failed because the lockfile did not contain entries for three dependencies that had been added to `package.json`. The three deps (`@noble/ciphers`, `@noble/hashes`, `hash-wasm`) belong to in-progress sync-encryption work and have been removed from this release's `package.json` so the lockfile and manifest stay in sync. No user-facing behavior changes since v1.50.0.
+
 ## [1.50.0] - 2026-06-13
 
 ### Added
