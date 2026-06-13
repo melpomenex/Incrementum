@@ -251,6 +251,9 @@ importers:
       epubjs:
         specifier: ^0.3.93
         version: 0.3.93
+      hash-wasm:
+        specifier: ^4.12.0
+        version: 4.12.0
       https-proxy-agent:
         specifier: ^7.0.6
         version: 7.0.6
@@ -263,6 +266,9 @@ importers:
       katex:
         specifier: ^0.16.44
         version: 0.16.45
+      lib0:
+        specifier: ^0.2.117
+        version: 0.2.117
       libgen:
         specifier: ^2.2.0
         version: 2.2.0
@@ -2743,6 +2749,9 @@ packages:
   has@1.0.4:
     resolution: {integrity: sha512-qdSAmqLF6209RFj4VVItywPMbm3vWylknmB3nvNiUIs72xAimcM8nVYxYr7ncvZq5qzk9MKIZR8ijqD/1QuYjQ==}
     engines: {node: '>= 0.4.0'}
+
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
 
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
@@ -6474,6 +6483,8 @@ snapshots:
   has-unicode@2.0.1: {}
 
   has@1.0.4: {}
+
+  hash-wasm@4.12.0: {}
 
   hasown@2.0.2:
     dependencies:
