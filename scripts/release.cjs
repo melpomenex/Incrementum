@@ -68,18 +68,14 @@ if (fs.existsSync(changelogPath)) {
   const releaseHeader = `## [${newVersion}] - ${dateStr}
 
 ### Added
-- **10 Stunning New Themes** — Added 10 brand-new user interface themes (5 dark and 5 light variants).
-- **Start Optimal Session Command** — Added a new "Start Optimal Session" command to the command palette.
-- **Paste Extract Command** — Added a new "Paste Extract" command to the command palette.
-- **Keyboard Shortcut Propagation** — Keyboard shortcuts are now propagated directly to command palette search results.
-- **Auto-Reset Playback & Tab History** — Introduced auto-resetting playback for ended/near-ended media alongside active tab history tracking.
-- **RSS i18n Translation Keys** — Added i18n translation keys for the RSS dashboard, discover panel, and help overlays.
+- **Amber & Rosé Liquid Glass Themes** — Two new translucent glass themes with native OS vibrancy (macOS/Windows) and animated ambient fallbacks.
+- **End-to-End Encrypted Sync Foundation** — Room key derivation (Argon2id), AES-GCM encryption, and an encrypted Yjs provider so sync state and file blobs are protected client-side.
+- **QR Room Key Exchange** — Share or join sync rooms by scanning or entering a QR-encoded 256-bit room key.
+- **Secure Key Storage** — Native secure storage (Rust \`secure_storage\` command) keeps the sync room key out of plaintext.
 
 ### Fixed & Improved
-- **Podcast Playback Issue** — Resolved a \`NotSupportedError\` when attempting to play podcast audio within macOS WKWebView.
-- **Document Viewer Guard** — Guarded \`Node.contains\` against non-Node event targets to prevent crashes in the Document Viewer.
-- **RSS Performance & Navigation** — Optimized search/interaction performance and resolved arrow key navigation issues in the RSS view.
-- **RSS & Web Browser Translations** — Updated translations for RSS features and web browser tab improvements.
+- **Truthful Sync Encryption Status** — Replaced the misleading "End-to-end enabled" label with accurate status (Encrypted / TLS only) plus a passphrase/QR-key flow in Sync settings.
+- **yjs-sync Service Cleanup** — Updated the relay service, home-worker, and docker-compose configuration.
 
 `;
 
@@ -108,18 +104,14 @@ try {
   console.log('Creating GitHub Release draft...');
   const notesFile = path.join(rootDir, 'release-notes.tmp.md');
   const notes = `### Added
-- **10 Stunning New Themes** — Added 10 brand-new user interface themes (5 dark and 5 light variants).
-- **Start Optimal Session Command** — Added a new "Start Optimal Session" command to the command palette.
-- **Paste Extract Command** — Added a new "Paste Extract" command to the command palette.
-- **Keyboard Shortcut Propagation** — Keyboard shortcuts are now propagated directly to command palette search results.
-- **Auto-Reset Playback & Tab History** — Introduced auto-resetting playback for ended/near-ended media alongside active tab history tracking.
-- **RSS i18n Translation Keys** — Added i18n translation keys for the RSS dashboard, discover panel, and help overlays.
+- **Amber & Rosé Liquid Glass Themes** — Two new translucent glass themes with native OS vibrancy (macOS/Windows) and animated ambient fallbacks.
+- **End-to-End Encrypted Sync Foundation** — Room key derivation (Argon2id), AES-GCM encryption, and an encrypted Yjs provider so sync state and file blobs are protected client-side.
+- **QR Room Key Exchange** — Share or join sync rooms by scanning or entering a QR-encoded 256-bit room key.
+- **Secure Key Storage** — Native secure storage (Rust \`secure_storage\` command) keeps the sync room key out of plaintext.
 
 ### Fixed & Improved
-- **Podcast Playback Issue** — Resolved a \`NotSupportedError\` when attempting to play podcast audio within macOS WKWebView.
-- **Document Viewer Guard** — Guarded \`Node.contains\` against non-Node event targets to prevent crashes in the Document Viewer.
-- **RSS Performance & Navigation** — Optimized search/interaction performance and resolved arrow key navigation issues in the RSS view.
-- **RSS & Web Browser Translations** — Updated translations for RSS features and web browser tab improvements.`;
+- **Truthful Sync Encryption Status** — Replaced the misleading "End-to-end enabled" label with accurate status (Encrypted / TLS only) plus a passphrase/QR-key flow in Sync settings.
+- **yjs-sync Service Cleanup** — Updated the relay service, home-worker, and docker-compose configuration.`;
 
   fs.writeFileSync(notesFile, notes, 'utf8');
   execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });

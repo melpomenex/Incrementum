@@ -8,7 +8,7 @@ services:
           npm init -y >/dev/null 2>&1;
         fi;
         npm install --no-save y-websocket@^1.5.4 >/dev/null 2>&1;
-        YPERSISTENCE=/data PORT=1234 HOST=0.0.0.0 node --max-old-space-size=4096 node_modules/y-websocket/bin/server.js
+        YPERSISTENCE=/data PORT=1234 HOST=0.0.0.0 node --max-old-space-size=4096 server.js
       "
     environment:
       - YPERSISTENCE=/data
@@ -16,6 +16,11 @@ services:
     volumes:
       - yjs_data:/data
       - yjs_app:/app
+      # Forked relay entry point + utils (see yjs-sync/utils.js header for
+      # what changed vs upstream). Bind-mounted read-only so container
+      # restarts pick up edits without rebuilding.
+      - ./server.js:/app/server.js:ro
+      - ./utils.js:/app/utils.js:ro
     networks:
       - internal
     restart: unless-stopped

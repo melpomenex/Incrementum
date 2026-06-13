@@ -1,6 +1,8 @@
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { IndexeddbPersistence } from "y-indexeddb";
+import { EncryptedWebsocketProvider } from "./sync/encryptedProvider";
+import { getCachedSubKeys } from "./sync/roomCrypto";
 
 type YjsSyncState = {
   doc: Y.Doc;
@@ -8,6 +10,7 @@ type YjsSyncState = {
   persistence: IndexeddbPersistence;
   url: string;
   room: string;
+  encrypted: boolean;
 };
 
 const DEFAULT_SYNC_URL = "wss://sync.readsync.org";
@@ -179,11 +182,12 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         persistence = null;
       }
 
-      const provider = new WebsocketProvider(url, room, doc, {
-        connect: true,
-      });
+      const provider = await buildProvider(url, room, doc);
 
       if (isSyncDebugEnabled()) {
+        console.debug("[YjsSync] provider constructed", {
+          encrypted: provider !== undefined && (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
+        });
       }
 
       provider.on("status", (event: { status: string }) => {
@@ -208,6 +212,7 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         persistence,
         url,
         room,
+        encrypted: (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
       };
 
       let idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -295,6 +300,48 @@ export async function getYjsSync(): Promise<YjsSyncState> {
  */
 export function getYjsSyncInstance(): YjsSyncState | null {
   return instance;
+}
+
+/**
+ * Construct the WebSocket provider for the sync doc. If a cached room key is
+ * present (set via the SyncSettings → roomCrypto.enableEncryption flow), the
+ * returned provider wraps y-websocket in EncryptedWebsocketProvider so all
+ * sync payloads are AES-GCM-encrypted on the wire. If no key is cached, sync
+ * runs in "TLS only" mode (plain WebsocketProvider — confidentiality depends
+ * on TLS plus the room ID as a bearer secret).
+ *
+ * The wrapper's underlying provider is a real WebsocketProvider instance
+ * using a polyfilled WebSocket, so all WebsocketProvider API (events,
+ * wsconnected, connect/disconnect) works unchanged for the rest of this
+ * module.
+ */
+async function buildProvider(
+  url: string,
+  room: string,
+  doc: Y.Doc,
+): Promise<WebsocketProvider> {
+  const subKeys = await getCachedSubKeys(room).catch((err) => {
+    console.warn("[YjsSync] failed to load cached sub-keys; falling back to plaintext", err);
+    return null;
+  });
+  if (!subKeys) {
+    return new WebsocketProvider(url, room, doc, { connect: true });
+  }
+  const wrapper = new EncryptedWebsocketProvider(
+    WebsocketProvider,
+    url,
+    room,
+    doc,
+    subKeys.stateKey,
+  );
+  // Mark for diagnostics (read by buildProvider's debug log above).
+  Object.defineProperty(wrapper.provider, "__encrypted", {
+    value: true,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  return wrapper.provider;
 }
 
 /**

@@ -108,7 +108,7 @@ fn greet(name: &str) -> String {
 #[cfg(target_os = "macos")]
 fn apply_platform_vibrancy(window: &tauri::WebviewWindow, theme_id: &str) -> bool {
     use window_vibrancy::{apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial};
-    if theme_id == "liquid-glass" {
+    if theme_id == "liquid-glass" || theme_id == "amber-liquid-glass" || theme_id == "rose-liquid-glass" {
         apply_vibrancy(window, NSVisualEffectMaterial::UnderWindowBackground, None, None).is_ok()
     } else {
         let _ = clear_vibrancy(window);
@@ -119,11 +119,12 @@ fn apply_platform_vibrancy(window: &tauri::WebviewWindow, theme_id: &str) -> boo
 #[cfg(target_os = "windows")]
 fn apply_platform_vibrancy(window: &tauri::WebviewWindow, theme_id: &str) -> bool {
     use window_vibrancy::{apply_mica, apply_acrylic, clear_mica, clear_acrylic};
-    if theme_id == "liquid-glass" {
+    if theme_id == "liquid-glass" || theme_id == "amber-liquid-glass" || theme_id == "rose-liquid-glass" {
         if apply_mica(window, None).is_ok() {
             true
         } else {
-            apply_acrylic(window, Some((15, 23, 42, 120))).is_ok()
+            // Amber-tinted fallback (30, 20, 8) for acrylic
+            apply_acrylic(window, Some((30, 20, 8, 120))).is_ok()
         }
     } else {
         let _ = clear_mica(window);
@@ -715,6 +716,9 @@ pub fn run() {
             commands::set_api_key,
             commands::get_masked_api_key,
             commands::remove_api_key,
+            commands::secure_storage_set,
+            commands::secure_storage_get,
+            commands::secure_storage_clear,
             commands::generate_flashcards_from_extract,
             commands::generate_flashcards_from_content,
             commands::answer_question,

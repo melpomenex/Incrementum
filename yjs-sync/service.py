@@ -14,12 +14,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
+logger = logging.getLogger(__name__)
+
 # Flask for HTTP server
 try:
     from flask import Flask, request, jsonify
     from flask_cors import CORS
 except ImportError:
-    logger = logging.getLogger(__name__)
     logger.warning("Installing required packages...")
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "flask", "flask-cors"], check=True
@@ -27,26 +28,26 @@ except ImportError:
     from flask import Flask, request, jsonify
     from flask_cors import CORS
 
-<<<<<<< Updated upstream
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-PROXY_HOST = "REDACTED_PROXY"
-PROXY_PORT = "10001"
-PROXY_USER = "REDACTED_USER"
-PROXY_PASS = "REDACTED_PASS"
-PROXY_URL = f"http://{PROXY_USER}:{quote(PROXY_PASS, safe='')}@{PROXY_HOST}:{PROXY_PORT}"
-=======
-logger = logging.getLogger(__name__)
-
-PROXY_HOST = "us.decodo.com"
-PROXY_PORT = "10001"
-PROXY_USER = "sps486nntn"
-PROXY_PASS = "Yi7uqUnrbIK6au=7o0"
-PROXY_URL = (
-    f"http://{PROXY_USER}:{quote(PROXY_PASS, safe='')}@{PROXY_HOST}:{PROXY_PORT}"
-)
->>>>>>> Stashed changes
+# Proxy credentials MUST come from environment variables. A prior commit
+# leaked real Decodo proxy credentials inside a stashed merge-conflict block;
+# those credentials are being rotated (overhaul-cross-device-sync Task 0.2).
+# Never hardcode proxy credentials in this file.
+PROXY_HOST = os.environ.get("PROXY_HOST")
+PROXY_PORT = os.environ.get("PROXY_PORT", "10001")
+PROXY_USER = os.environ.get("PROXY_USER")
+PROXY_PASS = os.environ.get("PROXY_PASS")
+if PROXY_HOST and PROXY_USER and PROXY_PASS:
+    PROXY_URL = (
+        f"http://{PROXY_USER}:{quote(PROXY_PASS, safe='')}@{PROXY_HOST}:{PROXY_PORT}"
+    )
+else:
+    PROXY_URL = None
+    logger.warning(
+        "PROXY_HOST/USER/PASS env vars not set; YouTube transcript fetches will run without proxy"
+    )
 
 # API key for authentication (set via env var)
 API_KEY = os.environ.get("TRANSCRIPT_API_KEY", "change-me-in-production")

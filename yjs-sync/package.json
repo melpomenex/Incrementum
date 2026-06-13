@@ -1,0 +1,6 @@
+{
+  "name": "incrementum-yjs-sync-relay",
+  "private": true,
+  "type": "commonjs",
+  "description": "Local override: server.js and utils.js are CommonJS forks of y-websocket/bin/*."
+}

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.50.2] - 2026-06-13
+
+### Added
+- **Amber & Rosé Liquid Glass Themes** — Two new translucent glass themes with native OS vibrancy (macOS/Windows) and animated ambient fallbacks.
+- **End-to-End Encrypted Sync Foundation** — Room key derivation (Argon2id), AES-GCM encryption, and an encrypted Yjs provider so sync state and file blobs are protected client-side.
+- **QR Room Key Exchange** — Share or join sync rooms by scanning or entering a QR-encoded 256-bit room key.
+- **Secure Key Storage** — Native secure storage (Rust `secure_storage` command) keeps the sync room key out of plaintext.
+
+### Fixed & Improved
+- **Truthful Sync Encryption Status** — Replaced the misleading "End-to-end enabled" label with accurate status (Encrypted / TLS only) plus a passphrase/QR-key flow in Sync settings.
+- **yjs-sync Service Cleanup** — Updated the relay service, home-worker, and docker-compose configuration.
+
 ## [1.50.1] - 2026-06-13
 
 ### Fixed

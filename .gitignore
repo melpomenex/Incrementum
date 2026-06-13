@@ -15,6 +15,9 @@ dist-ssr
 *.local
 Vagrantfile
 
+# Rust build output
+src-tauri/target
+
 report.md
 
 # Ignore directories

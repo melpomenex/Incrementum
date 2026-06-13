@@ -165,6 +165,8 @@ export const BUILTIN_THEMES = {
   NORDIC_SLATE: 'nordic-slate',
   COZY_WINDOWPANE: 'cozy-windowpane',
   LIQUID_GLASS: 'liquid-glass',
+  AMBER_LIQUID_GLASS: 'amber-liquid-glass',
+  ROSE_LIQUID_GLASS: 'rose-liquid-glass',
   OBSIDIAN_NOIR: 'obsidian-noir',
   VELVET_TWILIGHT: 'velvet-twilight',
   NEON_PULSE: 'neon-pulse',

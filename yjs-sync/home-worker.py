@@ -11,14 +11,12 @@ import time
 import requests
 from pathlib import Path
 
-<<<<<<< Updated upstream
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+# VPS_URL must be provided via env var. Default intentionally points at an
+# invalid placeholder — never commit a real Tailscale/service IP here.
 VPS_URL = os.environ.get("VPS_URL", "http://REDACTED_IP:8766")
-=======
-VPS_URL = os.environ.get("VPS_URL", "http://100.103.106.125:8766")
->>>>>>> Stashed changes
 VPS_API_KEY = os.environ.get("VPS_API_KEY", "change-me-in-production")
 WORKER_ID = os.environ.get("WORKER_ID", "mac-mini-1")
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "5"))  # seconds

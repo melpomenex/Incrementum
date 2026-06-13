@@ -20,6 +20,25 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Fail on unresolved merge conflicts
+        run: |
+          set -e
+          # Look for git merge-conflict markers in tracked source files.
+          # Skips generated/dependency dirs. Fails on the first match so that
+          # accidental commits of an unresolved conflict never reach main.
+          # Pattern: `<<<<<<< ` / `>>>>>>> ` start a marker line (with anything
+          # after); `=======` is the separator (git emits exactly 7 `=`).
+          hits=$(git grep -lnE '^(<<<<<<< |>>>>>>> )|^=======$' -- \
+            ':!node_modules' ':!dist' ':!src-tauri/target' ':!src-tauri/gen' \
+            ':!**/package-lock.json' ':!**/Cargo.lock' \
+            2>/dev/null || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Unresolved merge-conflict markers found in:"
+            echo "$hits"
+            exit 1
+          fi
+          echo "No merge-conflict markers detected."
+
       - name: Install system dependencies
         run: |
           sudo apt-get update

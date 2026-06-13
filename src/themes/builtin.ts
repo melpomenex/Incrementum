@@ -3709,6 +3709,516 @@ export const liquidGlassTheme: Theme = {
   `,
 };
 
+// Amber Liquid Glass Theme - Warm amber resin tones with platform-aware translucency & animated fallback
+export const amberLiquidGlassTheme: Theme = {
+  id: 'amber-liquid-glass',
+  name: 'Amber Liquid Glass',
+  variant: 'dark',
+  description: 'Premium liquid glass design with native OS vibrancy and a warm amber glow fallback',
+  colors: {
+    background: 'transparent',
+    onBackground: '#fef3c7',
+    surface: 'rgba(30, 20, 8, 0.45)',
+    onSurface: '#fef3c7',
+    surfaceVariant: 'rgba(45, 30, 12, 0.4)',
+    primary: '#f59e0b',
+    onPrimary: '#1a1002',
+    primaryContainer: 'rgba(245, 158, 11, 0.15)',
+    onPrimaryContainer: '#fde8c2',
+    secondary: 'rgba(180, 150, 110, 0.3)',
+    onSecondary: '#fef3c7',
+    outline: 'rgba(255, 255, 255, 0.08)',
+    outlineVariant: 'rgba(255, 255, 255, 0.04)',
+    error: '#f87171',
+    onError: '#ffffff',
+    errorContainer: 'rgba(248, 113, 113, 0.15)',
+    onErrorContainer: '#fecaca',
+    success: '#34d399',
+    warning: '#fbbf24',
+    toolbar: 'rgba(30, 20, 8, 0.55)',
+    sidebar: 'rgba(20, 13, 5, 0.5)',
+    card: 'rgba(45, 30, 12, 0.4)',
+    input: 'rgba(30, 20, 8, 0.3)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    text: '#fef3c7',
+    textSecondary: '#c9a96a',
+    link: '#f59e0b',
+  },
+  typography: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.15)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.25)',
+    lg: '0 8px 32px rgba(0, 0, 0, 0.35)',
+    xl: '0 16px 48px rgba(0, 0, 0, 0.45)',
+  },
+  effects: {
+    backgroundAnimation: 'liquid-glow',
+  },
+  customCSS: `
+    /* Amber Liquid Glass Fallback Animated Ambient Backdrop */
+    :root[data-theme-id="amber-liquid-glass"] {
+      background: radial-gradient(circle at 50% 50%, #1a1206 0%, #0d0903 100%) !important;
+      position: relative;
+      isolation: isolate;
+    }
+
+    /* Ambient moving fluid blobs */
+    :root[data-theme-id="amber-liquid-glass"]::before,
+    :root[data-theme-id="amber-liquid-glass"]::after {
+      content: "";
+      position: fixed;
+      width: 60vw;
+      height: 60vw;
+      border-radius: 50%;
+      filter: blur(100px);
+      z-index: -100;
+      opacity: 0.22;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      animation: amber-blob-flow 30s infinite alternate ease-in-out;
+    }
+
+    :root[data-theme-id="amber-liquid-glass"]::before {
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.6) 0%, transparent 70%);
+      top: -20%;
+      left: -20%;
+      animation-delay: 0s;
+    }
+
+    :root[data-theme-id="amber-liquid-glass"]::after {
+      background: radial-gradient(circle, rgba(232, 120, 40, 0.5) 0%, transparent 70%);
+      bottom: -20%;
+      right: -20%;
+      animation-delay: -7s;
+      animation-duration: 35s;
+    }
+
+    @keyframes amber-blob-flow {
+      0% {
+        transform: translate(0, 0) scale(1) rotate(0deg);
+      }
+      33% {
+        transform: translate(15vw, 10vh) scale(1.15) rotate(120deg);
+      }
+      66% {
+        transform: translate(-10vw, 25vh) scale(0.9) rotate(240deg);
+      }
+      100% {
+        transform: translate(5vw, -5vh) scale(1.05) rotate(360deg);
+      }
+    }
+
+    /* Hide CSS ambient gradient blobs when native OS window vibrancy is successfully active */
+    :root[data-theme-id="amber-liquid-glass"][data-vibrancy-active="true"] {
+      background: transparent !important;
+    }
+    :root[data-theme-id="amber-liquid-glass"][data-vibrancy-active="true"]::before,
+    :root[data-theme-id="amber-liquid-glass"][data-vibrancy-active="true"]::after {
+      display: none !important;
+    }
+
+    /* Custom layout component transparency and glass blurs */
+    :root[data-theme-id="amber-liquid-glass"] .sidebar-section,
+    :root[data-theme-id="amber-liquid-glass"] aside {
+      background: rgba(20, 13, 5, 0.4) !important;
+      backdrop-filter: blur(16px) saturate(130%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(130%) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+    }
+
+    :root[data-theme-id="amber-liquid-glass"] .sidebar-item-active {
+      background: rgba(245, 158, 11, 0.12) !important;
+      border-left: 3px solid #f59e0b !important;
+      color: #f59e0b !important;
+    }
+
+    :root[data-theme-id="amber-liquid-glass"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(255, 255, 255, 0.04) !important;
+    }
+
+    /* Cards and list items */
+    :root[data-theme-id="amber-liquid-glass"] .glass-card-enhanced,
+    :root[data-theme-id="amber-liquid-glass"] .card,
+    :root[data-theme-id="amber-liquid-glass"] [data-card="true"] {
+      background: rgba(45, 30, 12, 0.35) !important;
+      backdrop-filter: blur(14px) !important;
+      -webkit-backdrop-filter: blur(14px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+      border-radius: var(--radius-lg);
+    }
+
+    /* Top navigation / toolbar overlays */
+    :root[data-theme-id="amber-liquid-glass"] .toolbar,
+    :root[data-theme-id="amber-liquid-glass"] .top-bar,
+    :root[data-theme-id="amber-liquid-glass"] header {
+      background: rgba(30, 20, 8, 0.45) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    /* Input borders and focus state glow */
+    :root[data-theme-id="amber-liquid-glass"] input,
+    :root[data-theme-id="amber-liquid-glass"] textarea,
+    :root[data-theme-id="amber-liquid-glass"] select {
+      background: rgba(30, 20, 8, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(8px) !important;
+    }
+    
+    :root[data-theme-id="amber-liquid-glass"] input:focus,
+    :root[data-theme-id="amber-liquid-glass"] textarea:focus {
+      border-color: rgba(245, 158, 11, 0.5) !important;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
+    }
+
+    /* Style dynamic iframes in readers to be transparent so the glass background shows through */
+    :root[data-theme-id="amber-liquid-glass"] iframe,
+    :root[data-theme-id="amber-liquid-glass"] [data-epub-viewer="true"] iframe {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    /* Force all epubjs host-side container elements transparent */
+    :root[data-theme-id="amber-liquid-glass"] [data-epub-viewer="true"] div,
+    :root[data-theme-id="amber-liquid-glass"] [data-epub-viewer="true"] * {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    /* Style the EPUB and HTML reader sheets as floating frosted glass pages */
+    :root[data-theme-id="amber-liquid-glass"] [data-epub-viewer="true"],
+    :root[data-theme-id="amber-liquid-glass"] [data-html-viewer="true"] {
+      position: absolute !important;
+      background: rgba(30, 20, 8, 0.6) !important;
+      backdrop-filter: blur(20px) saturate(120%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+      border-radius: var(--radius-xl) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4) !important;
+      inset: 1.5rem !important;
+      width: calc(100% - 3rem) !important;
+      height: calc(100% - 3rem) !important;
+    }
+
+    /* Style the Table of Contents sidebar in EPUB Viewer as frosted glass */
+    :root[data-theme-id="amber-liquid-glass"] .w-64.bg-card {
+      background: rgba(20, 13, 5, 0.45) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* In mobile viewport, let reader sheets fill the screen to maximize reading space but keep transparency */
+    @media (max-width: 768px) {
+      :root[data-theme-id="amber-liquid-glass"] [data-epub-viewer="true"],
+      :root[data-theme-id="amber-liquid-glass"] [data-html-viewer="true"] {
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+      }
+    }
+  `,
+};
+
+// Rosé Liquid Glass Theme - Soft rose tones with platform-aware translucency & animated fallback
+export const roseLiquidGlassTheme: Theme = {
+  id: 'rose-liquid-glass',
+  name: 'Rosé Liquid Glass',
+  variant: 'dark',
+  description: 'Premium liquid glass design with native OS vibrancy and a soft rose glow fallback',
+  colors: {
+    background: 'transparent',
+    onBackground: '#fdf2f8',
+    surface: 'rgba(40, 12, 25, 0.45)',
+    onSurface: '#fdf2f8',
+    surfaceVariant: 'rgba(55, 18, 32, 0.4)',
+    primary: '#f43f5e',
+    onPrimary: '#4c0519',
+    primaryContainer: 'rgba(244, 63, 94, 0.15)',
+    onPrimaryContainer: '#ffe4e6',
+    secondary: 'rgba(190, 130, 150, 0.3)',
+    onSecondary: '#fdf2f8',
+    outline: 'rgba(255, 255, 255, 0.08)',
+    outlineVariant: 'rgba(255, 255, 255, 0.04)',
+    error: '#f87171',
+    onError: '#ffffff',
+    errorContainer: 'rgba(248, 113, 113, 0.15)',
+    onErrorContainer: '#fecaca',
+    success: '#34d399',
+    warning: '#fbbf24',
+    toolbar: 'rgba(40, 12, 25, 0.55)',
+    sidebar: 'rgba(28, 8, 18, 0.5)',
+    card: 'rgba(55, 18, 32, 0.4)',
+    input: 'rgba(40, 12, 25, 0.3)',
+    border: 'rgba(255, 255, 255, 0.08)',
+    text: '#fdf2f8',
+    textSecondary: '#d6a8b8',
+    link: '#f43f5e',
+  },
+  typography: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      md: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+    },
+    fontWeight: {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    '2xl': '3rem',
+    '3xl': '4rem',
+  },
+  radius: {
+    none: '0',
+    sm: '0.25rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+    '2xl': '1.25rem',
+    full: '9999px',
+  },
+  shadows: {
+    sm: '0 2px 8px rgba(0, 0, 0, 0.15)',
+    md: '0 4px 16px rgba(0, 0, 0, 0.25)',
+    lg: '0 8px 32px rgba(0, 0, 0, 0.35)',
+    xl: '0 16px 48px rgba(0, 0, 0, 0.45)',
+  },
+  effects: {
+    backgroundAnimation: 'liquid-glow',
+  },
+  customCSS: `
+    /* Rosé Liquid Glass Fallback Animated Ambient Backdrop */
+    :root[data-theme-id="rose-liquid-glass"] {
+      background: radial-gradient(circle at 50% 50%, #1a0a12 0%, #0d0509 100%) !important;
+      position: relative;
+      isolation: isolate;
+    }
+
+    /* Ambient moving fluid blobs */
+    :root[data-theme-id="rose-liquid-glass"]::before,
+    :root[data-theme-id="rose-liquid-glass"]::after {
+      content: "";
+      position: fixed;
+      width: 60vw;
+      height: 60vw;
+      border-radius: 50%;
+      filter: blur(100px);
+      z-index: -100;
+      opacity: 0.22;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      animation: rose-blob-flow 30s infinite alternate ease-in-out;
+    }
+
+    :root[data-theme-id="rose-liquid-glass"]::before {
+      background: radial-gradient(circle, rgba(244, 63, 94, 0.6) 0%, transparent 70%);
+      top: -20%;
+      left: -20%;
+      animation-delay: 0s;
+    }
+
+    :root[data-theme-id="rose-liquid-glass"]::after {
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
+      bottom: -20%;
+      right: -20%;
+      animation-delay: -7s;
+      animation-duration: 35s;
+    }
+
+    @keyframes rose-blob-flow {
+      0% {
+        transform: translate(0,0) scale(1) rotate(0deg);
+      }
+      33% {
+        transform: translate(15vw, 10vh) scale(1.15) rotate(120deg);
+      }
+      66% {
+        transform: translate(-10vw, 25vh) scale(0.9) rotate(240deg);
+      }
+      100% {
+        transform: translate(5vw, -5vh) scale(1.05) rotate(360deg);
+      }
+    }
+
+    /* Hide CSS ambient gradient blobs when native OS window vibrancy is successfully active */
+    :root[data-theme-id="rose-liquid-glass"][data-vibrancy-active="true"] {
+      background: transparent !important;
+    }
+    :root[data-theme-id="rose-liquid-glass"][data-vibrancy-active="true"]::before,
+    :root[data-theme-id="rose-liquid-glass"][data-vibrancy-active="true"]::after {
+      display: none !important;
+    }
+
+    /* Custom layout component transparency and glass blurs */
+    :root[data-theme-id="rose-liquid-glass"] .sidebar-section,
+    :root[data-theme-id="rose-liquid-glass"] aside {
+      background: rgba(28, 8, 18, 0.4) !important;
+      backdrop-filter: blur(16px) saturate(130%) !important;
+      -webkit-backdrop-filter: blur(16px) saturate(130%) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+    }
+
+    :root[data-theme-id="rose-liquid-glass"] .sidebar-item-active {
+      background: rgba(244, 63, 94, 0.12) !important;
+      border-left: 3px solid #f43f5e !important;
+      color: #f43f5e !important;
+    }
+
+    :root[data-theme-id="rose-liquid-glass"] .sidebar-item:hover:not(.sidebar-item-active) {
+      background: rgba(255, 255, 255, 0.04) !important;
+    }
+
+    /* Cards and list items */
+    :root[data-theme-id="rose-liquid-glass"] .glass-card-enhanced,
+    :root[data-theme-id="rose-liquid-glass"] .card,
+    :root[data-theme-id="rose-liquid-glass"] [data-card="true"] {
+      background: rgba(55, 18, 32, 0.35) !important;
+      backdrop-filter: blur(14px) !important;
+      -webkit-backdrop-filter: blur(14px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+      border-radius: var(--radius-lg);
+    }
+
+    /* Top navigation / toolbar overlays */
+    :root[data-theme-id="rose-liquid-glass"] .toolbar,
+    :root[data-theme-id="rose-liquid-glass"] .top-bar,
+    :root[data-theme-id="rose-liquid-glass"] header {
+      background: rgba(40, 12, 25, 0.45) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+
+    /* Input borders and focus state glow */
+    :root[data-theme-id="rose-liquid-glass"] input,
+    :root[data-theme-id="rose-liquid-glass"] textarea,
+    :root[data-theme-id="rose-liquid-glass"] select {
+      background: rgba(40, 12, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(8px) !important;
+    }
+    
+    :root[data-theme-id="rose-liquid-glass"] input:focus,
+    :root[data-theme-id="rose-liquid-glass"] textarea:focus {
+      border-color: rgba(244, 63, 94, 0.5) !important;
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.25) !important;
+    }
+
+    /* Style dynamic iframes in readers to be transparent so the glass background shows through */
+    :root[data-theme-id="rose-liquid-glass"] iframe,
+    :root[data-theme-id="rose-liquid-glass"] [data-epub-viewer="true"] iframe {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    /* Force all epubjs host-side container elements transparent */
+    :root[data-theme-id="rose-liquid-glass"] [data-epub-viewer="true"] div,
+    :root[data-theme-id="rose-liquid-glass"] [data-epub-viewer="true"] * {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    /* Style the EPUB and HTML reader sheets as floating frosted glass pages */
+    :root[data-theme-id="rose-liquid-glass"] [data-epub-viewer="true"],
+    :root[data-theme-id="rose-liquid-glass"] [data-html-viewer="true"] {
+      position: absolute !important;
+      background: rgba(40, 12, 25, 0.6) !important;
+      backdrop-filter: blur(20px) saturate(120%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+      border-radius: var(--radius-xl) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4) !important;
+      inset: 1.5rem !important;
+      width: calc(100% - 3rem) !important;
+      height: calc(100% - 3rem) !important;
+    }
+
+    /* Style the Table of Contents sidebar in EPUB Viewer as frosted glass */
+    :root[data-theme-id="rose-liquid-glass"] .w-64.bg-card {
+      background: rgba(28, 8, 18, 0.45) !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* In mobile viewport, let reader sheets fill the screen to maximize reading space but keep transparency */
+    @media (max-width: 768px) {
+      :root[data-theme-id="rose-liquid-glass"] [data-epub-viewer="true"],
+      :root[data-theme-id="rose-liquid-glass"] [data-html-viewer="true"] {
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+      }
+    }
+  `,
+};
+
 // ═══════════════════════════════════════════════════════════════
 // Obsidian Noir — Polished obsidian stone catching firelight
 // ═══════════════════════════════════════════════════════════════
@@ -4518,6 +5028,8 @@ export const builtInThemes: Theme[] = [
   nordicSlateTheme,
   cozyWindowpaneTheme,
   liquidGlassTheme,
+  amberLiquidGlassTheme,
+  roseLiquidGlassTheme,
   obsidianNoirTheme,
   velvetTwilightTheme,
   neonPulseTheme,
