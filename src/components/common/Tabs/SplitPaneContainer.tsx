@@ -12,6 +12,7 @@ interface SplitPaneContainerProps {
   onMoveTab: (fromIndex: number, toIndex: number, paneId: string) => void;
   onMoveTabToPane: (tabId: string, fromPaneId: string, toPaneId: string, targetIndex?: number) => void;
   onSplitPane: (paneId: string, tabId: string, direction: SplitDirection, side: "before" | "after") => void;
+  onMoveTabToSplit: (tabId: string, fromPaneId: string, targetPaneId: string, direction: SplitDirection, side: "before" | "after") => void;
   onSpawnTabInSplit: (paneId: string, tabId: string, direction: SplitDirection, side: "before" | "after") => void;
   onResizeSplit: (splitPaneId: string, sizes: number[]) => void;
   onCollapseSplit: (splitPaneId: string, childPaneId: string) => void;
@@ -35,6 +36,7 @@ export function SplitPaneContainer({
   onMoveTab,
   onMoveTabToPane,
   onSplitPane,
+  onMoveTabToSplit,
   onSpawnTabInSplit,
   onResizeSplit,
   onCollapseSplit,
@@ -53,6 +55,7 @@ export function SplitPaneContainer({
         onMoveTab={onMoveTab}
         onMoveTabToPane={onMoveTabToPane}
         onSplitPane={onSplitPane}
+        onMoveTabToSplit={onMoveTabToSplit}
         onSpawnTabInSplit={onSpawnTabInSplit}
         onResizeSplit={onResizeSplit}
         onCollapseSplit={onCollapseSplit}
@@ -73,6 +76,7 @@ export function SplitPaneContainer({
       onMoveTab={onMoveTab}
       onMoveTabToPane={onMoveTabToPane}
       onSplitPane={onSplitPane}
+      onMoveTabToSplit={onMoveTabToSplit}
       onSpawnTabInSplit={onSpawnTabInSplit}
       draggedTabId={draggedTabId}
       draggedTabSourcePaneId={draggedTabSourcePaneId}
@@ -94,6 +98,7 @@ function SplitView({
   onMoveTab,
   onMoveTabToPane,
   onSplitPane,
+  onMoveTabToSplit,
   onSpawnTabInSplit,
   onResizeSplit,
   onCollapseSplit,
@@ -186,6 +191,7 @@ function SplitView({
               onMoveTab={onMoveTab}
               onMoveTabToPane={onMoveTabToPane}
               onSplitPane={onSplitPane}
+              onMoveTabToSplit={onMoveTabToSplit}
               onSpawnTabInSplit={onSpawnTabInSplit}
               onResizeSplit={onResizeSplit}
               onCollapseSplit={onCollapseSplit}
@@ -236,6 +242,7 @@ function TabPaneView({
   onMoveTab,
   onMoveTabToPane,
   onSplitPane,
+  onMoveTabToSplit,
   onSpawnTabInSplit,
   draggedTabId,
   draggedTabSourcePaneId,
@@ -361,22 +368,20 @@ function TabPaneView({
       // Split pane
       const direction = position === "left" || position === "right" ? "horizontal" : "vertical";
       const side = position === "left" || position === "top" ? "before" : "after";
-      
-      if (draggedTabSourcePaneId) {
-        if (draggedTabSourcePaneId === pane.id) {
-          // Split own pane
-          onSplitPane(pane.id, draggedTabId, direction, side);
-        } else {
-          // Move to split of another pane
-          onSplitPane(pane.id, draggedTabId, direction, side);
-        }
+
+      if (draggedTabSourcePaneId === pane.id) {
+        // Split own pane: the tab is here, so move it into a new sibling pane.
+        onSplitPane(pane.id, draggedTabId, direction, side);
+      } else if (draggedTabSourcePaneId) {
+        // Tab lives in another pane — move it into a new pane beside this one.
+        onMoveTabToSplit(draggedTabId, draggedTabSourcePaneId, pane.id, direction, side);
       }
     }
 
     setDropIndicator(null);
     setIsDraggingOver(false);
     onDragEnd();
-  }, [draggedTabId, draggedTabSourcePaneId, dropIndicator, pane.id, onMoveTabToPane, onSplitPane, onDragEnd]);
+  }, [draggedTabId, draggedTabSourcePaneId, dropIndicator, pane.id, onMoveTabToPane, onSplitPane, onMoveTabToSplit, onDragEnd]);
 
   const getIndicatorStyles = () => {
     if (!dropIndicator || dropIndicator.paneId !== pane.id) return null;

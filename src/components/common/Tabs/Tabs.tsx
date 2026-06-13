@@ -15,6 +15,7 @@ export function Tabs() {
   const moveTab = useTabsStore((state) => state.moveTab);
   const moveTabToPane = useTabsStore((state) => state.moveTabToPane);
   const splitPane = useTabsStore((state) => state.splitPane);
+  const moveTabToSplit = useTabsStore((state) => state.moveTabToSplit);
   const spawnTabInSplit = useTabsStore((state) => state.spawnTabInSplit);
   const resizeSplit = useTabsStore((state) => state.resizeSplit);
   const collapseSplit = useTabsStore((state) => state.collapseSplit);
@@ -142,6 +143,7 @@ export function Tabs() {
           onMoveTab={moveTab}
           onMoveTabToPane={moveTabToPane}
           onSplitPane={splitPane}
+          onMoveTabToSplit={moveTabToSplit}
           onSpawnTabInSplit={spawnTabInSplit}
           onResizeSplit={resizeSplit}
           onCollapseSplit={collapseSplit}

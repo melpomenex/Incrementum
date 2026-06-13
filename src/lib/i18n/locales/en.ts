@@ -803,6 +803,11 @@ export const en: Dict = {
   "tabContextMenu.closeOthers": "Close Others",
   "tabContextMenu.closeTabsToRight": "Close Tabs to Right",
   "tabContextMenu.closeAllTabs": "Close All Tabs",
+  "tabContextMenu.split": "Split",
+  "tabContextMenu.splitRight": "Split Right",
+  "tabContextMenu.splitLeft": "Split Left",
+  "tabContextMenu.splitDown": "Split Down",
+  "tabContextMenu.splitUp": "Split Up",
 
   "cardContextMenu.edit": "Edit in Studio",
   "cardContextMenu.preview": "Preview",

@@ -9,6 +9,19 @@ interface TabContextMenuProps {
   onClose: () => void;
 }
 
+type SplitTarget = {
+  direction: "horizontal" | "vertical";
+  side: "before" | "after";
+  labelKey: string;
+};
+
+const SPLIT_TARGETS: SplitTarget[] = [
+  { direction: "horizontal", side: "after", labelKey: "tabContextMenu.splitRight" },
+  { direction: "horizontal", side: "before", labelKey: "tabContextMenu.splitLeft" },
+  { direction: "vertical", side: "after", labelKey: "tabContextMenu.splitDown" },
+  { direction: "vertical", side: "before", labelKey: "tabContextMenu.splitUp" },
+];
+
 export function TabContextMenu({
   tabId,
   x,
@@ -17,7 +30,7 @@ export function TabContextMenu({
 }: TabContextMenuProps) {
   const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
-  const { closeTab, closeOtherTabs, closeTabsToRight, tabs } = useTabsStore();
+  const { closeTab, closeOtherTabs, closeTabsToRight, tabs, splitPane, findPaneContainingTab } = useTabsStore();
 
   // Close menu on click outside
   useEffect(() => {
@@ -52,6 +65,14 @@ export function TabContextMenu({
 
   const handleCloseToRight = () => {
     closeTabsToRight(tabId);
+    onClose();
+  };
+
+  const handleSplit = (direction: "horizontal" | "vertical", side: "before" | "after") => {
+    const pane = findPaneContainingTab(tabId);
+    if (pane) {
+      splitPane(pane.id, tabId, direction, side);
+    }
     onClose();
   };
 
@@ -107,6 +128,25 @@ export function TabContextMenu({
       >
         {t("tabContextMenu.closeTabsToRight")}
       </button>
+
+      <div className="my-1 border-t border-border" />
+
+      {/* Split */}
+      <div className="px-4 pt-1 pb-0.5 text-xs text-muted-foreground">
+        {t("tabContextMenu.split")}
+      </div>
+      {SPLIT_TARGETS.map((target) => (
+        <button
+          key={target.labelKey}
+          onClick={() => handleSplit(target.direction, target.side)}
+          className="
+            w-full px-4 py-2 text-left text-sm
+            hover:bg-muted hover:text-foreground
+          "
+        >
+          {t(target.labelKey)}
+        </button>
+      ))}
 
       <div className="my-1 border-t border-border" />
 
