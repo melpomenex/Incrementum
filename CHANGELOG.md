@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.50.0] - 2026-06-13
+
+### Added
+- **Right-Click Tab Split Menu** — Added Split Right / Left / Down / Up items to the tab context menu so a tab can be split into a new pane without dragging.
+
+### Fixed
+- **Cross-Pane Drag-to-Split** — Dragging a tab onto another pane's edge now correctly moves it into a new sibling pane. The `moveTabToSplit` store action was already implemented but never wired through the React tree, so cross-pane edge drops previously called `splitPane` on the wrong pane and silently no-op'd.
+
 ## [1.49.0] - 2026-06-10
 
 ### Added
