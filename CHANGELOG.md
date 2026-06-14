@@ -14,6 +14,20 @@
 - **Visual-Mode Caret Visibility** — The caret overlay now survives React re-renders triggered by `selectionchange`, re-appends via `requestAnimationFrame`, and renders above the PDF text layer (z-index 9000).
 - **Post-Action Cursor Reset** — After any capture action, the cursor returns to the selection start and the mode resets to normal.
 
+## [1.50.2] - 2026-06-14
+
+### Added
+- **Vim Text Objects & Operator-Pending Verbs** — Select and act on text with canonical vim motions: `aw`/`iw` (word), `as`/`is` (sentence), `ap`/`ip` (paragraph), plus `d`/`c`/`y` operators (`daw`, `cip`, `yy`, `dd`).
+- **WORD vs word Motions** — Lowercase `w`/`b`/`e` now stop on punctuation; uppercase `W`/`B`/`E` skip to the next whitespace-delimited WORD.
+- **Vimium `:` Command-Bar Capture** — Create extracts and flashcards without leaving the keyboard: `:extract`, `:flashcard`, `:cloze`, `:qa`, `:mchoice`, `:extract2card`, `:highlight [color]`, `:deck <name>`.
+- **Extract → Flashcard Chain** — After any instant extract, press `gf` to open Flashcard Studio seeded from that extract.
+- **Configurable Default Card Type** — Choose whether vim's `F` key and `:flashcard` seed Q&A, Cloze, or Multiple-choice (Settings → Keyboard Shortcuts → Vim Reading).
+
+### Fixed & Improved
+- **Vim Selection Context** — Vim-triggered captures now carry a full `SelectionContext` (page numbers, offsets) read from the live DOM selection instead of stale React state.
+- **Visual-Mode Caret Visibility** — The caret overlay now survives React re-renders triggered by `selectionchange`, re-appends via `requestAnimationFrame`, and renders above the PDF text layer (z-index 9000).
+- **Post-Action Cursor Reset** — After any capture action, the cursor returns to the selection start and the mode resets to normal.
+
 ## [1.50.1] - 2026-06-13
 
 ### Fixed
