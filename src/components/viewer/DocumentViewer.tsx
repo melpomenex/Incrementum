@@ -62,6 +62,8 @@ import type { ViewState } from "../../types/readerPosition";
 import { saveDocumentPosition, pagePosition, scrollPosition } from "../../api/position";
 import type { DocumentPosition } from "../../types/position";
 import { useExtractStore } from "../../stores/extractStore";
+import { useVimModeStore } from "../../stores/vimModeStore";
+import { buildSelectionContext } from "../../utils/vim/selectionContext";
 import { extractYouTubeVideoId } from "../../utils/youtubeEmbed";
 import {
   getPdfExtractBlockReason,
@@ -782,7 +784,7 @@ export function DocumentViewer({
   const [initialHighlightColor, setInitialHighlightColor] = useState<string | undefined>(undefined);
   const [pdfTextSelectionCapability, setPdfTextSelectionCapability] = useState<PdfTextSelectionCapability | null>(null);
   const [isExtractDialogOpen, setIsExtractDialogOpen] = useState(false);
-  const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | null; resetDraftCards?: boolean; autoEditDraft?: boolean } | null>(null);
+  const [flashcardStudioSeed, setFlashcardStudioSeed] = useState<{ key: string; documentId?: string | null; excerpt?: string; draftCardType?: "qa" | "cloze" | "multiple-choice" | null; resetDraftCards?: boolean; autoEditDraft?: boolean; extractId?: string; deckTag?: string | null } | null>(null);
   const [dictionaryResult, setDictionaryResult] = useState<DictionaryResult | null>(null);
   const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
   const [contextMenuState, setContextMenuState] = useState<{
@@ -1345,6 +1347,157 @@ export function DocumentViewer({
     },
   });
 
+  // --- Vimium `:` command-bar capture listeners ---
+  // These resolve the current selection with a documented fallback chain
+  // (vim visual → vim cursor paragraph → mouse → empty) and dispatch the
+  // appropriate extract/flashcard/highlight pipeline.
+  useEffect(() => {
+    if (!currentDocument) return;
+    const docId = currentDocument.id;
+
+    // Resolve the target text for a capture command.
+    const resolveSelectionText = (): string => {
+      // 1. Vim visual selection (already in the DOM Selection API).
+      const liveDom = window.getSelection()?.toString() ?? "";
+      if (liveDom.trim()) return liveDom;
+      // 2. Vim cursor paragraph — when vim normal mode is active with no
+      //    selection, fall back to the paragraph at the cursor. We use the
+      //    DOM Selection's anchor node's nearest block ancestor text.
+      const vimMode = useVimModeStore.getState();
+      if (vimMode.mode === "normal" || vimMode.mode === "visual" || vimMode.mode === "visual-line") {
+        const sel = window.getSelection();
+        const node = sel?.anchorNode;
+        if (node) {
+          let el = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+          while (el && !isBlockElementForVimium(el.tagName)) el = el.parentElement;
+          if (el && el.textContent?.trim()) return el.textContent.trim();
+        }
+      }
+      // 3. Mouse-driven React selection state.
+      if (selectedTextRef.current.trim()) return selectedTextRef.current;
+      return "";
+    };
+
+    const notifyEmpty = () => {
+      toast.error("Select something first");
+    };
+
+    const onExtract = () => {
+      const text = resolveSelectionText();
+      if (!text) return notifyEmpty();
+      void createInstantExtract({
+        documentId: docId,
+        text,
+        pageNumber: computeExtractPageNumber({
+          selectionContext,
+          viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
+          scrollPercent: lastScrollStateRef.current?.scrollPercent,
+          totalPages: currentDocument?.totalPages ?? 0,
+          isEpubDoc: docType === "epub",
+        }),
+        selectionContext: selectionContext ?? undefined,
+      });
+      clearTextSelection();
+    };
+
+    const onExtractDialog = () => {
+      const text = resolveSelectionText();
+      if (!text) return notifyEmpty();
+      setSelectedText(text);
+      lastSelectionRef.current = text;
+      setIsExtractDialogOpen(true);
+    };
+
+    const onFlashcard = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { cardType?: "qa" | "cloze" | "multiple-choice" } | undefined;
+      const text = resolveSelectionText();
+      if (!text) return notifyEmpty();
+      const cardType = detail?.cardType ?? useVimModeStore.getState().defaultVimCardType;
+      const deckTag = useVimModeStore.getState().consumeNextDeckTag();
+      setFlashcardStudioSeed({
+        key: `vimium-${docId}-${Date.now()}`,
+        documentId: docId,
+        excerpt: text,
+        draftCardType: cardType,
+        resetDraftCards: true,
+        autoEditDraft: true,
+        deckTag: deckTag ?? undefined,
+      });
+    };
+
+    const onExtract2Card = async () => {
+      const text = resolveSelectionText();
+      if (!text) return notifyEmpty();
+      const extract = await createInstantExtract({
+        documentId: docId,
+        text,
+        pageNumber: computeExtractPageNumber({
+          selectionContext,
+          viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
+          scrollPercent: lastScrollStateRef.current?.scrollPercent,
+          totalPages: currentDocument?.totalPages ?? 0,
+          isEpubDoc: docType === "epub",
+        }),
+        selectionContext: selectionContext ?? undefined,
+      });
+      const extractId = (extract as { id?: string } | null)?.id;
+      useVimModeStore.getState().setLastExtractId(extractId ?? null);
+      if (extractId) {
+        const deckTag = useVimModeStore.getState().consumeNextDeckTag();
+        setFlashcardStudioSeed({
+          key: `vimium-e2c-${docId}-${Date.now()}`,
+          documentId: docId,
+          extractId,
+          resetDraftCards: true,
+          autoEditDraft: true,
+          deckTag: deckTag ?? undefined,
+        });
+      }
+      clearTextSelection();
+    };
+
+    const onHighlight = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { color?: string } | undefined;
+      const text = resolveSelectionText();
+      if (!text) return notifyEmpty();
+      const palette = ["yellow", "green", "blue", "pink", "purple"] as const;
+      type PaletteColor = typeof palette[number];
+      const requested = detail?.color?.toLowerCase();
+      if (requested && !palette.includes(requested as PaletteColor)) {
+        toast.error(`Unknown color: ${detail?.color}`);
+        return;
+      }
+      const color = (requested as PaletteColor) ?? undefined;
+      void createInstantExtract({
+        documentId: docId,
+        text,
+        color,
+        pageNumber: computeExtractPageNumber({
+          selectionContext,
+          viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
+          scrollPercent: lastScrollStateRef.current?.scrollPercent,
+          totalPages: currentDocument?.totalPages ?? 0,
+          isEpubDoc: docType === "epub",
+        }),
+        selectionContext: selectionContext ?? undefined,
+      });
+      clearTextSelection();
+    };
+
+    window.addEventListener("vimium:extract", onExtract);
+    window.addEventListener("vimium:extract-dialog", onExtractDialog);
+    window.addEventListener("vimium:flashcard", onFlashcard);
+    window.addEventListener("vimium:extract2card", onExtract2Card);
+    window.addEventListener("vimium:highlight", onHighlight);
+    return () => {
+      window.removeEventListener("vimium:extract", onExtract);
+      window.removeEventListener("vimium:extract-dialog", onExtractDialog);
+      window.removeEventListener("vimium:flashcard", onFlashcard);
+      window.removeEventListener("vimium:extract2card", onExtract2Card);
+      window.removeEventListener("vimium:highlight", onHighlight);
+    };
+  }, [currentDocument, docType, selectionContext, createInstantExtract, clearTextSelection]);
+
   // Vim reading mode
   const { engineRef: vimEngineRef } = useVimReading({
     docType: docType as "epub" | "pdf" | "markdown" | "html",
@@ -1357,7 +1510,9 @@ export function DocumentViewer({
     pdfScrollContainer: pdfScrollContainer,
     actionContext: currentDocument ? {
       documentId: currentDocument.id,
-      getSelectedText: () => selectedTextRef.current || window.getSelection()?.toString() || "",
+      // Read the LIVE DOM selection (vim sets it directly via the DOM API,
+      // which may not have propagated to React selectedTextRef yet).
+      getSelectedText: () => window.getSelection()?.toString() || selectedTextRef.current || "",
       getPageNumber: () => computeExtractPageNumber({
         selectionContext,
         viewerPageNumber: lastScrollStateRef.current?.pageNumber || 1,
@@ -1365,7 +1520,19 @@ export function DocumentViewer({
         totalPages: currentDocument?.totalPages ?? 0,
         isEpubDoc: docType === "epub",
       }),
-      getSelectionContext: () => selectionContext,
+      getSelectionContext: () => {
+        // Try to build a fresh context from the live DOM selection first.
+        // Falls back to the React selectionContext state for PDF (which is
+        // populated by PDFViewer's onSelectionChange handler with page rects).
+        const live = buildSelectionContext({
+          doc: document,
+          docType: docType as "pdf" | "epub" | "markdown" | "html",
+          documentId: currentDocument.id,
+          epubIframeWindow: docType === "epub" ? epubIframeWindow : null,
+          textSurface: docType === "html" ? "html" : "markdown",
+        });
+        return live ?? selectionContext;
+      },
       createInstantExtract,
       openExtractDialog: (text: string) => {
         setSelectedText(text);
@@ -1373,6 +1540,7 @@ export function DocumentViewer({
         setIsExtractDialogOpen(true);
       },
       openFlashcardStudio: (params) => {
+        const deckTag = useVimModeStore.getState().consumeNextDeckTag();
         setFlashcardStudioSeed({
           key: params.key,
           documentId: params.documentId,
@@ -1380,8 +1548,20 @@ export function DocumentViewer({
           draftCardType: params.draftCardType,
           resetDraftCards: true,
           autoEditDraft: true,
+          deckTag,
         });
       },
+      openFlashcardStudioForExtract: (params) => {
+        setFlashcardStudioSeed({
+          key: params.key,
+          documentId: params.documentId,
+          extractId: params.extractId,
+          resetDraftCards: true,
+          autoEditDraft: true,
+          deckTag: params.deckTag ?? undefined,
+        });
+      },
+      setLastExtractId: (id) => useVimModeStore.getState().setLastExtractId(id),
       clearTextSelection,
     } : undefined,
     isModalOpen: isExtractDialogOpen || !!flashcardStudioSeed,
@@ -5892,5 +6072,15 @@ export function DocumentViewer({
       {/* Vim reading mode indicator */}
       <VimModeIndicator />
     </div>
+  );
+}
+
+/** Block-level element check used by the Vimium `:` command selection fallback. */
+function isBlockElementForVimium(tag: string): boolean {
+  const t = tag.toUpperCase();
+  return (
+    t === "P" || t === "DIV" || t === "LI" || t === "BLOCKQUOTE" ||
+    t === "H1" || t === "H2" || t === "H3" || t === "H4" || t === "H5" || t === "H6" ||
+    t === "SECTION" || t === "ARTICLE" || t === "TD" || t === "TH" || t === "PRE"
   );
 }

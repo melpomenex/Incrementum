@@ -1,16 +1,18 @@
 # Changelog
 
-## [1.50.2] - 2026-06-13
+## [1.50.2] - 2026-06-14
 
 ### Added
-- **Amber & Rosé Liquid Glass Themes** — Two new translucent glass themes with native OS vibrancy (macOS/Windows) and animated ambient fallbacks.
-- **End-to-End Encrypted Sync Foundation** — Room key derivation (Argon2id), AES-GCM encryption, and an encrypted Yjs provider so sync state and file blobs are protected client-side.
-- **QR Room Key Exchange** — Share or join sync rooms by scanning or entering a QR-encoded 256-bit room key.
-- **Secure Key Storage** — Native secure storage (Rust `secure_storage` command) keeps the sync room key out of plaintext.
+- **Vim Text Objects & Operator-Pending Verbs** — Select and act on text with canonical vim motions: `aw`/`iw` (word), `as`/`is` (sentence), `ap`/`ip` (paragraph), plus `d`/`c`/`y` operators (`daw`, `cip`, `yy`, `dd`).
+- **WORD vs word Motions** — Lowercase `w`/`b`/`e` now stop on punctuation; uppercase `W`/`B`/`E` skip to the next whitespace-delimited WORD.
+- **Vimium `:` Command-Bar Capture** — Create extracts and flashcards without leaving the keyboard: `:extract`, `:flashcard`, `:cloze`, `:qa`, `:mchoice`, `:extract2card`, `:highlight [color]`, `:deck <name>`.
+- **Extract → Flashcard Chain** — After any instant extract, press `gf` to open Flashcard Studio seeded from that extract.
+- **Configurable Default Card Type** — Choose whether vim's `F` key and `:flashcard` seed Q&A, Cloze, or Multiple-choice (Settings → Keyboard Shortcuts → Vim Reading).
 
 ### Fixed & Improved
-- **Truthful Sync Encryption Status** — Replaced the misleading "End-to-end enabled" label with accurate status (Encrypted / TLS only) plus a passphrase/QR-key flow in Sync settings.
-- **yjs-sync Service Cleanup** — Updated the relay service, home-worker, and docker-compose configuration.
+- **Vim Selection Context** — Vim-triggered captures now carry a full `SelectionContext` (page numbers, offsets) read from the live DOM selection instead of stale React state.
+- **Visual-Mode Caret Visibility** — The caret overlay now survives React re-renders triggered by `selectionchange`, re-appends via `requestAnimationFrame`, and renders above the PDF text layer (z-index 9000).
+- **Post-Action Cursor Reset** — After any capture action, the cursor returns to the selection start and the mode resets to normal.
 
 ## [1.50.1] - 2026-06-13
 

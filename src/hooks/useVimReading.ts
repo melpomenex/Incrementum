@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useVimModeStore } from "../stores/vimModeStore";
+import { useVimModeStore, readLastExtractId } from "../stores/vimModeStore";
 import { VimCursorEngine, type VimAction } from "../utils/vim/VimCursorEngine";
 import { MarkdownAdapter } from "../utils/vim/adapters/markdownAdapter";
 import { HtmlAdapter } from "../utils/vim/adapters/htmlAdapter";
 import { EpubAdapter } from "../utils/vim/adapters/epubAdapter";
 import { PdfAdapter } from "../utils/vim/adapters/pdfAdapter";
 import type { VimActionContext } from "../utils/vim/actions";
-import { doExtract, doExtractWithDialog, doYank, doHighlight, doFlashcard } from "../utils/vim/actions";
+import { doExtract, doExtractWithDialog, doYank, doHighlight, doFlashcard, doChainFlashcard } from "../utils/vim/actions";
 import { clearSelection } from "../utils/vim/selectionManager";
+import { useTabsStore } from "../stores/tabsStore";
 
 interface UseVimReadingOptions {
   docType: "epub" | "pdf" | "markdown" | "html";
@@ -81,6 +82,9 @@ export function useVimReading({
       }
     }
 
+    // Keep the engine's operator context in sync with the latest actionContext.
+    engineRef.current?.setOperatorContext(actionContextRef.current ?? null);
+
     return () => {
       engineRef.current?.dispose();
       engineRef.current = null;
@@ -141,7 +145,29 @@ export function useVimReading({
   useEffect(() => {
     vimActionContextRef = actionContext ?? null;
     vimIframeWindowRef = iframeWindow ?? null;
+    engineRef.current?.setOperatorContext(actionContext ?? null);
   }, [actionContext, iframeWindow]);
+
+  // Clear transient vim state (pending operator, lastExtractId, deck tag) when
+  // the active tab/pane changes so chains never cross documents.
+  useEffect(() => {
+    let prevSnapshot = JSON.stringify(useTabsStore.getState().rootPane);
+    const unsubscribe = useTabsStore.subscribe((state) => {
+      const next = JSON.stringify(state.rootPane);
+      if (next !== prevSnapshot) {
+        prevSnapshot = next;
+        useVimModeStore.getState().clearTransient();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Window blur also clears transient state (operator pending, etc.).
+  useEffect(() => {
+    const onBlur = () => useVimModeStore.getState().clearTransient();
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
 
   // Rebuild text model on content changes for markdown/HTML
   useEffect(() => {
@@ -224,6 +250,10 @@ function handleAction(action: VimAction): void {
   if (!actionCtx) return;
 
   const finishAction = () => {
+    // Capture the selection start before clearing so we can move the cursor
+    // there (spec: "keep the cursor at the start of the former selection").
+    const store = useVimModeStore.getState();
+    const selectionStart = Math.min(store.selectionAnchor, store.cursorIndex);
     // Clear selection in both parent and iframe documents
     clearSelection(document);
     try {
@@ -232,7 +262,13 @@ function handleAction(action: VimAction): void {
         iframeWin.getSelection()?.removeAllRanges();
       }
     } catch { /* cross-origin */ }
-    useVimModeStore.getState().setMode("normal");
+    store.setMode("normal");
+    // Defensive: clear any pending operator that may have been left dangling.
+    const after = useVimModeStore.getState();
+    if (after.pendingOperator) after.setPendingOperator(null);
+    if (after.pendingSequence) after.setPendingSequence("");
+    // Move cursor to the start of the former selection.
+    after.moveCursor(selectionStart);
   };
 
   switch (action) {
@@ -249,10 +285,22 @@ function handleAction(action: VimAction): void {
     case "highlight":
       doHighlight(actionCtx).then(finishAction);
       break;
-    case "flashcard":
-      doFlashcard(actionCtx);
+    case "flashcard": {
+      const cardType = useVimModeStore.getState().defaultVimCardType;
+      doFlashcard(actionCtx, { draftCardType: cardType });
       finishAction();
       break;
+    }
+    case "chain-flashcard": {
+      const store = useVimModeStore.getState();
+      const lastId = readLastExtractId(store);
+      if (lastId) {
+        const deckTag = store.consumeNextDeckTag();
+        doChainFlashcard(actionCtx, lastId, deckTag);
+      }
+      finishAction();
+      break;
+    }
   }
 }
 

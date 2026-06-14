@@ -232,4 +232,109 @@ describe("Vim Reading E2E", () => {
 
     engine.dispose();
   });
+
+  it("E2E: navigate → aw → Enter (extract via text object)", () => {
+    const result = createTestAdapter("<p>alpha beta gamma delta</p>");
+    container = result.container;
+
+    const actionCtx = makeActionCtx("doc7");
+    const engine = new VimCursorEngine(result.adapter, (action) => {
+      if (action === "extract") {
+        const text = getSelectedText(document);
+        if (text) actionCtx.createInstantExtract({ documentId: "doc7", text, pageNumber: 1 });
+      }
+    });
+
+    engine.activate("doc7");
+    // Move to "beta"
+    engine.handleKeyDown(key("w"));
+    expect(useVimModeStore.getState().cursorIndex).toBe(1);
+
+    // aw → enter visual mode with around-word selection
+    engine.handleKeyDown(key("a"));
+    engine.handleKeyDown(key("w"));
+    expect(useVimModeStore.getState().mode).toBe("visual");
+
+    // Extract the selection
+    engine.handleKeyDown(key("Enter"));
+    expect(extractLog.length).toBeGreaterThan(0);
+    expect(extractLog[0].text).toContain("beta");
+
+    engine.dispose();
+  });
+
+  it("E2E: post-action reset — selection cleared, mode normal, cursor at start", async () => {
+    const result = createTestAdapter("<p>red green blue</p>");
+    container = result.container;
+
+    const actionCtx = makeActionCtx("doc8");
+    // Simulate the production handleAction, which clears selection and resets
+    // mode + cursor to the selection start after the action completes.
+    const finishAction = () => {
+      const store = useVimModeStore.getState();
+      const start = Math.min(store.selectionAnchor, store.cursorIndex);
+      window.getSelection()?.removeAllRanges();
+      store.setMode("normal");
+      useVimModeStore.getState().moveCursor(start);
+    };
+    const engine = new VimCursorEngine(result.adapter, (action) => {
+      if (action === "extract") {
+        const text = getSelectedText(document);
+        if (text) {
+          void actionCtx.createInstantExtract({ documentId: "doc8", text, pageNumber: 1 })
+            .then(finishAction);
+        } else {
+          finishAction();
+        }
+      }
+    });
+
+    engine.activate("doc8");
+    // visual select "green blue"
+    engine.handleKeyDown(key("v"));
+    engine.handleKeyDown(key("w"));
+    engine.handleKeyDown(key("Enter"));
+
+    // The createInstantExtract mock resolves on the next microtask; flush it.
+    await Promise.resolve();
+
+    // After the action: mode is normal, selection cleared, cursor at the start of the former selection.
+    expect(useVimModeStore.getState().mode).toBe("normal");
+    expect(window.getSelection()?.toString()).toBe("");
+    expect(useVimModeStore.getState().cursorIndex).toBe(0);
+
+    engine.dispose();
+  });
+
+  it("E2E: daw (operator + text object) extracts and returns to normal", () => {
+    const result = createTestAdapter("<p>one two three</p>");
+    container = result.container;
+
+    const actionCtx: VimActionContext = {
+      documentId: "doc9",
+      getSelectedText: () => getSelectedText(document),
+      getPageNumber: () => 1,
+      getSelectionContext: () => null,
+      createInstantExtract: async (p) => { extractLog.push({ text: p.text }); return { id: "x" } as any; },
+      openExtractDialog: () => {},
+      openFlashcardStudio: () => {},
+      clearTextSelection: () => { window.getSelection()?.removeAllRanges(); },
+    };
+    const engine = new VimCursorEngine(result.adapter);
+    engine.setOperatorContext(actionCtx);
+
+    engine.activate("doc9");
+    // Move to "two"
+    engine.handleKeyDown(key("w"));
+    // daw
+    engine.handleKeyDown(key("d"));
+    engine.handleKeyDown(key("a"));
+    engine.handleKeyDown(key("w"));
+
+    expect(extractLog.length).toBe(1);
+    expect(useVimModeStore.getState().mode).toBe("normal");
+    expect(useVimModeStore.getState().pendingOperator).toBeNull();
+
+    engine.dispose();
+  });
 });

@@ -10,7 +10,7 @@ const CARET_CSS = `
     background-color: rgba(59, 130, 246, 0.3) !important;
     border-radius: 2px !important;
     pointer-events: none !important;
-    z-index: 10 !important;
+    z-index: 9000 !important;
   }
   .vim-cursor-visual {
     background-color: rgba(239, 68, 68, 0.25) !important;
@@ -88,11 +88,13 @@ export function updateCaret(
   el.style.width = `${token.rect.width}px`;
   el.style.height = `${token.rect.height}px`;
   el.style.pointerEvents = "none";
-  el.style.zIndex = "10";
+  el.style.zIndex = "9000";
 
-  // Append to scroll container for non-iframe, iframe body for iframe docs
+  // Append to scroll container for non-iframe, iframe body for iframe docs.
+  // Re-append every call: React re-renders (triggered by the selectionchange
+  // event from vim's setSelection) can remove our non-React overlay element.
   const parent = isInIframe ? doc.body : (scrollContainer ?? document.body);
-  if (parent && !el.parentNode) {
+  if (parent && el.parentNode !== parent) {
     parent.appendChild(el);
   }
 

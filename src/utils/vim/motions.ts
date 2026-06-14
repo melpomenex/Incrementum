@@ -10,6 +10,53 @@ function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
 }
 
+/**
+ * Two tokens are "WORD-adjacent" when there is no whitespace between them —
+ * i.e. they live in the same text node and their offsets touch. A maximal run
+ * of mutually WORD-adjacent tokens corresponds to a vim "WORD".
+ */
+function isWordStart(tokens: WordToken[], index: number): boolean {
+  if (index <= 0) return true;
+  const prev = tokens[index - 1];
+  const cur = tokens[index];
+  if (prev.node !== cur.node) return true;
+  return prev.endOffset !== cur.startOffset;
+}
+
+function findNextWordStart(tokens: WordToken[], from: number): number {
+  for (let i = from + 1; i < tokens.length; i++) {
+    if (isWordStart(tokens, i)) return i;
+  }
+  return tokens.length - 1;
+}
+
+function findPrevWordStart(tokens: WordToken[], from: number): number {
+  // If not currently on a word start, go to the current WORD's start first.
+  if (!isWordStart(tokens, from)) {
+    for (let i = from - 1; i >= 0; i--) {
+      if (isWordStart(tokens, i)) return i;
+    }
+    return 0;
+  }
+  for (let i = from - 1; i >= 0; i--) {
+    if (isWordStart(tokens, i)) return i;
+  }
+  return 0;
+}
+
+function findWordEnd(tokens: WordToken[], from: number): number {
+  // End of the current WORD = last token in the current WORD run.
+  let i = from;
+  while (i + 1 < tokens.length && !isWordStart(tokens, i + 1)) i++;
+  // If already at the end of this WORD, advance to the end of the next WORD.
+  if (i === from) {
+    if (from + 1 >= tokens.length) return from;
+    i = findNextWordStart(tokens, from);
+    while (i + 1 < tokens.length && !isWordStart(tokens, i + 1)) i++;
+  }
+  return i;
+}
+
 export function motionH(tokens: WordToken[], cursorIndex: number, _desiredColumn: number): MotionResult {
   if (cursorIndex <= 0) return { cursorIndex: 0, desiredColumn: _desiredColumn };
   const newIndex = cursorIndex - 1;
@@ -24,6 +71,10 @@ export function motionL(tokens: WordToken[], cursorIndex: number, _desiredColumn
   return { cursorIndex: newIndex, desiredColumn: token.rect.left + token.rect.width / 2 };
 }
 
+/**
+ * Lowercase `w`: advance to the next token (word or punct). With the
+ * kind-pure token model, this stops on each word AND each punctuation run.
+ */
 export function motionW(tokens: WordToken[], cursorIndex: number, _desiredColumn: number): MotionResult {
   const newIndex = clamp(cursorIndex + 1, 0, tokens.length - 1);
   const token = tokens[newIndex];
@@ -39,6 +90,27 @@ export function motionB(tokens: WordToken[], cursorIndex: number, _desiredColumn
 export function motionE(tokens: WordToken[], cursorIndex: number, _desiredColumn: number): MotionResult {
   // If already at end of word, move to end of next word
   const newIndex = clamp(cursorIndex + 1, 0, tokens.length - 1);
+  const token = tokens[newIndex];
+  return { cursorIndex: newIndex, desiredColumn: token.rect.right };
+}
+
+/**
+ * Uppercase `W`/`B`/`E`: operate on whitespace-delimited WORDs.
+ */
+export function motionBigW(tokens: WordToken[], cursorIndex: number, _desiredColumn: number): MotionResult {
+  const newIndex = findNextWordStart(tokens, cursorIndex);
+  const token = tokens[newIndex];
+  return { cursorIndex: newIndex, desiredColumn: token.rect.left + token.rect.width / 2 };
+}
+
+export function motionBigB(tokens: WordToken[], cursorIndex: number, _desiredColumn: number): MotionResult {
+  const newIndex = findPrevWordStart(tokens, cursorIndex);
+  const token = tokens[newIndex];
+  return { cursorIndex: newIndex, desiredColumn: token.rect.left + token.rect.width / 2 };
+}
+
+export function motionBigE(tokens: WordToken[], cursorIndex: number, _desiredColumn: number): MotionResult {
+  const newIndex = findWordEnd(tokens, cursorIndex);
   const token = tokens[newIndex];
   return { cursorIndex: newIndex, desiredColumn: token.rect.right };
 }

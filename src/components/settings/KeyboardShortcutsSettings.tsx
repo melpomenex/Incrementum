@@ -13,6 +13,7 @@ import {
 import { useVimiumEnabled } from "../common/VimiumNavigation";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useI18n } from "../../lib/i18n";
+import { useVimModeStore, type VimCardType } from "../../stores/vimModeStore";
 
 const shortcutCategoryLabels: Record<ShortcutCategory, string> = {
   [ShortcutCategory.Navigation]: "settings.shortcutCategory.navigation",
@@ -371,6 +372,28 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
               onChange={onChange}
               className="w-64 px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm font-mono"
             />
+          </SettingsRow>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Vim Reading"
+        description="Defaults for vim-triggered flashcard creation."
+      >
+        <div className="space-y-1">
+          <SettingsRow
+            label="Default card type"
+            description="Card type seeded by the vim F key, :flashcard, and the gf chain action."
+          >
+            <select
+              value={useVimModeStore((s) => s.defaultVimCardType)}
+              onChange={(e) => useVimModeStore.getState().setDefaultVimCardType(e.target.value as VimCardType)}
+              className="w-40 px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            >
+              <option value="qa">Q&amp;A</option>
+              <option value="cloze">Cloze</option>
+              <option value="multiple-choice">Multiple choice</option>
+            </select>
           </SettingsRow>
         </div>
       </SettingsSection>

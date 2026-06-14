@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useTabsStore, normalizePane, useDocumentStore, useSettingsStore, useUIStore, type TabType } from "../../stores";
+import { useVimModeStore } from "../../stores/vimModeStore";
 import { useI18n } from "../../lib/i18n";
 import { useGlobalShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useShortcut } from "../common/KeyboardShortcuts";
@@ -777,6 +778,84 @@ export function MainLayout() {
           }
         },
         aliases: ["th"],
+      },
+      // --- Capture commands (extract / flashcard / highlight) ---
+      {
+        id: "vimium-extract",
+        name: "extract",
+        description: "Create an instant extract from the current selection",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:extract")); },
+        aliases: ["ex"],
+        requiresSelection: true,
+      },
+      {
+        id: "vimium-extract-dialog",
+        name: "extract-dialog",
+        description: "Open the extract dialog for the current selection",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:extract-dialog")); },
+        aliases: ["exd"],
+        requiresSelection: true,
+      },
+      {
+        id: "vimium-flashcard",
+        name: "flashcard",
+        description: "Create a flashcard from the current selection (default type)",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:flashcard")); },
+        aliases: ["fc"],
+        requiresSelection: true,
+      },
+      {
+        id: "vimium-cloze",
+        name: "cloze",
+        description: "Create a cloze flashcard from the current selection",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:flashcard", { detail: { cardType: "cloze" } })); },
+        aliases: ["cl"],
+        requiresSelection: true,
+        cardType: "cloze",
+      },
+      {
+        id: "vimium-qa",
+        name: "qa",
+        description: "Create a Q&A flashcard from the current selection",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:flashcard", { detail: { cardType: "qa" } })); },
+        requiresSelection: true,
+        cardType: "qa",
+      },
+      {
+        id: "vimium-mchoice",
+        name: "mchoice",
+        description: "Create a multiple-choice flashcard from the current selection",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:flashcard", { detail: { cardType: "multiple-choice" } })); },
+        aliases: ["mc"],
+        requiresSelection: true,
+        cardType: "multiple-choice",
+      },
+      {
+        id: "vimium-extract2card",
+        name: "extract2card",
+        description: "Extract the selection then generate flashcards from it",
+        action: () => { window.dispatchEvent(new CustomEvent("vimium:extract2card")); },
+        aliases: ["e2c"],
+        requiresSelection: true,
+      },
+      {
+        id: "vimium-highlight",
+        name: "highlight",
+        description: "Highlight the current selection (optionally with a named color)",
+        action: (args) => { window.dispatchEvent(new CustomEvent("vimium:highlight", { detail: { color: args[0] } })); },
+        aliases: ["hl"],
+        requiresSelection: true,
+      },
+      {
+        id: "vimium-deck",
+        name: "deck",
+        description: "Set the deck tag for the next created flashcard (usage: :deck <name>)",
+        action: (args) => {
+          const tag = args.join(" ").trim();
+          if (tag) {
+            useVimModeStore.getState().setNextDeckTag(tag);
+          }
+        },
       },
     ];
     return cmds;

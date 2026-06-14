@@ -143,6 +143,8 @@ interface FlashcardStudioSeed {
   autoEditDraft?: boolean;
   /** If set, auto-generate flashcards from this extract when the modal opens */
   extractId?: string;
+  /** Tag applied to the next created flashcard (e.g. from `:deck <name>`). */
+  deckTag?: string;
 }
 
 interface QuickTemplate {
@@ -3227,6 +3229,10 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       const nextCard = createBlankDraftCard(seed.draftCardType || "qa");
       if ((seed.draftCardType || "qa") === "cloze" && seed.excerpt?.trim()) {
         nextCard.text = seed.excerpt.trim();
+      }
+      // Apply a transient deck tag (e.g. from `:deck <name>`) to the new card.
+      if (seed.deckTag?.trim()) {
+        nextCard.tags = [...(nextCard.tags ?? []), seed.deckTag.trim()];
       }
       setDraftCards([nextCard]);
       setFlippedCardId(null);

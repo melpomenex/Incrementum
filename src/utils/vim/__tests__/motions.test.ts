@@ -1,21 +1,59 @@
 import { describe, it, expect } from "vitest";
 import {
   motionH, motionL, motionW, motionB, motionE,
+  motionBigW, motionBigB, motionBigE,
   motion0, motionDollar, motionJ, motionK,
   motionGG, motionG, motionOpenBrace, motionCloseBrace,
 } from "../motions";
 import type { WordToken } from "../textModel";
 import { groupTokensIntoLines } from "../lineGrouper";
 
-function makeToken(index: number, text: string, top: number, left: number, width = 50, height = 20): WordToken {
+function makeToken(index: number, text: string, top: number, left: number, width = 50, height = 20, node?: Text, startOffset = 0, endOffset = text.length): WordToken {
   return {
     index,
     text,
-    node: null as unknown as Text,
-    startOffset: 0,
-    endOffset: text.length,
+    node: node ?? (null as unknown as Text),
+    startOffset,
+    endOffset,
     rect: new DOMRect(left, top, width, height),
   };
+}
+
+/**
+ * Build tokens that emulate how buildWordTokens now splits on word/punct
+ * boundaries. Pass `|` as a text entry to insert a whitespace gap (new WORD
+ * boundary) without emitting a token. Tokens before/after a `|` belong to
+ * different WORDs.
+ */
+function makeWordAndPunctTokens(spec: Array<{ text: string; top?: number; left?: number } | "|">): WordToken[] {
+  const FAKE_NODE = { nodeType: Node.TEXT_NODE } as unknown as Text;
+  let offset = 0;
+  let left = 0;
+  let top = 100;
+  const out: WordToken[] = [];
+  let index = 0;
+  for (const s of spec) {
+    if (s === "|") {
+      offset += 1; // whitespace gap → next token starts a new WORD
+      left += 6;
+      continue;
+    }
+    const startOffset = offset;
+    offset += s.text.length;
+    out.push({
+      index,
+      text: s.text,
+      node: FAKE_NODE,
+      startOffset,
+      endOffset: offset,
+      rect: new DOMRect(left, top, s.text.length * 10, 20),
+      kind: (/^\w+$/.test(s.text) ? "word" : "punct") as "word" | "punct",
+    });
+    index++;
+    left += s.text.length * 10 + 2;
+    if (s.top !== undefined) { top = s.top; left = s.left ?? 0; }
+  }
+  return out;
 }
 
 // Line 0: tokens 0-2 at Y=100
@@ -211,5 +249,56 @@ describe("motionCloseBrace", () => {
     const { tokens, lines } = makeParagraphFixture();
     const r = motionCloseBrace(tokens, 4, lines);
     expect(r.cursorIndex).toBe(4);
+  });
+});
+
+// --- WORD vs word semantics (new) ---
+// "foo, bar baz" tokenizes into [foo, ",", bar, baz] — 4 tokens but 3 WORDs.
+describe("WORD vs word motions", () => {
+  // foo, bar baz → tokens: foo(0) ,(1) bar(2) baz(3). `|` = whitespace gap.
+  function makeMixedFixture() {
+    const tokens = makeWordAndPunctTokens([
+      { text: "foo" },
+      { text: "," },
+      "|",
+      { text: "bar" },
+      "|",
+      { text: "baz" },
+    ]);
+    return tokens;
+  }
+
+  it("motionW stops on each word AND punctuation run (4 stops)", () => {
+    const tokens = makeMixedFixture();
+    // Starting at foo(0): w → , → bar → baz
+    expect(motionW(tokens, 0, 0).cursorIndex).toBe(1); // foo → ,
+    expect(motionW(tokens, 1, 0).cursorIndex).toBe(2); // , → bar
+    expect(motionW(tokens, 2, 0).cursorIndex).toBe(3); // bar → baz
+    expect(motionW(tokens, 3, 0).cursorIndex).toBe(3); // clamp at end
+  });
+
+  it("motionBigW skips punctuation runs (3 stops)", () => {
+    const tokens = makeMixedFixture();
+    // Starting at foo(0): W → bar → baz (skips the lone punct)
+    expect(motionBigW(tokens, 0, 0).cursorIndex).toBe(2); // foo → bar
+    expect(motionBigW(tokens, 2, 0).cursorIndex).toBe(3); // bar → baz
+    expect(motionBigW(tokens, 3, 0).cursorIndex).toBe(3); // clamp
+  });
+
+  it("motionBigB moves to the previous WORD start", () => {
+    const tokens = makeMixedFixture();
+    expect(motionBigB(tokens, 3, 0).cursorIndex).toBe(2); // baz → bar
+    expect(motionBigB(tokens, 2, 0).cursorIndex).toBe(0); // bar → foo (skips punct)
+  });
+
+  it("motionE lands on the next token (word or punct)", () => {
+    const tokens = makeMixedFixture();
+    expect(motionE(tokens, 0, 0).cursorIndex).toBe(1); // foo → ,
+  });
+
+  it("motionBigE lands on the last token of the current WORD", () => {
+    const tokens = makeMixedFixture();
+    // foo, is the first WORD; last token of it is the comma (index 1).
+    expect(motionBigE(tokens, 0, 0).cursorIndex).toBe(1); // foo → , (end of WORD "foo,")
   });
 });

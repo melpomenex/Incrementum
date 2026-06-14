@@ -46,6 +46,12 @@ export interface VimiumCommand {
   description?: string;
   action: (args: string[]) => void | Promise<void>;
   aliases?: string[];
+  /** Whether a text selection is recommended for this command (help annotation). */
+  requiresSelection?: boolean;
+  /** Explicit card type for flashcard-seeding commands. */
+  cardType?: "qa" | "cloze" | "multiple-choice";
+  /** One-line hint shown in the autocomplete when selection is recommended. */
+  hint?: string;
 }
 
 export interface VimiumActions {

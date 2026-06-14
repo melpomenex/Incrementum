@@ -39,6 +39,7 @@ const CATEGORY_ORDER: ShortcutCategory[] = [
   ShortcutCategory.Review,
   ShortcutCategory.Documents,
   ShortcutCategory.Flashcards,
+  ShortcutCategory.VimReading,
 ];
 
 function getShortcutGroups(t: (key: string) => string): ShortcutGroup[] {
