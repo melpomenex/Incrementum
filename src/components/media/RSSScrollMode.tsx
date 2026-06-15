@@ -37,7 +37,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { supportsHaptics } from "../../utils/soundService";
+import { supportsHaptics, playTrainLikeSound, playTrainDislikeSound } from "../../utils/soundService";
 import {
   Feed,
   FeedItem,
@@ -203,7 +203,15 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const [favoriteAnimation, setFavoriteAnimation] = useState<string | null>(null);
+  // Brief "training registered" highlight on the thumbs-up/down buttons.
+  const [trainPulse, setTrainPulse] = useState<"like" | "dislike" | null>(null);
+  const trainPulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
+
+  // Clear any pending train-pulse timer on unmount.
+  useEffect(() => () => {
+    if (trainPulseTimer.current) clearTimeout(trainPulseTimer.current);
+  }, []);
 
   // Article context overlay state
   const [showContextOverlay, setShowContextOverlay] = useState(false);
@@ -750,6 +758,20 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     if (!current) return;
     const { feed, item } = current;
     const value = item.author || item.categories?.[0] || "";
+
+    // Tactile feedback: distinct sound + haptic the moment the button is pressed,
+    // so the user knows the action registered before the async write resolves.
+    if (value) {
+      if (sentiment === "like") playTrainLikeSound();
+      else playTrainDislikeSound();
+      triggerHaptic();
+    }
+
+    // Flash the pressed thumbs button for an immediate visual "it went through".
+    setTrainPulse(sentiment);
+    if (trainPulseTimer.current) clearTimeout(trainPulseTimer.current);
+    trainPulseTimer.current = setTimeout(() => setTrainPulse(null), 600);
+
     if (!value) {
       toast.error("Cannot train", "Article has no author or tags");
       return;
@@ -757,7 +779,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     const classifierType = item.author ? "author" : "tag";
     try {
       await addClassifier(feed.id, classifierType, value, sentiment, "feed");
-      toast.success(
+      // Use toast.info (no sound) so it doesn't double up with the dedicated
+      // train sound already played above; this toast carries the detail text.
+      toast.info(
         sentiment === "like" ? "Liked" : "Disliked",
         `Training on ${classifierType}: ${value}`
       );
@@ -2149,14 +2173,24 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => void handleQuickTrain("like")}
-                      className="p-2 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        trainPulse === "like"
+                          ? "text-emerald-500 bg-emerald-500/20 train-pulse-like"
+                          : "text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10"
+                      )}
                       title="Show more like this"
                     >
                       <ThumbsUp className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => void handleQuickTrain("dislike")}
-                      className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        trainPulse === "dislike"
+                          ? "text-red-500 bg-red-500/20 train-pulse-dislike"
+                          : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                      )}
                       title="Show less like this"
                     >
                       <ThumbsDown className="w-4 h-4" />

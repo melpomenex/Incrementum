@@ -365,6 +365,87 @@ export function playNotificationGatedFeedback(type: FeedbackType): void {
 }
 
 /**
+ * Play a short ascending two-note chime for a positive training signal
+ * ("show more like this"). Respects the feedbackSoundsEnabled and
+ * feedbackVolume settings, mirroring playFeedback.
+ */
+export function playTrainLikeSound(volume = 1): void {
+  void (async () => {
+    try {
+      const raw = localStorage.getItem('incrementum-settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const { notifications } = parsed.state?.settings || {};
+        if (!notifications?.feedbackSoundsEnabled) return;
+        volume = notifications.feedbackVolume ?? 0.3;
+      }
+
+      const ctx = await ensureAudioContextReady();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      // Bright rising major-third interval (C6 → E6): quick, pleasant "yes".
+      const freqs = [1046.5, 1318.5];
+      freqs.forEach((freq, i) => {
+        const start = now + i * 0.08;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.3 * volume, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
+        osc.start(start);
+        osc.stop(start + 0.2);
+      });
+    } catch {
+      // Audio may not be available
+    }
+  })();
+}
+
+/**
+ * Play a short low descending tone for a negative training signal
+ * ("show less like this"). Respects the feedbackSoundsEnabled and
+ * feedbackVolume settings, mirroring playFeedback.
+ */
+export function playTrainDislikeSound(volume = 1): void {
+  void (async () => {
+    try {
+      const raw = localStorage.getItem('incrementum-settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const { notifications } = parsed.state?.settings || {};
+        if (!notifications?.feedbackSoundsEnabled) return;
+        volume = notifications.feedbackVolume ?? 0.3;
+      }
+
+      const ctx = await ensureAudioContextReady();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      // Low descending sweep (G3 → C3): muted, brief "no".
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(196, now);
+      osc.frequency.exponentialRampToValueAtTime(130.8, now + 0.18);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.28 * volume, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    } catch {
+      // Audio may not be available
+    }
+  })();
+}
+
+/**
  * Play the configured notification sound.
  * Reads `notificationSound` and `soundVolume` from localStorage settings.
  */
