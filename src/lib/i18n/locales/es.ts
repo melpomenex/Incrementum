@@ -2954,6 +2954,7 @@ export const es: Dict = {
   "viewer.openTableOfContents": "Abrir tabla de contenidos",
   "viewer.overallProgress": "Progreso general",
   "viewer.page": "Página {current}",
+  "viewer.goToPage": "Ir a la página",
   "viewer.pageOf": "Página {current} de {total}",
   "viewer.panels": "Paneles",
   "viewer.partOf": "Parte {current} de {total}",

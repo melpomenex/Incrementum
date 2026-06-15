@@ -2897,6 +2897,7 @@ export const ja: Dict = {
   "viewer.openTableOfContents": "目次を開く",
   "viewer.overallProgress": "全体の進捗",
   "viewer.page": "ページ {current}",
+  "viewer.goToPage": "ページに移動",
   "viewer.pageOf": "ページ {current} / {total}",
   "viewer.panels": "パネル",
   "viewer.partOf": "パート {current} / {total}",

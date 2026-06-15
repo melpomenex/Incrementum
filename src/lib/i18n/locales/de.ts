@@ -2958,6 +2958,7 @@ export const de: Dict = {
   "viewer.openTableOfContents": "Inhaltsverzeichnis öffnen",
   "viewer.overallProgress": "Gesamtfortschritt",
   "viewer.page": "Seite {current}",
+  "viewer.goToPage": "Zur Seite springen",
   "viewer.pageOf": "Seite {current} von {total}",
   "viewer.panels": "Panels",
   "viewer.partOf": "Teil {current} von {total}",

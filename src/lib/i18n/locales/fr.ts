@@ -2968,6 +2968,7 @@ export const fr: Dict = {
   "viewer.openTableOfContents": "Ouvrir la table des matières",
   "viewer.overallProgress": "Progression globale",
   "viewer.page": "Page {current}",
+  "viewer.goToPage": "Aller à la page",
   "viewer.pageOf": "Page {current} sur {total}",
   "viewer.panels": "Panneaux",
   "viewer.partOf": "Partie {current} sur {total}",

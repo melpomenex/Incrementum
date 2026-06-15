@@ -2036,6 +2036,7 @@ export const en: Dict = {
   "viewer.nextPage": "Next Page",
   "viewer.pageOf": "Page {current} of {total}",
   "viewer.page": "Page {current}",
+  "viewer.goToPage": "Go to page",
   "viewer.fitToPage": "Fit to Page",
   "viewer.fitPage": "Fit Page",
   "viewer.fitToWidth": "Fit to Width",

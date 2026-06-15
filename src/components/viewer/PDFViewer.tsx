@@ -41,6 +41,188 @@ import { createPdfLoadSourceFactories } from "./pdfLoadSources";
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
 
+interface PdfPageIndicatorProps {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  pageNumber: number;
+  numPages: number;
+  effectiveStartPage: number;
+  effectiveEndPage: number;
+  totalEffectivePages: number;
+  isChunked: boolean;
+  onJump: (page: number) => void;
+}
+
+/**
+ * Inline "go to page" field for the PDF viewer toolbar.
+ *
+ * Reads as plain muted text ("Page X of Y" or "X/Y") while unfocused; becomes
+ * an editable number input on focus (click or ⌘G). The field always edits the
+ * absolute book page number (`pageNumber`), which is what `onJump` accepts and
+ * what `handleGoToPage` clamps to the effective chunk bounds. Out-of-range
+ * values are silently clamped; Enter jumps, Esc cancels, ArrowUp/Down nudge ±1,
+ * mouse-wheel flips pages.
+ */
+function PdfPageIndicator({
+  inputRef,
+  pageNumber,
+  numPages,
+  effectiveStartPage,
+  effectiveEndPage,
+  totalEffectivePages,
+  isChunked,
+  onJump,
+}: PdfPageIndicatorProps) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(String(pageNumber));
+  const focusedRef = useRef(false);
+
+  // Keep the draft in sync with the live page number (scroll, prev/next, TOC,
+  // deep-link) — but only while the field is NOT being edited.
+  useEffect(() => {
+    if (!focusedRef.current) {
+      setDraft(String(pageNumber));
+    }
+  }, [pageNumber]);
+
+  const clamp = useCallback(
+    (value: number) => {
+      const lo = Math.min(1, effectiveStartPage);
+      return Math.max(lo, Math.min(effectiveEndPage, value));
+    },
+    [effectiveStartPage, effectiveEndPage]
+  );
+
+  const commit = useCallback(() => {
+    const parsed = parseInt(draft, 10);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(pageNumber));
+      return;
+    }
+    const target = clamp(parsed);
+    setDraft(String(target));
+    if (target !== pageNumber) {
+      onJump(target);
+    }
+  }, [draft, pageNumber, clamp, onJump]);
+
+  const revert = useCallback(() => {
+    setDraft(String(pageNumber));
+    inputRef.current?.blur();
+  }, [pageNumber, inputRef]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commit();
+        inputRef.current?.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        revert();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        onJump(clamp(pageNumber + 1));
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        onJump(clamp(pageNumber - 1));
+      }
+    },
+    [commit, revert, clamp, pageNumber, onJump, inputRef]
+  );
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 1 : -1;
+      onJump(clamp(pageNumber + delta));
+    },
+    [clamp, pageNumber, onJump]
+  );
+
+  const inputClass =
+    "w-[2rem] md:w-[2.25rem] bg-transparent border-none outline-none text-center font-medium text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:bg-background focus:border focus:border-border focus:rounded focus:ring-2 focus:ring-primary transition-colors";
+  const inputStyle = { MozAppearance: "textfield" } as React.CSSProperties;
+
+  if (isChunked) {
+    // Chunked view: "Page <in> of N  (Book Page <in>)". The editable value is
+    // the absolute book page (what onJump accepts); the leading chunk-relative
+    // number is shown read-only for orientation.
+    const relativePage = pageNumber - effectiveStartPage + 1;
+    return (
+      <span
+        className="text-xs md:text-sm text-muted-foreground min-w-[70px] md:min-w-[100px] text-center whitespace-nowrap px-2 inline-flex items-center justify-center gap-1"
+        role="group"
+        aria-label="Page indicator"
+      >
+        <span className="hidden md:inline">Page {relativePage} of {totalEffectivePages}</span>
+        <span className="md:hidden">{relativePage}/{totalEffectivePages}</span>
+        <span className="text-[10px] text-muted-foreground opacity-80 inline-flex items-center gap-0.5">
+          (Book P.
+          <input
+            ref={inputRef}
+            type="number"
+            inputMode="numeric"
+            value={draft}
+            min={Math.min(1, effectiveStartPage)}
+            max={effectiveEndPage}
+            aria-label={t("viewer.goToPage")}
+            size={4}
+            onChange={(e) => setDraft(e.target.value)}
+            onFocus={(e) => {
+              focusedRef.current = true;
+              e.target.select();
+            }}
+            onBlur={() => {
+              focusedRef.current = false;
+              commit();
+            }}
+            onKeyDown={handleKeyDown}
+            onWheel={handleWheel}
+            className={inputClass}
+            style={inputStyle}
+          />
+          )
+        </span>
+      </span>
+    );
+  }
+
+  // Non-chunked view: "<in> / N"
+  return (
+    <span
+      className="text-xs md:text-sm text-muted-foreground min-w-[70px] md:min-w-[100px] text-center whitespace-nowrap px-2 inline-flex items-center justify-center"
+      role="group"
+      aria-label="Page indicator"
+    >
+      <input
+        ref={inputRef}
+        type="number"
+        inputMode="numeric"
+        value={draft}
+        min={1}
+        max={numPages || undefined}
+        aria-label={t("viewer.goToPage")}
+        size={4}
+        onChange={(e) => setDraft(e.target.value)}
+        onFocus={(e) => {
+          focusedRef.current = true;
+          e.target.select();
+        }}
+        onBlur={() => {
+          focusedRef.current = false;
+          commit();
+        }}
+        onKeyDown={handleKeyDown}
+        onWheel={handleWheel}
+        className={inputClass}
+        style={inputStyle}
+      />
+      <span className="select-none ml-0.5">/ {numPages}</span>
+    </span>
+  );
+}
+
 // Feature flag for custom PDF selection engine
 // Set to true to use geometric selection instead of native DOM selection
 const ENABLE_CUSTOM_PDF_SELECTION = false;
@@ -216,6 +398,7 @@ export function PDFViewer({
   }, [effectiveStartPage, effectiveEndPage]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pageInputRef = useRef<HTMLInputElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
@@ -2448,6 +2631,24 @@ export function PDFViewer({
     }
   };
 
+  // Programmatic jump to an arbitrary page. Mirrors handlePrevPage/NextPage's
+  // token + pendingNav dance so the navigation-stability guards treat this as
+  // an authoritative programmatic nav (no snap-back). Silently clamps to the
+  // effective chunk bounds.
+  const handleGoToPage = (targetPage: number) => {
+    if (!Number.isFinite(targetPage)) return;
+    const clamped = Math.max(effectiveStartPage, Math.min(effectiveEndPage, targetPage));
+    if (clamped === pageNumber) return;
+    const token = ++navTokenCounterRef.current;
+    activeNavTokenRef.current = token;
+    pendingNavRef.current = { token, pageNumber: clamped, destArray: null };
+    if (pdfNavStabilityEnabledRef.current) {
+      setNavigationMode("programmatic-nav", "go-to-page");
+      isProgrammaticScrollRef.current = true;
+    }
+    onPageChange?.(clamped);
+  };
+
   const resolveOutlineDest = useCallback(async (dest: any) => {
     if (!pdf) return null;
 
@@ -2692,6 +2893,13 @@ export function PDFViewer({
         ocr.enterOcrMode();
       } else {
         ocr.exitOcrMode();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      e.preventDefault();
+      const el = pageInputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
       }
     }
   };
@@ -3014,16 +3222,16 @@ export function PDFViewer({
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              <span className="text-xs md:text-sm text-muted-foreground min-w-[70px] md:min-w-[100px] text-center whitespace-nowrap px-2">
-                {metadata?.chunkIndex !== undefined ? (
-                  <>
-                    Page <span className="font-medium text-foreground">{pageNumber - effectiveStartPage + 1}</span> of <span className="font-medium text-foreground">{totalEffectivePages}</span>
-                    <span className="text-[10px] text-muted-foreground block md:inline md:ml-1.5 opacity-80">(Book Page {pageNumber})</span>
-                  </>
-                ) : (
-                  `${pageNumber}/${numPages}`
-                )}
-              </span>
+              <PdfPageIndicator
+                inputRef={pageInputRef}
+                pageNumber={pageNumber}
+                numPages={numPages}
+                effectiveStartPage={effectiveStartPage}
+                effectiveEndPage={effectiveEndPage}
+                totalEffectivePages={totalEffectivePages}
+                isChunked={metadata?.chunkIndex !== undefined}
+                onJump={handleGoToPage}
+              />
 
               <button
                 onClick={handleNextPage}

@@ -2970,6 +2970,7 @@ export const zh: Dict = {
   "viewer.openTableOfContents": "打开目录",
   "viewer.overallProgress": "总体进度",
   "viewer.page": "第 {current} 页",
+  "viewer.goToPage": "跳转到页",
   "viewer.pageOf": "第 {current} 页 / 共 {total} 页",
   "viewer.panels": "面板",
   "viewer.partOf": "第 {current} 部分 / 共 {total} 部分",

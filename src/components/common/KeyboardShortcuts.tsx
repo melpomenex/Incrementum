@@ -220,6 +220,13 @@ export const DEFAULT_SHORTCUTS: ShortcutAction[] = [
     defaultCombo: { key: "f", ctrl: true, meta: true },
   },
   {
+    id: "doc.go-to-page",
+    name: "Go to Page",
+    description: "Jump to a specific page in a PDF",
+    category: ShortcutCategory.Documents,
+    defaultCombo: { key: "g", ctrl: true, meta: true },
+  },
+  {
     id: "doc.next",
     name: "Next Document",
     description: "Go to next document",
