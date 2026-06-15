@@ -13,6 +13,9 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# ESLint cache
+.eslintcache
 Vagrantfile
 
 # Rust build output
