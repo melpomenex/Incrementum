@@ -4,7 +4,13 @@
  */
 
 import { useState } from "react";
-import { Download, FileText, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import {
+  CheckCircle,
+  Download,
+  TextT,
+  Warning,
+  XCircle,
+} from "@phosphor-icons/react";
 
 /**
  * Migration report data
@@ -232,7 +238,7 @@ export function MigrationReportViewer({ report }: { report: MigrationReport }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FileText className="w-8 h-8 text-primary" />
+          <TextT className="w-8 h-8 text-primary" />
           <div>
             <h2 className="text-2xl font-bold">Migration Report</h2>
             <p className="text-sm text-muted-foreground">
@@ -308,7 +314,7 @@ export function MigrationReportViewer({ report }: { report: MigrationReport }) {
               {report.statistics.failedRecords === 0 ? (
                 <CheckCircle className="w-5 h-5 text-green-500" />
               ) : (
-                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                <Warning className="w-5 h-5 text-yellow-500" />
               )}
               <h3 className="text-lg font-semibold">
                 {report.statistics.failedRecords === 0 ? "Migration Successful" : "Migration Completed with Errors"}
@@ -456,7 +462,7 @@ export function MigrationReportViewer({ report }: { report: MigrationReport }) {
               <ul className="space-y-2">
                 {report.warnings.map((warning, index) => (
                   <li key={index} className="text-sm text-yellow-500/80 flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <Warning className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <div>
                       <p>{warning.message}</p>
                       {warning.count > 1 && (

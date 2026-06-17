@@ -19,19 +19,19 @@ import { DocumentViewer, ReviewTab } from "../components/tabs/TabRegistry";
 import { useToast } from "../components/common/Toast";
 import { useI18n } from "../lib/i18n";
 import {
-  Network,
-  Download,
-  Sparkles,
-  GitBranch,
-  Grid3x3,
-  Search,
-  Filter,
-  X,
-  FileText,
-  MessageSquare,
+  ArrowsOutSimple,
   Brain,
-  Maximize2,
-} from "lucide-react";
+  ChatCircle,
+  Download,
+  Funnel,
+  GitBranch,
+  Graph,
+  GridNine,
+  MagnifyingGlass,
+  Sparkle,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 
 type ViewMode = "graph" | "sphere";
 
@@ -176,7 +176,7 @@ export function KnowledgeGraphPage() {
     return applyGraphFilters(graphData.nodes, graphData.edges, filters);
   }, [graphData, filters]);
 
-  // Search-with-zoom: auto-fit viewport when search results change
+  // MagnifyingGlass-with-zoom: auto-fit viewport when search results change
   useEffect(() => {
     if (searchFitTimeout.current) {
       clearTimeout(searchFitTimeout.current);
@@ -242,7 +242,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Document:
         addTab({
           title: node.label,
-          icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+          icon: <TextT className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -252,7 +252,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Extract:
         addTab({
           title: node.label.substring(0, 30),
-          icon: <MessageSquare className="w-4 h-4 text-muted-foreground" />,
+          icon: <ChatCircle className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -284,7 +284,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Document:
         addTab({
           title: node.label,
-          icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+          icon: <TextT className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -295,7 +295,7 @@ export function KnowledgeGraphPage() {
       case GraphNodeType.Extract:
         addTab({
           title: node.label.substring(0, 30),
-          icon: <MessageSquare className="w-4 h-4 text-muted-foreground" />,
+          icon: <ChatCircle className="w-4 h-4 text-muted-foreground" />,
           type: "document-viewer",
           content: DocumentViewer,
           closable: true,
@@ -402,7 +402,7 @@ export function KnowledgeGraphPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center">
-              <Network className="w-5 h-5 text-primary-400" />
+              <Graph className="w-5 h-5 text-primary-400" />
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground">{t("knowledgeGraph.title")}</h1>
@@ -433,16 +433,16 @@ export function KnowledgeGraphPage() {
                   : "text-muted-foreground hover:text-foreground hover:bg-glass-100"
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkle className="w-4 h-4" />
               {t("knowledgeGraph.sphere")}
             </button>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Search with glass styling */}
+          {/* MagnifyingGlass with glass styling */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
@@ -470,19 +470,19 @@ export function KnowledgeGraphPage() {
                 className="absolute -right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 title={t("graph.resetView")}
               >
-                <Maximize2 className="w-4 h-4" />
+                <ArrowsOutSimple className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          {/* Filter toggle with glass styling */}
+          {/* Funnel toggle with glass styling */}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all glass-button ${
               showFilters ? "bg-primary-400/20 text-primary-300" : ""
             }`}
           >
-            <Filter className="w-4 h-4" />
+            <Funnel className="w-4 h-4" />
             {t("knowledgeGraph.filters")}
           </button>
 
@@ -546,7 +546,7 @@ export function KnowledgeGraphPage() {
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center glass-card p-8 rounded-2xl animate-glass-scale-in">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full glass-panel flex items-center justify-center">
-                  <Grid3x3 className="w-8 h-8 text-muted-foreground" />
+                  <GridNine className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">{t("knowledgeGraph.noNodes")}</h3>
                 <p className="text-sm text-muted-foreground">

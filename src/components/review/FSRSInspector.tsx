@@ -13,7 +13,14 @@
  */
 
 import { useState, useRef } from "react";
-import { X, Activity, Brain, Clock, Database, TrendingDown } from "lucide-react";
+import {
+  Brain,
+  Clock,
+  Database,
+  Pulse,
+  TrendDown,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import type { LearningItem } from "../../api/review";
 import { parseSm18State, sm18Retrievability, type SM18State } from "../../lib/sm18";
@@ -242,7 +249,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-primary" />
+          <Pulse className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold">{inspectorTitle}</span>
         </div>
         <button
@@ -281,7 +288,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
             label="Difficulty (D)"
             value={difficulty != null ? difficulty.toFixed(2) : "—"}
             description={difficultyDesc}
-            icon={Activity}
+            icon={Pulse}
           />
 
           <ParameterRow
@@ -298,13 +305,13 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
                 label="Reps"
                 value={sm18State.repetition}
                 description="Repetitions since last lapse"
-                icon={Activity}
+                icon={Pulse}
               />
               <ParameterRow
                 label="Lapses"
                 value={sm18State.lapses}
                 description="Total times forgotten (grade < 3)"
-                icon={Activity}
+                icon={Pulse}
               />
             </>
           )}
@@ -314,13 +321,13 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
                 label="Reps"
                 value={sm20State.repetition}
                 description="Successful repetitions completed"
-                icon={Activity}
+                icon={Pulse}
               />
               <ParameterRow
                 label="Lapses"
                 value={sm20State.lapses}
                 description="Total failed reviews"
-                icon={Activity}
+                icon={Pulse}
               />
             </>
           )}
@@ -329,7 +336,7 @@ export function FSRSInspector({ card, isOpen, onClose }: FSRSInspectorProps) {
         {/* Forget Curve */}
         <div className="px-4 py-3 border-t border-border">
           <div className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
-            <TrendingDown className="w-3.5 h-3.5" />
+            <TrendDown className="w-3.5 h-3.5" />
             Forget Curve
           </div>
           <div className="bg-muted/30 rounded p-2">

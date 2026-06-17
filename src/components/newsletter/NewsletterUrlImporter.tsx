@@ -12,19 +12,19 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Link2,
-  Search,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Rss,
-  ExternalLink,
-  X,
-  Sparkles,
+  ArrowSquareOut,
+  CheckCircle,
+  CircleNotch,
   Clock,
-  FileText,
+  Link,
+  MagnifyingGlass,
   Newspaper,
-} from "lucide-react";
+  Rss,
+  Sparkle,
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import {
   discoverNewsletterFeedUrl,
   fetchFeed,
@@ -258,7 +258,7 @@ export function NewsletterUrlImporter({
       {/* URL Input Section */}
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-          <Link2 className="w-5 h-5" />
+          <Link className="w-5 h-5" />
         </div>
         <input
           ref={inputRef}
@@ -300,7 +300,7 @@ export function NewsletterUrlImporter({
         {state.status === "detecting" && (
           <div className="bg-muted/30 rounded-xl p-6 border border-border/50">
             <div className="flex items-center gap-3 mb-4">
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              <CircleNotch className="w-5 h-5 text-primary animate-spin" />
               <span className="font-medium">Analyzing URL...</span>
             </div>
             <div className="space-y-2">
@@ -330,7 +330,7 @@ export function NewsletterUrlImporter({
                 </span>
                 {state.platform.confidence === "high" && (
                   <span className="ml-auto flex items-center gap-1 text-xs text-green-600">
-                    <CheckCircle2 className="w-3 h-3" />
+                    <CheckCircle className="w-3 h-3" />
                     Verified
                   </span>
                 )}
@@ -365,7 +365,7 @@ export function NewsletterUrlImporter({
                   </p>
                   <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5" />
+                      <TextT className="w-3.5 h-3.5" />
                       {state.feed.items.length} articles
                     </span>
                     <span className="flex items-center gap-1">
@@ -380,7 +380,7 @@ export function NewsletterUrlImporter({
               {state.feed.items.length > 0 && (
                 <div className="mt-5 pt-4 border-t border-border/50">
                   <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkle className="w-4 h-4" />
                     Recent Articles
                   </h4>
                   <div className="space-y-2">
@@ -422,7 +422,7 @@ export function NewsletterUrlImporter({
                   rel="noopener noreferrer"
                   className="px-4 py-2.5 bg-muted text-foreground font-medium rounded-lg hover:bg-muted/80 transition-colors flex items-center gap-2"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ArrowSquareOut className="w-4 h-4" />
                   Visit
                 </a>
               </div>
@@ -433,7 +433,7 @@ export function NewsletterUrlImporter({
         {/* Subscribing State */}
         {state.status === "subscribing" && (
           <div className="bg-primary/5 rounded-xl p-8 border border-primary/20 text-center">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
+            <CircleNotch className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
             <p className="font-medium text-foreground">Subscribing...</p>
             <p className="text-sm text-muted-foreground mt-1">
               Adding to your RSS Reader
@@ -444,7 +444,7 @@ export function NewsletterUrlImporter({
         {/* Success State */}
         {state.status === "success" && (
           <div className="bg-green-500/10 rounded-xl p-8 border border-green-500/30 text-center">
-            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
             <h3 className="font-semibold text-lg text-foreground">
               Successfully Subscribed!
             </h3>
@@ -474,7 +474,7 @@ export function NewsletterUrlImporter({
         {state.status === "error" && (
           <div className="bg-destructive/10 rounded-xl p-5 border border-destructive/30">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <WarningCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-medium text-destructive">Import Failed</h4>
                 <p className="text-sm text-muted-foreground mt-1">{state.error}</p>
@@ -501,7 +501,7 @@ export function NewsletterUrlImporter({
                     onClick={() => handleDetect(url)}
                     className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-1.5"
                   >
-                    <Search className="w-3.5 h-3.5" />
+                    <MagnifyingGlass className="w-3.5 h-3.5" />
                     Try Again
                   </button>
                   <button
@@ -530,7 +530,7 @@ export function NewsletterUrlImportButton({ onSuccess }: { onSuccess?: (feed: Fe
         onClick={() => setIsOpen(true)}
         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
       >
-        <Link2 className="w-4 h-4" />
+        <Link className="w-4 h-4" />
         Add by URL
       </button>
 
@@ -540,7 +540,7 @@ export function NewsletterUrlImportButton({ onSuccess }: { onSuccess?: (feed: Fe
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Link2 className="w-5 h-5 text-primary" />
+                  <Link className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <h2 className="font-semibold text-lg">Import Newsletter</h2>

@@ -15,24 +15,24 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
-  ChevronLeft,
-  ChevronRight,
-  RotateCw,
-  ExternalLink,
-  HighlighterIcon,
-  BookmarkPlus,
-  Sparkles,
-  X,
-  Plus,
-  Tag,
-  FolderOpen,
-  MessageSquare,
-  CheckCircle,
+  ArrowClockwise,
+  ArrowSquareOut,
+  BookmarkSimple,
   BookOpen,
+  CaretLeft,
+  CaretRight,
+  ChatCircle,
+  CheckCircle,
   Clock,
-  Trash2,
   Eye,
-} from "lucide-react";
+  FolderOpen,
+  Highlighter,
+  Plus,
+  Sparkle,
+  Tag,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { isTauri, getPlatform } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import { getShortcutCombo } from "../common/KeyboardShortcuts";
@@ -136,7 +136,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
         <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${selectedColor.bg}`}>
-              <HighlighterIcon className="w-5 h-5 text-foreground" />
+              <Highlighter className="w-5 h-5 text-foreground" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-foreground">{t("extracts.createTitle")}</h3>
@@ -301,7 +301,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
           {/* Source info */}
           <div className="p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ExternalLink className="w-3 h-3" />
+              <ArrowSquareOut className="w-3 h-3" />
               <span className="truncate">{extract.url}</span>
             </div>
           </div>
@@ -321,7 +321,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
               </>
             ) : (
               <>
-                <BookmarkPlus className="w-4 h-4" />
+                <BookmarkSimple className="w-4 h-4" />
                 {isManualMode ? t("extracts.saveExtract") : t("extracts.saveAsExtract")}
               </>
             )}
@@ -332,7 +332,7 @@ function ExtractDialog({ extract, onSave, onClose }: ExtractDialogProps) {
               disabled={isGenerating}
               className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkle className="w-4 h-4" />
               {isGenerating ? "Creating..." : "Create Flashcard"}
             </button>
             <button
@@ -1184,7 +1184,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Back"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <CaretLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleForward}
@@ -1192,7 +1192,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Forward"
           >
-            <ChevronRight className="w-4 h-4" />
+            <CaretRight className="w-4 h-4" />
           </button>
           <button
             onClick={handleRefresh}
@@ -1200,7 +1200,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Refresh"
           >
-            <RotateCw className="w-4 h-4" />
+            <ArrowClockwise className="w-4 h-4" />
           </button>
 
           {/* URL Input */}
@@ -1228,7 +1228,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 transition-colors"
             title="Add bookmark"
           >
-            <BookmarkPlus className="w-4 h-4" />
+            <BookmarkSimple className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowSidebar(!showSidebar)}
@@ -1242,7 +1242,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             className={`p-2 rounded-lg transition-colors ${showAssistant ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
             title="Toggle assistant"
           >
-            <MessageSquare className="w-4 h-4" />
+            <ChatCircle className="w-4 h-4" />
           </button>
           <button
             onClick={handleOpenInBrowser}
@@ -1250,7 +1250,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 transition-colors"
             title="Open in system browser"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ArrowSquareOut className="w-4 h-4" />
           </button>
         </div>
 
@@ -1262,7 +1262,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
               className="px-3 py-1.5 bg-secondary hover:bg-secondary/90 text-secondary-foreground rounded-lg transition-colors text-sm flex items-center gap-2 font-medium"
               title="Create extract from selected text (Ctrl/Cmd + Shift + E)"
             >
-              <HighlighterIcon className="w-4 h-4" />
+              <Highlighter className="w-4 h-4" />
               {t("extracts.createTitle")}
             </button>
             <span className="text-xs text-muted-foreground">
@@ -1291,7 +1291,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                 onClick={() => setExtractsExpanded(!extractsExpanded)}
               >
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <HighlighterIcon className="w-4 h-4 text-primary" />
+                  <Highlighter className="w-4 h-4 text-primary" />
                   {t("extracts.recentExtracts")}
                   <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                     {savedExtracts.length}
@@ -1306,7 +1306,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                 <>
                   {savedExtracts.length === 0 ? (
                     <div className="text-center py-6 bg-muted/30 rounded-lg">
-                      <HighlighterIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                      <Highlighter className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
                       <p className="text-sm text-muted-foreground">{t("extracts.noExtractsYet")}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {t("extracts.selectAndCreate")}
@@ -1356,7 +1356,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                                 className="p-1.5 hover:bg-destructive/10 hover:text-destructive rounded transition-colors"
                                 title="Delete extract"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
@@ -1371,7 +1371,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
             {/* Bookmarks Section */}
             <div className="p-4">
               <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                <BookmarkPlus className="w-4 h-4 text-primary" />
+                <BookmarkSimple className="w-4 h-4 text-primary" />
                 {t("viewer.bookmarks")}
               </h3>
               {bookmarks.length === 0 ? (
@@ -1434,7 +1434,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                       onClick={handleOpenInBrowser}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-sm"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ArrowSquareOut className="w-4 h-4" />
                       Open in Browser
                     </button>
                   </div>
@@ -1450,7 +1450,7 @@ export function WebBrowserTab({ initialUrl }: { initialUrl?: string }) {
                       onClick={handleOpenInBrowser}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-sm"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ArrowSquareOut className="w-4 h-4" />
                       Open in Browser
                     </button>
                   </div>

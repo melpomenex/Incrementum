@@ -1,4 +1,11 @@
-import { Zap, LayoutGrid, Table2, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import {
+  CaretDown,
+  CaretUp,
+  Funnel,
+  GridFour,
+  Lightning,
+  Table,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 
@@ -34,7 +41,7 @@ export function ScheduleToolbar({
 
         {selectedDate && (
           <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary rounded-md text-[10px] font-medium animate-in fade-in slide-in-from-left-2">
-            <Filter className="w-3 h-3" />
+            <Funnel className="w-3 h-3" />
             {new Date(selectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
             <button
               onClick={onClearDate}
@@ -59,7 +66,7 @@ export function ScheduleToolbar({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <LayoutGrid className="w-3 h-3" />
+              <GridFour className="w-3 h-3" />
               {t("schedule.viewCards")}
             </button>
             <button
@@ -71,7 +78,7 @@ export function ScheduleToolbar({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Table2 className="w-3 h-3" />
+              <Table className="w-3 h-3" />
               {t("schedule.viewTable")}
             </button>
           </div>
@@ -83,7 +90,7 @@ export function ScheduleToolbar({
             onClick={onSpread}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
           >
-            <Zap className="w-3 h-3" />
+            <Lightning className="w-3 h-3" />
             {!isMobile && t("schedule.spreadOverloaded")}
           </button>
 
@@ -95,7 +102,7 @@ export function ScheduleToolbar({
             )}
             title={isDashboardCollapsed ? t("common.expand") : t("common.collapse")}
           >
-            {isDashboardCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            {isDashboardCollapsed ? <CaretDown className="w-4 h-4" /> : <CaretUp className="w-4 h-4" />}
           </button>
         </div>
       </div>

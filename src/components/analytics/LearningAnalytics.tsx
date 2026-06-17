@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import {
-  Calendar,
-  TrendingUp,
   Brain,
-  Target,
-  Award,
-  BarChart3,
-  Activity,
+  Calendar,
+  ChartBar,
   Clock,
-} from "lucide-react";
+  Medal,
+  Pulse,
+  Target,
+  TrendUp,
+} from "@phosphor-icons/react";
 
 interface AnalyticsData {
   // Today's stats
@@ -107,7 +107,7 @@ export function LearningAnalytics() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Activity className="w-12 h-12 animate-pulse mx-auto mb-4 text-muted-foreground" />
+          <Pulse className="w-12 h-12 animate-pulse mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground">Loading analytics...</p>
         </div>
       </div>
@@ -177,7 +177,7 @@ export function LearningAnalytics() {
         <div className="bg-card rounded-lg p-6 border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Current Streak</span>
-            <Award className="w-5 h-5 text-orange-500" />
+            <Medal className="w-5 h-5 text-orange-500" />
           </div>
           <div className="text-3xl font-bold">{data.currentStreak}</div>
           <div className="text-xs text-muted-foreground mt-1">days</div>
@@ -255,11 +255,11 @@ export function LearningAnalytics() {
         </div>
       </div>
 
-      {/* Weekly Activity Chart */}
+      {/* Weekly Pulse Chart */}
       <div className="bg-card rounded-lg p-6 border">
         <div className="flex items-center gap-2 mb-6">
-          <BarChart3 className="w-5 h-5 text-blue-500" />
-          <h3 className="text-lg font-semibold">Weekly Activity</h3>
+          <ChartBar className="w-5 h-5 text-blue-500" />
+          <h3 className="text-lg font-semibold">Weekly Pulse</h3>
         </div>
         <div className="flex items-end justify-between gap-2 h-48">
           {data.weeklyData.map((day, index) => (
@@ -292,7 +292,7 @@ export function LearningAnalytics() {
       {/* Difficulty Distribution */}
       <div className="bg-card rounded-lg p-6 border">
         <div className="flex items-center gap-2 mb-6">
-          <TrendingUp className="w-5 h-5 text-purple-500" />
+          <TrendUp className="w-5 h-5 text-purple-500" />
           <h3 className="text-lg font-semibold">Card Distribution</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

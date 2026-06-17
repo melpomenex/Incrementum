@@ -4,7 +4,12 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import {
+  CaretLeft,
+  CaretRight,
+  CircleNotch,
+  Clock,
+} from "@phosphor-icons/react";
 import { getReadArticlesAuto } from "../../api/rss-folders";
 
 interface ReadStoriesViewProps {
@@ -73,7 +78,7 @@ export function ReadStoriesView({ onBack }: ReadStoriesViewProps) {
 
         {_isLoading && (
           <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         )}
 
@@ -83,7 +88,7 @@ export function ReadStoriesView({ onBack }: ReadStoriesViewProps) {
             disabled={offset === 0}
             className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded-lg disabled:opacity-50 flex items-center gap-1"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <CaretLeft className="w-3.5 h-3.5" />
             Previous
           </button>
           <button
@@ -92,7 +97,7 @@ export function ReadStoriesView({ onBack }: ReadStoriesViewProps) {
             className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded-lg disabled:opacity-50 flex items-center gap-1"
           >
             Next
-            <ChevronRight className="w-3.5 h-3.5" />
+            <CaretRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

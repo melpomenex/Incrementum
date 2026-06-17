@@ -15,7 +15,7 @@
 
 import { useState, useCallback } from "react";
 import { cn } from "../../utils";
-import { Flag, ChevronUp, ChevronDown } from "lucide-react";
+import { CaretDown, CaretUp, Flag } from "@phosphor-icons/react";
 import { updateDocumentPriority } from "../../api/documents";
 import { useI18n } from "../../lib/i18n";
 
@@ -112,9 +112,9 @@ export function PriorityControl({
           />
           <span className="text-foreground">{t(currentInfo.labelKey)}</span>
           {isExpanded ? (
-            <ChevronUp className="h-3 w-3 text-muted-foreground" />
+            <CaretUp className="h-3 w-3 text-muted-foreground" />
           ) : (
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            <CaretDown className="h-3 w-3 text-muted-foreground" />
           )}
         </button>
 

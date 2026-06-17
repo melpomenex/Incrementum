@@ -4,7 +4,14 @@
  */
 
 import { useEffect, useState } from "react";
-import { X, BarChart3, Rss, Clock, Calendar, FileText } from "lucide-react";
+import {
+  Calendar,
+  ChartBar,
+  Clock,
+  Rss,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 import { getFeedStatisticsAuto, type RssFeedStatistics } from "../../api/rss-folders";
 import type { Feed } from "../../api/rss";
 
@@ -38,7 +45,7 @@ export function FeedStatisticsDialog({ feed, isOpen, onClose }: FeedStatisticsDi
       >
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
+            <ChartBar className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Feed Statistics</h2>
           </div>
           <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -54,11 +61,11 @@ export function FeedStatisticsDialog({ feed, isOpen, onClose }: FeedStatisticsDi
             <div className="text-center py-8 text-sm text-muted-foreground">Loading...</div>
           ) : stats ? (
             <div className="space-y-3">
-              <StatRow icon={<FileText className="w-4 h-4" />} label="Total Articles" value={String(stats.total_articles)} />
+              <StatRow icon={<TextT className="w-4 h-4" />} label="Total Articles" value={String(stats.total_articles)} />
               <StatRow icon={<Rss className="w-4 h-4" />} label="Unread" value={String(stats.unread_count)} highlight />
-              <StatRow icon={<BarChart3 className="w-4 h-4" />} label="Frequency" value={stats.estimated_frequency} />
+              <StatRow icon={<ChartBar className="w-4 h-4" />} label="Frequency" value={stats.estimated_frequency} />
               <StatRow
-                icon={<BarChart3 className="w-4 h-4" />}
+                icon={<ChartBar className="w-4 h-4" />}
                 label="Articles/Week"
                 value={stats.articles_per_week.toFixed(1)}
               />

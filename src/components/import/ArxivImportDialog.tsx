@@ -1,29 +1,29 @@
 /**
  * ArXiv Import Dialog
  * 
- * Search and download ArXiv papers with category filtering.
+ * MagnifyingGlass and download ArXiv papers with category filtering.
  * Provides a polished import experience matching the browser extension flow.
  */
 
 import { useState, useCallback, useEffect } from "react";
 import {
-  FileText,
-  Search,
-  ExternalLink,
-  Download,
+  ArrowSquareOut,
   Bookmark,
-  BookmarkCheck,
-  Loader2,
+  BookmarkSimple,
   BookOpen,
-  X,
   Calendar,
-  User,
-  CheckCircle2,
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
+  CaretDown,
+  CaretRight,
+  CheckCircle,
+  CircleNotch,
+  Download,
   FileCode,
-} from "lucide-react";
+  MagnifyingGlass,
+  TextT,
+  User,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import {
   ArxivPaper,
@@ -80,7 +80,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
       const results = await searchArxiv(searchQuery, 20);
       setPapers(results);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      setError(err instanceof Error ? err.message : "MagnifyingGlass failed");
     } finally {
       setIsLoading(false);
     }
@@ -192,12 +192,12 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
         <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
-              <FileText className="h-5 w-5 text-orange-500" />
+              <TextT className="h-5 w-5 text-orange-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">Import from ArXiv</h2>
               <p className="text-sm text-muted-foreground">
-                Search and download research papers
+                MagnifyingGlass and download research papers
               </p>
             </div>
           </div>
@@ -234,9 +234,9 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                         className="w-full flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
                         {isExpanded ? (
-                          <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                          <CaretDown className="h-3 w-3 flex-shrink-0" />
                         ) : (
-                          <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                          <CaretRight className="h-3 w-3 flex-shrink-0" />
                         )}
                         <span className="truncate">{domain.name}</span>
                         <span className="ml-auto text-muted-foreground/60">{domain.categories.length}</span>
@@ -290,17 +290,17 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
 
           {/* Results area */}
           <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Search bar */}
+            {/* MagnifyingGlass bar */}
             <div className="border-b border-border bg-card p-4">
               <div className="flex gap-3">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Search papers by title, author, or keywords..."
+                    placeholder="MagnifyingGlass papers by title, author, or keywords..."
                     className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>
@@ -310,11 +310,11 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                   className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center gap-2"
                 >
                   {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <CircleNotch className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Search className="h-4 w-4" />
+                    <MagnifyingGlass className="h-4 w-4" />
                   )}
-                  Search
+                  MagnifyingGlass
                 </button>
               </div>
               {selectedCategory && (
@@ -341,7 +341,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
               {error && (
                 <div className="m-4 rounded-lg border border-destructive/20 bg-destructive/10 p-4">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <WarningCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-destructive">Error</p>
                       <p className="text-sm text-destructive/80">{error}</p>
@@ -353,10 +353,10 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
               {papers.length === 0 && !isLoading && !error && (
                 <div className="flex h-full flex-col items-center justify-center p-8 text-center">
                   <div className="mb-4 rounded-full bg-muted p-4">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
+                    <TextT className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="mb-2 text-lg font-medium text-foreground">
-                    Search ArXiv Papers
+                    MagnifyingGlass ArXiv Papers
                   </h3>
                   <p className="max-w-sm text-sm text-muted-foreground">
                     Enter keywords to search millions of research papers, or select a category from the sidebar.
@@ -424,7 +424,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                             title={saved ? "Remove from saved" : "Save to library"}
                           >
                             {saved ? (
-                              <BookmarkCheck className="h-4 w-4 text-orange-500" />
+                              <BookmarkSimple className="h-4 w-4 text-orange-500" />
                             ) : (
                               <Bookmark className="h-4 w-4" />
                             )}
@@ -437,7 +437,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                             className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                             title="Open on ArXiv"
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            <ArrowSquareOut className="h-4 w-4" />
                           </a>
                           <button
                             onClick={(e) => {
@@ -453,9 +453,9 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                             )}
                           >
                             {isImporting ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <CircleNotch className="h-3 w-3 animate-spin" />
                             ) : isImportSuccess ? (
-                              <CheckCircle2 className="h-3 w-3" />
+                              <CheckCircle className="h-3 w-3" />
                             ) : (
                               <Download className="h-3 w-3" />
                             )}
@@ -561,12 +561,12 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                   >
                     {isImporting ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <CircleNotch className="h-4 w-4 animate-spin" />
                         Downloading...
                       </>
                     ) : importSuccess === selectedPaper.id ? (
                       <>
-                        <CheckCircle2 className="h-4 w-4" />
+                        <CheckCircle className="h-4 w-4" />
                         Imported Successfully
                       </>
                     ) : (
@@ -591,7 +591,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                     rel="noopener noreferrer"
                     className="w-full rounded-lg py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2"
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <ArrowSquareOut className="h-4 w-4" />
                     View on ArXiv
                   </a>
                 </div>

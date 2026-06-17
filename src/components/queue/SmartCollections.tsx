@@ -5,22 +5,22 @@
 
 import { useState, useMemo } from "react";
 import {
-  AlertTriangle,
-  Clock,
-  Sparkles,
+  ArrowsCounterClockwise,
   BookOpen,
-  Target,
-  TrendingUp,
-  RefreshCcw,
+  CaretRight,
+  Clock,
   Flame,
-  ChevronRight,
-} from "lucide-react";
+  Sparkle,
+  Target,
+  TrendUp,
+  Warning,
+} from "@phosphor-icons/react";
 
 export interface SmartCollection {
   id: string;
   name: string;
   description: string;
-  icon: typeof AlertTriangle;
+  icon: typeof Warning;
   color: string;
   bgColor: string;
   count: number;
@@ -41,7 +41,7 @@ export function getSmartCollections(cards: any[]): SmartCollection[] {
       id: "forgotten",
       name: "Forgotten Cards",
       description: "Cards you've struggled with (failed 3+ times)",
-      icon: AlertTriangle,
+      icon: Warning,
       color: "text-red-500",
       bgColor: "bg-red-500/10",
       count: cards.filter((c) => (c.lapse_count || 0) >= 3).length,
@@ -81,7 +81,7 @@ export function getSmartCollections(cards: any[]): SmartCollection[] {
       id: "recently-added",
       name: "Recently Added",
       description: "Cards created in the last 7 days",
-      icon: Sparkles,
+      icon: Sparkle,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
       count: cards.filter((c) => {
@@ -113,7 +113,7 @@ export function getSmartCollections(cards: any[]): SmartCollection[] {
       id: "mature",
       name: "Mature Cards",
       description: "Well-learned cards with long intervals",
-      icon: TrendingUp,
+      icon: TrendUp,
       color: "text-teal-500",
       bgColor: "bg-teal-500/10",
       count: cards.filter((c) => c.interval >= 21).length,
@@ -123,7 +123,7 @@ export function getSmartCollections(cards: any[]): SmartCollection[] {
       id: "relearning",
       name: "Relearning",
       description: "Cards currently being relearned after lapses",
-      icon: RefreshCcw,
+      icon: ArrowsCounterClockwise,
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
       count: cards.filter((c) => c.state === "relearning").length,
@@ -158,7 +158,7 @@ export function SmartCollections({
   return (
     <div className={`space-y-2 ${className}`}>
       <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-primary" />
+        <Sparkle className="w-4 h-4 text-primary" />
         Smart Collections
       </h3>
 
@@ -195,7 +195,7 @@ export function SmartCollections({
                 </p>
               </div>
 
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <CaretRight className="w-4 h-4 text-muted-foreground" />
             </button>
           );
         })}

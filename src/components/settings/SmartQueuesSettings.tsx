@@ -3,7 +3,7 @@
  * Configure auto-refresh behavior for the review queue
  */
 
-import { RefreshCw, Brain } from "lucide-react";
+import { ArrowsClockwise, Brain } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface SmartQueuesSettingsProps {
@@ -38,7 +38,7 @@ export function SmartQueuesSettings({
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
-              <RefreshCw className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <ArrowsClockwise className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("settings.autoRefresh")}</div>
                 <div className="text-xs text-muted-foreground mt-1">
@@ -65,7 +65,7 @@ export function SmartQueuesSettings({
         {settings.autoRefresh && (
           <div className="bg-card border border-border rounded-lg p-4">
             <div className="flex items-center gap-3 mb-3">
-              <RefreshCw className="w-5 h-5 text-muted-foreground" />
+              <ArrowsClockwise className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("settings.refreshInterval")}</div>
                 <div className="text-xs text-muted-foreground">

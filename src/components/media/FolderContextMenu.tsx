@@ -5,13 +5,13 @@
 
 import { useState } from "react";
 import {
-  Pencil,
-  Trash2,
+  ChartBar,
+  Clock,
   FolderPlus,
   Image,
-  Clock,
-  BarChart3,
-} from "lucide-react";
+  Pencil,
+  Trash,
+} from "@phosphor-icons/react";
 import { updateFolderAuto, deleteFolderAuto, type RssFolder } from "../../api/rss-folders";
 import { IconPicker } from "./IconPicker";
 
@@ -155,7 +155,7 @@ export function FolderContextMenu({ folder, onClose, onAction, position }: Folde
             onClick={() => handleAction("statistics")}
             className="w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted/60 flex items-center gap-2"
           >
-            <BarChart3 className="w-3.5 h-3.5" /> Statistics
+            <ChartBar className="w-3.5 h-3.5" /> Statistics
           </button>
 
           <div className="border-t border-border my-1" />
@@ -164,7 +164,7 @@ export function FolderContextMenu({ folder, onClose, onAction, position }: Folde
             onClick={() => void handleDelete()}
             className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete
+            <Trash className="w-3.5 h-3.5" /> Delete
           </button>
         </div>
       </div>

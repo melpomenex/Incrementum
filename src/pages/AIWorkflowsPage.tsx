@@ -2,15 +2,14 @@ import { useState } from "react";
 import { invokeCommand as invoke } from "../lib/tauri";
 import { useI18n } from "../lib/i18n";
 import {
-  Sparkles,
-  FileText,
   BookOpen,
+  CircleNotch,
   Lightbulb,
-  HelpCircle,
-  Wand2,
-  Send,
-  Loader2,
-} from "lucide-react";
+  PaperPlaneTilt,
+  Question,
+  Sparkle,
+  TextT,
+} from "@phosphor-icons/react";
 
 type WorkflowType =
   | "flashcards"
@@ -25,13 +24,13 @@ const workflows = [
     id: "flashcards" as WorkflowType,
     label: "aiWorkflows.generateFlashcards",
     description: "aiWorkflows.generateFlashcardsDesc",
-    icon: <FileText className="w-6 h-6" />,
+    icon: <TextT className="w-6 h-6" />,
   },
   {
     id: "qa" as WorkflowType,
     label: "aiWorkflows.qa",
     description: "aiWorkflows.qaDesc",
-    icon: <HelpCircle className="w-6 h-6" />,
+    icon: <Question className="w-6 h-6" />,
   },
   {
     id: "summarize" as WorkflowType,
@@ -49,13 +48,13 @@ const workflows = [
     id: "simplify" as WorkflowType,
     label: "aiWorkflows.simplify",
     description: "aiWorkflows.simplifyDesc",
-    icon: <Wand2 className="w-6 h-6" />,
+    icon: <Sparkle className="w-6 h-6" />,
   },
   {
     id: "title" as WorkflowType,
     label: "aiWorkflows.generateTitle",
     description: "aiWorkflows.generateTitleDesc",
-    icon: <Sparkles className="w-6 h-6" />,
+    icon: <Sparkle className="w-6 h-6" />,
   },
 ];
 
@@ -177,7 +176,7 @@ export function AIWorkflowsPage() {
           {!selectedWorkflow ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center text-foreground-secondary">
-                <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <Sparkle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>{t("integrations.selectWorkflowDesc")}</p>
               </div>
             </div>
@@ -253,12 +252,12 @@ export function AIWorkflowsPage() {
                   >
                     {isProcessing ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <CircleNotch className="w-4 h-4 animate-spin" />
                         {t("common.processing")}
                       </>
                     ) : (
                       <>
-                        <Send className="w-4 h-4" />
+                        <PaperPlaneTilt className="w-4 h-4" />
                         {t("aiWorkflows.process")}
                       </>
                     )}

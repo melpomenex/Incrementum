@@ -3,7 +3,7 @@
  * FTS5 search results with highlighted snippets, source feed, date
  */
 
-import { Clock, Rss } from "lucide-react";
+import { Clock, Rss } from "@phosphor-icons/react";
 import type { RssSearchResult } from "../../api/rss-search";
 import { formatFeedDate } from "../../api/rss";
 import { sanitizeHtml } from "../common/RichContentRenderer";

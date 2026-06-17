@@ -1,4 +1,4 @@
-import { CalendarClock, Loader2 } from "lucide-react";
+import { CalendarHeart, CircleNotch } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { useQueueStore } from "../../stores/queueStore";
 
@@ -26,7 +26,7 @@ export function AutoPostponePrompt() {
       <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-md">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
-            <CalendarClock className="w-5 h-5 text-primary" />
+            <CalendarHeart className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">
               {postponeStats
                 ? t("postpone.postponeComplete")
@@ -53,7 +53,7 @@ export function AutoPostponePrompt() {
                   disabled={postponeLoading}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
                 >
-                  {postponeLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {postponeLoading && <CircleNotch className="w-4 h-4 animate-spin" />}
                   {t("postpone.postpone")}
                 </button>
               </div>

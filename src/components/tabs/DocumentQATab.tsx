@@ -19,22 +19,21 @@ import {
   type ResearchArtifactDraft,
 } from "../../features/documentQa/notebooklmResearch";
 import {
-  MessageSquare,
-  Send,
-  Loader2,
-  X,
-  FileText,
-  Settings,
-  Sparkles,
-  Trash2,
   BookOpen,
-  FlaskConical,
-  Wand2,
-  Save,
-  AlertCircle,
-  Copy,
+  ChatCircle,
   Check,
-} from "lucide-react";
+  CircleNotch,
+  Copy,
+  Flask,
+  FloppyDisk,
+  Gear,
+  PaperPlaneTilt,
+  Sparkle,
+  TextT,
+  Trash,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { renderMarkdown } from "../../utils/markdown";
 import { detectChapterReference, buildChapterQAContext, getChapterTitles, type ChapterReference } from "../../utils/chapterUtils";
 import { useI18n } from "../../lib/i18n";
@@ -716,7 +715,7 @@ export function DocumentQATab() {
         const errorMsg = {
           id: `error-${Date.now()}`,
           role: "system" as const,
-          content: "No LLM provider configured. Please add an API key in Settings to use Document Q&A.",
+          content: "No LLM provider configured. Please add an API key in Gear to use Document Q&A.",
           timestamp: Date.now(),
         };
         addMessage(errorMsg);
@@ -747,7 +746,7 @@ When the user asks to CREATE or SAVE learning items, you MUST output tool calls 
 **When to use tools**:
 - "Create flashcards", "make cards", "generate cards", "add to database" → MUST use create_qa_card or create_cloze_card tools
 - "Create an extract", "save this quote", "save this passage" → MUST use create_extract tool
-- "Save this note" → MUST use create_extract tool
+- "FloppyDisk this note" → MUST use create_extract tool
 
 **For regular questions** like "summarize", "explain", "what is" - answer directly without tools.
 
@@ -865,7 +864,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
     return (
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center max-w-md">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <TextT className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-bold text-foreground mb-2">{t("tabs.noDocumentsYet")}</h2>
           <p className="text-muted-foreground mb-4">
             {t("tabs.importDocumentsFirst")}
@@ -883,7 +882,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-primary" />
+          <ChatCircle className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-bold text-foreground">{t("toolbar.documentQA")}</h2>
         </div>
         <div className="flex items-center gap-3">
@@ -911,7 +910,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
               className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded hover:bg-destructive hover:text-destructive-foreground transition-colors flex items-center gap-1"
               title="Clear conversation"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash className="w-4 h-4" />
               {t("tabs.clearChat")}
             </button>
           )}
@@ -922,7 +921,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
         <div className="border-b border-border bg-muted/30 p-4">
           <div className="max-w-4xl mx-auto space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-primary" />
+              <Flask className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">NotebookLM Research Workspace</span>
               <select
                 aria-label="Research document"
@@ -951,7 +950,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                   }}
                   className="text-xs px-2 py-1 rounded-full border border-border bg-background hover:bg-muted"
                 >
-                  <Wand2 className="w-3 h-3 inline mr-1" />
+                  <Sparkle className="w-3 h-3 inline mr-1" />
                   {prompt.length > 54 ? `${prompt.slice(0, 54)}...` : prompt}
                 </button>
               ))}
@@ -970,7 +969,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                 disabled={researchStatus === "loading" || !researchQuery.trim()}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded disabled:opacity-50 flex items-center gap-2 self-start"
               >
-                {researchStatus === "loading" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {researchStatus === "loading" ? <CircleNotch className="w-4 h-4 animate-spin" /> : <Sparkle className="w-4 h-4" />}
                 Research
               </button>
             </div>
@@ -1010,7 +1009,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
 
             {researchStatus === "error" && researchError && (
               <div className="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded px-2 py-1 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
+                <WarningCircle className="w-3 h-3" />
                 {researchError}
               </div>
             )}
@@ -1051,8 +1050,8 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                     disabled={isSavingArtifact}
                     className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 flex items-center gap-1"
                   >
-                    {isSavingArtifact ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                    Save Card
+                    {isSavingArtifact ? <CircleNotch className="w-3 h-3 animate-spin" /> : <FloppyDisk className="w-3 h-3" />}
+                    FloppyDisk Card
                   </button>
                   <button
                     onClick={() => setArtifactDraft(null)}
@@ -1079,7 +1078,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
               key={mention.id}
               className="inline-flex items-center gap-1 px-2 py-1 bg-primary/20 text-primary text-sm rounded-full"
             >
-              <FileText className="w-3 h-3" />
+              <TextT className="w-3 h-3" />
               {mention.title}
               <button
                 onClick={() => handleRemoveMention(mention.id)}
@@ -1104,7 +1103,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center max-w-md">
-              <Sparkles className="w-12 h-12 mx-auto mb-4 text-primary opacity-50" />
+              <Sparkle className="w-12 h-12 mx-auto mb-4 text-primary opacity-50" />
               <h2 className="text-2xl font-bold text-foreground mb-2">
                 {t("tabs.askYourDocuments")}
               </h2>
@@ -1141,12 +1140,12 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                     <span className="text-xs text-muted-foreground">You</span>
                   ) : message.role === "system" ? (
                     <>
-                      <Settings className="w-3 h-3 text-muted-foreground" />
+                      <Gear className="w-3 h-3 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">System</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3 h-3 text-primary" />
+                      <Sparkle className="w-3 h-3 text-primary" />
                       <span className="text-xs text-muted-foreground">AI</span>
                     </>
                   )}
@@ -1213,7 +1212,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                           }`}
                         >
                           <span className="font-medium">{tool.name}</span>
-                          {tool.status === "pending" && <Loader2 className="w-3 h-3 animate-spin" />}
+                          {tool.status === "pending" && <CircleNotch className="w-3 h-3 animate-spin" />}
                         </div>
                       ))}
                     </div>
@@ -1230,7 +1229,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                           key={docId}
                           className="text-xs px-2 py-0.5 bg-muted rounded text-muted-foreground flex items-center gap-1"
                         >
-                          <FileText className="w-3 h-3" />
+                          <TextT className="w-3 h-3" />
                           {doc.title}
                         </span>
                       ) : null;
@@ -1242,7 +1241,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
             {isProcessing && (
               <div className="flex items-start">
                 <div className="bg-muted rounded-lg p-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
               </div>
             )}
@@ -1278,9 +1277,9 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
             className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isProcessing ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <CircleNotch className="w-5 h-5 animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <PaperPlaneTilt className="w-5 h-5" />
             )}
           </button>
         </div>
@@ -1300,7 +1299,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                     index === mentionCursorIndex ? "bg-muted" : ""
                   }`}
                 >
-                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <TextT className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-foreground truncate">
                       {doc.title}

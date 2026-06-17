@@ -1,9 +1,19 @@
 import { Fragment, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
-  Play, Pause, Trash2, CalendarClock, EyeOff,
-  Clock, AlertTriangle, Repeat, ChevronDown, ChevronRight,
-  BookOpen, Layers, Brain,
-} from "lucide-react";
+  BookOpen,
+  Brain,
+  CalendarHeart,
+  CaretDown,
+  CaretRight,
+  Clock,
+  EyeSlash,
+  Pause,
+  Play,
+  Repeat,
+  Stack,
+  Trash,
+  Warning,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
@@ -126,7 +136,7 @@ function retrievColor(r: number): string {
 function getTypeIcon(type: ScheduleDayItem["itemType"]) {
   switch (type) {
     case "document": return BookOpen;
-    case "extract": return Layers;
+    case "extract": return Stack;
     case "learning-item": return Brain;
     default: return BookOpen;
   }
@@ -215,8 +225,8 @@ function Row({ item, idx, isExpanded, onToggleExpand, onPostpone, onOpen, onSusp
         <td className="px-2 py-1 text-[11px] font-mono tabular-nums text-muted-foreground/60 w-7 text-right">
           <span className="inline-flex items-center gap-0.5">
             {isExpanded
-              ? <ChevronDown className="w-3 h-3 text-muted-foreground/80" />
-              : <ChevronRight className="w-3 h-3 text-muted-foreground/80" />}
+              ? <CaretDown className="w-3 h-3 text-muted-foreground/80" />
+              : <CaretRight className="w-3 h-3 text-muted-foreground/80" />}
             {idx}
           </span>
         </td>
@@ -265,18 +275,18 @@ function Row({ item, idx, isExpanded, onToggleExpand, onPostpone, onOpen, onSusp
               <div className="h-px bg-border my-1" /><div className="px-3 py-1 text-xs text-muted-foreground font-medium">{t("queue.postpone")}</div>
               {[1, 3, 7, 14, 30].map(d => (
                 <button key={d} className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2" onClick={() => void postpone(d)}>
-                  <CalendarClock className="w-4 h-4 text-blue-400" />+{d}{d === 1 ? t("queue.day") : t("queue.days")}
+                  <CalendarHeart className="w-4 h-4 text-blue-400" />+{d}{d === 1 ? t("queue.day") : t("queue.days")}
                 </button>
               ))}
             </>)}
             {item.itemType === "document" && onDismiss && (<>
               <div className="h-px bg-border my-1" /><button className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2" onClick={() => { setCtx(null); onDismiss(item.id); }}>
-                <EyeOff className="w-4 h-4 text-slate-400" />{t("queue.dismiss")}
+                <EyeSlash className="w-4 h-4 text-slate-400" />{t("queue.dismiss")}
               </button>
             </>)}
             {onDelete && (<>
               <div className="h-px bg-border my-1" /><button className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2" onClick={() => { setCtx(null); onDelete(item.id, item.itemType); }}>
-                <Trash2 className="w-4 h-4" />{t("queue.delete")}
+                <Trash className="w-4 h-4" />{t("queue.delete")}
               </button>
             </>)}
           </div>
@@ -416,7 +426,7 @@ function ExpandedRow({ item, onPostpone, onOpen, busyId, setBusyId }: {
                   )}
                   {item.lapses != null && item.lapses > 0 && (
                     <span className="flex items-center gap-0.5">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
+                      <Warning className="w-3 h-3 text-red-400" />
                       <span className="text-[10px] font-mono text-red-400">{item.lapses}</span>
                     </span>
                   )}

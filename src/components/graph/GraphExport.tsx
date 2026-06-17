@@ -4,7 +4,12 @@
  */
 
 import { useState, useCallback } from "react";
-import { Download, Image, FileText, Network } from "lucide-react";
+import {
+  Download,
+  Graph,
+  Image,
+  TextT,
+} from "@phosphor-icons/react";
 import { GraphData } from "./KnowledgeGraph";
 
 /**
@@ -411,35 +416,35 @@ export function GraphExportButton({
                 onClick={() => handleExport(GraphExportFormat.JSON)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 JSON Data
               </button>
               <button
                 onClick={() => handleExport(GraphExportFormat.GEXF)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <Network className="w-4 h-4" />
+                <Graph className="w-4 h-4" />
                 GEXF (Gephi)
               </button>
               <button
                 onClick={() => handleExport(GraphExportFormat.GraphML)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <Network className="w-4 h-4" />
+                <Graph className="w-4 h-4" />
                 GraphML
               </button>
               <button
                 onClick={() => handleExport(GraphExportFormat.DOT)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <Network className="w-4 h-4" />
+                <Graph className="w-4 h-4" />
                 Graphviz DOT
               </button>
               <button
                 onClick={() => handleExport(GraphExportFormat.CSV)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 CSV
               </button>
             </div>

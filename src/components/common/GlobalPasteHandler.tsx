@@ -1,5 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ClipboardPaste, X, Loader2, Save, Tag, FileText, Image as ImageIcon } from "lucide-react";
+import {
+  CircleNotch,
+  ClipboardText,
+  FloppyDisk,
+  Image as ImageIcon,
+  Tag,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 import { createLearningItem } from "../../api/learning-items";
 import { importDocument } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
@@ -93,7 +101,7 @@ function PasteTextEditor({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="flex items-center gap-2">
-            <ClipboardPaste className="h-4 w-4 text-primary" />
+            <ClipboardText className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">
               {t("globalPaste.newFromClipboard")}
             </h3>
@@ -165,9 +173,9 @@ function PasteTextEditor({
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <CircleNotch className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Save className="h-3.5 w-3.5" />
+              <FloppyDisk className="h-3.5 w-3.5" />
             )}
             {t("globalPaste.createCard")}
           </button>
@@ -450,7 +458,7 @@ export function GlobalPasteHandler() {
               {(isImage || isPdf) ? (
               <ImageIcon className="h-5 w-5 text-primary" />
             ) : (
-              <FileText className="h-5 w-5 text-blue-500" />
+              <TextT className="h-5 w-5 text-blue-500" />
             )}
             </div>
             <div className="min-w-0 flex-1">
@@ -473,7 +481,7 @@ export function GlobalPasteHandler() {
                 onClick={() => void handleImportFiles()}
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground hover:bg-primary/90"
               >
-                <ClipboardPaste className="h-3.5 w-3.5" />
+                <ClipboardText className="h-3.5 w-3.5" />
                 {isTauri() ? t("globalPaste.importToLibrary") : t("globalPaste.download")}
               </button>
             )}

@@ -7,18 +7,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Scissors,
-  X,
-  Play,
-  Clock,
-  Tag as TagIcon,
-  Trash2,
-  Edit,
-  Calendar,
-  CheckCircle2,
-  AlertTriangle,
   BookOpen,
-} from 'lucide-react';
+  Calendar,
+  CheckCircle,
+  Clock,
+  Pencil,
+  Play,
+  Scissors,
+  Tag as TagIcon,
+  Trash,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import {
   createVideoExtract,
   deleteVideoExtract,
@@ -235,11 +235,11 @@ export function CreateVideoExtractDialog({
                 isTooLong ? 'text-destructive' : isLong ? 'text-amber-600' : 'text-muted-foreground'
               }`}>
                 {isTooLong ? (
-                  <AlertTriangle className="w-4 h-4" />
+                  <Warning className="w-4 h-4" />
                 ) : isLong ? (
                   <Clock className="w-4 h-4" />
                 ) : (
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4" />
                 )}
                 <span>
                   {t('videoExtract.duration', { duration: formatSeconds(duration) })}
@@ -532,7 +532,7 @@ export function VideoExtractCard({
               className="p-1 hover:bg-muted rounded transition-colors"
               title={t('videoExtract.editExtract')}
             >
-              <Edit className="w-3 h-3 text-muted-foreground" />
+              <Pencil className="w-3 h-3 text-muted-foreground" />
             </button>
           )}
           {onDelete && (
@@ -541,7 +541,7 @@ export function VideoExtractCard({
               className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
               title={t('videoExtract.deleteExtract')}
             >
-              <Trash2 className="w-3 h-3 text-red-500" />
+              <Trash className="w-3 h-3 text-red-500" />
             </button>
           )}
         </div>
@@ -701,7 +701,7 @@ export function DueVideoExtractsReview({
   if (extracts.length === 0) {
     return (
       <div className={`text-center py-8 ${className}`}>
-        <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+        <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
         <p className="text-sm text-foreground-secondary">
           {t('videoExtract.noDueExtracts')}
         </p>

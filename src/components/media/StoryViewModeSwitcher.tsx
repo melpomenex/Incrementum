@@ -3,7 +3,12 @@
  * Toolbar buttons/dropdown for Feed/Original/Text/Story view modes
  */
 
-import { Newspaper, ExternalLink, FileText, BookOpen } from "lucide-react";
+import {
+  ArrowSquareOut,
+  BookOpen,
+  Newspaper,
+  TextT,
+} from "@phosphor-icons/react";
 
 export type StoryViewMode = "feed" | "original" | "text" | "story";
 
@@ -15,8 +20,8 @@ interface StoryViewModeSwitcherProps {
 
 const modes: { id: StoryViewMode; label: string; icon: React.ReactNode }[] = [
   { id: "feed", label: "Feed", icon: <Newspaper className="w-3.5 h-3.5" /> },
-  { id: "original", label: "Original", icon: <ExternalLink className="w-3.5 h-3.5" /> },
-  { id: "text", label: "Text", icon: <FileText className="w-3.5 h-3.5" /> },
+  { id: "original", label: "Original", icon: <ArrowSquareOut className="w-3.5 h-3.5" /> },
+  { id: "text", label: "Text", icon: <TextT className="w-3.5 h-3.5" /> },
   { id: "story", label: "Story", icon: <BookOpen className="w-3.5 h-3.5" /> },
 ];
 

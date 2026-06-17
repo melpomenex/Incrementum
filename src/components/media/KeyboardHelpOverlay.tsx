@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from "react";
-import { X, Keyboard } from "lucide-react";
+import { Keyboard, X } from "@phosphor-icons/react";
 import { useKeyboardShortcutsStore, type KeyboardShortcut } from "../../stores/keyboardShortcutsStore";
 import { useI18n } from "../../lib/i18n";
 

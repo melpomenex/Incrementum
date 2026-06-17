@@ -11,19 +11,19 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
-  Play,
-  Smartphone,
-  Search,
-  ChevronDown,
-  Clock,
+  Archive,
   BookOpen,
   Brain,
-  CalendarDays,
-  X,
-  SlidersHorizontal,
-  Archive,
   Calendar,
-} from "lucide-react";
+  CalendarBlank,
+  CaretDown,
+  Clock,
+  DeviceMobile,
+  MagnifyingGlass,
+  Play,
+  Sliders,
+  X,
+} from "@phosphor-icons/react";
 import { useQueueStore } from "../../stores/queueStore";
 import type { QueueItem } from "../../types/queue";
 import { useToast } from "../common/Toast";
@@ -270,7 +270,7 @@ export function MobileQueueView({
                 )}
                 aria-label={t("mobileQueue.toggleFilters")}
               >
-                <SlidersHorizontal className="w-5 h-5" />
+                <Sliders className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -304,7 +304,7 @@ export function MobileQueueView({
                 : "text-muted-foreground"
             )}
           >
-            <CalendarDays className="w-4 h-4" />
+            <CalendarBlank className="w-4 h-4" />
             <span className="hidden xs:inline">{t("schedule.title")}</span>
           </button>
           <button
@@ -376,9 +376,9 @@ export function MobileQueueView({
       {/* Expanded Filters Panel */}
       {showFilters && activeTab === "reading" && (
         <div className="px-4 py-3 border-b border-border bg-card/50 animate-in slide-in-from-top-2">
-          {/* Search */}
+          {/* MagnifyingGlass */}
           <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
@@ -415,7 +415,7 @@ export function MobileQueueView({
               disabled={filteredItems.length === 0}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
             >
-              <Smartphone className="w-5 h-5" />
+              <DeviceMobile className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -520,7 +520,7 @@ export function MobileQueueView({
                     </div>
 
                     {/* Chevron */}
-                    <ChevronDown className="w-5 h-5 text-muted-foreground -rotate-90 flex-shrink-0 mt-2" />
+                    <CaretDown className="w-5 h-5 text-muted-foreground -rotate-90 flex-shrink-0 mt-2" />
                   </button>
                 </SwipeableItem>
               );

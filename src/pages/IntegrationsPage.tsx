@@ -4,19 +4,19 @@ import { useTabsStore } from "../stores";
 import { NotebookLMTab } from "../components/tabs/TabRegistry";
 import { useI18n } from "../lib/i18n";
 import {
-  Link as LinkIcon,
-  Download,
-  Upload,
-  Loader2,
-  Check,
-  AlertCircle,
-  Brain,
-  Gem,
-  Layers,
-  Sparkles,
   ArrowRight,
-  ExternalLink,
-} from "lucide-react";
+  ArrowSquareOut,
+  Brain,
+  Check,
+  CircleNotch,
+  Diamond,
+  Download,
+  Link as LinkIcon,
+  Sparkle,
+  Stack,
+  Upload,
+  WarningCircle,
+} from "@phosphor-icons/react";
 
 export function IntegrationsPage() {
   const { t } = useI18n();
@@ -29,7 +29,7 @@ export function IntegrationsPage() {
   const handleOpenNotebookLM = () => {
     addTab({
       title: "NotebookLM",
-      icon: <Sparkles className="w-4 h-4" />,
+      icon: <Sparkle className="w-4 h-4" />,
       type: "notebooklm",
       content: NotebookLMTab,
       closable: true,
@@ -133,7 +133,7 @@ export function IntegrationsPage() {
                     onClick={handleOpenNotebookLM}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkle className="w-4 h-4" />
                     {t("integrations.openNotebooklm")}
                     <ArrowRight className="w-4 h-4" />
                   </button>
@@ -161,7 +161,7 @@ export function IntegrationsPage() {
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-950 rounded-xl flex items-center justify-center">
-                <Gem className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <Diamond className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-foreground">{t("integrations.obsidian")}</h3>
@@ -191,7 +191,7 @@ export function IntegrationsPage() {
                     >
                       {obsidianStatus === "exporting" ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <CircleNotch className="w-4 h-4 animate-spin" />
                           {t("integrations.exporting")}
                         </>
                       ) : (
@@ -208,7 +208,7 @@ export function IntegrationsPage() {
                     >
                       {obsidianStatus === "syncing" ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <CircleNotch className="w-4 h-4 animate-spin" />
                           {t("integrations.syncing")}
                         </>
                       ) : (
@@ -227,7 +227,7 @@ export function IntegrationsPage() {
                   )}
                   {obsidianStatus?.startsWith("error") && (
                     <div className="flex items-center gap-2 text-sm text-destructive">
-                      <AlertCircle className="w-4 h-4" />
+                      <WarningCircle className="w-4 h-4" />
                       {obsidianStatus.replace("error: ", "")}
                     </div>
                   )}
@@ -240,7 +240,7 @@ export function IntegrationsPage() {
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 rounded-xl flex items-center justify-center">
-                <Layers className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <Stack className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-foreground">{t("integrations.anki")}</h3>
@@ -269,7 +269,7 @@ export function IntegrationsPage() {
                     >
                       {ankiStatus === "testing" ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <CircleNotch className="w-4 h-4 animate-spin" />
                           {t("integrations.testing")}
                         </>
                       ) : (
@@ -283,7 +283,7 @@ export function IntegrationsPage() {
                     >
                       {ankiStatus === "syncing" ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <CircleNotch className="w-4 h-4 animate-spin" />
                           {t("integrations.syncing")}
                         </>
                       ) : (
@@ -308,7 +308,7 @@ export function IntegrationsPage() {
                   )}
                   {ankiStatus?.startsWith("error") && (
                     <div className="flex items-center gap-2 text-sm text-destructive">
-                      <AlertCircle className="w-4 h-4" />
+                      <WarningCircle className="w-4 h-4" />
                       {ankiStatus.replace("error: ", "")}
                     </div>
                   )}
@@ -321,7 +321,7 @@ export function IntegrationsPage() {
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-950 rounded-xl flex items-center justify-center">
-                <ExternalLink className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <ArrowSquareOut className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-foreground">{t("integrations.browserExtension")}</h3>

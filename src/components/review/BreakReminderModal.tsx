@@ -4,7 +4,13 @@
  */
 
 import { useState, useEffect } from "react";
-import { Coffee, X, Timer, Brain, RefreshCw } from "lucide-react";
+import {
+  ArrowsClockwise,
+  Brain,
+  Coffee,
+  Timer,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface BreakReminderModalProps {
@@ -123,7 +129,7 @@ export function BreakReminderModal({
 
           {/* Countdown for suggested break */}
           <div className="flex items-center justify-center gap-2 text-amber-500 mb-4">
-            <RefreshCw className="w-4 h-4 animate-spin" style={{ animationDuration: "3s" }} />
+            <ArrowsClockwise className="w-4 h-4 animate-spin" style={{ animationDuration: "3s" }} />
             <span className="text-sm">{t("breakReminder.suggestedFor", { time: formatTime(countdown) })}</span>
           </div>
         </div>

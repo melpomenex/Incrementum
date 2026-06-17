@@ -4,7 +4,12 @@
  */
 
 import { useState } from "react";
-import { StickyNote, Save, X, Trash2 } from "lucide-react";
+import {
+  FloppyDisk,
+  Note,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useAnnotationsStore } from "../../stores/annotationsStore";
 
 interface NoteEditorProps {
@@ -45,7 +50,7 @@ export function NoteEditor({ articleId, existingNote, onSave, onCancel, autoFocu
 
   return (
     <div className="flex items-start gap-2 p-2 bg-muted/30 rounded-lg border border-border/50">
-      <StickyNote className="w-4 h-4 text-muted-foreground mt-2 flex-shrink-0" />
+      <Note className="w-4 h-4 text-muted-foreground mt-2 flex-shrink-0" />
       <textarea
         autoFocus={autoFocus}
         value={content}
@@ -67,14 +72,14 @@ export function NoteEditor({ articleId, existingNote, onSave, onCancel, autoFocu
           disabled={!content.trim() || isSaving}
           className="p-1.5 text-emerald-600 hover:bg-emerald-500/10 rounded disabled:opacity-50"
         >
-          <Save className="w-3.5 h-3.5" />
+          <FloppyDisk className="w-3.5 h-3.5" />
         </button>
         {existingNote && (
           <button
             onClick={() => void handleDelete()}
             className="p-1.5 text-red-500 hover:bg-red-500/10 rounded"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash className="w-3.5 h-3.5" />
           </button>
         )}
         <button onClick={onCancel} className="p-1.5 text-muted-foreground hover:bg-muted/60 rounded">

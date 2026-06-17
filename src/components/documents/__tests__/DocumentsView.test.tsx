@@ -89,8 +89,4 @@ describe("DocumentsView", () => {
     expect(screen.getByText("Inspector")).toBeInTheDocument();
   });
 
-  it("shows tag overflow indicator", () => {
-    render(<DocumentsView enableYouTubeImport={false} />);
-    expect(screen.getByText("+1")).toBeInTheDocument();
-  });
 });

@@ -2,9 +2,9 @@ import { useMemo, useState, useCallback, useRef, memo } from "react";
 import {
   Check,
   Clock,
-  AlertTriangle,
-  MoreHorizontal,
-} from "lucide-react";
+  DotsThree,
+  Warning,
+} from "@phosphor-icons/react";
 import type { LearningItem } from "../../api/learning-items";
 import { CardContextMenu } from "./CardContextMenu";
 
@@ -181,7 +181,7 @@ export const DeckManagerCardRow = memo(function DeckManagerCardRow({
       <div className={"flex-shrink-0 min-w-0 truncate text-sm leading-tight " + (isMobile ? "flex-1" : "w-[180px] lg:w-[200px]")} title={card.question.replace(/<[^>]*>/g, "")}>
         {truncatedQ}
         {card.lapses >= 5 && (
-          <span title="Leech"><AlertTriangle className="h-3 w-3 text-yellow-500 inline ml-1 flex-shrink-0" /></span>
+          <span title="Leech"><Warning className="h-3 w-3 text-yellow-500 inline ml-1 flex-shrink-0" /></span>
         )}
         {/* Mobile: inline state badge + due date */}
         {isMobile && (
@@ -259,7 +259,7 @@ export const DeckManagerCardRow = memo(function DeckManagerCardRow({
             onClick={handleOpenMenu}
             className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
           >
-            <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+            <DotsThree className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
         </div>
       )}

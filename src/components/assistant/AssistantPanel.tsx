@@ -1,29 +1,28 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import DOMPurify from "dompurify";
 import {
-  ChevronLeft,
-  ChevronRight,
-  MessageSquare,
-  Send,
-  Sparkles,
-  Code,
-  FileText,
-  Settings,
-  Loader2,
-  PanelLeftClose,
-  PanelRightClose,
-  Share2,
-  Copy,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  ChatCircle,
   Check,
-  ImagePlus,
-  X,
-  ChevronDown,
-  Zap,
+  CircleNotch,
+  Code,
+  Copy,
   Cpu,
   Eye,
-  AlertCircle,
+  Gear,
   Globe,
-} from "lucide-react";
+  Images,
+  Lightning,
+  PaperPlaneTilt,
+  ShareNetwork,
+  SidebarSimple,
+  Sparkle,
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { compressImage, readFileAsDataUrl } from "../../utils/imageCompression";
 import { supportsVision } from "../../utils/visionCapability";
 import { chatWithContext, type LLMMessage, type LLMMessageContentPart } from "../../api/llm";
@@ -347,13 +346,13 @@ export function AssistantPanel({
     return "active";
   };
 
-  // Open the Settings tab to AI panel directly
+  // Open the Gear tab to AI panel directly
   const handleOpenSettingsToAI = () => {
     localStorage.setItem("incrementum_settings_initial_tab", "ai");
     
     const tabId = useTabsStore.getState().addTab({
-      title: "Settings",
-      icon: <Settings className="w-4 h-4" />,
+      title: "Gear",
+      icon: <Gear className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,
       closable: true,
@@ -456,7 +455,7 @@ export function AssistantPanel({
     { 
       id: "openai", 
       name: "OpenAI", 
-      icon: Sparkles, 
+      icon: Sparkle, 
       color: "text-emerald-500",
       gradient: "from-emerald-500/15 to-teal-500/5 hover:from-emerald-500/20",
       breathingDot: "bg-emerald-500 shadow-[0_0_8px_#10b981]",
@@ -464,7 +463,7 @@ export function AssistantPanel({
     { 
       id: "anthropic", 
       name: "Anthropic", 
-      icon: MessageSquare, 
+      icon: ChatCircle, 
       color: "text-orange-500",
       gradient: "from-orange-500/15 to-amber-500/5 hover:from-orange-500/20",
       breathingDot: "bg-orange-500 shadow-[0_0_8px_#f97316]",
@@ -480,7 +479,7 @@ export function AssistantPanel({
     { 
       id: "openrouter", 
       name: "OpenRouter", 
-      icon: Settings, 
+      icon: Gear, 
       color: "text-purple-500",
       gradient: "from-purple-500/15 to-pink-500/5 hover:from-purple-500/20",
       breathingDot: "bg-purple-500 shadow-[0_0_8px_#a855f7]",
@@ -858,20 +857,20 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         // Provider doesn't exist at all
         const availableTypes = enabledProviders.map((p) => p.provider).join(", ");
         return {
-          content: `No ${effectiveProvider} provider configured. Available providers: ${availableTypes || "None"}. Please add an API key in Settings.`,
+          content: `No ${effectiveProvider} provider configured. Available providers: ${availableTypes || "None"}. Please add an API key in Gear.`,
         };
       }
 
       if (!selectedTypeProvider.enabled) {
         // Provider exists but is disabled
         return {
-          content: `The ${effectiveProvider} provider is configured but disabled. Please enable it in Settings, or select a different provider.`,
+          content: `The ${effectiveProvider} provider is configured but disabled. Please enable it in Gear, or select a different provider.`,
         };
       }
 
       if (providerRequiresApiKey(selectedTypeProvider.provider, selectedTypeProvider.baseUrl) && (!selectedTypeProvider.apiKey || !selectedTypeProvider.apiKey.trim())) {
         return {
-          content: `${effectiveProvider} provider found but API key is empty. Please remove and re-add the provider in Settings.`,
+          content: `${effectiveProvider} provider found but API key is empty. Please remove and re-add the provider in Gear.`,
         };
       }
 
@@ -1596,9 +1595,9 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
           title="Open Assistant"
         >
           {position === "right" ? (
-            <ChevronLeft className="w-4 h-4 text-foreground" />
+            <CaretLeft className="w-4 h-4 text-foreground" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-foreground" />
+            <CaretRight className="w-4 h-4 text-foreground" />
           )}
         </button>
       </div>
@@ -1620,7 +1619,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-primary" />
+          <ChatCircle className="w-4 h-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Assistant</h2>
         </div>
         <div className="flex items-center gap-1">
@@ -1631,7 +1630,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
               className="p-1.5 hover:bg-muted transition-colors rounded mr-1"
               title="Share conversation"
             >
-              <Share2 className="w-4 h-4 text-foreground" />
+              <ShareNetwork className="w-4 h-4 text-foreground" />
             </button>
           )}
           {/* Breathing CSS Animation */}
@@ -1693,7 +1692,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
               </span>
 
               {/* Chevron */}
-              <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${
+              <CaretDown className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${
                 isModelDropdownOpen ? "transform rotate-180" : ""
               }`} />
             </button>
@@ -1723,7 +1722,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                       className="p-1 hover:bg-muted/70 rounded transition-colors text-muted-foreground hover:text-foreground"
                       title="Manage AI Providers"
                     >
-                      <Settings className="w-3.5 h-3.5" />
+                      <Gear className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -1809,7 +1808,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                                 )}
                                 {isMini && (
                                   <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold px-1 py-0.25 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/10">
-                                    <Zap className="w-2.5 h-2.5" /> Fast
+                                    <Lightning className="w-2.5 h-2.5" /> Fast
                                   </span>
                                 )}
                               </div>
@@ -1836,9 +1835,9 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
             title={position === "right" ? "Move to left side" : "Move to right side"}
           >
             {position === "right" ? (
-              <PanelLeftClose className="w-4 h-4 text-foreground" />
+              <SidebarSimple className="w-4 h-4 text-foreground" />
             ) : (
-              <PanelRightClose className="w-4 h-4 text-foreground" />
+              <SidebarSimple className="w-4 h-4 text-foreground" />
             )}
           </button>
           <button
@@ -1847,9 +1846,9 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
             title="Collapse"
           >
             {position === "right" ? (
-              <ChevronRight className="w-4 h-4 text-foreground" />
+              <CaretRight className="w-4 h-4 text-foreground" />
             ) : (
-              <ChevronLeft className="w-4 h-4 text-foreground" />
+              <CaretLeft className="w-4 h-4 text-foreground" />
             )}
           </button>
         </div>
@@ -1859,7 +1858,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
       {context && (
         <div className="px-3 py-2 bg-muted/50 border-b border-border text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            {context.type === "document" && <FileText className="w-3 h-3" />}
+            {context.type === "document" && <TextT className="w-3 h-3" />}
             {context.type === "web" && <Code className="w-3 h-3" />}
             <span>{getContextMessage(context)}</span>
             {context.type === "video" && context.content && (
@@ -1878,7 +1877,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
       >
         {messages.length === 0 ? (
           <div className="text-center text-muted-foreground text-sm py-8">
-            <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <Sparkle className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p>Ask me anything about your documents</p>
             <p className="text-xs mt-1">I have context of what you're viewing</p>
           </div>
@@ -1892,14 +1891,14 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
               {/* Message Header */}
               <div className="flex items-center gap-2 mb-1">
                 {message.role === "system" && (
-                  <Settings className="w-3 h-3 text-muted-foreground" />
+                  <Gear className="w-3 h-3 text-muted-foreground" />
                 )}
                 {message.role === "assistant" && (
                   <>
-                    {effectiveProvider === "openai" && <Sparkles className="w-3 h-3 text-green-500" />}
-                    {effectiveProvider === "anthropic" && <MessageSquare className="w-3 h-3 text-orange-500" />}
+                    {effectiveProvider === "openai" && <Sparkle className="w-3 h-3 text-green-500" />}
+                    {effectiveProvider === "anthropic" && <ChatCircle className="w-3 h-3 text-orange-500" />}
                     {effectiveProvider === "ollama" && <Code className="w-3 h-3 text-blue-500" />}
-                    {effectiveProvider === "openrouter" && <Settings className="w-3 h-3 text-purple-500" />}
+                    {effectiveProvider === "openrouter" && <Gear className="w-3 h-3 text-purple-500" />}
                   </>
                 )}
                 <span className="text-xs text-muted-foreground">
@@ -1963,7 +1962,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                     className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                     title="Share/Export"
                   >
-                    <Share2 className="w-3 h-3" />
+                    <ShareNetwork className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1987,7 +1986,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                         {JSON.stringify(tool.parameters)}
                       </span>
                       {tool.status === "pending" && (
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <CircleNotch className="w-3 h-3 animate-spin" />
                       )}
                     </div>
                   ))}
@@ -2033,7 +2032,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
 
           {/* Available Tools Hint */}
           <div className="text-xs text-muted-foreground flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
+            <Sparkle className="w-3 h-3" />
             <span>Type /tools to see available tools</span>
           </div>
 
@@ -2063,7 +2062,7 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                 className="px-2 py-1 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title={attachedImages.length >= MAX_ATTACHED_IMAGES ? `Maximum ${MAX_ATTACHED_IMAGES} images` : "Attach image"}
               >
-                <ImagePlus className="w-4 h-4" />
+                <Images className="w-4 h-4" />
               </button>
               <button
                 onClick={handleSendMessage}
@@ -2071,9 +2070,9 @@ Do NOT output flashcards as plain JSON arrays, markdown, or anything other than 
                 className="px-2 py-1 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
               >
                 {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <PaperPlaneTilt className="w-4 h-4" />
                 )}
               </button>
             </div>

@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useDocumentStore } from "../../stores";
-import { Camera, Download, Trash2, Calendar, Check } from "lucide-react";
+import {
+  Calendar,
+  Camera,
+  Check,
+  Download,
+  Trash,
+} from "@phosphor-icons/react";
 import { downloadScreenshot } from "../../utils/screenshotCapture";
 import { captureScreenshotWithOverlay } from "../../utils/screenshotCaptureFlow";
 import { invokeCommand } from "../../lib/tauri";
@@ -287,7 +293,7 @@ export function ScreenshotTab() {
                       onClick={() => handleDelete(selectedScreenshot.id)}
                       className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors flex items-center gap-2"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash className="w-4 h-4" />
                       {t("screenshotTab.delete")}
                     </button>
                   </div>

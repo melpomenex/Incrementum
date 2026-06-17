@@ -6,15 +6,15 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  X,
-  Tag as TagIcon,
+  BookOpen,
+  Clipboard,
   FolderOpen,
   Lightbulb,
-  BookOpen,
-  Search,
-  Layers,
-  Clipboard,
-} from "lucide-react";
+  MagnifyingGlass,
+  Stack,
+  Tag as TagIcon,
+  X,
+} from "@phosphor-icons/react";
 import { createExtract, CreateExtractInput, Extract } from "../../api/extracts";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useTabsStore } from "../../stores/tabsStore";
@@ -260,12 +260,12 @@ export function PasteExtractDialog({ isOpen, onClose, onCreate }: PasteExtractDi
               onClick={() => setShowDocumentSearch(!showDocumentSearch)}
               className="ml-2 px-3 py-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground rounded transition-colors flex items-center gap-1 shrink-0"
             >
-              <Search className="w-3 h-3" />
+              <MagnifyingGlass className="w-3 h-3" />
               {showDocumentSearch ? "Done" : "Change"}
             </button>
           </div>
 
-          {/* Document Search */}
+          {/* Document MagnifyingGlass */}
           {showDocumentSearch && (
             <div className="mt-3">
               <input
@@ -273,7 +273,7 @@ export function PasteExtractDialog({ isOpen, onClose, onCreate }: PasteExtractDi
                 type="text"
                 value={documentSearchQuery}
                 onChange={(e) => setDocumentSearchQuery(e.target.value)}
-                placeholder="Search documents..."
+                placeholder="MagnifyingGlass documents..."
                 className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
               <div className="mt-2 max-h-40 overflow-y-auto space-y-1">

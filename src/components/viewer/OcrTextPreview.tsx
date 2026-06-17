@@ -1,4 +1,4 @@
-import { RotateCcw, FileText, X } from "lucide-react";
+import { ArrowCounterClockwise, TextT, X } from "@phosphor-icons/react";
 import type { SelectionRect } from "./OcrRegionSelector";
 
 // Inlined language constants to avoid build-time tesseract.js dependency
@@ -125,7 +125,7 @@ export function OcrTextPreview({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50 rounded-t-lg">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-muted-foreground" />
+          <TextT className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium">OCR Result</span>
           {ocrResult && (
             <span className={`text-xs font-medium ${confidenceColor}`}>
@@ -201,7 +201,7 @@ export function OcrTextPreview({
           className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50 transition-colors"
           title="Re-run OCR with selected language"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <ArrowCounterClockwise className="w-3.5 h-3.5" />
           Retry
         </button>
         <button

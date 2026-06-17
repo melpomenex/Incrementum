@@ -1,33 +1,32 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  AlertCircle,
-  BookAudio,
   BookOpen,
+  CaretLeft,
+  CaretRight,
   Check,
+  CircleNotch,
   Clock,
+  Columns,
+  DotsThree,
   Download,
-  FileText,
-  FileText as FileTextIcon,
-  Filter,
+  TextT as FileTextIcon,
+  Funnel,
   Globe,
-  Layers,
-  LayoutGrid,
-  Link2,
-  List,
-  Loader2,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Sparkles,
-  Trash2,
-  X,
-  Youtube,
-  ChevronLeft,
-  ChevronRight,
-  Columns2,
+  GridFour,
   Headphones,
-} from "lucide-react";
+  Link,
+  List,
+  MagnifyingGlass,
+  Plus,
+  Sparkle,
+  Stack,
+  TextT,
+  Trash,
+  WarningCircle,
+  X,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
@@ -113,9 +112,9 @@ function getDocumentCoverUrl(doc: Document): string | null {
 }
 
 function getCoverFallbackIcon(fileType: Document["fileType"]) {
-  if (fileType === "youtube") return Youtube;
-  if (fileType === "pdf") return FileText;
-  if (fileType === "audio") return BookAudio;
+  if (fileType === "youtube") return YoutubeLogo;
+  if (fileType === "pdf") return TextT;
+  if (fileType === "audio") return Headphones;
   return BookOpen;
 }
 
@@ -836,7 +835,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                   className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
                   title={t("documentsView.importYouTubeVideo")}
                 >
-                  <Youtube className="w-4 h-4" />
+                  <YoutubeLogo className="w-4 h-4" />
                   {t("documentsView.importYouTube")}
                 </button>
               )}
@@ -861,7 +860,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 className="px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
                 title={t("documentsView.importAudiobooks")}
               >
-                <BookAudio className="w-4 h-4" />
+                <Headphones className="w-4 h-4" />
                 {t("documentsView.audiobook")}
               </button>
               {(false as boolean) && isTauri() && (
@@ -909,9 +908,9 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
 
           {/* Controls Bar */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            {/* Search */}
+            {/* MagnifyingGlass */}
             <div className="relative flex-1 min-w-0 order-1 sm:min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
                 ref={searchRef}
                 type="text"
@@ -922,7 +921,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
               />
             </div>
 
-            {/* Mobile Controls Row - View Toggle + Views + Filter */}
+            {/* Mobile Controls Row - View Toggle + Views + Funnel */}
             <div className="flex sm:hidden items-center gap-2 order-2">
               {/* View Mode Toggle */}
               <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1">
@@ -935,7 +934,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                   }`}
                   aria-label={t("documentsView.gridView")}
                 >
-                  <LayoutGrid className="w-4 h-4" />
+                  <GridFour className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setMode("list")}
@@ -950,7 +949,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 </button>
               </div>
 
-              {/* Type Filter */}
+              {/* Type Funnel */}
               <div className="relative">
                 <select
                   value={selectedFileType}
@@ -965,7 +964,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                   ))}
                 </select>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Funnel className="w-3.5 h-3.5 text-muted-foreground" />
                 </div>
               </div>
 
@@ -990,7 +989,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <LayoutGrid className="w-4 h-4" />
+                  <GridFour className="w-4 h-4" />
                   {t("documentsView.grid")}
                 </button>
                 <button
@@ -1015,9 +1014,9 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                   : t("documentsView.showInspector")}
               </button>
 
-              {/* Type Filter */}
+              {/* Type Funnel */}
               <div className="relative">
-                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <Funnel className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                 <select
                   value={selectedFileType}
                   onChange={(event) => setSelectedFileType(event.target.value)}
@@ -1146,7 +1145,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 onClick={handleBulkDelete}
                 className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded text-sm hover:opacity-90 flex items-center gap-1"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash className="w-3 h-3" />
                 {t("documentsView.delete")}
               </button>
             </div>
@@ -1360,7 +1359,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                       onClick={() => { setListCtxDoc(null); onReadAlong?.(audioDoc, epubDoc); }}
                     >
                       {listCtxDoc.doc.fileType === "audio"
-                        ? <Columns2 className="h-3.5 w-3.5 text-blue-500" />
+                        ? <Columns className="h-3.5 w-3.5 text-blue-500" />
                         : <Headphones className="h-3.5 w-3.5 text-blue-500" />}
                       {listCtxDoc.doc.fileType === "audio"
                         ? `Read Along with ${best.doc.title}`
@@ -1373,7 +1372,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                     className="flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm hover:bg-muted text-foreground"
                     onClick={() => { setListCtxDoc(null); setListPairPicker(listCtxDoc.doc); }}
                   >
-                    <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Link className="h-3.5 w-3.5 text-muted-foreground" />
                     Pair with...
                   </button>
                 )}
@@ -1382,7 +1381,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                   className="flex items-center gap-2.5 w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
                   onClick={() => { setListCtxDoc(null); handleDeleteDocument(listCtxDoc.doc); }}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash className="h-3.5 w-3.5" />
                   Delete
                 </button>
               </div>
@@ -1415,7 +1414,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                     <input
                       autoFocus
                       type="text"
-                      placeholder="Search..."
+                      placeholder="MagnifyingGlass..."
                       value={listPairSearch}
                       onChange={(e) => setListPairSearch(e.target.value)}
                       className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md"
@@ -1589,7 +1588,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                         onClick={() => handleDeleteDocument(activeDocument)}
                         className="px-3 py-2 bg-destructive text-destructive-foreground rounded text-sm hover:opacity-90 flex items-center justify-center gap-1"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                         Delete
                       </button>
                     </div>
@@ -1614,7 +1613,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
             <div className="bg-card border border-border rounded-lg w-full max-w-md p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Youtube className="w-5 h-5 text-red-500" />
+                  <YoutubeLogo className="w-5 h-5 text-red-500" />
                   <h2 className="text-lg font-semibold text-foreground">
                     {t("documentsView.youtubeImportTitle")}
                   </h2>
@@ -1655,7 +1654,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 {ytdlpAvailable === false && (
                   <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 mt-0.5" />
+                      <WarningCircle className="w-4 h-4 mt-0.5" />
                       <div className="text-sm">
                         <div>{t("documentsView.ytDlpMissing")}</div>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1665,7 +1664,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                             className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                           >
                             {ytdlpInstalling ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <CircleNotch className="w-4 h-4 animate-spin" />
                             ) : (
                               <Download className="w-4 h-4" />
                             )}
@@ -1721,7 +1720,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
                   >
                     {youtubeLoading ? t("documentsView.importing") : t("documentsView.import")}
-                    <Link2 className="w-4 h-4" />
+                    <Link className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -2034,7 +2033,7 @@ function LibraryDashboard({
     [filteredDocuments]
   );
 
-  // Filter chips
+  // Funnel chips
   const allTypes = useMemo(() => {
     const types = new Set(documents.map((d) => d.fileType));
     return Array.from(types).sort();
@@ -2046,10 +2045,10 @@ function LibraryDashboard({
   };
 
   const stats = [
-    { label: "Total Items", value: totalItems, icon: <Layers className="w-4 h-4" /> },
-    { label: "In Progress", value: inProgress, icon: <Loader2 className="w-4 h-4" /> },
-    { label: "Unprocessed", value: unprocessed, icon: <FileText className="w-4 h-4" /> },
-    { label: "Highlights", value: highlights, icon: <Sparkles className="w-4 h-4" /> },
+    { label: "Total Items", value: totalItems, icon: <Stack className="w-4 h-4" /> },
+    { label: "In Progress", value: inProgress, icon: <CircleNotch className="w-4 h-4" /> },
+    { label: "Unprocessed", value: unprocessed, icon: <TextT className="w-4 h-4" /> },
+    { label: "Highlights", value: highlights, icon: <Sparkle className="w-4 h-4" /> },
     { label: "Ready to Review", value: readyToReview, icon: <BookOpen className="w-4 h-4" /> },
   ];
 
@@ -2075,7 +2074,7 @@ function LibraryDashboard({
         ))}
       </div>
 
-      {/* Filter Chips */}
+      {/* Funnel Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
           onClick={() => setSelectedFileType("all")}
@@ -2190,13 +2189,13 @@ function HorizontalSection({
             onClick={onScrollLeft}
             className="p-1.5 rounded-md bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <CaretLeft className="w-4 h-4" />
           </button>
           <button
             onClick={onScrollRight}
             className="p-1.5 rounded-md bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <ChevronRight className="w-4 h-4" />
+            <CaretRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -2300,7 +2299,7 @@ function LibraryCard({
         ? `Read Along with ${bestCompanion.doc.title}`
         : `Listen Along with ${bestCompanion.doc.title}`,
       icon: doc.fileType === "audio"
-        ? <Columns2 className="h-3.5 w-3.5 text-blue-500" />
+        ? <Columns className="h-3.5 w-3.5 text-blue-500" />
         : <Headphones className="h-3.5 w-3.5 text-blue-500" />,
       action: () => {
         const audioDoc = doc.fileType === "audio" ? doc : bestCompanion.doc;
@@ -2310,12 +2309,12 @@ function LibraryCard({
     } as { label: string; icon: React.ReactNode; color?: string; divider?: boolean; action: () => void }] : []),
     ...((doc.fileType === "audio" || doc.fileType === "epub") && onReadAlong ? [{
       label: "Pair with...",
-      icon: <Link2 className="h-3.5 w-3.5 text-muted-foreground" />,
+      icon: <Link className="h-3.5 w-3.5 text-muted-foreground" />,
       action: () => { setCtxPos(null); setShowPairPicker(true); },
     } as { label: string; icon: React.ReactNode; color?: string; divider?: boolean; action: () => void }] : []),
     {
       label: doc.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-      icon: <Sparkles className={"h-3.5 w-3.5 " + (doc.isFavorite ? "text-amber-500" : "text-muted-foreground")} />,
+      icon: <Sparkle className={"h-3.5 w-3.5 " + (doc.isFavorite ? "text-amber-500" : "text-muted-foreground")} />,
       action: () => onUpdate(doc.id, { isFavorite: !doc.isFavorite }),
     },
     {
@@ -2332,19 +2331,19 @@ function LibraryCard({
     { label: "", icon: null, divider: true, action: () => {} },
     ...(doc.fileType === "audio" || doc.fileType === "video" ? [{
       label: "Transcribe",
-      icon: <BookAudio className="h-3.5 w-3.5 text-blue-500" />,
+      icon: <Headphones className="h-3.5 w-3.5 text-blue-500" />,
       action: () => onTranscribe?.(),
     } as { label: string; icon: React.ReactNode; color?: string; divider?: boolean; action: () => void }] : []),
     { label: "", icon: null, divider: true, action: () => {} },
     {
       label: doc.isArchived ? "Unarchive" : "Archive",
-      icon: <FileText className={"h-3.5 w-3.5 " + (doc.isArchived ? "text-emerald-500" : "text-muted-foreground")} />,
+      icon: <TextT className={"h-3.5 w-3.5 " + (doc.isArchived ? "text-emerald-500" : "text-muted-foreground")} />,
       action: () => onUpdate(doc.id, { isArchived: !doc.isArchived }),
     },
     { label: "", icon: null, divider: true, action: () => {} },
     {
       label: "Delete",
-      icon: <Trash2 className="h-3.5 w-3.5" />,
+      icon: <Trash className="h-3.5 w-3.5" />,
       color: "text-destructive",
       action: () => onDelete(doc),
     },
@@ -2458,7 +2457,7 @@ function LibraryCard({
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Search..."
+                  placeholder="MagnifyingGlass..."
                   value={pairSearch}
                   onChange={(e) => setPairSearch(e.target.value)}
                   className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md"
@@ -2546,7 +2545,7 @@ function MobileImportMenu({
         aria-label="More import options"
         aria-expanded={isOpen}
       >
-        <MoreHorizontal className="w-5 h-5" />
+        <DotsThree className="w-5 h-5" />
       </button>
 
       {isOpen && (
@@ -2561,7 +2560,7 @@ function MobileImportMenu({
               className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
             >
               <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <Youtube className="w-4 h-4 text-red-500" />
+                <YoutubeLogo className="w-4 h-4 text-red-500" />
               </div>
               <span>{t("documentsView.importYouTube")}</span>
             </button>
@@ -2592,7 +2591,7 @@ function MobileImportMenu({
             className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
           >
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <BookAudio className="w-4 h-4 text-amber-600" />
+              <Headphones className="w-4 h-4 text-amber-600" />
             </div>
             <span>{t("documentsView.audiobook")}</span>
           </button>
@@ -2718,7 +2717,7 @@ function MobileSavedViewsMenu({
                     }`}
                   >
                     {view.mode === "grid" ? (
-                      <LayoutGrid
+                      <GridFour
                         className={`w-4 h-4 ${activeViewId === view.id ? "text-primary" : "text-muted-foreground"}`}
                       />
                     ) : (

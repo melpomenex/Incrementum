@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react";
-import { X, FileText, ExternalLink, Clock, User, Rss, BookOpen } from "lucide-react";
+import {
+  ArrowSquareOut,
+  BookOpen,
+  Clock,
+  Rss,
+  TextT,
+  User,
+  X,
+} from "@phosphor-icons/react";
 import { getFeedIcon, type Feed, type FeedItem } from "../../api/rss";
 
 interface ArticleContextOverlayProps {
@@ -147,7 +155,7 @@ export function ArticleContextOverlay({
         <div className="mb-4">
           <div className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
             <div className="flex items-center gap-2">
-              <FileText
+              <TextT
                 className={`w-4 h-4 ${hasFullContent ? "text-blue-500" : "text-muted-foreground"}`}
               />
               <span className="text-sm">
@@ -182,7 +190,7 @@ export function ArticleContextOverlay({
                   : "bg-blue-500 text-white hover:bg-blue-600"
               }`}
             >
-              <FileText className="w-4 h-4" />
+              <TextT className="w-4 h-4" />
               {isFullContentExpanded ? "Show Summary" : "Read Full Content"}
             </button>
           )}
@@ -195,7 +203,7 @@ export function ArticleContextOverlay({
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ArrowSquareOut className="w-4 h-4" />
               Open Original
             </button>
           )}

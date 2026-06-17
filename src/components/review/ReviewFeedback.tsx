@@ -4,7 +4,13 @@
  */
 
 import { useEffect, useState } from "react";
-import { Trophy, Star, Flame, PartyPopper, X } from "lucide-react";
+import {
+  Confetti,
+  Flame,
+  Star,
+  Trophy,
+  X,
+} from "@phosphor-icons/react";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 
 interface ReviewFeedbackProps {
@@ -37,7 +43,7 @@ const feedbackConfigs: Record<string, FeedbackConfig> = {
     bgColor: "bg-yellow-500/10 border-yellow-500/20",
   },
   complete: {
-    icon: <PartyPopper className="w-12 h-12" />,
+    icon: <Confetti className="w-12 h-12" />,
     title: "Session Complete!",
     message: "Great job! You've finished your reviews.",
     color: "text-green-500",

@@ -6,7 +6,15 @@
 import { useState } from "react";
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme, ThemeId } from '../../types/theme';
-import { Check, Palette, Download, Upload, Trash2, Eye, Sparkles } from 'lucide-react';
+import {
+  Check,
+  Download,
+  Eye,
+  Palette,
+  Sparkle,
+  Trash,
+  Upload,
+} from "@phosphor-icons/react";
 import { invokeCommand } from '../../lib/tauri';
 import { ThemeGallery } from './ThemeGallery';
 import { builtInThemes as registeredBuiltInThemes } from '../../themes/builtin';
@@ -101,7 +109,7 @@ function ThemeCard({ theme, isSelected, onSelect, onPreview }: ThemeCardProps) {
                 border: `1px solid ${theme.colors.primary}44`,
               }}
             >
-              <Sparkles className="w-2.5 h-2.5" />
+              <Sparkle className="w-2.5 h-2.5" />
               animated
             </span>
           )}
@@ -270,7 +278,7 @@ export function ThemePicker({ onClose }: ThemePickerProps) {
                     className="absolute top-2 left-2 p-1 rounded bg-destructive text-destructive-foreground hover:opacity-80 transition-opacity"
                     title="Delete custom theme"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash className="w-3 h-3" />
                   </button>
                 )}
               </div>

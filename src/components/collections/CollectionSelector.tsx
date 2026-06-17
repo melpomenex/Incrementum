@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { CaretDown, Check } from "@phosphor-icons/react";
 import { useCollectionStore } from '../../stores/collectionStore';
 
 interface CollectionSelectorProps {
@@ -31,7 +31,7 @@ export function CollectionSelector({
       >
         <span className="text-base">{current?.icon || '📁'}</span>
         <span className="text-sm text-foreground">{current?.name || 'Unknown'}</span>
-        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+        <CaretDown className="w-3 h-3 text-muted-foreground" />
       </button>
 
       {isOpen && (

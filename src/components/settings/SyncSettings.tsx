@@ -1,22 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
 import {
+  ArrowsClockwise,
+  Check,
+  Clock,
+  ClockCounterClockwise,
   Cloud,
-  CloudOff,
-  RefreshCw,
+  CloudSlash,
+  Copy,
+  Download,
+  HardDrive,
+  Key,
   Lock,
   LockOpen,
-  Clock,
-  Check,
-  FileText,
-  History,
   Shield,
-  ShieldAlert,
-  Download,
-  Wifi,
-  HardDrive,
-  Copy,
-  KeyRound,
-} from "lucide-react";
+  ShieldWarning,
+  TextT,
+  WifiHigh,
+} from "@phosphor-icons/react";
 import {
   syncNow,
   getSyncLog,
@@ -353,7 +353,7 @@ export function SyncSettings() {
           {config?.enabled ? (
             <Cloud className="w-8 h-8 text-primary" />
           ) : (
-            <CloudOff className="w-8 h-8 text-muted-foreground" />
+            <CloudSlash className="w-8 h-8 text-muted-foreground" />
           )}
           <div>
             <h2 className="text-2xl font-bold text-foreground">{t("syncSettings.title")}</h2>
@@ -497,7 +497,7 @@ export function SyncSettings() {
                           onClick={handleResetEncryption}
                           className="flex-1 px-2 py-1 bg-muted text-foreground rounded text-xs flex items-center justify-center gap-1"
                         >
-                          <KeyRound className="w-3 h-3" /> Reset key
+                          <Key className="w-3 h-3" /> Reset key
                         </button>
                         <button
                           onClick={handleDisableEncryption}
@@ -572,7 +572,7 @@ export function SyncSettings() {
               {config?.enabled && (
                 <div className={`flex items-center gap-2 ${getSyncStatusColor(status)}`}>
                   {status === SyncStatus.Syncing && (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <ArrowsClockwise className="w-4 h-4 animate-spin" />
                   )}
                   <span className="text-sm font-medium">{formatSyncStatus(status)}</span>
                 </div>
@@ -628,12 +628,12 @@ export function SyncSettings() {
                   >
                     {isSyncing ? (
                       <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <ArrowsClockwise className="w-4 h-4 animate-spin" />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <RefreshCw className="w-4 h-4" />
+                        <ArrowsClockwise className="w-4 h-4" />
                         Sync Now
                       </>
                     )}
@@ -662,7 +662,7 @@ export function SyncSettings() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <CloudOff className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <CloudSlash className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
                 <p className="text-muted-foreground mb-4">{t("syncSettings.cloudSyncDisabled")}</p>
                 <button
                   onClick={() => setViewMode("config")}
@@ -781,7 +781,7 @@ export function SyncSettings() {
                   )}
                   {autoDownloadMode === "wifi-only" && (
                     <span className="flex items-center gap-1">
-                      <Wifi className="w-3 h-3" /> Files will wait for WiFi before downloading on mobile
+                      <WifiHigh className="w-3 h-3" /> Files will wait for WiFi before downloading on mobile
                     </span>
                   )}
                   {autoDownloadMode === "manual" && (
@@ -895,12 +895,12 @@ export function SyncSettings() {
         <div className="bg-card border border-border rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.syncLog")}</h3>
-            <History className="w-5 h-5 text-muted-foreground" />
+            <ClockCounterClockwise className="w-5 h-5 text-muted-foreground" />
           </div>
 
           {syncLog.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <TextT className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>{t("syncSettings.noSyncHistory")}</p>
             </div>
           ) : (

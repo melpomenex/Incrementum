@@ -5,15 +5,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Target,
-  Flame,
-  Trophy,
-  Plus,
-  Edit,
-  CheckCircle2,
+  CheckCircle,
   Circle,
-  TrendingUp,
-} from 'lucide-react';
+  Flame,
+  Pencil,
+  Plus,
+  Target,
+  TrendUp,
+  Trophy,
+} from "@phosphor-icons/react";
 import {
   getActiveReadingGoal,
   getReadingStreak,
@@ -122,9 +122,9 @@ export function ReadingGoalsPanel({ className = '' }: ReadingGoalsPanelProps) {
           <button
             onClick={() => setIsEditing(true)}
             className="p-1.5 hover:bg-muted rounded transition-colors"
-            title="Edit goal"
+            title="Pencil goal"
           >
-            <Edit className="w-4 h-4 text-foreground" />
+            <Pencil className="w-4 h-4 text-foreground" />
           </button>
         )}
       </div>
@@ -239,7 +239,7 @@ function GoalDisplay({ goal }: GoalDisplayProps) {
           </div>
         </div>
         {isCompleted ? (
-          <CheckCircle2 className="w-5 h-5 text-green-500" />
+          <CheckCircle className="w-5 h-5 text-green-500" />
         ) : (
           <Circle className="w-5 h-5 text-muted-foreground" />
         )}
@@ -268,7 +268,7 @@ function GoalDisplay({ goal }: GoalDisplayProps) {
       {/* Weekly Trend */}
       <div className="pt-2 border-t border-border">
         <div className="flex items-center gap-1 text-xs text-foreground-secondary">
-          <TrendingUp className="w-3 h-3" />
+          <TrendUp className="w-3 h-3" />
           <span>Weekly average coming soon</span>
         </div>
       </div>

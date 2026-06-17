@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react";
-import { Brain, Eye, EyeOff, Trash2, Edit, RefreshCw, Save } from "lucide-react";
+import {
+  ArrowsClockwise,
+  Brain,
+  Eye,
+  EyeSlash,
+  FloppyDisk,
+  Pencil,
+  Trash,
+} from "@phosphor-icons/react";
 import {
   getLearningItems,
   type LearningItem,
@@ -164,7 +172,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
             }}
             className="px-3 py-1.5 text-sm border border-border text-foreground rounded-md hover:bg-muted transition-colors flex items-center gap-1.5"
           >
-            <Save className="w-3.5 h-3.5" />
+            <FloppyDisk className="w-3.5 h-3.5" />
             {t("learningCards.saveAsDeck")}
           </button>
           <button
@@ -214,9 +222,9 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
-                    const nextQuestion = prompt("Edit question", card.question);
+                    const nextQuestion = prompt("Pencil question", card.question);
                     if (nextQuestion === null || !nextQuestion.trim()) return;
-                    const nextAnswer = prompt("Edit answer", card.answer || "") ?? "";
+                    const nextAnswer = prompt("Pencil answer", card.answer || "") ?? "";
                     const reason = prompt("Reason for edit (optional)") || undefined;
                     const updated = await updateLearningItemContentWithVersion(
                       card.id,
@@ -230,7 +238,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                   className="p-1.5 rounded hover:bg-muted transition-colors"
                   title={t("learningCards.editCard")}
                 >
-                  <Edit className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
                 <button
                   onClick={async () => {
@@ -300,7 +308,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                   className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
                   title={t("learningCards.deleteCard")}
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  <Trash className="w-3.5 h-3.5 text-destructive" />
                 </button>
               </div>
             </div>
@@ -329,7 +337,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
                   >
                     {showAnswers[card.id] ? (
                       <span className="flex items-center gap-1">
-                        <EyeOff className="w-3 h-3" /> {t("learningCards.hide")}
+                        <EyeSlash className="w-3 h-3" /> {t("learningCards.hide")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1">
@@ -368,7 +376,7 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
 
               {card.ease_factor != null && card.ease_factor !== 2.5 && (
                 <span className="flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3" />
+                  <ArrowsClockwise className="w-3 h-3" />
                   EF: {card.ease_factor.toFixed(2)}
                 </span>
               )}

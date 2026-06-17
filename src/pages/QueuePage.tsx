@@ -3,7 +3,7 @@ import { useReviewStore, useTabsStore } from "../stores";
 import { DocumentViewer, ReviewTab } from "../components/tabs/TabRegistry";
 import type { QueueItem } from "../types/queue";
 import { QueueScrollPage } from "./QueueScrollPage";
-import { Brain, FileText, Layers } from "lucide-react";
+import { Brain, Stack, TextT } from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
 
 export function QueuePage() {
@@ -26,7 +26,7 @@ export function QueuePage() {
   const handleOpenDocument = (item: QueueItem) => {
     addTab({
       title: item.documentTitle,
-      icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+      icon: <TextT className="w-4 h-4 text-muted-foreground" />,
       type: "document-viewer",
       content: DocumentViewer,
       closable: true,
@@ -37,7 +37,7 @@ export function QueuePage() {
   const handleOpenScrollMode = () => {
     addTab({
       title: t("queue.scrollMode"),
-      icon: <Layers className="w-4 h-4" />,
+      icon: <Stack className="w-4 h-4" />,
       type: "queue-scroll",
       content: QueueScrollPage,
       closable: true,

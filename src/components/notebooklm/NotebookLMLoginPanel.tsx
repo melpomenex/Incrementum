@@ -8,17 +8,17 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import {
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Terminal,
-  ExternalLink,
-  LogOut,
-  RefreshCw,
+  ArrowsClockwise,
+  ArrowSquareOut,
+  CheckCircle,
+  CircleNotch,
+  Download,
   Info,
-  AlertCircle,
-  Download
-} from "lucide-react";
+  SignOut,
+  Terminal,
+  WarningCircle,
+  XCircle,
+} from "@phosphor-icons/react";
 import {
   notebooklmCheckCLI,
   notebooklmCLILogin,
@@ -146,7 +146,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
       case "checking":
         return (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <CircleNotch className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">Checking NotebookLM CLI...</p>
           </div>
         );
@@ -156,7 +156,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
           <div className="space-y-4">
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <WarningCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-medium text-red-900 dark:text-red-100">CLI Not Found</h4>
                   <p className="text-sm text-red-700 dark:text-red-300 mt-1">
@@ -190,7 +190,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
               onClick={checkStatus}
               className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <RefreshCw className="h-4 w-4" />
+              <ArrowsClockwise className="h-4 w-4" />
               Re-check Status
             </button>
           </div>
@@ -226,7 +226,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
               onClick={handleLogin}
               className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
             >
-              <ExternalLink className="h-4 w-4" />
+              <ArrowSquareOut className="h-4 w-4" />
               Sign In with Browser
             </button>
 
@@ -240,7 +240,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
         return (
           <div className="space-y-4">
             <div className="flex flex-col items-center justify-center py-4 space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <CircleNotch className="h-8 w-8 animate-spin text-primary" />
               <div className="text-center space-y-2">
                 <p className="font-medium">Waiting for authentication...</p>
                 <p className="text-sm text-muted-foreground">
@@ -288,7 +288,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
           <div className="space-y-4">
             <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-medium text-green-900 dark:text-green-100">Authenticated</h4>
                   <p className="text-sm text-green-700 dark:text-green-300 mt-1">
@@ -317,7 +317,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
               onClick={handleLogout}
               className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <LogOut className="h-4 w-4" />
+              <SignOut className="h-4 w-4" />
               Sign Out
             </button>
           </div>
@@ -328,7 +328,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
           <div className="space-y-4">
             <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <WarningCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-medium text-red-900 dark:text-red-100">Error</h4>
                   <p className="text-sm text-red-700 dark:text-red-300 mt-1">
@@ -342,7 +342,7 @@ export function NotebookLMLoginPanel({ onAuthChange }: NotebookLMLoginPanelProps
               onClick={checkStatus}
               className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <RefreshCw className="h-4 w-4" />
+              <ArrowsClockwise className="h-4 w-4" />
               Try Again
             </button>
           </div>

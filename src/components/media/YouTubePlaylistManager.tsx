@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  ListVideo,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Settings,
-  Play,
+  ArrowsClockwise,
+  ArrowSquareOut,
+  CaretDown,
+  CaretRight,
   Check,
-  AlertCircle,
-  Loader2,
-  ExternalLink,
-  ChevronDown,
-  ChevronRight,
+  CircleNotch,
   Download,
-} from "lucide-react";
+  Gear,
+  Play,
+  Plus,
+  Queue,
+  Trash,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import {
   PlaylistSubscription,
   PlaylistVideo,
@@ -209,7 +209,7 @@ export function YouTubePlaylistManager({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <CircleNotch className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
@@ -244,14 +244,14 @@ export function YouTubePlaylistManager({
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <ListVideo className="w-5 h-5 text-primary" />
+          <Queue className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-semibold">YouTube Playlist Import</h2>
         </div>
 
         {/* API Key Configuration */}
         <div className="p-4 bg-card border border-border rounded-lg space-y-4">
           <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-muted-foreground" />
+            <Gear className="w-4 h-4 text-muted-foreground" />
             <h3 className="font-medium">YouTube Data API Configuration</h3>
             {hasApiKey && (
               <span className="ml-auto px-2 py-0.5 bg-green-500/20 text-green-500 text-xs rounded-full">
@@ -281,7 +281,7 @@ export function YouTubePlaylistManager({
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isValidatingKey ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
                   <Check className="w-4 h-4" />
                 )}
@@ -328,7 +328,7 @@ export function YouTubePlaylistManager({
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isAdding ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
                   <Plus className="w-4 h-4" />
                 )}
@@ -338,7 +338,7 @@ export function YouTubePlaylistManager({
             
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2 text-destructive text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <WarningCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 whitespace-pre-line">{error}</div>
               </div>
             )}
@@ -354,7 +354,7 @@ export function YouTubePlaylistManager({
         ) : (
           <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <WarningCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="font-medium text-amber-900 dark:text-amber-100">API Key Required</h4>
                 <p className="text-sm text-amber-800 dark:text-amber-200 mt-1">
@@ -373,22 +373,22 @@ export function YouTubePlaylistManager({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ListVideo className="w-5 h-5 text-primary" />
+          <Queue className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-semibold">YouTube Playlist Auto-Import</h2>
         </div>
         <button
           onClick={() => setShowSettings(!showSettings)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
         >
-          <Settings className="w-4 h-4" />
-          Settings
+          <Gear className="w-4 h-4" />
+          Gear
         </button>
       </div>
 
-      {/* Global Settings */}
+      {/* Global Gear */}
       {showSettings && settings && (
         <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-          <h3 className="font-medium">Global Settings</h3>
+          <h3 className="font-medium">Global Gear</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -492,7 +492,7 @@ export function YouTubePlaylistManager({
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
         >
           {isAdding ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <CircleNotch className="w-4 h-4 animate-spin" />
           ) : (
             <Plus className="w-4 h-4" />
           )}
@@ -503,7 +503,7 @@ export function YouTubePlaylistManager({
       {/* Error */}
       {error && (
         <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2 text-destructive text-sm">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <WarningCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div className="flex-1 whitespace-pre-line">{error}</div>
           <button
             onClick={() => setError(null)}
@@ -517,7 +517,7 @@ export function YouTubePlaylistManager({
       {/* Subscriptions List */}
       {subscriptions.length === 0 ? (
         <div className="text-center py-12 bg-muted/30 rounded-lg">
-          <ListVideo className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+          <Queue className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
           <h3 className="font-medium text-muted-foreground mb-1">
             No playlists subscribed
           </h3>
@@ -541,9 +541,9 @@ export function YouTubePlaylistManager({
                   className="text-muted-foreground hover:text-foreground"
                 >
                   {expandedId === sub.id ? (
-                    <ChevronDown className="w-5 h-5" />
+                    <CaretDown className="w-5 h-5" />
                   ) : (
-                    <ChevronRight className="w-5 h-5" />
+                    <CaretRight className="w-5 h-5" />
                   )}
                 </button>
 
@@ -555,7 +555,7 @@ export function YouTubePlaylistManager({
                   />
                 ) : (
                   <div className="w-16 h-12 bg-muted rounded flex items-center justify-center">
-                    <ListVideo className="w-6 h-6 text-muted-foreground" />
+                    <Queue className="w-6 h-6 text-muted-foreground" />
                   </div>
                 )}
 
@@ -600,7 +600,7 @@ export function YouTubePlaylistManager({
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                     title="Refresh playlist"
                   >
-                    <RefreshCw
+                    <ArrowsClockwise
                       className={`w-4 h-4 ${
                         refreshingId === sub.id ? "animate-spin" : ""
                       }`}
@@ -614,7 +614,7 @@ export function YouTubePlaylistManager({
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                     title="Open on YouTube"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowSquareOut className="w-4 h-4" />
                   </a>
 
                   <button
@@ -622,12 +622,12 @@ export function YouTubePlaylistManager({
                     className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                     title="Delete subscription"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Expanded Settings */}
+              {/* Expanded Gear */}
               {expandedId === sub.id && (
                 <div className="px-4 pb-4 border-t border-border pt-3">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -708,12 +708,12 @@ export function YouTubePlaylistManager({
                   {/* Videos List */}
                   <div className="mt-6 border-t border-border pt-4">
                     <h4 className="font-medium mb-3 flex items-center gap-2">
-                      <ListVideo className="w-4 h-4" />
+                      <Queue className="w-4 h-4" />
                       Videos ({videos[sub.id]?.length || 0})
                     </h4>
                     {videos[sub.id] === undefined ? (
                       <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                        <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
                       </div>
                     ) : videos[sub.id]?.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4">
@@ -753,7 +753,7 @@ export function YouTubePlaylistManager({
                                 className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                               >
                                 {importingId === video.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <CircleNotch className="w-3 h-3 animate-spin" />
                                 ) : (
                                   <Download className="w-3 h-3" />
                                 )}
@@ -765,7 +765,7 @@ export function YouTubePlaylistManager({
                                 onClick={() => onImportVideo?.(video.document_id!)}
                                 className="px-3 py-1.5 text-sm bg-muted text-foreground rounded hover:bg-muted/80 flex items-center gap-1"
                               >
-                                <ExternalLink className="w-3 h-3" />
+                                <ArrowSquareOut className="w-3 h-3" />
                                 Open
                               </button>
                             )}

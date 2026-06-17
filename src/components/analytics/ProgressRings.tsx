@@ -3,7 +3,12 @@
  * Circular progress indicators for daily, weekly, and monthly goals
  */
 
-import { CheckCircle, Target, TrendingUp, Flame } from "lucide-react";
+import {
+  CheckCircle,
+  Flame,
+  Target,
+  TrendUp,
+} from "@phosphor-icons/react";
 
 interface ProgressRingProps {
   progress: number; // 0-100
@@ -139,7 +144,7 @@ export function DashboardProgressRings({
         </ProgressRing>
         <div className="mt-4 text-center">
           <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-foreground">
-            <TrendingUp className="w-4 h-4 text-green-500" />
+            <TrendUp className="w-4 h-4 text-green-500" />
             Weekly Goal
           </div>
           <p className="text-xs text-muted-foreground mt-1">

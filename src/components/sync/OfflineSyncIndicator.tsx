@@ -5,16 +5,16 @@
 
 import { useState, useEffect } from 'react';
 import {
+  ArrowsClockwise,
+  CaretDown,
+  CheckCircle,
   Cloud,
-  CloudOff,
-  RefreshCw,
-  Wifi,
-  WifiOff,
-  Server,
-  CheckCircle2,
+  CloudSlash,
+  HardDrives,
+  WifiHigh,
+  WifiSlash,
   XCircle,
-  ChevronDown,
-} from 'lucide-react';
+} from "@phosphor-icons/react";
 import {
   subscribeOfflineQueue,
   getOfflineQueueStats,
@@ -94,9 +94,9 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
       >
         {/* Connection Icon */}
         {isOnline ? (
-          <Wifi className="w-4 h-4 text-green-500" />
+          <WifiHigh className="w-4 h-4 text-green-500" />
         ) : (
-          <WifiOff className="w-4 h-4 text-gray-400" />
+          <WifiSlash className="w-4 h-4 text-gray-400" />
         )}
 
         {/* Status Text */}
@@ -113,7 +113,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
         )}
 
         {/* Chevron */}
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showMenu ? 'rotate-180' : ''}`} />
+        <CaretDown className={`w-4 h-4 text-muted-foreground transition-transform ${showMenu ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
@@ -158,14 +158,14 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
               </div>
             </div>
 
-            {/* Server Status */}
+            {/* HardDrives Status */}
             <div className="p-3 border-b border-border">
               <div className="text-xs font-semibold text-foreground mb-2">{t('syncIndicator.serverStatus')}</div>
               <div className="space-y-2">
                 <ServerStatusItem
                   name={t('syncIndicator.localServer')}
                   available={state.localServerAvailable}
-                  icon={<Server className="w-4 h-4" />}
+                  icon={<HardDrives className="w-4 h-4" />}
                 />
                 <ServerStatusItem
                   name={t('syncIndicator.cloudApi')}
@@ -189,7 +189,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
                     disabled={isProcessing || !isOnline}
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded hover:opacity-90 disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3 h-3 ${isProcessing ? 'animate-spin' : ''}`} />
+                    <ArrowsClockwise className={`w-3 h-3 ${isProcessing ? 'animate-spin' : ''}`} />
                     {t('syncIndicator.syncNow')}
                   </button>
                   <button
@@ -279,7 +279,7 @@ function ServerStatusItem({ name, available, icon }: ServerStatusItemProps) {
       </div>
       <span className="flex-1 text-foreground">{name}</span>
       {available ? (
-        <CheckCircle2 className="w-4 h-4 text-green-500" />
+        <CheckCircle className="w-4 h-4 text-green-500" />
       ) : (
         <XCircle className="w-4 h-4 text-gray-400" />
       )}
@@ -305,9 +305,9 @@ export function CompactSyncIndicator({ className = '' }: { className?: string })
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
       {isOnline ? (
-        <CheckCircle2 className="w-4 h-4 text-green-500" />
+        <CheckCircle className="w-4 h-4 text-green-500" />
       ) : (
-        <CloudOff className="w-4 h-4 text-gray-400" />
+        <CloudSlash className="w-4 h-4 text-gray-400" />
       )}
       {hasPending && (
         <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded-full">

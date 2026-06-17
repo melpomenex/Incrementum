@@ -1,16 +1,15 @@
 import {
-  ClipboardPaste,
-  ImagePlus,
-  Images,
-  Search,
-  Trash2,
-  X,
+  ArrowsVertical,
+  CalendarBlank,
   Check,
-  Link2,
-  CalendarDays,
-  ArrowDownUp,
-  Expand,
-} from "lucide-react";
+  ClipboardText,
+  FrameCorners,
+  Images,
+  Link,
+  MagnifyingGlass,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type ReactNode } from "react";
 
 import {
@@ -324,7 +323,7 @@ export function ImageRegistryLibrary({
               disabled={isBusy}
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-60"
             >
-              <ImagePlus className="h-4 w-4" />
+              <Images className="h-4 w-4" />
               {t("imageRegistry.upload")}
             </button>
             <button
@@ -333,7 +332,7 @@ export function ImageRegistryLibrary({
               disabled={isBusy}
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-60"
             >
-              <ClipboardPaste className="h-4 w-4" />
+              <ClipboardText className="h-4 w-4" />
               {t("imageRegistry.paste")}
             </button>
             <button
@@ -342,7 +341,7 @@ export function ImageRegistryLibrary({
               disabled={isBusy || selectedIds.length === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-destructive/30 bg-background px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash className="h-4 w-4" />
               {t("imageRegistry.deleteSelected")}
             </button>
             {showCloseButton && onClose && (
@@ -361,7 +360,7 @@ export function ImageRegistryLibrary({
 
       <div className="flex flex-wrap items-center gap-3 border-b border-border/70 px-5 py-3">
         <label className="relative min-w-[240px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
@@ -371,7 +370,7 @@ export function ImageRegistryLibrary({
         </label>
 
         <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground">
-          <ArrowDownUp className="h-4 w-4 text-muted-foreground" />
+          <ArrowsVertical className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">{t("imageRegistry.sortBy")}</span>
           <select
             value={sortMode}
@@ -428,7 +427,7 @@ export function ImageRegistryLibrary({
                       <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-2">
                         {asset.is_referenced ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium text-white">
-                            <Link2 className="h-3 w-3" />
+                            <Link className="h-3 w-3" />
                             {t("imageRegistry.inUse")}
                           </span>
                         ) : (
@@ -504,7 +503,7 @@ export function ImageRegistryLibrary({
               <div className="space-y-4 p-4 text-sm">
                 <div className="rounded-2xl border border-border bg-background p-3">
                   <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    <Expand className="h-3.5 w-3.5" />
+                    <FrameCorners className="h-3.5 w-3.5" />
                     {t("imageRegistry.details")}
                   </div>
                   <dl className="space-y-2">
@@ -515,7 +514,7 @@ export function ImageRegistryLibrary({
                       label={t("imageRegistry.added")}
                       value={
                         <span className="inline-flex items-center gap-1">
-                          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                          <CalendarBlank className="h-3.5 w-3.5 text-muted-foreground" />
                           {formatDate(previewAsset.created_at)}
                         </span>
                       }

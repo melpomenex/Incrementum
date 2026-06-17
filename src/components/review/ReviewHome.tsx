@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Compass, FolderKanban, Layers, Plus, RefreshCw, Sparkles, Tag, Upload, Zap } from "lucide-react";
+import {
+  ArrowsClockwise,
+  ChartBar,
+  Compass,
+  FolderPlus,
+  Lightning,
+  Plus,
+  Sparkle,
+  Stack,
+  Tag,
+  Upload,
+} from "@phosphor-icons/react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useReviewStore } from "../../stores/reviewStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
@@ -240,21 +251,21 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
                 onClick={() => setIsDecksModalOpen(true)}
                 className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
-                <Layers className="h-4 w-4" />
+                <Stack className="h-4 w-4" />
                 {t("reviewHome.viewDecks")}
               </button>
               <button
                 onClick={loadStats}
                 className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
-                <RefreshCw className="h-4 w-4" />
+                <ArrowsClockwise className="h-4 w-4" />
                 {t("common.refresh")}
               </button>
               <button
                 onClick={() => setIsFlashcardStudioOpen(true)}
                 className="inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary/15"
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkle className="h-4 w-4" />
                 {t("extracts.createFlashcards")}
               </button>
               <button
@@ -270,7 +281,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
                   onClick={onOpenDeckManager}
                   className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
                 >
-                  <FolderKanban className="h-4 w-4" />
+                  <FolderPlus className="h-4 w-4" />
                   {t("review.deckManager.title")}
                 </button>
               )}
@@ -279,7 +290,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
                 disabled={isLoading}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
               >
-                <Zap className="h-4 w-4" />
+                <Lightning className="h-4 w-4" />
                 {t("dashboard.startReview")}
               </button>
             </div>
@@ -328,7 +339,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                 <span>{t("reviewHome.totalDue")}</span>
-                <BarChart3 className="h-4 w-4" />
+                <ChartBar className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-semibold text-foreground">{scopedItems.length}</div>
               <p className="mt-1 text-xs text-muted-foreground">{t("reviewHome.totalDueDesc")}</p>
@@ -344,7 +355,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                 <span>{t("reviewHome.newVsReview")}</span>
-                <Layers className="h-4 w-4" />
+                <Stack className="h-4 w-4" />
               </div>
               <div className="mt-2 text-lg font-semibold text-foreground">
                 {t("reviewHome.newVsReviewValue", { newCount, learningCount, reviewCount })}
@@ -354,7 +365,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                 <span>{t("reviewHome.estimatedTime")}</span>
-                <Zap className="h-4 w-4" />
+                <Lightning className="h-4 w-4" />
               </div>
               <div className="mt-2 text-3xl font-semibold text-foreground">{formatMinutes(estimatedSeconds)}</div>
               <p className="mt-1 text-xs text-muted-foreground">

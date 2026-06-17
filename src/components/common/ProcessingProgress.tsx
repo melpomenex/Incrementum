@@ -4,7 +4,12 @@
  */
 
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import {
+  CheckCircle,
+  CircleNotch,
+  WarningCircle,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 export interface ProcessingStep {
@@ -50,11 +55,11 @@ export function ProcessingProgress({
         );
       case "processing":
         return (
-          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          <CircleNotch className="w-6 h-6 text-primary animate-spin" />
         );
       case "completed":
         return (
-          <CheckCircle2 className="w-6 h-6 text-green-500" />
+          <CheckCircle className="w-6 h-6 text-green-500" />
         );
       case "error":
         return (
@@ -73,11 +78,11 @@ export function ProcessingProgress({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             {hasErrors ? (
-              <AlertCircle className="w-5 h-5 text-destructive" />
+              <WarningCircle className="w-5 h-5 text-destructive" />
             ) : allComplete ? (
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-green-500" />
             ) : (
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              <CircleNotch className="w-5 h-5 text-primary animate-spin" />
             )}
             <h3 className="text-lg font-semibold text-foreground">{resolvedTitle}</h3>
           </div>

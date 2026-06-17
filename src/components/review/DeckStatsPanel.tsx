@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import {
-  BarChart3,
+  ChartBar,
   Clock,
-  Activity,
-  GraduationCap,
-  Plus,
-  Download,
-  Upload,
-  Tag,
-  Info,
   Cpu,
-} from "lucide-react";
+  Download,
+  GraduationCap,
+  Info,
+  Plus,
+  Pulse,
+  Tag,
+  Upload,
+} from "@phosphor-icons/react";
 import type { LearningItem } from "../../api/learning-items";
 import type { StudyDeck } from "../../types/study-decks";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -225,7 +225,7 @@ export function DeckStatsPanel({
 
       {/* Deck Stats */}
       <section>
-        <SectionHeader icon={<BarChart3 className="h-3 w-3" />} label="Deck Stats" />
+        <SectionHeader icon={<ChartBar className="h-3 w-3" />} label="Deck Stats" />
         <div className="mt-1 space-y-0">
           <StatRow label="Total Cards" value={stats.total} />
           <StatRow label="Due Today" value={stats.dueToday} color={stats.dueToday > 0 ? "text-primary" : undefined} />
@@ -349,7 +349,7 @@ export function DeckStatsPanel({
 
       {/* Quick Actions */}
       <section>
-        <SectionHeader icon={<Activity className="h-3 w-3" />} label="Quick Actions" />
+        <SectionHeader icon={<Pulse className="h-3 w-3" />} label="Quick Actions" />
         <div className="mt-1 space-y-1">
           <button
             onClick={onStudyNow}

@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Eye, AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare } from "lucide-react";
+import {
+  ChatCircle,
+  CheckCircle,
+  Eye,
+  Scissors,
+  Sparkle,
+  Star,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import type { LearningItem } from "../../api/learning-items";
 import { getImageAssetById } from "../../api/image-registry";
 import { cn } from "../../utils";
@@ -311,7 +319,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
                                 className="px-4 py-2 bg-purple-600/10 dark:bg-purple-600/20 hover:bg-purple-600/20 dark:hover:bg-purple-600/30 text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-purple-300 dark:border-purple-500/30 hover:border-purple-500"
                                 title="Turn this highlight into real flashcards (Cloze, Q&A, etc.)"
                             >
-                                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                <Sparkle className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                                 <span>Create Flashcard...</span>
                             </button>
                         )}
@@ -331,7 +339,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
                                 className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm border border-border"
                                 title="Click here or press 'Q' to create a Question & Answer card from this highlight"
                             >
-                                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                                <ChatCircle className="w-4 h-4 text-muted-foreground" />
                                 <span>Create Q&A (Q)</span>
                             </button>
                         )}
@@ -395,7 +403,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
                             onClick={() => { click(); onRate(1); }}
                             className="flex-1 py-4 bg-red-500/90 text-white rounded-xl font-medium hover:bg-red-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                         >
-                            <AlertCircle className="w-5 h-5" />
+                            <WarningCircle className="w-5 h-5" />
                             Again
                         </button>
                         <button
@@ -416,7 +424,7 @@ export const FlashcardScrollItem = React.memo(function FlashcardScrollItem({
                             onClick={() => { click(); onRate(4); }}
                             className="flex-1 py-4 bg-green-500/90 text-white rounded-xl font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                         >
-                            <Sparkles className="w-5 h-5" />
+                            <Sparkle className="w-5 h-5" />
                             Easy
                         </button>
                     </div>

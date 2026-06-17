@@ -1,5 +1,17 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Loader2, RefreshCw, AlertCircle, CheckCircle2, ExternalLink, Type, Minus, Plus, Sparkles, BookOpen, Settings } from "lucide-react";
+import {
+  ArrowsClockwise,
+  ArrowSquareOut,
+  BookOpen,
+  CheckCircle,
+  CircleNotch,
+  Gear,
+  Minus,
+  Plus,
+  Sparkle,
+  TextAa,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import {
   fetchArticleFullContent,
   getArticleFullContent,
@@ -264,7 +276,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <CircleNotch className="w-8 h-8 animate-spin text-blue-500" />
         <p className="text-sm text-gray-500 dark:text-gray-400">Fetching full article content...</p>
       </div>
     );
@@ -273,7 +285,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
   if (error && !content) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4 p-6">
-        <AlertCircle className="w-10 h-10 text-red-500" />
+        <WarningCircle className="w-10 h-10 text-red-500" />
         <div className="text-center">
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
             Failed to load full content
@@ -285,14 +297,14 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
             onClick={handleFetchContent}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-md shadow-blue-500/20"
           >
-            <RefreshCw className="w-4 h-4" />
+            <ArrowsClockwise className="w-4 h-4" />
             Retry
           </button>
           <button
             onClick={handleOpenOriginal}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ArrowSquareOut className="w-4 h-4" />
             Open Original
           </button>
         </div>
@@ -308,7 +320,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
           {content && (
             <>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <CheckCircle className="w-4 h-4 text-emerald-500" />
                 <span className="text-xs font-semibold">
                   Full content
                 </span>
@@ -329,7 +341,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
               onClick={handleRefresh}
               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 rounded-lg transition-all font-medium"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <ArrowsClockwise className="w-3.5 h-3.5" />
               Refresh
             </button>
           )}
@@ -338,7 +350,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
               onClick={handleFetchContent}
               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 rounded-lg transition-all font-medium"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ArrowSquareOut className="w-3.5 h-3.5" />
               Fetch Full Content
             </button>
           )}
@@ -354,7 +366,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
               }`}
               title={isCleanMode ? "Clean View active (hiding ads/promos)" : "Clean View inactive"}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkle className="w-3.5 h-3.5" />
               <span>{isCleanMode ? "Clean View" : "Original"}</span>
             </button>
           )}
@@ -370,7 +382,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
               }`}
               title="Reader preferences"
             >
-              <Settings className="w-4 h-4" />
+              <Gear className="w-4 h-4" />
             </button>
           )}
 
@@ -378,13 +390,13 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
             onClick={handleOpenOriginal}
             className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 border-transparent text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ArrowSquareOut className="w-3.5 h-3.5" />
             Original Link
           </button>
         </div>
       </div>
 
-      {/* Floating Reader Settings Dropdown */}
+      {/* Floating Reader Gear Dropdown */}
       {showSettings && (
         <div className="absolute right-16 top-14 z-50 w-72 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 text-gray-900 dark:text-gray-100">
           <div className="space-y-4">
@@ -567,7 +579,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
                     onClick={handleFetchContent}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium shadow-md shadow-blue-500/20"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowSquareOut className="w-4 h-4" />
                     Fetch Full Content
                   </button>
                 </div>

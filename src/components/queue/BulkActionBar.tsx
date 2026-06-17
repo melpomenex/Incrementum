@@ -1,4 +1,10 @@
-import { Loader2, Pause, Play, Trash2, X } from "lucide-react";
+import {
+  CircleNotch,
+  Pause,
+  Play,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface BulkActionBarProps {
@@ -33,7 +39,7 @@ export function BulkActionBar({
 
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <CircleNotch className="w-4 h-4 animate-spin" />
               <span>{t("common.processing")}</span>
             </div>
           )}
@@ -66,7 +72,7 @@ export function BulkActionBar({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/30 rounded-md hover:bg-destructive/20 transition-colors disabled:opacity-50 text-sm"
             title={t("bulkAction.deleteSelected")}
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash className="w-3.5 h-3.5" />
             {t("common.delete")}
           </button>
 

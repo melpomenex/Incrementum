@@ -1,8 +1,20 @@
 import React from "react";
 import {
-  ChevronUp, ChevronDown, X, Star, AlertCircle, CheckCircle, Sparkles,
-  Settings2, Lightbulb, Rss, EyeOff, FileText, List, Brain,
-} from "lucide-react";
+  Brain,
+  CaretDown,
+  CaretUp,
+  CheckCircle,
+  EyeSlash,
+  Lightbulb,
+  List,
+  Rss,
+  Sliders,
+  Sparkle,
+  Star,
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 
 interface ScrollOverlayControlsProps {
@@ -123,7 +135,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
           <div className="flex items-center gap-3">
             {detailsButton}
             <button onClick={onShowSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.settings ?? "Queue Settings"}>
-              <Settings2 className="w-4 h-4" />
+              <Sliders className="w-4 h-4" />
               {labels?.settings ?? "Settings"}
             </button>
             <button onClick={onShowRssSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.rss ?? "RSS Settings"}>
@@ -147,7 +159,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
             {itemDocumentId && (
               <div className="flex items-center gap-0.5 bg-white/10 rounded-md p-0.5">
                 <button onClick={() => onSetScrollViewMode("document")} className={cn("p-1.5 rounded-md transition-colors", scrollViewMode === "document" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white")} title={labels?.viewDocument ?? "View document"}>
-                  <FileText className="w-4 h-4" />
+                  <TextT className="w-4 h-4" />
                 </button>
                 <button onClick={() => onSetScrollViewMode("extracts")} className={cn("p-1.5 rounded-md transition-colors", scrollViewMode === "extracts" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white")} title={labels?.viewExtracts ?? "View extracts"}>
                   <List className="w-4 h-4" />
@@ -171,13 +183,13 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
           {itemType === "flashcard" || itemType === "extract" ? (
             <button type="button" onClick={onDismiss} disabled={isRating} className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.dismissTitle ?? "Dismiss"}>
-              <EyeOff className="w-6 h-6 text-white" />
+              <EyeSlash className="w-6 h-6 text-white" />
               <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.dismissLabel ?? "Dismiss"}</span>
             </button>
           ) : itemType === "document" && !isNewDocument ? (
             <>
               <button type="button" onClick={() => onRate(1)} disabled={isRating} className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.againTitle ?? "Again"}>
-                <AlertCircle className="w-6 h-6 text-white" />
+                <WarningCircle className="w-6 h-6 text-white" />
                 <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.again ?? "Again"}</span>
               </button>
               <button type="button" onClick={() => onRate(2)} disabled={isRating} className="group p-3 rounded-full bg-orange-500/80 backdrop-blur-sm hover:bg-orange-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.hardTitle ?? "Hard"}>
@@ -189,12 +201,12 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
                 <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.good ?? "Good"}</span>
               </button>
               <button type="button" onClick={() => onRate(4)} disabled={isRating} className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.easyTitle ?? "Easy"}>
-                <Sparkles className="w-6 h-6 text-white" />
+                <Sparkle className="w-6 h-6 text-white" />
                 <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.easy ?? "Easy"}</span>
               </button>
               {itemType === "document" && (
                 <button type="button" onClick={onDismiss} disabled={isRating} className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2" title={labels?.dismissTitle ?? "Dismiss"}>
-                  <EyeOff className="w-6 h-6 text-white" />
+                  <EyeSlash className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.dismissLabel ?? "Dismiss"}</span>
                 </button>
               )}
@@ -207,7 +219,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
               </button>
               {itemType === "document" && (
                 <button type="button" onClick={onDismiss} disabled={isRating} className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2" title={labels?.dismissTitle ?? "Dismiss"}>
-                  <EyeOff className="w-6 h-6 text-white" />
+                  <EyeSlash className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{labels?.dismissLabel ?? "Dismiss"}</span>
                 </button>
               )}
@@ -219,10 +231,10 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
       {/* Bottom Navigation */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto">
         <button onClick={onGoToPrevious} disabled={currentIndex === 0} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === 0 && "opacity-30 cursor-not-allowed")} title={labels?.previousDocument ?? "Previous"}>
-          <ChevronUp className="w-6 h-6 text-white" />
+          <CaretUp className="w-6 h-6 text-white" />
         </button>
         <button onClick={onGoToNext} disabled={currentIndex === totalItems - 1} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === totalItems - 1 && "opacity-30 cursor-not-allowed")} title={labels?.nextDocument ?? "Next"}>
-          <ChevronDown className="w-6 h-6 text-white" />
+          <CaretDown className="w-6 h-6 text-white" />
         </button>
       </div>
 

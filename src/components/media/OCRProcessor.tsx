@@ -1,18 +1,18 @@
 import { useState, useRef, useCallback } from "react";
 import {
-  Scan,
-  Upload,
-  FileText,
-  Loader2,
-  AlertCircle,
+  CircleNotch,
   Download,
-  Trash2,
-  Edit,
-  Save,
-  Settings,
+  FloppyDisk,
+  Gear,
   Image as ImageIcon,
-  Languages,
-} from "lucide-react";
+  Pencil,
+  Scan,
+  TextT,
+  Translate,
+  Trash,
+  Upload,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import {
   performOCRWithProgress,
   extractTextFromMultipleImages,
@@ -237,7 +237,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
 
           {/* Language selection */}
           <div className="flex items-center gap-2">
-            <Languages className="w-4 h-4 text-muted-foreground" />
+            <Translate className="w-4 h-4 text-muted-foreground" />
             <select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value)}
@@ -305,7 +305,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                     className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-lg hover:bg-black/70"
                     title="Remove image"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash className="w-4 h-4" />
                   </button>
                 </div>
               )}
@@ -320,7 +320,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                   >
                     {status === "processing" ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <CircleNotch className="w-4 h-4 animate-spin" />
                         Processing...
                       </>
                     ) : (
@@ -361,7 +361,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
               {/* Error */}
               {error && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive">
-                  <AlertCircle className="w-4 h-4" />
+                  <WarningCircle className="w-4 h-4" />
                   <span className="text-sm">{error}</span>
                 </div>
               )}
@@ -376,7 +376,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
+              <TextT className="w-5 h-5 text-primary" />
               Extracted Text
             </h2>
             {result && (
@@ -384,25 +384,25 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
-                  title="Settings"
+                  title="Gear"
                 >
-                  <Settings className="w-4 h-4" />
+                  <Gear className="w-4 h-4" />
                 </button>
                 {isEditing ? (
                   <button
                     onClick={handleSaveEdit}
                     className="p-2 text-green-500 hover:bg-green-500/20 rounded-lg"
-                    title="Save edits"
+                    title="FloppyDisk edits"
                   >
-                    <Save className="w-4 h-4" />
+                    <FloppyDisk className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
                     onClick={() => setIsEditing(true)}
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
-                    title="Edit text"
+                    title="Pencil text"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Pencil className="w-4 h-4" />
                   </button>
                 )}
                 <button
@@ -431,7 +431,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
           {!result ? (
             <div className="h-full flex items-center justify-center text-muted-foreground">
               <div className="text-center">
-                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <TextT className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No text extracted yet</p>
                 <p className="text-xs mt-1">Select an image and click "Extract Text"</p>
               </div>
@@ -480,7 +480,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                   : "bg-destructive/10 text-destructive"
               }`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <AlertCircle className="w-4 h-4" />
+                  <WarningCircle className="w-4 h-4" />
                   <span className="text-sm font-medium">
                     {validation.isValid ? "Warnings" : "Issues Detected"}
                   </span>
@@ -515,7 +515,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                 onClick={() => setIsEditing(true)}
                 className="px-3 py-1.5 text-xs bg-muted text-muted-foreground rounded hover:opacity-90"
               >
-                Manual Edit
+                Manual Pencil
               </button>
             </div>
           </div>

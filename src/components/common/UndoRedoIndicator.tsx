@@ -1,10 +1,10 @@
 /**
- * Undo/Redo Indicator Component
+ * ArrowCounterClockwise/ArrowClockwise Indicator Component
  * Shows current undo/redo state with buttons
  */
 
 import { useUndoRedo } from "../../hooks/useUndoRedo";
-import { Undo, Redo } from "lucide-react";
+import { ArrowClockwise, ArrowCounterClockwise } from "@phosphor-icons/react";
 
 export function UndoRedoIndicator() {
   const { canUndo, canRedo, getUndoDescription, getRedoDescription } = useUndoRedo();
@@ -18,7 +18,7 @@ export function UndoRedoIndicator() {
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-background/80 backdrop-blur-sm border border-border rounded-md">
-      {/* Undo Button */}
+      {/* ArrowCounterClockwise Button */}
       <button
         onClick={() => {
           // The keyboard shortcut hook handles the actual undo
@@ -26,12 +26,12 @@ export function UndoRedoIndicator() {
         }}
         disabled={!canUndo()}
         className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        title={`Undo${undoDesc ? `: ${undoDesc}` : ""} (Ctrl+Z / Cmd+Z)`}
+        title={`ArrowCounterClockwise${undoDesc ? `: ${undoDesc}` : ""} (Ctrl+Z / Cmd+Z)`}
       >
-        <Undo className="w-4 h-4" />
+        <ArrowCounterClockwise className="w-4 h-4" />
       </button>
 
-      {/* Redo Button */}
+      {/* ArrowClockwise Button */}
       <button
         onClick={() => {
           // The keyboard shortcut hook handles the actual redo
@@ -39,9 +39,9 @@ export function UndoRedoIndicator() {
         }}
         disabled={!canRedo()}
         className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        title={`Redo${redoDesc ? `: ${redoDesc}` : ""} (Ctrl+Y / Cmd+Y)`}
+        title={`ArrowClockwise${redoDesc ? `: ${redoDesc}` : ""} (Ctrl+Y / Cmd+Y)`}
       >
-        <Redo className="w-4 h-4" />
+        <ArrowClockwise className="w-4 h-4" />
       </button>
     </div>
   );
@@ -59,8 +59,8 @@ export function UndoRedoStatusIndicator() {
 
   return (
     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-      {canUndo() && <span>• Undo available</span>}
-      {canRedo() && <span>• Redo available</span>}
+      {canUndo() && <span>• ArrowCounterClockwise available</span>}
+      {canRedo() && <span>• ArrowClockwise available</span>}
     </div>
   );
 }

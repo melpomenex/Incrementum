@@ -4,7 +4,18 @@
  */
 import { useState } from "react";
 import { useI18n } from "../../lib/i18n";
-import { Key, Eye, EyeOff, Trash2, Plus, Check, Loader2, RefreshCw, DollarSign, Pencil } from "lucide-react";
+import {
+  ArrowsClockwise,
+  Check,
+  CircleNotch,
+  CurrencyDollar,
+  Eye,
+  EyeSlash,
+  Key,
+  Pencil,
+  Plus,
+  Trash,
+} from "@phosphor-icons/react";
 import { getAvailableModels, type ModelInfo } from "../../api/llm";
 import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 
@@ -391,13 +402,13 @@ export function LLMProviderSettings({
                         title="Test connection"
                       >
                         {testingConnection === provider.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          <CircleNotch className="w-4 h-4 animate-spin text-muted-foreground" />
                         ) : testResult === true ? (
                           <Check className="w-4 h-4 text-green-500" />
                         ) : testResult === false ? (
                           <div className="w-4 h-4 text-red-500">×</div>
                         ) : (
-                          <Loader2 className="w-4 h-4 text-muted-foreground" />
+                          <CircleNotch className="w-4 h-4 text-muted-foreground" />
                         )}
                       </button>
 
@@ -414,7 +425,7 @@ export function LLMProviderSettings({
                         className="p-2 hover:bg-destructive hover:text-destructive-foreground rounded transition-colors"
                         title="Remove provider"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -428,7 +439,7 @@ export function LLMProviderSettings({
                       onClick={() => toggleKeyVisibility(provider.id)}
                       className="p-2 hover:bg-muted rounded transition-colors"
                     >
-                      {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {isVisible ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
 
@@ -554,7 +565,7 @@ export function LLMProviderSettings({
                 className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={`Fetch latest models and pricing from ${PROVIDER_INFO[newProviderType].name}`}
               >
-                <RefreshCw className={`w-3 h-3 ${refreshingModels ? "animate-spin" : ""}`} />
+                <ArrowsClockwise className={`w-3 h-3 ${refreshingModels ? "animate-spin" : ""}`} />
                 Refresh Models
               </button>
             </div>
@@ -594,7 +605,7 @@ export function LLMProviderSettings({
               return (
                 <div className="mt-2 p-2 bg-muted/50 rounded-lg text-xs">
                   <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                    <DollarSign className="w-3 h-3" />
+                    <CurrencyDollar className="w-3 h-3" />
                     <span className="font-medium">{t("llmProvider.pricingPer1k")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">

@@ -6,15 +6,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  ArrowsClockwise,
+  CircleNotch,
   Globe,
-  Loader2,
-  RefreshCw,
-  Search,
-  Sparkles,
+  MagnifyingGlass,
+  Sparkle,
   Star,
-  TrendingUp,
+  TrendUp,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import {
   deleteDiscoveredSiteAuto,
   getDiscoveredSitesAuto,
@@ -422,7 +422,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                 disabled={isSeeding}
                 className="inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 transition-colors hover:bg-amber-500/15 disabled:opacity-60"
               >
-                <Sparkles className={`h-4 w-4 ${isSeeding ? "animate-spin" : ""}`} />
+                <Sparkle className={`h-4 w-4 ${isSeeding ? "animate-spin" : ""}`} />
                 {t("discoverSites.seedCurated")}
               </button>
               <button
@@ -430,7 +430,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                 disabled={isRefreshing}
                 className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card/70 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <ArrowsClockwise className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 {t("common.refresh")}
               </button>
               <button
@@ -446,7 +446,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
           <div className="grid gap-3 md:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
             <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-card px-4 py-4">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder={t("discoverSites.searchPlaceholder")}
@@ -524,7 +524,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
 
           {(isLoading || isSeeding) ? (
             <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/70 bg-card/40 text-muted-foreground">
-              <Loader2 className="h-7 w-7 animate-spin" />
+              <CircleNotch className="h-7 w-7 animate-spin" />
               <p className="text-sm">{isSeeding ? t("discoverSites.loadingCurated") : t("discoverSites.loadingDiscovered")}</p>
             </div>
           ) : visibleSites.length === 0 ? (
@@ -576,7 +576,7 @@ export function DiscoverSitesPanel({ onClose, onSubscribe }: DiscoverSitesPanelP
                   {trendingCategories.length > 0 && (
                     <section>
                       <div className="mb-4 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-orange-400" />
+                        <TrendUp className="h-4 w-4 text-orange-400" />
                         <h3 className="text-lg font-semibold">{t("discoverSites.trendingCategories")}</h3>
                       </div>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

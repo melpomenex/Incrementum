@@ -6,7 +6,13 @@
 import React from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { Theme, ThemeId } from "../../types/theme";
-import { Check, X, Maximize2, Smartphone, Sparkles } from "lucide-react";
+import {
+  ArrowsOutSimple,
+  Check,
+  DeviceMobile,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { builtInThemes as registeredBuiltInThemes } from "../../themes/builtin";
 import { useI18n } from "../../lib/i18n";
@@ -189,12 +195,12 @@ function ThemeGalleryCard({
                   border: `1px solid ${theme.colors.primary}33`,
                 }}
               >
-                <Sparkles className="w-2 h-2" />
+                <Sparkle className="w-2 h-2" />
                 animated
               </span>
             )}
           </div>
-          <Smartphone
+          <DeviceMobile
             className="w-3 h-3"
             style={{ color: theme.colors.textSecondary }}
           />
@@ -359,7 +365,7 @@ export function ThemeGalleryButton({ onSelect }: { onSelect?: (themeId: ThemeId)
         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.variant === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
       >
-        <Maximize2 className="w-4 h-4" />
+        <ArrowsOutSimple className="w-4 h-4" />
         <span className="text-sm">{t("settings.themeOpenGallery")}</span>
       </button>
 

@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
-  Play,
-  Edit3,
+  ArrowCounterClockwise,
   Copy,
   Download,
-  Ban,
-  RotateCcw,
-  Trash2,
-  FileSpreadsheet,
-} from "lucide-react";
+  FileXls,
+  PencilSimple,
+  Play,
+  Prohibit,
+  Trash,
+} from "@phosphor-icons/react";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useToast } from "../common/Toast";
 import { getAllLearningItems, exportDeckAsApkg, exportDeckAsCsv } from "../../api/learning-items";
@@ -160,7 +160,7 @@ export function DeckItemContextMenu({
       {/* Rename */}
       {isRenaming ? (
         <div className="px-3 py-1.5 flex items-center gap-1.5">
-          <Edit3 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <PencilSimple className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
           <input
             type="text"
             value={renameValue}
@@ -179,7 +179,7 @@ export function DeckItemContextMenu({
           onClick={() => { setIsRenaming(true); setRenameValue(deck.name); }}
           className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
         >
-          <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
+          <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
           Rename
         </button>
       )}
@@ -209,7 +209,7 @@ export function DeckItemContextMenu({
         onClick={() => handleAction(handleExportCsv)}
         className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
       >
-        <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
+        <FileXls className="h-3.5 w-3.5 text-muted-foreground" />
         Export as .csv
       </button>
 
@@ -220,7 +220,7 @@ export function DeckItemContextMenu({
         onClick={() => handleAction(handleSuspendAll)}
         className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
       >
-        <Ban className="h-3.5 w-3.5 text-yellow-500" />
+        <Prohibit className="h-3.5 w-3.5 text-yellow-500" />
         Suspend All Cards
         <span className="ml-auto text-xs text-muted-foreground">{cardCount}</span>
       </button>
@@ -230,7 +230,7 @@ export function DeckItemContextMenu({
         onClick={() => handleAction(handleUnsuspendAll)}
         className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
       >
-        <RotateCcw className="h-3.5 w-3.5 text-green-500" />
+        <ArrowCounterClockwise className="h-3.5 w-3.5 text-green-500" />
         Unsuspend All Cards
         <span className="ml-auto text-xs text-muted-foreground">{cardCount}</span>
       </button>
@@ -243,7 +243,7 @@ export function DeckItemContextMenu({
           onClick={() => setShowDeleteConfirm(true)}
           className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash className="h-3.5 w-3.5" />
           Delete Deck
         </button>
       ) : (

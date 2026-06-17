@@ -5,22 +5,22 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  X,
-  ExternalLink,
-  Edit3,
-  Trash2,
-  Link2,
-  Hash,
+  ArrowSquareOut,
+  Brain,
+  CaretRight,
+  DotsThree,
   Folder,
-  Share2,
-  MoreHorizontal,
-  ChevronRight,
-  FileText,
-  Quote,
-  BrainCircuit,
+  Hash,
+  Link,
+  PencilSimple,
+  Quotes,
+  ShareNetwork,
+  Sparkle,
   Tag,
-  Sparkles,
-} from "lucide-react";
+  TextT,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { GraphNode, GraphEdge, GraphNodeType } from "./KnowledgeGraph";
 import { useI18n } from "../../lib/i18n";
 
@@ -42,7 +42,7 @@ export interface NodeDetailViewProps {
 
 const NODE_CONFIG = {
   [GraphNodeType.Document]: {
-    icon: FileText,
+    icon: TextT,
     color: "blue",
     bgColor: "bg-blue-500/10",
     borderColor: "border-blue-500/30",
@@ -51,7 +51,7 @@ const NODE_CONFIG = {
     labelKey: "graph.document",
   },
   [GraphNodeType.Extract]: {
-    icon: Quote,
+    icon: Quotes,
     color: "green",
     bgColor: "bg-green-500/10",
     borderColor: "border-green-500/30",
@@ -60,7 +60,7 @@ const NODE_CONFIG = {
     labelKey: "graph.extract",
   },
   [GraphNodeType.Flashcard]: {
-    icon: BrainCircuit,
+    icon: Brain,
     color: "purple",
     bgColor: "bg-purple-500/10",
     borderColor: "border-purple-500/30",
@@ -220,7 +220,7 @@ export function NodeDetailView({
                 onClick={() => setShowActions(!showActions)}
                 className="p-2 hover:bg-white/10 rounded-xl transition-colors"
               >
-                <MoreHorizontal className="w-5 h-5" />
+                <DotsThree className="w-5 h-5" />
               </button>
               <button
                 onClick={onClose}
@@ -244,7 +244,7 @@ export function NodeDetailView({
           {/* Quick stats */}
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50">
             <div className="flex items-center gap-1.5 text-sm">
-              <Link2 className="w-4 h-4 text-muted-foreground" />
+              <Link className="w-4 h-4 text-muted-foreground" />
               <span>{totalConnections}</span>
               <span className="text-muted-foreground">{t("graph.connections")}</span>
             </div>
@@ -269,7 +269,7 @@ export function NodeDetailView({
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ArrowSquareOut className="w-4 h-4" />
                 {t("graph.open")}
               </button>
             )}
@@ -281,7 +281,7 @@ export function NodeDetailView({
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
               >
-                <Edit3 className="w-4 h-4" />
+                <PencilSimple className="w-4 h-4" />
                 {t("graph.edit")}
               </button>
             )}
@@ -291,7 +291,7 @@ export function NodeDetailView({
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors"
             >
-              <Share2 className="w-4 h-4" />
+              <ShareNetwork className="w-4 h-4" />
               {t("graph.share")}
             </button>
             {onDelete && (
@@ -302,7 +302,7 @@ export function NodeDetailView({
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash className="w-4 h-4" />
                 {t("graph.delete")}
               </button>
             )}
@@ -343,7 +343,7 @@ export function NodeDetailView({
             {Object.entries(groupedConnections).length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                  <Link2 className="w-8 h-8 text-muted-foreground" />
+                  <Link className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <p className="text-muted-foreground">{t("graph.noConnectionsYet")}</p>
                 <p className="text-sm text-muted-foreground/60 mt-1">
@@ -373,7 +373,7 @@ export function NodeDetailView({
                             {data.nodes.length}
                           </span>
                         </div>
-                        <ChevronRight
+                        <CaretRight
                           className={`w-4 h-4 text-muted-foreground transition-transform ${
                             isExpanded ? "rotate-90" : ""
                           }`}
@@ -405,7 +405,7 @@ export function NodeDetailView({
                                     {t(NODE_CONFIG[relatedNode.type].labelKey)}
                                   </p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <CaretRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                               </button>
                             );
                           })}
@@ -523,7 +523,7 @@ export function NodeDetailView({
             {node.metadata && Object.keys(node.metadata).length > 0 && (
               <div className="bg-muted/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-3">
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkle className="w-4 h-4" />
                   <span className="text-xs font-medium uppercase tracking-wider">{t("graph.metadata")}</span>
                 </div>
                 <dl className="space-y-2">
@@ -563,7 +563,7 @@ export function NodeDetailView({
               onClick={() => onNavigate(node.id)}
               className={`flex items-center justify-center gap-2 px-4 py-2.5 ${config.bgColor} ${config.textColor} rounded-xl font-medium transition-all hover:brightness-110`}
             >
-              <ExternalLink className="w-4 h-4" />
+              <ArrowSquareOut className="w-4 h-4" />
               {t("graph.open")}
             </button>
           )}
@@ -572,7 +572,7 @@ export function NodeDetailView({
               onClick={handleEditClick}
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl font-medium hover:bg-muted transition-colors"
             >
-              <Edit3 className="w-4 h-4" />
+              <PencilSimple className="w-4 h-4" />
               {t("graph.edit")}
             </button>
           )}

@@ -5,16 +5,16 @@
 
 import { useState, ReactNode } from "react";
 import {
-  Command,
-  CornerDownLeft,
-  Delete,
-  ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-} from "lucide-react";
+  ArrowUp,
+  Backspace,
+  Command,
+  KeyReturn,
+} from "@phosphor-icons/react";
 
-// lucide-react doesn't export these, so we create simple SVG components
+// Phosphor has no Shift/Ctrl/Alt key icons, so we create simple SVG components
 function ShiftIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 2l4 4-4 4"/><path d="M16 6H9a5 5 0 0 0 0 10h7"/><path d="M12 22l-4-4 4-4"/></svg>;
 }
@@ -50,10 +50,10 @@ export const KEYS: Record<string, KeyDefinition> = {
   alt: { key: "⌥", label: "Option", icon: Alt, isModifier: true },
 
   // Special keys
-  enter: { key: "↵", label: "Enter", icon: CornerDownLeft },
+  enter: { key: "↵", label: "Enter", icon: KeyReturn },
   escape: { key: "Esc", label: "Escape", icon: Escape },
-  backspace: { key: "⌫", label: "Backspace", icon: Delete },
-  delete: { key: "⌦", label: "Delete", icon: Delete },
+  backspace: { key: "⌫", label: "Backspace", icon: Backspace },
+  delete: { key: "⌦", label: "Backspace", icon: Backspace },
   space: { key: "Space", label: "Space" },
   tab: { key: "⇥", label: "Tab" },
 

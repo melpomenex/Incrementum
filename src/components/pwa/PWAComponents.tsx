@@ -6,14 +6,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Download,
-  X,
-  Share,
-  Plus,
-  Smartphone,
   Check,
+  DeviceMobile,
+  Download,
   Info,
-} from "lucide-react";
+  Plus,
+  ShareNetwork,
+  X,
+} from "@phosphor-icons/react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -159,7 +159,7 @@ export function PWAInstallPrompt({
         <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/20 rounded-xl">
-              <Smartphone className="w-5 h-5 text-primary" />
+              <DeviceMobile className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">Install Incrementum</h3>
@@ -186,7 +186,7 @@ export function PWAInstallPrompt({
             onClick={handleInstall}
             className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
           >
-            {isIOS ? <Share className="w-5 h-5" /> : <Download className="w-5 h-5" />}
+            {isIOS ? <ShareNetwork className="w-5 h-5" /> : <Download className="w-5 h-5" />}
             {isIOS ? "How to add on iPhone" : "Install on this phone"}
           </button>
 
@@ -198,8 +198,8 @@ export function PWAInstallPrompt({
               <ol className="text-xs text-muted-foreground space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold">1</span>
-                  <span>Tap the Share button</span>
-                  <Share className="w-4 h-4 text-primary" />
+                  <span>Tap the ShareNetwork button</span>
+                  <ShareNetwork className="w-4 h-4 text-primary" />
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold">2</span>

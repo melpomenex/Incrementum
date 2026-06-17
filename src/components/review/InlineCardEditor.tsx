@@ -1,5 +1,12 @@
 import { useState, useCallback } from "react";
-import { Check, X, Loader2, ExternalLink, Ban, Play } from "lucide-react";
+import {
+  ArrowSquareOut,
+  Check,
+  CircleNotch,
+  Play,
+  Prohibit,
+  X,
+} from "@phosphor-icons/react";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -127,7 +134,7 @@ export function InlineCardEditor({
             onClick={() => onEditInStudio?.(card)}
             className="flex items-center gap-1.5 text-sm text-primary hover:underline"
           >
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ArrowSquareOut className="h-3.5 w-3.5" />
             {t("review.deckManager.editInStudio")}
           </button>
         </div>
@@ -201,7 +208,7 @@ export function InlineCardEditor({
               </>
             ) : (
               <>
-                <Ban className="h-3 w-3" /> Suspend
+                <Prohibit className="h-3 w-3" /> Suspend
               </>
             )}
           </button>
@@ -227,7 +234,7 @@ export function InlineCardEditor({
               className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {saving ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <CircleNotch className="h-3 w-3 animate-spin" />
               ) : (
                 <Check className="h-3 w-3" />
               )}

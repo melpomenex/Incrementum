@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import {
-  Headphones,
-  Video,
-  FileText,
-  Table,
-  Map,
-  Loader2,
-  Plus,
   Check,
-} from "lucide-react";
+  CircleNotch,
+  Headphones,
+  MapTrifold,
+  Plus,
+  Table,
+  TextT,
+  Video,
+} from "@phosphor-icons/react";
 import { MindMapViewer, parseMindMapData, type MindMapNode } from "./MindMapViewer";
 import { createLearningItem } from "../../../api/learning-items";
 import { notebooklmGetJob, type NotebookLMJob } from "../../../api/integrations";
@@ -184,7 +184,7 @@ export function ArtifactViewer({
           return (
             <div className="flex flex-col h-full items-center justify-center p-8 text-center">
               <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950 rounded-full flex items-center justify-center mb-4">
-                <Map className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                <MapTrifold className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">
                 Legacy Job Format
@@ -199,7 +199,7 @@ export function ArtifactViewer({
                 </div>
               )}
               <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
-                <p>Tip: Generate a new Mind Map to see the interactive visualization.</p>
+                <p>Tip: Generate a new Mind MapTrifold to see the interactive visualization.</p>
               </div>
             </div>
           );
@@ -223,7 +223,7 @@ export function ArtifactViewer({
           <RawContentViewer
             content={content}
             title={title}
-            icon={<Map className="w-6 h-6" />}
+            icon={<MapTrifold className="w-6 h-6" />}
           />
         );
       }
@@ -232,7 +232,7 @@ export function ArtifactViewer({
           <RawContentViewer
             content={content}
             title={title}
-            icon={<FileText className="w-6 h-6" />}
+            icon={<TextT className="w-6 h-6" />}
           />
         );
     }
@@ -346,7 +346,7 @@ function AudioViewer({ content, title, artifactId }: { content: string; title?: 
             </p>
             {(isResolving || isGenerating) && (
               <div className="mt-3 inline-flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                 Waiting for NotebookLM media output
               </div>
             )}
@@ -466,7 +466,7 @@ function VideoViewer({ content, title, artifactId }: { content: string; title?: 
             </p>
             {(isResolving || isGenerating) && (
               <div className="mt-3 inline-flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                 Waiting for NotebookLM media output
               </div>
             )}
@@ -501,7 +501,7 @@ function ReportViewer({ content, title }: { content: string; title?: string }) {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 p-4 border-b border-border bg-card">
         <div className="w-10 h-10 bg-amber-100 dark:bg-amber-950 rounded-lg flex items-center justify-center">
-          <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          <TextT className="w-5 h-5 text-amber-600 dark:text-amber-400" />
         </div>
         <div className="flex-1">
           <h3 className="font-medium text-foreground">{title || "Study Guide"}</h3>
@@ -598,7 +598,7 @@ function DataTableViewer({
             className="px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
           >
             {isAdding ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <CircleNotch className="w-4 h-4 animate-spin" />
             ) : addSuccess ? (
               <Check className="w-4 h-4" />
             ) : (

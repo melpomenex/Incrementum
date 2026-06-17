@@ -1,4 +1,4 @@
-import { Folder } from "lucide-react";
+import { Folder } from "@phosphor-icons/react";
 import { useCollectionStore } from '../../stores/collectionStore';
 import { useDocumentStore } from '../../stores/documentStore';
 import type { Collection } from '../../types/collection';

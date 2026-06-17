@@ -13,27 +13,27 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Play,
+  ArrowCounterClockwise,
+  ArrowsInSimple,
+  ArrowsOutSimple,
+  Bookmark,
+  BookmarkSimple,
+  CircleNotch,
+  Clock,
+  Headphones,
+  List,
+  Microphone,
+  Moon,
   Pause,
+  Play,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
-  Bookmark,
-  BookmarkPlus,
-  List,
-  Clock,
-  Moon,
+  Sparkle,
+  SpeakerHigh,
+  SpeakerSlash,
+  TextT,
   X,
-  FileText,
-  Headphones,
-  Maximize2,
-  Minimize2,
-  Loader2,
-  Mic,
-  Sparkles,
-  RotateCcw,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { Document } from "../../types/document";
 import { useI18n } from "../../lib/i18n";
@@ -1588,7 +1588,7 @@ export function AudiobookViewer({
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top duration-300">
           <div className="px-4 py-3 bg-card/85 backdrop-blur-md border border-border/60 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-sm sm:max-w-md ring-1 ring-black/5">
             <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0 animate-pulse">
-              <Sparkles className="h-5.5 w-5.5" />
+              <Sparkle className="h-5.5 w-5.5" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-foreground tracking-wide uppercase opacity-90">
@@ -1606,7 +1606,7 @@ export function AudiobookViewer({
                 onClick={() => handleUndoSkip(skipNotification.originalStart!, skipNotification.originalEnd!, skipNotification.category)}
                 className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <ArrowCounterClockwise className="h-3.5 w-3.5" />
                 Undo
               </button>
             )}
@@ -1785,7 +1785,7 @@ export function AudiobookViewer({
 
                 {isDownloading && (
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 cursor-default" onClick={(e) => e.stopPropagation()}>
-                    <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                    <CircleNotch className="h-10 w-10 text-primary animate-spin mb-4" />
                     <h3 className="font-semibold text-foreground mb-1 text-sm">
                       {downloadStatus === "cutting" ? "Stripping Sponsor Segments..." : "Downloading Episode..."}
                     </h3>
@@ -1918,7 +1918,7 @@ export function AudiobookViewer({
                   className="p-2 hover:bg-muted rounded-lg transition-colors"
                   title={t("viewer.addBookmark")}
                 >
-                  <BookmarkPlus className="h-5 w-5" />
+                  <BookmarkSimple className="h-5 w-5" />
                 </button>
               </div>
               
@@ -1942,7 +1942,7 @@ export function AudiobookViewer({
                   title={t("viewer.playPause")}
                 >
                   {isDownloading ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-primary-foreground" />
+                    <CircleNotch className="h-6 w-6 animate-spin text-primary-foreground" />
                   ) : isPlaying ? (
                     <Pause className="h-6 w-6" />
                   ) : (
@@ -2006,9 +2006,9 @@ export function AudiobookViewer({
                     title={t("viewer.mute")}
                   >
                     {isMuted || volume === 0 ? (
-                      <VolumeX className="h-5 w-5" />
+                      <SpeakerSlash className="h-5 w-5" />
                     ) : (
-                      <Volume2 className="h-5 w-5" />
+                      <SpeakerHigh className="h-5 w-5" />
                     )}
                   </button>
                   <input
@@ -2031,7 +2031,7 @@ export function AudiobookViewer({
                   )}
                   title={t("viewer.transcript")}
                 >
-                  <FileText className="h-5 w-5" />
+                  <TextT className="h-5 w-5" />
                 </button>
                 
                 {/* Fullscreen */}
@@ -2041,9 +2041,9 @@ export function AudiobookViewer({
                   title={t("viewer.fullscreen")}
                 >
                   {isFullscreen ? (
-                    <Minimize2 className="h-5 w-5" />
+                    <ArrowsInSimple className="h-5 w-5" />
                   ) : (
-                    <Maximize2 className="h-5 w-5" />
+                    <ArrowsOutSimple className="h-5 w-5" />
                   )}
                 </button>
               </div>
@@ -2128,7 +2128,7 @@ export function AudiobookViewer({
                 </>
               ) : (
                 <div className="text-center text-muted-foreground py-8">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <TextT className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="font-medium">{t("viewer.noTranscriptAvailable")}</p>
                   
                   <div className="mt-6 space-y-4">
@@ -2140,12 +2140,12 @@ export function AudiobookViewer({
                       <div className="flex items-center gap-2">
                         {isCurrentTranscribing ? (
                           <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <CircleNotch className="w-5 h-5 animate-spin" />
                             {t("viewer.transcribing")}
                           </>
                         ) : (
                           <>
-                            <Mic className="w-5 h-5" />
+                            <Microphone className="w-5 h-5" />
                             {t("viewer.startLocalTranscription")}
                           </>
                         )}

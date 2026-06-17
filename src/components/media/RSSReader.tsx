@@ -1,34 +1,33 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
-  Rss,
-  Plus,
-  Search,
-  Star,
-  StarOff,
-  ExternalLink,
-  RefreshCw,
-  Settings,
-  Trash2,
-  CheckCircle2,
-  Folder,
-  Import,
-  Download,
-  Newspaper,
-  Network,
-  X,
-  Scroll,
   ArrowLeft,
-  Link2,
-  FileText,
-  MoreVertical,
-  Globe,
-  EyeOff,
-  GripVertical,
+  ArrowsClockwise,
+  ArrowSquareIn,
+  ArrowSquareOut,
   Brain,
+  CheckCircle,
+  DotsSixVertical,
+  DotsThreeVertical,
+  Download,
+  EyeSlash,
+  Folder,
+  Gear,
+  Globe,
   GraduationCap,
-  Tag,
+  Graph,
   Keyboard,
-} from "lucide-react";
+  Link,
+  MagnifyingGlass,
+  Newspaper,
+  Plus,
+  Rss,
+  Scroll,
+  Star,
+  Tag,
+  TextT,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import {
   Feed,
   FeedItem,
@@ -1352,13 +1351,13 @@ export function RSSReader() {
                   }
                 >
                   {isAutoRefreshing ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <ArrowsClockwise className="w-4 h-4 animate-spin" />
                   ) : syncFeedback === "success" ? (
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                   ) : syncFeedback === "error" ? (
                     <X className="w-4 h-4" />
                   ) : (
-                    <RefreshCw className="w-4 h-4" />
+                    <ArrowsClockwise className="w-4 h-4" />
                   )}
                 </button>
                 <button
@@ -1432,7 +1431,7 @@ export function RSSReader() {
                     className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
                     title={t("rssReader.importByUrl")}
                   >
-                    <Link2 className="w-4 h-4" />
+                    <Link className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setShowNewsletterDirectory(true)}
@@ -1467,13 +1466,13 @@ export function RSSReader() {
                     }
                   >
                     {isAutoRefreshing ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <ArrowsClockwise className="w-4 h-4 animate-spin" />
                     ) : syncFeedback === "success" ? (
-                      <CheckCircle2 className="w-4 h-4" />
+                      <CheckCircle className="w-4 h-4" />
                     ) : syncFeedback === "error" ? (
                       <X className="w-4 h-4" />
                     ) : (
-                      <RefreshCw className="w-4 h-4" />
+                      <ArrowsClockwise className="w-4 h-4" />
                     )}
                   </button>
                   <div className="relative group">
@@ -1481,14 +1480,14 @@ export function RSSReader() {
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
                       title={t("rssReader.moreOptions")}
                     >
-                      <Settings className="w-4 h-4" />
+                      <Gear className="w-4 h-4" />
                     </button>
                     <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
                       <button
                         onClick={handleImportOPML}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 first:rounded-t-lg flex items-center gap-2"
                       >
-                        <Import className="w-4 h-4" />
+                        <ArrowSquareIn className="w-4 h-4" />
                         {t("rssReader.importOpml")}
                       </button>
                       <button
@@ -1525,7 +1524,7 @@ export function RSSReader() {
                         onClick={() => setShowCustomization(true)}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 last:rounded-b-lg flex items-center gap-2"
                       >
-                        <Settings className="w-4 h-4" />
+                        <Gear className="w-4 h-4" />
                         {t("rssReader.customize")}
                       </button>
                     </div>
@@ -1619,7 +1618,7 @@ export function RSSReader() {
                   }`}
                   title="Show/hide disliked stories"
                 >
-                  <EyeOff className="w-3 h-3" />
+                  <EyeSlash className="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -1627,7 +1626,7 @@ export function RSSReader() {
             {/* Semantic Graph Action Card */}
             <div className="mx-2 mt-2.5 p-3.5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl shadow-sm space-y-2.5 flex flex-col hover:from-orange-500/15 hover:to-amber-500/15 transition-all duration-200">
               <div className="flex items-center gap-2">
-                <Network className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+                <Graph className="w-5 h-5 text-orange-500 dark:text-orange-400" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-bold text-foreground">Semantic Graph Analysis</span>
                   <span className="text-[10px] text-muted-foreground truncate">Analyze feeds with embeddings</span>
@@ -1744,7 +1743,7 @@ export function RSSReader() {
                             }`}
                             title={`Move ${feed.title}`}
                           >
-                            <GripVertical className="w-3.5 h-3.5" />
+                            <DotsSixVertical className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => {
@@ -1791,7 +1790,7 @@ export function RSSReader() {
                             className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all"
                             title="Feed settings"
                           >
-                            <MoreVertical className="w-3.5 h-3.5" />
+                            <DotsThreeVertical className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
@@ -1845,7 +1844,7 @@ export function RSSReader() {
                             }`}
                             title={`Move ${feed.title}`}
                           >
-                            <GripVertical className="w-3.5 h-3.5" />
+                            <DotsSixVertical className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => {
@@ -1892,7 +1891,7 @@ export function RSSReader() {
                             className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all"
                             title="Feed settings"
                           >
-                            <MoreVertical className="w-3.5 h-3.5" />
+                            <DotsThreeVertical className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
@@ -1909,7 +1908,7 @@ export function RSSReader() {
                           className={`ml-auto p-0.5 rounded transition-colors ${showTagManagement ? "text-primary" : "hover:text-foreground"}`}
                           title="Manage tags and prerequisites"
                         >
-                          <Settings className="w-3 h-3" />
+                          <Gear className="w-3 h-3" />
                         </button>
                       </div>
                       {tags.filter((t) => t.article_count && t.article_count > 0).map((tag) => (
@@ -2013,28 +2012,28 @@ export function RSSReader() {
                         className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
                         title={t("rssReader.refreshFeed")}
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <ArrowsClockwise className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleMarkAllRead(selectedFeed.id)}
                         className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
                         title={t("rssReader.markAllRead")}
                       >
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleRemoveFeed(selectedFeed.id)}
                         className="p-2 text-destructive hover:bg-destructive/20 rounded-lg mobile-density-tap"
                         title={t("rssReader.unsubscribe")}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   )}
                 </div>
 
                 <div className="mt-3 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -2069,7 +2068,7 @@ export function RSSReader() {
                 </div>
               </div>
 
-              {/* Search results (FTS5) */}
+              {/* MagnifyingGlass results (FTS5) */}
               {viewMode === "search" && searchQuery && (
                 <div className="p-3">
                   <SearchResults
@@ -2206,7 +2205,7 @@ export function RSSReader() {
                               {item.fullContent && (
                                 <span className="flex items-center gap-1 text-blue-500">
                                   <span>•</span>
-                                  <FileText className="w-3 h-3" />
+                                  <TextT className="w-3 h-3" />
                                   <span>Full</span>
                                 </span>
                               )}
@@ -2242,7 +2241,7 @@ export function RSSReader() {
                               {item.favorite ? (
                                 <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                               ) : (
-                                <StarOff className="w-4 h-4" />
+                                <Star className="w-4 h-4" />
                               )}
                             </button>
                             <a
@@ -2255,7 +2254,7 @@ export function RSSReader() {
                               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded transition-colors"
                               title={t("rssReader.openOriginal")}
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              <ArrowSquareOut className="w-4 h-4" />
                             </a>
                             {item.read && (
                               <button
@@ -2266,7 +2265,7 @@ export function RSSReader() {
                                 className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded transition-colors"
                                 title="Mark as unread"
                               >
-                                <EyeOff className="w-4 h-4" />
+                                <EyeSlash className="w-4 h-4" />
                               </button>
                             )}
                             <button
@@ -2343,7 +2342,7 @@ export function RSSReader() {
                             {selectedItem.favorite ? (
                               <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                             ) : (
-                              <StarOff className="w-4 h-4" />
+                              <Star className="w-4 h-4" />
                             )}
                           </button>
                         )}
@@ -2357,7 +2356,7 @@ export function RSSReader() {
                           }`}
                           title={showFullContent ? "Show RSS Content" : "View Full Content"}
                         >
-                          <FileText className="w-4 h-4" />
+                          <TextT className="w-4 h-4" />
                         </button>
                         {/* Add to Semantic Batch Toggle */}
                         <button
@@ -2403,7 +2402,7 @@ export function RSSReader() {
                           className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg"
                           title={t("rssReader.openOriginal")}
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ArrowSquareOut className="w-4 h-4" />
                         </a>
                         <button
                           onClick={() => {
@@ -2596,14 +2595,14 @@ export function RSSReader() {
           </div>
         )}
 
-        {/* URL Import Modal */}
+        {/* URL ArrowSquareIn Modal */}
         {showUrlImport && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-xl">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Link2 className="w-5 h-5 text-primary" />
+                    <Link className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold">{t("rssReader.importNewsletter")}</h2>
@@ -2638,7 +2637,7 @@ export function RSSReader() {
           onSave={handleSavePreferences}
         />
 
-        {/* Feed Settings Dialog */}
+        {/* Feed Gear Dialog */}
         <FeedSettingsDialog
           feed={feedSettingsFeed}
           isOpen={showFeedSettings}

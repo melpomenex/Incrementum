@@ -1,31 +1,31 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Trash2,
-  Ban,
-  Play,
-  Tag,
-  Layers,
-  ArrowUpDown,
-  X,
-  Loader2,
-  Inbox,
-  FolderOpen,
-  Plus,
-  Download,
-  GraduationCap,
-  Flame,
+  ArrowsVertical,
+  CaretDown,
+  CaretRight,
+  CheckCircle,
+  CircleNotch,
   Clock,
-  Target,
-  CheckCircle2,
-  Edit3,
   Copy,
+  Download,
+  Flame,
+  FolderOpen,
+  GraduationCap,
+  MagnifyingGlass,
   Pause,
+  PencilSimple,
+  Play,
+  Plus,
+  Prohibit,
+  Stack,
+  Tag,
+  Target,
+  Trash,
+  Tray,
   Upload,
-} from "lucide-react";
+  X,
+} from "@phosphor-icons/react";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
@@ -761,11 +761,11 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
       <div className="flex-1 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <CircleNotch className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : decks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-            <Inbox className="h-10 w-10" />
+            <Tray className="h-10 w-10" />
             <p className="text-sm">{t("review.deckManager.noDecks")}</p>
           </div>
         ) : (
@@ -795,9 +795,9 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                     >
                       <div className="flex items-center gap-1.5">
                         {isExpanded ? (
-                          <ChevronDown className="h-3 w-3 text-primary flex-shrink-0" />
+                          <CaretDown className="h-3 w-3 text-primary flex-shrink-0" />
                         ) : (
-                          <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <CaretRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
                             {renamingDeckId === deck.id ? (
@@ -854,7 +854,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                   {/* Deck header with name */}
                   <div className="px-3 py-1.5 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
                     <h3 className="text-base font-semibold">{expandedDeck.name}</h3>
-                    <Edit3 className="h-3 w-3 text-muted-foreground" />
+                    <PencilSimple className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground ml-auto tabular-nums">
                       {expandedCards.length} shown
                     </span>
@@ -864,7 +864,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                   {inlineStats && (
                     <div className="px-3 py-1.5 border-b border-border/50 flex items-center gap-3 flex-shrink-0 overflow-x-auto">
                       <StatPill
-                        icon={<Layers className="h-3 w-3" />}
+                        icon={<Stack className="h-3 w-3" />}
                         label="TOTAL CARDS"
                         value={inlineStats.total}
                       />
@@ -887,7 +887,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                         color="text-orange-500"
                       />
                       <StatPill
-                        icon={<CheckCircle2 className="h-3 w-3" />}
+                        icon={<CheckCircle className="h-3 w-3" />}
                         label="MATURE"
                         value={inlineStats.matureCards}
                         color="text-green-500"
@@ -901,11 +901,11 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                     </div>
                   )}
 
-                  {/* Search + filter chips + actions */}
+                  {/* MagnifyingGlass + filter chips + actions */}
                   <div className={"px-3 py-1.5 border-b border-border/50 space-y-1.5 flex-shrink-0"}>
                     <div className={"flex items-center gap-2 " + (isMobile ? "flex-wrap" : "")}>
                       <div className={"relative " + (isMobile ? "flex-1" : "flex-1 max-w-xs")}>
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                        <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                         <input
                           type="text"
                           value={searchQuery}
@@ -1004,7 +1004,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
 
                     {/* Sort + select all row */}
                     <div className={"flex items-center gap-1 " + (isMobile ? "flex-wrap" : "")}>
-                      <ArrowUpDown className="h-2.5 w-2.5 text-muted-foreground mr-0.5" />
+                      <ArrowsVertical className="h-2.5 w-2.5 text-muted-foreground mr-0.5" />
                       {sortLabels.map(([field, label]) => (
                         <button
                           key={field}
@@ -1042,7 +1042,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                         onClick={handleBulkSuspend}
                         className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border hover:bg-muted"
                       >
-                        <Ban className="h-2.5 w-2.5" /> Suspend
+                        <Prohibit className="h-2.5 w-2.5" /> Suspend
                       </button>
                       <button
                         onClick={handleBulkUnsuspend}
@@ -1054,7 +1054,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                         onClick={() => setShowDeleteConfirm(true)}
                         className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-destructive/30 text-destructive hover:bg-destructive/10"
                       >
-                        <Trash2 className="h-2.5 w-2.5" /> Delete
+                        <Trash className="h-2.5 w-2.5" /> Delete
                       </button>
                       <RetagPopover onRetag={handleBulkRetag} />
                     </div>
@@ -1176,7 +1176,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-                  <Layers className="h-10 w-10" />
+                  <Stack className="h-10 w-10" />
                   <p className="text-sm">{t("review.deckManager.selectDeck")}</p>
                 </div>
               )}
@@ -1272,7 +1272,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                 onClick={() => handleDeckRename(contextMenu.deckId)}
                 className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
               >
-                <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
+                <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
                 Rename
               </button>
               <button
@@ -1316,7 +1316,7 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
                 onClick={() => handleDeckDelete(contextMenu.deckId)}
                 className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-destructive/10 text-destructive transition-colors"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash className="h-3.5 w-3.5" />
                 Delete Deck
               </button>
             </div>

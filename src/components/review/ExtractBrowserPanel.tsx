@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Search,
-  Sparkles,
-  FileText,
-  MessageSquare,
+  CaretDown,
+  CaretRight,
+  ChatCircle,
+  CircleNotch,
+  MagnifyingGlass,
   Plus,
-} from "lucide-react";
+  Sparkle,
+  TextT,
+} from "@phosphor-icons/react";
 import type { Extract } from "../../api/extracts";
 import { useI18n } from "../../lib/i18n";
 
@@ -107,7 +107,7 @@ export function ExtractBrowserPanel({
         </div>
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
@@ -135,7 +135,7 @@ export function ExtractBrowserPanel({
       <div className="flex-1 min-h-0 overflow-y-auto">
         {!hasResults && hasFilters && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="w-10 h-10 text-muted-foreground/40 mb-3" />
+            <TextT className="w-10 h-10 text-muted-foreground/40 mb-3" />
             <p className="text-sm text-muted-foreground">
               {t("flashcardStudio.extractsNoResults")}
             </p>
@@ -143,7 +143,7 @@ export function ExtractBrowserPanel({
         )}
         {!hasResults && !hasFilters && extracts.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="w-10 h-10 text-muted-foreground/40 mb-3" />
+            <TextT className="w-10 h-10 text-muted-foreground/40 mb-3" />
             <p className="text-sm text-muted-foreground">
               {t("flashcardStudio.extractsEmpty")}
             </p>
@@ -159,11 +159,11 @@ export function ExtractBrowserPanel({
                 className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
               >
                 {isExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <CaretDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 ) : (
-                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <CaretRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 )}
-                <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <TextT className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <span className="text-xs font-medium text-foreground truncate flex-1">
                   {group.title}
                 </span>
@@ -243,7 +243,7 @@ function ExtractRow({
           title={t("flashcardStudio.extractUseAsContext")}
           className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          <MessageSquare className="w-3.5 h-3.5" />
+          <ChatCircle className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => onCreateCard(extract)}
@@ -259,9 +259,9 @@ function ExtractRow({
           className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         >
           {isGenerating ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <CircleNotch className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkle className="w-3.5 h-3.5" />
           )}
         </button>
       </div>

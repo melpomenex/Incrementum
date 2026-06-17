@@ -8,16 +8,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Key, 
-  ExternalLink, 
-  Check, 
-  AlertCircle, 
-  Zap,
+import {
+  ArrowSquareOut,
+  Check,
+  Info,
+  Key,
+  Lightning,
   Shield,
-  Info
-} from 'lucide-react';
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from '../../utils';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { 
@@ -152,7 +152,7 @@ export function TranscriptionKeyDialog({
           {/* Groq Info Card */}
           <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2 text-orange-600">
-              <Zap className="w-4 h-4" />
+              <Lightning className="w-4 h-4" />
               <h3 className="font-semibold">Fast Cloud Transcription</h3>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -208,7 +208,7 @@ export function TranscriptionKeyDialog({
             
             {apiKey && !validation.valid && validation.message && (
               <div className="flex items-center gap-1.5 text-xs text-red-500">
-                <AlertCircle className="w-3.5 h-3.5" />
+                <WarningCircle className="w-3.5 h-3.5" />
                 <span>{validation.message}</span>
               </div>
             )}
@@ -222,7 +222,7 @@ export function TranscriptionKeyDialog({
                 className="text-primary hover:underline inline-flex items-center gap-0.5"
               >
                 Get one free from Groq
-                <ExternalLink className="w-3 h-3" />
+                <ArrowSquareOut className="w-3 h-3" />
               </a>
             </p>
           </div>
@@ -383,7 +383,7 @@ export function InlineTranscriptionKeyInput({
           className="text-primary hover:underline inline-flex items-center gap-0.5"
         >
           Get free API key
-          <ExternalLink className="w-3 h-3" />
+          <ArrowSquareOut className="w-3 h-3" />
         </a>
         {' '}• Stored locally on your device
       </p>

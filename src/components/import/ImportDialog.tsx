@@ -5,7 +5,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  CircleNotch,
+  Clock,
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { fetchUrlContent, type FetchedUrlContent } from '../../api/documents';
 import { ImportDialogSkeleton } from '../common/Skeleton';
 
@@ -195,7 +201,7 @@ export function ImportDialog({ url, isOpen, onClose, onImport }: ImportDialogPro
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <WarningCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div>
                 <div className="font-medium">Failed to load content</div>
                 <div className="text-sm mt-1">{error}</div>
@@ -208,7 +214,7 @@ export function ImportDialog({ url, isOpen, onClose, onImport }: ImportDialogPro
               {/* URL & Content Info */}
               <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <FileText className="w-4 h-4" />
+                  <TextT className="w-4 h-4" />
                   <span className="truncate">{url}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -358,7 +364,7 @@ export function ImportDialog({ url, isOpen, onClose, onImport }: ImportDialogPro
               className="px-4 py-2.5 min-h-[44px] bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none flex items-center gap-2"
               aria-label="Import document"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+              {loading && <CircleNotch className="w-4 h-4 animate-spin" aria-hidden="true" />}
               Import
             </button>
           </div>

@@ -7,19 +7,19 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  BookOpen,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  FileText,
-  Loader2,
-  AlertCircle,
-  Highlighter,
-  StickyNote,
   Bookmark,
-  AlertTriangle,
-} from "lucide-react";
+  BookOpen,
+  CaretDown,
+  CaretUp,
+  Check,
+  CircleNotch,
+  Download,
+  Highlighter,
+  Note,
+  TextT,
+  Warning,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { useCollectionStore } from "../../stores/collectionStore";
 import type {
@@ -113,7 +113,7 @@ export function KindleImportDialog({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-card rounded-xl border border-border shadow-2xl p-8 max-w-md w-full mx-4 flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <CircleNotch className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">
             {t("kindleImport.validating")}
           </p>
@@ -126,7 +126,7 @@ export function KindleImportDialog({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-card rounded-xl border border-border shadow-2xl p-8 max-w-md w-full mx-4 flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <CircleNotch className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">
             {t("kindleImport.importing")}
           </p>
@@ -140,7 +140,7 @@ export function KindleImportDialog({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-card rounded-xl border border-border shadow-2xl p-6 max-w-md w-full mx-4 space-y-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive" />
+            <WarningCircle className="h-5 w-5 text-destructive" />
             <h3 className="font-semibold text-foreground">{t("kindleImport.errorTitle")}</h3>
           </div>
           <p className="text-sm text-muted-foreground">{error}</p>
@@ -236,7 +236,7 @@ export function KindleImportDialog({
           <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg space-y-1">
             {preview.warnings.map((w, i) => (
               <div key={i} className="flex items-start gap-2">
-                <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 mt-0.5 shrink-0" />
+                <Warning className="h-3.5 w-3.5 text-yellow-600 mt-0.5 shrink-0" />
                 <span className="text-xs text-yellow-700 dark:text-yellow-400">{w}</span>
               </div>
             ))}
@@ -317,7 +317,7 @@ function BookPreviewCard({
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <TextT className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="text-sm font-medium text-foreground truncate">
               {book.title}
             </span>
@@ -343,15 +343,15 @@ function BookPreviewCard({
               )}
               {book.newNotes > 0 && (
                 <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                  <StickyNote className="h-3 w-3" />+{book.newNotes}
+                  <Note className="h-3 w-3" />+{book.newNotes}
                 </span>
               )}
             </div>
           )}
           {collapsed ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <CaretDown className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            <CaretUp className="h-4 w-4 text-muted-foreground" />
           )}
         </div>
       </div>
@@ -363,7 +363,7 @@ function BookPreviewCard({
             {t("kindleImport.highlights")}: {book.newHighlights} new / {book.existingHighlights} {t("kindleImport.existing")}
           </span>
           <span>
-            <StickyNote className="inline h-3 w-3 mr-1 text-blue-500" />
+            <Note className="inline h-3 w-3 mr-1 text-blue-500" />
             {t("kindleImport.notes")}: {book.newNotes} new / {book.existingNotes} {t("kindleImport.existing")}
           </span>
           {book.skippedBookmarks > 0 && (

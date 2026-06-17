@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, RotateCcw, X } from "lucide-react";
+import { ArrowCounterClockwise, Warning, X } from "@phosphor-icons/react";
 import { useKeyboardShortcutsStore } from "../../stores/keyboardShortcutsStore";
 
 interface KeyboardShortcutPreferencesProps {
@@ -77,7 +77,7 @@ export function KeyboardShortcutPreferences({ onClose }: KeyboardShortcutPrefere
             onClick={resetToDefaults}
             className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
           >
-            <RotateCcw className="w-3 h-3" />
+            <ArrowCounterClockwise className="w-3 h-3" />
             Reset defaults
           </button>
           <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -111,7 +111,7 @@ export function KeyboardShortcutPreferences({ onClose }: KeyboardShortcutPrefere
                       />
                       {conflict && (
                         <span className="flex items-center gap-1 text-[10px] text-amber-600">
-                          <AlertTriangle className="w-3 h-3" />
+                          <Warning className="w-3 h-3" />
                         </span>
                       )}
                       <button

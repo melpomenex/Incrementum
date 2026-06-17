@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { LearningItem } from "../../api/review";
-import { Brain, FileText, Volume2, VolumeX, Pause, Play } from "lucide-react";
+import {
+  Brain,
+  Pause,
+  Play,
+  SpeakerHigh,
+  SpeakerSlash,
+  TextT,
+} from "@phosphor-icons/react";
 import { useTTS } from "../../hooks/useTTS";
 import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
 import { getImageAssetById } from "../../api/image-registry";
@@ -445,7 +452,7 @@ export const ReviewCard = React.memo(function ReviewCard({
                   <Pause className="w-4 h-4" />
                 )
               ) : (
-                <Volume2 className="w-4 h-4" />
+                <SpeakerHigh className="w-4 h-4" />
               )}
             </button>
           )}
@@ -498,7 +505,7 @@ export const ReviewCard = React.memo(function ReviewCard({
                 title="Stop reading"
                 aria-label="Stop reading"
               >
-                <VolumeX className="w-4 h-4" />
+                <SpeakerSlash className="w-4 h-4" />
               </button>
             )}
             <button
@@ -518,7 +525,7 @@ export const ReviewCard = React.memo(function ReviewCard({
                   <Pause className="w-4 h-4" />
                 )
               ) : (
-                <Volume2 className="w-4 h-4" />
+                <SpeakerHigh className="w-4 h-4" />
               )}
             </button>
           </div>
@@ -558,7 +565,7 @@ export const ReviewCard = React.memo(function ReviewCard({
                     <span>Reviewed {card.review_count}x</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <FileText className="w-4 h-4" />
+                    <TextT className="w-4 h-4" />
                     <span>Interval: {card.interval}d</span>
                   </div>
                 </div>

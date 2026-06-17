@@ -1,37 +1,79 @@
 #!/usr/bin/env node
+/**
+ * Release helper: bumps the version across all manifest files, prepends a
+ * CHANGELOG entry, commits, tags, pushes, and creates a GitHub release.
+ *
+ * Usage:
+ *   node scripts/release.cjs [<new-version>] [--notes <path>]
+ *
+ * - <new-version>: target semver (e.g. 1.51.0). If omitted, the patch segment
+ *   is auto-incremented.
+ * - --notes <path>: path to a markdown file whose contents become the release
+ *   notes (used for both CHANGELOG.md and the GitHub release body). If omitted,
+ *   the script falls back to scripts/release-notes.md, then to a minimal
+ *   generic note. The script never hardcodes release-specific copy so it stays
+ *   correct release after release.
+ *
+ * Release notes format (the file's full contents are used verbatim):
+ *   ### Added
+ *   - ...
+ *   ### Fixed & Improved
+ *   - ...
+ */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 
-// Helper to read JSON
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
-
-// Helper to write JSON
 const writeJson = (filePath, obj) => fs.writeFileSync(filePath, JSON.stringify(obj, null, 2) + '\n', 'utf8');
 
-// 1. Get current version
+// --- Parse arguments -------------------------------------------------------
+let newVersion = null;
+let notesPath = path.join(rootDir, 'scripts', 'release-notes.md');
+const args = process.argv.slice(2);
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--notes') {
+    notesPath = path.resolve(rootDir, args[++i]);
+  } else if (!a.startsWith('--')) {
+    newVersion = a;
+  }
+}
+
+// --- 1. Current version ----------------------------------------------------
 const packageJsonPath = path.join(rootDir, 'package.json');
 const packageJson = readJson(packageJsonPath);
 const currentVersion = packageJson.version;
 
-// 2. Parse arguments for new version
-let newVersion = process.argv[2];
 if (!newVersion) {
-  // Auto-bump patch version
   const parts = currentVersion.split('.');
   parts[2] = parseInt(parts[2], 10) + 1;
   newVersion = parts.join('.');
 }
 
+// Guard against re-releasing the same version.
+if (newVersion === currentVersion) {
+  console.error(`Version is already ${currentVersion}. Aborting.`);
+  process.exit(1);
+}
+
 console.log(`Bumping version from ${currentVersion} to ${newVersion}...`);
 
-// 3. Update package.json
+// --- 2. Release notes (data-driven, never hardcoded) ----------------------
+let releaseNotes = '';
+if (fs.existsSync(notesPath)) {
+  releaseNotes = fs.readFileSync(notesPath, 'utf8').trim();
+} else {
+  releaseNotes = `### Changed\n- Release ${newVersion}.`;
+  console.warn(`No release notes found at ${notesPath}; using a placeholder.`);
+}
+
+// --- 3. Bump manifests -----------------------------------------------------
 packageJson.version = newVersion;
 writeJson(packageJsonPath, packageJson);
 
-// 4. Update package-lock.json
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 if (fs.existsSync(packageLockPath)) {
   const packageLock = readJson(packageLockPath);
@@ -42,7 +84,6 @@ if (fs.existsSync(packageLockPath)) {
   writeJson(packageLockPath, packageLock);
 }
 
-// 5. Update tauri.conf.json
 const tauriConfPath = path.join(rootDir, 'src-tauri', 'tauri.conf.json');
 if (fs.existsSync(tauriConfPath)) {
   const tauriConf = readJson(tauriConfPath);
@@ -50,7 +91,6 @@ if (fs.existsSync(tauriConfPath)) {
   writeJson(tauriConfPath, tauriConf);
 }
 
-// 6. Update Cargo.toml
 const cargoTomlPath = path.join(rootDir, 'src-tauri', 'Cargo.toml');
 if (fs.existsSync(cargoTomlPath)) {
   let cargoToml = fs.readFileSync(cargoTomlPath, 'utf8');
@@ -58,70 +98,46 @@ if (fs.existsSync(cargoTomlPath)) {
   fs.writeFileSync(cargoTomlPath, cargoToml, 'utf8');
 }
 
-// 7. Update CHANGELOG.md
+// --- 4. CHANGELOG (prepend a dated entry; avoid duplicate headers) --------
 const changelogPath = path.join(rootDir, 'CHANGELOG.md');
+const dateStr = new Date().toISOString().slice(0, 10);
+const entry = `## [${newVersion}] - ${dateStr}\n\n${releaseNotes}\n`;
 if (fs.existsSync(changelogPath)) {
   let changelog = fs.readFileSync(changelogPath, 'utf8');
-  const dateStr = new Date().toISOString().slice(0, 10);
-  
-  // Format the release note
-  const releaseHeader = `## [${newVersion}] - ${dateStr}
-
-### Added
-- **Vim Text Objects & Operator-Pending Verbs** — Select and act on text with canonical vim motions: \`aw\`/\`iw\` (word), \`as\`/\`is\` (sentence), \`ap\`/\`ip\` (paragraph), plus \`d\`/\`c\`/\`y\` operators (\`daw\`, \`cip\`, \`yy\`, \`dd\`).
-- **WORD vs word Motions** — Lowercase \`w\`/\`b\`/\`e\` now stop on punctuation; uppercase \`W\`/\`B\`/\`E\` skip to the next whitespace-delimited WORD.
-- **Vimium \`:\` Command-Bar Capture** — Create extracts and flashcards without leaving the keyboard: \`:extract\`, \`:flashcard\`, \`:cloze\`, \`:qa\`, \`:mchoice\`, \`:extract2card\`, \`:highlight [color]\`, \`:deck <name>\`.
-- **Extract → Flashcard Chain** — After any instant extract, press \`gf\` to open Flashcard Studio seeded from that extract.
-- **Configurable Default Card Type** — Choose whether vim's \`F\` key and \`:flashcard\` seed Q&A, Cloze, or Multiple-choice (Settings → Keyboard Shortcuts → Vim Reading).
-
-### Fixed & Improved
-- **Vim Selection Context** — Vim-triggered captures now carry a full \`SelectionContext\` (page numbers, offsets) read from the live DOM selection instead of stale React state.
-- **Visual-Mode Caret Visibility** — The caret overlay now survives React re-renders triggered by \`selectionchange\`, re-appends via \`requestAnimationFrame\`, and renders above the PDF text layer (z-index 9000).
-- **Post-Action Cursor Reset** — After any capture action, the cursor returns to the selection start and the mode resets to normal.
-
-`;
-
-  // Insert right after "# Changelog\n\n" or at the top
-  changelog = changelog.replace(/^(# Changelog\n\n)?/, `$1${releaseHeader}`);
-  fs.writeFileSync(changelogPath, changelog, 'utf8');
+  // Don't insert a duplicate if this version was already logged.
+  if (!changelog.includes(`## [${newVersion}]`)) {
+    changelog = changelog.replace(/^(# Changelog\n\n?)/, `$1${entry}\n`);
+    fs.writeFileSync(changelogPath, changelog, 'utf8');
+  }
 }
 
 console.log('Files updated successfully.');
 
-// Git commands
+// --- 5. Commit, tag, push, release ----------------------------------------
 try {
   console.log('Staging files...');
-  execSync('git add .', { stdio: 'inherit', cwd: rootDir });
-  
+  execSync('git add -A', { stdio: 'inherit', cwd: rootDir });
+
   console.log('Creating commit...');
   execSync(`git commit -m "chore: release v${newVersion}"`, { stdio: 'inherit', cwd: rootDir });
-  
+
   console.log('Creating tag...');
   execSync(`git tag -a v${newVersion} -m "v${newVersion}"`, { stdio: 'inherit', cwd: rootDir });
-  
-  console.log('Pushed code and tag to remote...');
+
+  console.log('Pushing code and tag to remote...');
   execSync(`git push origin main && git push origin v${newVersion}`, { stdio: 'inherit', cwd: rootDir });
 
-  // Create GitHub Release draft
-  console.log('Creating GitHub Release draft...');
-  const notesFile = path.join(rootDir, 'release-notes.tmp.md');
-  const notes = `### Added
-- **Vim Text Objects & Operator-Pending Verbs** — Select and act on text with canonical vim motions: \`aw\`/\`iw\` (word), \`as\`/\`is\` (sentence), \`ap\`/\`ip\` (paragraph), plus \`d\`/\`c\`/\`y\` operators (\`daw\`, \`cip\`, \`yy\`, \`dd\`).
-- **WORD vs word Motions** — Lowercase \`w\`/\`b\`/\`e\` now stop on punctuation; uppercase \`W\`/\`B\`/\`E\` skip to the next whitespace-delimited WORD.
-- **Vimium \`:\` Command-Bar Capture** — Create extracts and flashcards without leaving the keyboard: \`:extract\`, \`:flashcard\`, \`:cloze\`, \`:qa\`, \`:mchoice\`, \`:extract2card\`, \`:highlight [color]\`, \`:deck <name>\`.
-- **Extract → Flashcard Chain** — After any instant extract, press \`gf\` to open Flashcard Studio seeded from that extract.
-- **Configurable Default Card Type** — Choose whether vim's \`F\` key and \`:flashcard\` seed Q&A, Cloze, or Multiple-choice (Settings → Keyboard Shortcuts → Vim Reading).
-
-### Fixed & Improved
-- **Vim Selection Context** — Vim-triggered captures now carry a full \`SelectionContext\` (page numbers, offsets) read from the live DOM selection instead of stale React state.
-- **Visual-Mode Caret Visibility** — The caret overlay now survives React re-renders triggered by \`selectionchange\`, re-appends via \`requestAnimationFrame\`, and renders above the PDF text layer (z-index 9000).
-- **Post-Action Cursor Reset** — After any capture action, the cursor returns to the selection start and the mode resets to normal.`;
-
-  fs.writeFileSync(notesFile, notes, 'utf8');
-  execSync(`gh release create v${newVersion} -t "v${newVersion}" -F release-notes.tmp.md`, { stdio: 'inherit', cwd: rootDir });
+  console.log('Creating GitHub Release...');
+  const notesFile = path.join(rootDir, '.release-notes.tmp.md');
+  fs.writeFileSync(notesFile, releaseNotes + '\n', 'utf8');
+  execSync(`gh release create v${newVersion} -t "v${newVersion}" -F .release-notes.tmp.md`, {
+    stdio: 'inherit',
+    cwd: rootDir,
+  });
   fs.unlinkSync(notesFile);
 
   console.log(`\nRelease v${newVersion} successfully created!`);
 } catch (err) {
-  console.error('Git/GitHub release execution failed:', err.message);
+  console.error('Git/GitHub release step failed:', err.message);
+  console.error('Version files were bumped and committed locally; finish the release manually if needed.');
 }

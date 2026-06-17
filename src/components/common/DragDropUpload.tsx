@@ -7,7 +7,15 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from "react";
-import { Upload, FileText, BookOpen, X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle,
+  CircleNotch,
+  TextT,
+  Upload,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { isTauri } from "../../lib/tauri";
 import { storeBrowserFile } from "../../lib/browser-file-store";
@@ -45,15 +53,15 @@ interface FileTypeInfo {
 }
 
 const FILE_TYPE_MAP: Record<string, FileTypeInfo> = {
-  pdf: { extension: "pdf", label: "PDF", icon: FileText, color: "text-red-500" },
+  pdf: { extension: "pdf", label: "PDF", icon: TextT, color: "text-red-500" },
   epub: { extension: "epub", label: "EPUB", icon: BookOpen, color: "text-green-500" },
-  md: { extension: "md", label: "Markdown", icon: FileText, color: "text-blue-500" },
-  txt: { extension: "txt", label: "Text", icon: FileText, color: "text-gray-500" },
-  html: { extension: "html", label: "HTML", icon: FileText, color: "text-orange-500" },
-  json: { extension: "json", label: "JSON", icon: FileText, color: "text-yellow-500" },
+  md: { extension: "md", label: "Markdown", icon: TextT, color: "text-blue-500" },
+  txt: { extension: "txt", label: "Text", icon: TextT, color: "text-gray-500" },
+  html: { extension: "html", label: "HTML", icon: TextT, color: "text-orange-500" },
+  json: { extension: "json", label: "JSON", icon: TextT, color: "text-yellow-500" },
   apkg: { extension: "apkg", label: "Anki", icon: BookOpen, color: "text-blue-600" },
-  mp3: { extension: "mp3", label: "Audio", icon: FileText, color: "text-purple-500" },
-  mp4: { extension: "mp4", label: "Video", icon: FileText, color: "text-pink-500" },
+  mp3: { extension: "mp3", label: "Audio", icon: TextT, color: "text-purple-500" },
+  mp4: { extension: "mp4", label: "Video", icon: TextT, color: "text-pink-500" },
 };
 
 const SUPPORTED_EXTENSIONS = [
@@ -756,13 +764,13 @@ export function DragDropUpload({
                       <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
                     )}
                     {file.status === "uploading" && (
-                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      <CircleNotch className="w-5 h-5 animate-spin text-primary" />
                     )}
                     {file.status === "success" && (
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      <CheckCircle className="w-5 h-5 text-green-500" />
                     )}
                     {file.status === "error" && (
-                      <AlertCircle className="w-5 h-5 text-destructive" />
+                      <WarningCircle className="w-5 h-5 text-destructive" />
                     )}
 
                     {file.status !== "uploading" && (

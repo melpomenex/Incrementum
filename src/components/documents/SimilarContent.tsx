@@ -5,14 +5,14 @@
 
 import { useMemo } from "react";
 import {
-  Sparkles,
-  FileText,
   BookOpen,
-  Youtube,
+  CaretRight,
   Globe,
-  ChevronRight,
+  Sparkle,
   Tag,
-} from "lucide-react";
+  TextT,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 
 interface ContentItem {
   id: string;
@@ -67,16 +67,16 @@ function calculateSimilarity(item1: ContentItem, item2: ContentItem): Similarity
 function getTypeIcon(fileType?: string) {
   switch (fileType?.toLowerCase()) {
     case "pdf":
-      return FileText;
+      return TextT;
     case "epub":
       return BookOpen;
     case "youtube":
-      return Youtube;
+      return YoutubeLogo;
     case "web":
     case "html":
       return Globe;
     default:
-      return FileText;
+      return TextT;
   }
 }
 
@@ -126,7 +126,7 @@ export function SimilarContent({
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-primary" />
+        <Sparkle className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-foreground">You might also like</h3>
       </div>
 
@@ -172,7 +172,7 @@ export function SimilarContent({
                 </div>
               </div>
 
-              <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <CaretRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             </button>
           );
         })}
@@ -221,7 +221,7 @@ export function SimilarContentInline({
   return (
     <div className={`${className}`}>
       <div className="flex items-center gap-2 mb-2">
-        <Sparkles className="w-3.5 h-3.5 text-primary" />
+        <Sparkle className="w-3.5 h-3.5 text-primary" />
         <span className="text-xs font-medium text-muted-foreground">
           Related content
         </span>

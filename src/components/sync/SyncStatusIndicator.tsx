@@ -3,7 +3,13 @@
  */
 
 import { useState, useEffect } from "react";
-import { Cloud, CloudOff, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import {
+  ArrowsClockwise,
+  Check,
+  Cloud,
+  CloudSlash,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import * as syncClient from '../../lib/sync-client';
 
 interface SyncStatusIndicatorProps {
@@ -60,9 +66,9 @@ export function SyncStatusIndicator({ isAuthenticated = false, onLoginClick }: S
             title={syncState.error || (isAuthenticated ? `Last sync: ${formatLastSync(syncState.lastSyncTime)}` : 'Sign in to sync your data across devices')}
         >
             {syncState.isSyncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <ArrowsClockwise className="w-4 h-4 animate-spin" />
             ) : syncState.error ? (
-                <AlertCircle className="w-4 h-4" />
+                <WarningCircle className="w-4 h-4" />
             ) : isAuthenticated ? (
                 syncState.lastSyncTime ? (
                     <Check className="w-4 h-4" />
@@ -70,7 +76,7 @@ export function SyncStatusIndicator({ isAuthenticated = false, onLoginClick }: S
                     <Cloud className="w-4 h-4" />
                 )
             ) : (
-                <CloudOff className="w-4 h-4" />
+                <CloudSlash className="w-4 h-4" />
             )}
             {isAuthenticated ? (
                 syncState.isSyncing ? 'Syncing...' : 'Synced'

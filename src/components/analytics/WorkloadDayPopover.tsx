@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { X, CheckCircle, XCircle, FileText, BookOpen } from "lucide-react";
+import {
+  BookOpen,
+  CheckCircle,
+  TextT,
+  X,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { getWorkloadDayDetails, type WorkloadDayDetail } from "../../api/analytics";
 
@@ -90,7 +96,7 @@ export function WorkloadDayPopover({ date, onClose }: WorkloadDayPopoverProps) {
                   <div className="min-w-0 flex-1">
                     <p className="text-xs truncate">{item.question}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <TextT className="h-3 w-3 text-muted-foreground shrink-0" />
                       <span className="text-[10px] text-muted-foreground truncate">
                         {item.document_title}
                       </span>

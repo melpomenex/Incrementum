@@ -1,5 +1,5 @@
 import { ActivityDay } from "../../api/analytics";
-import { BarChart3 } from "lucide-react";
+import { ChartBar } from "@phosphor-icons/react";
 
 interface ActivityChartProps {
   data: ActivityDay[];
@@ -11,7 +11,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
   if (safeData.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <ChartBar className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p>No activity data yet</p>
       </div>
     );
@@ -40,7 +40,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
           <p className="text-sm text-muted-foreground">Reviews per day</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <BarChart3 className="w-4 h-4" />
+          <ChartBar className="w-4 h-4" />
           Last 14 days
         </div>
       </div>

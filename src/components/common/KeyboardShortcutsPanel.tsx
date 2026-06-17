@@ -5,22 +5,22 @@
 
 import { useState, type ComponentType } from "react";
 import {
-  Keyboard,
-  X,
-  ArrowUp,
+  ArrowCounterClockwise,
   ArrowDown,
-  CornerDownLeft,
-  Search,
-  FilePlus,
-  RotateCcw,
-  ListOrdered,
-  GitBranch,
-  PanelLeft,
-  HelpCircle,
+  ArrowUp,
   Command,
-} from "lucide-react";
+  FilePlus,
+  GitBranch,
+  Keyboard,
+  KeyReturn,
+  ListNumbers,
+  MagnifyingGlass,
+  Question,
+  SidebarSimple,
+  X,
+} from "@phosphor-icons/react";
 
-// lucide-react doesn't export Escape
+// Phosphor has no Escape key icon
 function EscapeIcon({ size = 14, className = "" }: { size?: number; className?: string }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6L6 18M6 6l12 12"/></svg>;
 }
@@ -41,19 +41,19 @@ function getContextShortcuts(t: (key: string) => string): Record<string, Shortcu
   return {
     global: [
       { keys: ["⌘/Ctrl", "K"], label: t("keyboardShortcutsPanel.commandPalette"), icon: Command },
-      { keys: ["/"], label: t("keyboardShortcutsPanel.focusSearch"), icon: Search },
-      { keys: ["?"], label: t("keyboardShortcutsPanel.showShortcuts"), icon: HelpCircle },
-      { keys: ["B"], label: t("keyboardShortcutsPanel.toggleSidebar"), icon: PanelLeft },
+      { keys: ["/"], label: t("keyboardShortcutsPanel.focusSearch"), icon: MagnifyingGlass },
+      { keys: ["?"], label: t("keyboardShortcutsPanel.showShortcuts"), icon: Question },
+      { keys: ["B"], label: t("keyboardShortcutsPanel.toggleSidebar"), icon: SidebarSimple },
     ],
     documents: [
       { keys: ["J", "↓"], label: t("keyboardShortcutsPanel.moveDown"), icon: ArrowDown },
       { keys: ["K", "↑"], label: t("keyboardShortcutsPanel.moveUp"), icon: ArrowUp },
-      { keys: ["Enter"], label: t("keyboardShortcutsPanel.openDocument"), icon: CornerDownLeft },
+      { keys: ["Enter"], label: t("keyboardShortcutsPanel.openDocument"), icon: KeyReturn },
       { keys: ["N"], label: t("keyboardShortcutsPanel.newDocument"), icon: FilePlus },
       { keys: ["Esc"], label: t("keyboardShortcutsPanel.deselect"), icon: Escape },
     ],
     review: [
-      { keys: ["Space"], label: t("keyboardShortcutsPanel.showAnswer"), icon: CornerDownLeft },
+      { keys: ["Space"], label: t("keyboardShortcutsPanel.showAnswer"), icon: KeyReturn },
       { keys: ["1-4"], label: t("keyboardShortcutsPanel.rateCard"), icon: Keyboard },
       { keys: ["Esc"], label: t("keyboardShortcutsPanel.exitReview"), icon: Escape },
       { keys: ["T"], label: t("keyboardShortcutsPanel.toggleTts"), icon: Keyboard },
@@ -61,8 +61,8 @@ function getContextShortcuts(t: (key: string) => string): Record<string, Shortcu
     queue: [
       { keys: ["J", "↓"], label: t("keyboardShortcutsPanel.moveDown"), icon: ArrowDown },
       { keys: ["K", "↑"], label: t("keyboardShortcutsPanel.moveUp"), icon: ArrowUp },
-      { keys: ["Enter"], label: t("keyboardShortcutsPanel.openItem"), icon: CornerDownLeft },
-      { keys: ["R"], label: t("keyboardShortcutsPanel.startReview"), icon: RotateCcw },
+      { keys: ["Enter"], label: t("keyboardShortcutsPanel.openItem"), icon: KeyReturn },
+      { keys: ["R"], label: t("keyboardShortcutsPanel.startReview"), icon: ArrowCounterClockwise },
     ],
     graph: [
       { keys: ["Scroll"], label: t("keyboardShortcutsPanel.zoom"), icon: Keyboard },
@@ -225,8 +225,8 @@ export function KeyboardShortcutsPanel({
             <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">{t("keyboardShortcutsPanel.quickActions")}</h4>
             <div className="space-y-2">
               <ShortcutRow shortcut={{ keys: ["N"], label: t("keyboardShortcutsPanel.newDocument"), icon: FilePlus }} />
-              <ShortcutRow shortcut={{ keys: ["R"], label: t("keyboardShortcutsPanel.startReview"), icon: RotateCcw }} />
-              <ShortcutRow shortcut={{ keys: ["Q"], label: t("keyboardShortcutsPanel.openQueue"), icon: ListOrdered }} />
+              <ShortcutRow shortcut={{ keys: ["R"], label: t("keyboardShortcutsPanel.startReview"), icon: ArrowCounterClockwise }} />
+              <ShortcutRow shortcut={{ keys: ["Q"], label: t("keyboardShortcutsPanel.openQueue"), icon: ListNumbers }} />
               <ShortcutRow shortcut={{ keys: ["G"], label: t("keyboardShortcutsPanel.goToGraph"), icon: GitBranch }} />
             </div>
           </div>
@@ -237,7 +237,7 @@ export function KeyboardShortcutsPanel({
             <div className="space-y-2">
               <ShortcutRow shortcut={{ keys: ["J", "↓"], label: t("keyboardShortcutsPanel.moveDown"), icon: ArrowDown }} />
               <ShortcutRow shortcut={{ keys: ["K", "↑"], label: t("keyboardShortcutsPanel.moveUp"), icon: ArrowUp }} />
-              <ShortcutRow shortcut={{ keys: ["Enter"], label: t("keyboardShortcutsPanel.openSelect"), icon: CornerDownLeft }} />
+              <ShortcutRow shortcut={{ keys: ["Enter"], label: t("keyboardShortcutsPanel.openSelect"), icon: KeyReturn }} />
               <ShortcutRow shortcut={{ keys: ["Esc"], label: t("keyboardShortcutsPanel.closeCancel"), icon: Escape }} />
             </div>
           </div>

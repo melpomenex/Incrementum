@@ -16,11 +16,7 @@ import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
 import { PasteExtractDialog } from "../extracts/PasteExtractDialog";
-import {
-  LayoutDashboard,
-  ListTodo,
-  Monitor,
-} from "lucide-react";
+import { Desktop, ListChecks, SquaresFour } from "@phosphor-icons/react";
 
 const TAB_TYPE_ALIASES: Record<string, TabType> = {
   dash: "dashboard", dashboard: "dashboard", home: "dashboard",
@@ -39,14 +35,6 @@ const TAB_TYPE_ALIASES: Record<string, TabType> = {
   nb: "notebooklm", notebook: "notebooklm", notebooklm: "notebooklm",
   img: "image-registry", images: "image-registry", "image-registry": "image-registry",
   web: "web-browser", browser: "web-browser", "web-browser": "web-browser",
-};
-
-const TAB_TYPE_ICONS: Record<string, string> = {
-  dashboard: "📊", documents: "📂", queue: "📚", "queue-scroll": "📜", review: "🧠",
-  analytics: "📈", settings: "⚙️", rss: "📡", newsletter: "📰",
-  podcast: "🎙️", "knowledge-sphere": "🌐", "knowledge-network": "🕸️",
-  "doc-qa": "💬", notebooklm: "🤖", "image-registry": "🖼️",
-  "web-browser": "🌐",
 };
 
 function resolveTabType(input: string): TabType | null {
@@ -198,7 +186,7 @@ export function MainLayout() {
           // Add Dashboard tab (non-closable)
           addTab({
             title: "Dashboard",
-            icon: <LayoutDashboard className="w-4 h-4" />,
+            icon: <SquaresFour className="w-4 h-4" />,
             type: "dashboard",
             content: DashboardTab,
             closable: false,
@@ -207,7 +195,7 @@ export function MainLayout() {
           // Add Queue tab (closable)
           addTab({
             title: "Queue",
-            icon: <ListTodo className="w-4 h-4" />,
+            icon: <ListChecks className="w-4 h-4" />,
             type: "queue",
             content: QueueTab,
             closable: true,
@@ -270,7 +258,7 @@ export function MainLayout() {
 
     addTab({
       title: "Web Browser",
-      icon: <Monitor className="w-4 h-4" />,
+      icon: <Desktop className="w-4 h-4" />,
       type: "web-browser",
       content: WebBrowserTab,
       closable: true,
@@ -300,7 +288,8 @@ export function MainLayout() {
     if (!config) return;
     addTab({
       title: config.title,
-      icon: TAB_TYPE_ICONS[type] ?? "📋",
+      // TabBar derives the icon from `type` via getTabIcon(); no emoji needed.
+      icon: null,
       type,
       content: config.content,
       closable: config.closable,

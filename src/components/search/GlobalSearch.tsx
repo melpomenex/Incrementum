@@ -5,7 +5,14 @@
  */
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Search, X, Clock, Star, SlidersHorizontal, Link2 } from "lucide-react";
+import {
+  Clock,
+  Link,
+  MagnifyingGlass,
+  Sliders,
+  Star,
+  X,
+} from "@phosphor-icons/react";
 import { useURLDetector, URLType } from "../../hooks/useURLDetector";
 import { useURLMetadata, useURLImport, useDuplicateCheck } from "../../hooks/useURLMetadata";
 import { ImportPreview, type ImportOptions } from "../import/ImportPreview";
@@ -14,7 +21,7 @@ import type { SearchHit } from "../../types/searchHit";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 
 /**
- * Search result types
+ * MagnifyingGlass result types
  */
 export enum SearchResultType {
   Document = "document",
@@ -26,7 +33,7 @@ export enum SearchResultType {
 }
 
 /**
- * Search result
+ * MagnifyingGlass result
  */
 export interface SearchResult {
   id: string;
@@ -59,7 +66,7 @@ export interface SearchResult {
 }
 
 /**
- * Search query
+ * MagnifyingGlass query
  */
 export interface SearchQuery {
   query: string;
@@ -74,7 +81,7 @@ export interface SearchQuery {
 }
 
 /**
- * Search operator
+ * MagnifyingGlass operator
  */
 export interface SearchOperator {
   type: "and" | "or" | "not" | "phrase" | "wildcard" | "fuzzy";
@@ -361,15 +368,15 @@ export function GlobalSearch({
           onClick={() => setIsOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted transition-colors"
         >
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Search...</span>
+          <MagnifyingGlass className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">MagnifyingGlass...</span>
           <kbd className="ml-auto px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded">
             ⌘K
           </kbd>
         </button>
       )}
 
-      {/* Search Modal */}
+      {/* MagnifyingGlass Modal */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 animate-glass-fade-in">
           {/* Backdrop with blur */}
@@ -378,7 +385,7 @@ export function GlobalSearch({
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Search Panel with glass styling */}
+          {/* MagnifyingGlass Panel with glass styling */}
           <div
             className="relative w-full max-w-2xl glass-panel-heavy animate-glass-scale-in overflow-hidden"
             role="dialog"
@@ -395,19 +402,19 @@ export function GlobalSearch({
               {isImporting && "Importing..."}
             </output>
 
-            {/* Search Input */}
+            {/* MagnifyingGlass Input */}
             <div className="flex items-center gap-3 px-4 py-3 glass-divider">
               {isURLMode ? (
-                <Link2 className="w-5 h-5 text-primary-400" />
+                <Link className="w-5 h-5 text-primary-400" />
               ) : (
-                <Search className="w-5 h-5 text-muted-foreground" />
+                <MagnifyingGlass className="w-5 h-5 text-muted-foreground" />
               )}
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={isURLMode ? "Press Enter to import..." : "Search documents, extracts, flashcards... or paste a URL"}
+                placeholder={isURLMode ? "Press Enter to import..." : "MagnifyingGlass documents, extracts, flashcards... or paste a URL"}
                 className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
               />
               {query && (
@@ -426,7 +433,7 @@ export function GlobalSearch({
                     : "glass-button"
                 }`}
               >
-                <SlidersHorizontal className="w-4 h-4" />
+                <Sliders className="w-4 h-4" />
               </button>
             </div>
 
@@ -550,7 +557,7 @@ export function GlobalSearch({
                 </div>
               ) : results.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
-                  <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <MagnifyingGlass className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No results found</p>
                   <p className="text-xs mt-1">Try different keywords or filters</p>
                 </div>

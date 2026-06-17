@@ -4,9 +4,20 @@
  */
 
 import { useCallback } from "react";
-import { ChevronLeft, ChevronRight, Star, ExternalLink, Clock, User } from "lucide-react";
+import {
+  ArrowSquareOut,
+  CaretLeft,
+  CaretRight,
+  Clock,
+  LinkSimple,
+  Star,
+  User,
+} from "@phosphor-icons/react";
 import { formatFeedDate, type FeedItem, type Feed } from "../../api/rss";
 import { openExternal } from "../../lib/tauri";
+import { copyShareLink } from "../../lib/shareLink";
+import { stripTrackingParams } from "../../lib/cleanUrl";
+import { useToast } from "../common/Toast";
 import { sanitizeHtml } from "../common/RichContentRenderer";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 
@@ -19,6 +30,7 @@ interface StoryViewProps {
 }
 
 export function StoryView({ item, feed, items, onSelectItem, onToggleFavorite }: StoryViewProps) {
+  const toast = useToast();
   const currentIndex = items.findIndex((i) => i.id === item.id);
   const hasNext = currentIndex < items.length - 1;
   const hasPrev = currentIndex > 0;
@@ -31,6 +43,14 @@ export function StoryView({ item, feed, items, onSelectItem, onToggleFavorite }:
     if (hasPrev) onSelectItem(items[currentIndex - 1]);
   }, [hasPrev, currentIndex, items, onSelectItem]);
 
+  const handleCopyLink = useCallback(async () => {
+    const rawUrl = item.link || item.guid;
+    if (!rawUrl) return;
+    const ok = await copyShareLink(stripTrackingParams(rawUrl));
+    if (ok) toast.success("Link copied", "Clean article link copied to clipboard");
+    else toast.error("Failed to copy link");
+  }, [item.link, item.guid, toast]);
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Minimal toolbar */}
@@ -40,7 +60,7 @@ export function StoryView({ item, feed, items, onSelectItem, onToggleFavorite }:
           disabled={!hasPrev}
           className="p-2 text-muted-foreground hover:text-foreground rounded-lg disabled:opacity-30 transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <CaretLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{currentIndex + 1} / {items.length}</span>
@@ -50,7 +70,7 @@ export function StoryView({ item, feed, items, onSelectItem, onToggleFavorite }:
           disabled={!hasNext}
           className="p-2 text-muted-foreground hover:text-foreground rounded-lg disabled:opacity-30 transition-colors"
         >
-          <ChevronRight className="w-4 h-4" />
+          <CaretRight className="w-4 h-4" />
         </button>
       </div>
 
@@ -106,9 +126,16 @@ export function StoryView({ item, feed, items, onSelectItem, onToggleFavorite }:
               }}
               className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 flex items-center gap-1.5 transition-colors"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ArrowSquareOut className="w-4 h-4" />
               Original
             </a>
+            <button
+              onClick={() => void handleCopyLink()}
+              className="px-3 py-1.5 text-sm bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 flex items-center gap-1.5 transition-colors"
+            >
+              <LinkSimple className="w-4 h-4" />
+              Copy Link
+            </button>
           </div>
         </article>
       </div>

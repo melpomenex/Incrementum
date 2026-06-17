@@ -13,30 +13,30 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  ChevronUp,
-  ChevronDown,
-  ExternalLink,
-  Star,
-  StarOff,
-  CheckCircle2,
-  Rss,
-  Newspaper,
-  Clock,
+  ArrowCounterClockwise,
   ArrowLeft,
-  Sparkles,
-  Lightbulb,
-  Undo,
-  Info,
-  ThumbsUp,
-  ThumbsDown,
-  GraduationCap,
+  ArrowsClockwise,
+  ArrowSquareOut,
+  CaretDown,
+  CaretUp,
+  CheckCircle,
+  CircleNotch,
+  Clock,
   Eye,
-  EyeOff,
-  FileText,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
+  EyeSlash,
+  GraduationCap,
+  Info,
+  Lightbulb,
+  LinkSimple,
+  Newspaper,
+  Rss,
+  Sparkle,
+  Star,
+  TextT,
+  ThumbsDown,
+  ThumbsUp,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { supportsHaptics, playTrainLikeSound, playTrainDislikeSound } from "../../utils/soundService";
 import {
   Feed,
@@ -65,6 +65,8 @@ import { chatWithLLM, type LLMMessage } from "../../api/llm";
 import { getAIConfig, type AIConfig } from "../../api/ai";
 import { useLLMProvidersStore } from "../../stores/llmProvidersStore";
 import { openExternal } from "../../lib/tauri";
+import { copyShareLink } from "../../lib/shareLink";
+import { stripTrackingParams } from "../../lib/cleanUrl";
 import { useI18n } from "../../lib/i18n";
 import { trimToTokenWindow } from "../../utils/tokenizer";
 import { AssistantPanel, type AssistantContext } from "../assistant/AssistantPanel";
@@ -231,6 +233,17 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       console.error("Failed to open original URL:", error);
     }
   }, []);
+
+  const handleCopyLink = useCallback(async (rawUrl?: string) => {
+    if (!rawUrl) return;
+    const cleanUrl = stripTrackingParams(rawUrl);
+    const ok = await copyShareLink(cleanUrl);
+    if (ok) {
+      toast.success(t("rss.linkCopied"), t("rss.linkCopiedDesc"));
+    } else {
+      toast.error(t("rss.failedToCopy"));
+    }
+  }, [toast, t]);
 
   const hasActiveSelectionInContent = useCallback(() => {
     const selection = window.getSelection();
@@ -1083,7 +1096,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
     try {
       if (undoState.action === "read") {
-        // Undo mark as read - mark as unread
+        // ArrowCounterClockwise mark as read - mark as unread
         await markItemReadAuto(undoState.feedId, undoState.itemId, false);
         setScrollItems((prev) =>
           prev.map((si) =>
@@ -1097,9 +1110,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           newSet.delete(`${undoState.feedId}-${undoState.itemId}`);
           return newSet;
         });
-        toast.success("Undo", "Marked as unread");
+        toast.success("ArrowCounterClockwise", "Marked as unread");
       } else if (undoState.action === "favorite") {
-        // Undo favorite toggle - toggle back
+        // ArrowCounterClockwise favorite toggle - toggle back
         await toggleItemFavoriteAuto(undoState.feedId, undoState.itemId);
         setScrollItems((prev) =>
           prev.map((si) =>
@@ -1108,7 +1121,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               : si
           )
         );
-        toast.success("Undo", "Favorite status restored");
+        toast.success("ArrowCounterClockwise", "Favorite status restored");
       }
     } catch (error) {
       console.error("Failed to undo:", error);
@@ -1194,9 +1207,9 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
       toast.success("Marked all as read", `${itemsToMark.length} articles marked as read`, {
         action: {
-          label: "Undo",
+          label: "ArrowCounterClockwise",
           onClick: async () => {
-            // Undo: mark all as unread
+            // ArrowCounterClockwise: mark all as unread
             await Promise.all(
               itemsToMark.map((si) => markItemReadAuto(si.feed.id, si.item.id, false))
             );
@@ -1211,7 +1224,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             allItems.sort((a, b) => calculateEngagementScore(b) - calculateEngagementScore(a));
             const interleaved = interleaveFeedItems(allItems);
             setScrollItems(interleaved);
-            toast.success("Undo", "Articles restored");
+            toast.success("ArrowCounterClockwise", "Articles restored");
           },
         },
       });
@@ -1705,7 +1718,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-background text-muted-foreground">
         {favoritesOnly ? (
-          <StarOff className="w-16 h-16 mb-4 opacity-50" />
+          <Star className="w-16 h-16 mb-4 opacity-50" />
         ) : (
           <Newspaper className="w-16 h-16 mb-4 opacity-50" />
         )}
@@ -1803,7 +1816,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 className="ml-1 p-1.5 text-muted-foreground hover:text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
                 title="Mark all as read"
               >
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -1822,7 +1835,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 )}
                 title="Summarize article with AI"
               >
-                <Sparkles className="w-5 h-5" />
+                <Sparkle className="w-5 h-5" />
               </button>
               {/* Mark as read / Auto-read toggle */}
               <button
@@ -1838,7 +1851,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 )}
                 title={autoReadMode ? "Auto-read mode ON - Click to disable" : "Mark as read"}
               >
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle className="w-5 h-5" />
                 {autoReadMode && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
                 )}
@@ -1889,7 +1902,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                 title="Open original"
               >
-                <ExternalLink className="w-5 h-5" />
+                <ArrowSquareOut className="w-5 h-5" />
               </a>
             </div>
           )}
@@ -1908,7 +1921,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             showControls ? "opacity-100" : "opacity-0"
           )}
         >
-          <ChevronUp className="w-6 h-6" />
+          <CaretUp className="w-6 h-6" />
         </button>
 
         <button
@@ -1920,7 +1933,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             showControls ? "opacity-100" : "opacity-0"
           )}
         >
-          <ChevronDown className="w-6 h-6" />
+          <CaretDown className="w-6 h-6" />
         </button>
 
         {/* Article content */}
@@ -1974,7 +1987,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                           onClick={() => setIsImageExpanded(!isImageExpanded)}
                           className="flex items-center gap-1 px-2 py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-lg text-xs transition-colors mobile-density-tap font-medium"
                         >
-                          {isImageExpanded ? <EyeOff className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
+                          {isImageExpanded ? <EyeSlash className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
                           {isImageExpanded ? "Hide cover image" : "Show cover image"}
                         </button>
                       )}
@@ -1989,7 +2002,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                         )}
                         title={showFullContent ? "Show RSS Content" : "View Full Content"}
                       >
-                        <FileText className="w-3.5 h-3.5" />
+                        <TextT className="w-3.5 h-3.5" />
                         {showFullContent ? "Show RSS Content" : "View Full Content"}
                       </button>
                     </div>
@@ -2024,7 +2037,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                       className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                       title="Collapse image"
                     >
-                      <EyeOff className="w-4 h-4" />
+                      <EyeSlash className="w-4 h-4" />
                     </button>
                   </div>
                 )}
@@ -2072,12 +2085,12 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               {/* Article content */}
               {showFullContent && loadingFullContent.has(renderedItem.item.id) ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-20 space-y-4">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                  <CircleNotch className="w-8 h-8 animate-spin text-blue-500" />
                   <p className="text-sm text-muted-foreground animate-pulse">Fetching full article content...</p>
                 </div>
               ) : showFullContent && fullContentErrors.has(renderedItem.item.id) ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-4 px-6 text-center">
-                  <AlertCircle className="w-10 h-10 text-red-500 animate-bounce" />
+                  <WarningCircle className="w-10 h-10 text-red-500 animate-bounce" />
                   <div>
                     <p className="text-sm font-semibold text-foreground mb-1">
                       Failed to load full content
@@ -2101,14 +2114,14 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                       }}
                       className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs font-semibold shadow-md shadow-blue-500/10"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <ArrowsClockwise className="w-3.5 h-3.5" />
                       Retry
                     </button>
                     <button
                       onClick={() => void handleOpenOriginal(renderedItem.item.link)}
                       className="flex items-center gap-1.5 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg transition-colors text-xs font-semibold"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ArrowSquareOut className="w-3.5 h-3.5" />
                       Open Original
                     </button>
                   </div>
@@ -2150,7 +2163,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                     {renderedItem.item.favorite ? (
                       <Star className="w-4 h-4 fill-yellow-500" />
                     ) : (
-                      <StarOff className="w-4 h-4" />
+                      <Star className="w-4 h-4" />
                     )}
                     <span className="text-sm font-medium">
                       {renderedItem.item.favorite ? "Favorited" : "Favorite"}
@@ -2165,9 +2178,18 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowSquareOut className="w-4 h-4" />
                     <span className="text-sm font-medium">Read Original</span>
                   </a>
+
+                  <button
+                    onClick={() => void handleCopyLink(renderedItem.item.link || renderedItem.item.guid)}
+                    title={t("rss.copyLink")}
+                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                  >
+                    <LinkSimple className="w-4 h-4" />
+                    <span className="text-sm font-medium">{t("rss.copyLink")}</span>
+                  </button>
 
                   {/* Training controls */}
                   <div className="flex items-center gap-1">
@@ -2213,7 +2235,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                 {/* Next article preview */}
                 {currentIndex < visibleScrollItems.length - 1 && (
                   <div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground">
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkle className="w-4 h-4" />
                     <span>
                       Up next: {visibleScrollItems[currentIndex + 1]?.item.title.substring(0, 50)}
                       {visibleScrollItems[currentIndex + 1]?.item.title.length > 50 ? "..." : ""}
@@ -2334,7 +2356,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
           )}
           title={showSummary ? "Close summary" : "Generate AI summary"}
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkle className="w-4 h-4" />
           <span>
             {isSummarizing ? "Summarizing..." : showSummary ? "Close Summary" : "Summarize"}
           </span>
@@ -2519,7 +2541,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                     Mark All Read
                   </>
                 )}
@@ -2543,7 +2565,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         />
       )}
 
-      {/* Undo Toast */}
+      {/* ArrowCounterClockwise Toast */}
       {undoState && undoState.visible && (
         <div className={cn("undo-toast", undoState.visible && "visible")}>
           <div
@@ -2553,7 +2575,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             )}
           >
             {undoState.action === "read" ? (
-              <CheckCircle2 className="w-full h-full" />
+              <CheckCircle className="w-full h-full" />
             ) : (
               <Star className="w-full h-full" />
             )}
@@ -2568,8 +2590,8 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
             </span>
           </div>
           <button onClick={handleUndo} className="undo-toast-action">
-            <Undo className="w-4 h-4 mr-1" />
-            Undo
+            <ArrowCounterClockwise className="w-4 h-4 mr-1" />
+            ArrowCounterClockwise
           </button>
           <div className="undo-toast-progress">
             <div className="undo-toast-progress-bar" style={{ width: `${undoState.progress}%` }} />

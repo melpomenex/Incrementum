@@ -7,15 +7,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  X,
-  FileText,
-  Image as ImageIcon,
+  CheckCircle,
+  CircleNotch,
   Clock,
+  Image as ImageIcon,
   Tag,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-} from 'lucide-react';
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import type { MarkdownBundle } from '../../utils/markdownBundleImport';
 import { cn } from '../../utils';
 
@@ -120,7 +120,7 @@ export function MarkdownBundlePreview({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-500" />
+            <TextT className="w-5 h-5 text-blue-500" />
             Import Markdown Bundle
           </h2>
           <button
@@ -137,7 +137,7 @@ export function MarkdownBundlePreview({
           {/* Success state */}
           {state.success && (
             <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg">
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle className="w-5 h-5" />
               <span className="font-medium">Imported successfully!</span>
             </div>
           )}
@@ -145,7 +145,7 @@ export function MarkdownBundlePreview({
           {/* Error state */}
           {state.error && (
             <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg">
-              <AlertCircle className="w-5 h-5" />
+              <WarningCircle className="w-5 h-5" />
               <div>
                 <div className="font-medium">Import failed</div>
                 <div className="text-sm">{state.error}</div>
@@ -157,7 +157,7 @@ export function MarkdownBundlePreview({
           <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg space-y-2">
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 <span>Markdown</span>
               </div>
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -316,12 +316,12 @@ export function MarkdownBundlePreview({
           >
             {state.loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <CircleNotch className="w-4 h-4 animate-spin" />
                 Importing...
               </>
             ) : state.success ? (
               <>
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle className="w-4 h-4" />
                 Imported
               </>
             ) : (

@@ -2,7 +2,7 @@ import { DocumentsView } from "../documents/DocumentsView";
 import { useTabsStore } from "../../stores";
 import { DocumentViewer } from "./TabRegistry";
 import type { Document } from "../../types/document";
-import { FileText, BookOpen, Youtube } from "lucide-react";
+import { BookOpen, TextT, YoutubeLogo } from "@phosphor-icons/react";
 import { AudiobookEpubSyncView } from "../viewer/AudiobookEpubSyncView";
 
 export function DocumentsTab() {
@@ -11,10 +11,10 @@ export function DocumentsTab() {
   const handleOpenDocument = (doc: Document) => {
     addTab({
       title: doc.title,
-      icon: doc.fileType === "pdf" ? <FileText className="w-4 h-4 text-red-500" />
+      icon: doc.fileType === "pdf" ? <TextT className="w-4 h-4 text-red-500" />
         : doc.fileType === "epub" ? <BookOpen className="w-4 h-4 text-blue-500" />
-        : doc.fileType === "youtube" ? <Youtube className="w-4 h-4 text-red-600" />
-        : <FileText className="w-4 h-4 text-muted-foreground" />,
+        : doc.fileType === "youtube" ? <YoutubeLogo className="w-4 h-4 text-red-600" />
+        : <TextT className="w-4 h-4 text-muted-foreground" />,
       type: "document-viewer",
       content: DocumentViewer,
       closable: true,

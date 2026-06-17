@@ -2,7 +2,21 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useI18n } from "../lib/i18n";
 import { useTabsStore, type TabPane } from "../stores/tabsStore";
-import { Sparkles, ExternalLink, Info, Lightbulb, MessageSquare, Code, Settings2, FileText, Eye, EyeOff, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  ArrowsClockwise,
+  ArrowSquareOut,
+  ChatCircle,
+  CircleNotch,
+  Code,
+  Eye,
+  EyeSlash,
+  Info,
+  Lightbulb,
+  Sliders,
+  Sparkle,
+  TextT,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueueStore } from "../stores/queueStore";
 import { useDocumentStore } from "../stores/documentStore";
@@ -239,10 +253,10 @@ export function QueueScrollPage() {
   }, [currentIndex]);
 
   const providers = [
-    { id: "openai", name: "OpenAI", icon: Sparkles, color: "text-green-500" },
-    { id: "anthropic", name: "Anthropic", icon: MessageSquare, color: "text-orange-500" },
+    { id: "openai", name: "OpenAI", icon: Sparkle, color: "text-green-500" },
+    { id: "anthropic", name: "Anthropic", icon: ChatCircle, color: "text-orange-500" },
     { id: "ollama", name: "Ollama", icon: Code, color: "text-blue-500" },
-    { id: "openrouter", name: "OpenRouter", icon: Settings2, color: "text-purple-500" },
+    { id: "openrouter", name: "OpenRouter", icon: Sliders, color: "text-purple-500" },
   ] as const;
 
   // Popup state
@@ -285,7 +299,7 @@ export function QueueScrollPage() {
   }) => {
     addTab({
       title: params.documentTitle,
-      icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+      icon: <TextT className="w-4 h-4 text-muted-foreground" />,
       type: "document-viewer",
       content: DocumentViewerTab,
       closable: true,
@@ -2397,7 +2411,7 @@ export function QueueScrollPage() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 hover:text-foreground transition-colors mobile-density-tap"
                       >
-                        <ExternalLink className="w-3 h-3" />
+                        <ArrowSquareOut className="w-3 h-3" />
                         {t("queueScroll.openOriginal")}
                       </a>
                       {renderedItem.rssItem?.thumbnail && (
@@ -2405,7 +2419,7 @@ export function QueueScrollPage() {
                           onClick={() => setIsImageExpanded(!isImageExpanded)}
                           className="flex items-center gap-1 px-2 py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-lg text-xs transition-colors mobile-density-tap"
                         >
-                          {isImageExpanded ? <EyeOff className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
+                          {isImageExpanded ? <EyeSlash className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
                           {isImageExpanded ? "Hide cover image" : "Show cover image"}
                         </button>
                       )}
@@ -2419,7 +2433,7 @@ export function QueueScrollPage() {
                         )}
                         title={showFullContent ? "Show RSS Content" : "View Full Content"}
                       >
-                        <FileText className="w-3.5 h-3.5 mr-0.5" />
+                        <TextT className="w-3.5 h-3.5 mr-0.5" />
                         {showFullContent ? "Show RSS Content" : "View Full Content"}
                       </button>
                     </div>
@@ -2454,7 +2468,7 @@ export function QueueScrollPage() {
                       className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                       title="Collapse image"
                     >
-                      <EyeOff className="w-4 h-4" />
+                      <EyeSlash className="w-4 h-4" />
                     </button>
                   </div>
                 )}
@@ -2462,12 +2476,12 @@ export function QueueScrollPage() {
                 {/* RSS Article Content */}
                 {showFullContent && loadingFullContent.has(renderedItem.rssItem.id) ? (
                   <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                    <CircleNotch className="w-8 h-8 animate-spin text-blue-500" />
                     <p className="text-sm text-muted-foreground animate-pulse">Fetching full article content...</p>
                   </div>
                 ) : showFullContent && fullContentErrors.has(renderedItem.rssItem.id) ? (
                   <div className="flex flex-col items-center justify-center py-16 space-y-4 px-6 text-center">
-                    <AlertCircle className="w-10 h-10 text-red-500 animate-bounce" />
+                    <WarningCircle className="w-10 h-10 text-red-500 animate-bounce" />
                     <div>
                       <p className="text-sm font-semibold text-foreground mb-1">
                         Failed to load full content
@@ -2491,7 +2505,7 @@ export function QueueScrollPage() {
                         }}
                         className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs font-semibold shadow-md shadow-blue-500/10"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" />
+                        <ArrowsClockwise className="w-3.5 h-3.5" />
                         Retry
                       </button>
                       <button
@@ -2502,7 +2516,7 @@ export function QueueScrollPage() {
                         }}
                         className="flex items-center gap-1.5 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg transition-colors text-xs font-semibold"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ArrowSquareOut className="w-3.5 h-3.5" />
                         Open Original
                       </button>
                     </div>
@@ -2527,7 +2541,7 @@ export function QueueScrollPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 mt-4 text-primary hover:underline"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ArrowSquareOut className="w-4 h-4" />
                       {t("queueScroll.readOnOriginalSite")}
                     </a>
                   </div>

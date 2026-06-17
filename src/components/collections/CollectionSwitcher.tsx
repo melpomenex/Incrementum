@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Check, Download, Upload } from 'lucide-react';
+import {
+  Check,
+  Download,
+  Plus,
+  Trash,
+  Upload,
+} from "@phosphor-icons/react";
 import { useCollectionStore } from '../../stores/collectionStore';
 import { DEFAULT_COLLECTION_ID } from '../../types/collection';
 import { buildCollectionArchive } from '../../utils/collectionArchive';
@@ -169,7 +175,7 @@ export function CollectionSwitcher() {
                       className={`px-2 py-2 transition-colors ${confirmDeleteId === c.id ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground opacity-0 group-hover:opacity-100'} hover:text-red-500`}
                       title={confirmDeleteId === c.id ? 'Click again to confirm' : 'Delete collection'}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>

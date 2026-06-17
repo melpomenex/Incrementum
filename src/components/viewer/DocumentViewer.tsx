@@ -1,5 +1,32 @@
 import { useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileText, List, Brain, Lightbulb, Search, X, Maximize, Minimize, Share2, FileCode, Loader2, Languages, PanelsTopLeft, Settings, AlertCircle, Star, CheckCircle, Sparkles, EyeOff, Highlighter, Copy } from "lucide-react";
+import {
+  ArrowClockwise,
+  Brain,
+  CaretLeft,
+  CaretRight,
+  CheckCircle,
+  CircleNotch,
+  Copy,
+  CornersIn,
+  CornersOut,
+  EyeSlash,
+  FileCode,
+  Gear,
+  Highlighter,
+  Lightbulb,
+  List,
+  MagnifyingGlass,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
+  ShareNetwork,
+  SidebarSimple,
+  Sparkle,
+  Star,
+  TextT,
+  Translate,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { isTauri, isPWA } from "../../lib/tauri";
@@ -1596,7 +1623,7 @@ export function DocumentViewer({
     items.push({
       id: "extract-dialog",
       label: t("viewer.addNote"),
-      icon: <FileText className="w-4 h-4" />,
+      icon: <TextT className="w-4 h-4" />,
       onClick: () => {
         setSelectedText(selectedText);
         lastSelectionRef.current = selectedText;
@@ -1646,7 +1673,7 @@ export function DocumentViewer({
     items.push({
       id: "dictionary",
       label: t("viewer.lookupDictionaryThesaurus"),
-      icon: <Languages className="w-4 h-4" />,
+      icon: <Translate className="w-4 h-4" />,
       onClick: () => {
         const word = selectedText.trim().split(/\s+/)[0] || "";
         if (!word) return;
@@ -1665,7 +1692,7 @@ export function DocumentViewer({
     items.push({
       id: "flashcard",
       label: t("extractScrollItem.createFlashcard"),
-      icon: <Sparkles className="w-4 h-4" />,
+      icon: <Sparkle className="w-4 h-4" />,
       onClick: () => {
         setFlashcardStudioSeed({
           key: `ctx-${currentDocument?.id}-${Date.now()}`,
@@ -3381,7 +3408,7 @@ export function DocumentViewer({
         available: false,
         totalMatches: 0,
         activeMatchIndex: 0,
-        unavailableReason: "Search is not available for this document type.",
+        unavailableReason: "MagnifyingGlass is not available for this document type.",
       });
       return;
     }
@@ -4023,7 +4050,7 @@ export function DocumentViewer({
         available: false,
         totalMatches: 0,
         activeMatchIndex: 0,
-        unavailableReason: "Search is not available for this document type.",
+        unavailableReason: "MagnifyingGlass is not available for this document type.",
       });
       return;
     }
@@ -4697,7 +4724,7 @@ export function DocumentViewer({
             className="p-2 rounded-md hover:bg-muted transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
             title={t("viewer.backToDocuments")}
           >
-            <ChevronLeft className="w-5 h-5" />
+            <CaretLeft className="w-5 h-5" />
           </button>
           <div className="hidden sm:block h-6 w-px bg-border" />
           <h2 className="min-w-0 flex-1 font-semibold text-foreground line-clamp-1 max-w-[120px] sm:max-w-[200px] md:max-w-md text-sm md:text-base">
@@ -4741,7 +4768,7 @@ export function DocumentViewer({
               )}
               title={t("viewer.viewDocument")}
             >
-              <FileText className="w-4 h-4" />
+              <TextT className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("extracts")}
@@ -4771,7 +4798,7 @@ export function DocumentViewer({
         </div>
 
         <div className="flex w-full max-w-full flex-shrink-0 items-center justify-end gap-1 overflow-x-auto overscroll-x-contain pr-1 sm:w-auto sm:max-w-none sm:gap-2 sm:overflow-visible sm:pr-0">
-          {/* Search */}
+          {/* MagnifyingGlass */}
           {showSearch ? (
             <div className="flex items-center gap-2 bg-muted rounded-md p-1">
               <input
@@ -4809,7 +4836,7 @@ export function DocumentViewer({
                     className="p-2 hover:bg-background rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
                     title="Previous match"
                   >
-                    <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                    <CaretLeft className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button
                     onClick={() => handleSearch("next")}
@@ -4817,7 +4844,7 @@ export function DocumentViewer({
                     className="p-2 hover:bg-background rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
                     title="Next match"
                   >
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <CaretRight className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </>
               ) : null}
@@ -4841,7 +4868,7 @@ export function DocumentViewer({
               className="flex-shrink-0 p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
               title={t("viewer.searchInDocumentShortcut")}
             >
-              <Search className="w-4 h-4" />
+              <MagnifyingGlass className="w-4 h-4" />
             </button>
           )}
 
@@ -4861,7 +4888,7 @@ export function DocumentViewer({
             className="flex-shrink-0 p-2 rounded-md hover:bg-muted transition-colors relative"
             title={t("viewer.shareDocumentLink")}
           >
-            <Share2 className="w-4 h-4" />
+            <ShareNetwork className="w-4 h-4" />
           </button>
 
           {/* Convert to HTML Button (PDF only) */}
@@ -4878,7 +4905,7 @@ export function DocumentViewer({
               title={t("viewer.ocrToHtml")}
             >
               {isOcrConverting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <CircleNotch className="w-4 h-4 animate-spin" />
               ) : (
                 <FileCode className="w-4 h-4" />
               )}
@@ -4939,7 +4966,7 @@ export function DocumentViewer({
                 )}
                 title={isPaletteMode ? "Return to reader" : "Open edit palette"}
               >
-                <PanelsTopLeft className="w-4 h-4" />
+                <SidebarSimple className="w-4 h-4" />
                 {isPaletteMode ? "Reader" : "Palette"}
               </button>
             </div>
@@ -4954,7 +4981,7 @@ export function DocumentViewer({
                 title={t("viewer.narrowTextWidth")}
                 disabled={markdownWidthCh <= MARKDOWN_MIN_WIDTH_CH}
               >
-                <ZoomOut className="w-4 h-4" />
+                <MagnifyingGlassMinus className="w-4 h-4" />
               </button>
               <span className="text-xs text-muted-foreground min-w-[54px] text-center">
                 {markdownWidthCh}ch
@@ -4965,14 +4992,14 @@ export function DocumentViewer({
                 title={t("viewer.widenTextWidth")}
                 disabled={markdownWidthCh >= MARKDOWN_MAX_WIDTH_CH}
               >
-                <ZoomIn className="w-4 h-4" />
+                <MagnifyingGlassPlus className="w-4 h-4" />
               </button>
               <button
                 onClick={handleResetMarkdownWidth}
                 className="p-2 rounded-md hover:bg-background transition-colors"
                 title={t("viewer.resetTextWidth")}
               >
-                <RotateCw className="w-4 h-4" />
+                <ArrowClockwise className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -5000,7 +5027,7 @@ export function DocumentViewer({
                     className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t("viewer.previousPage")}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <CaretLeft className="w-4 h-4" />
                   </button>
 
                   <span className="text-sm text-muted-foreground min-w-[80px] text-center">
@@ -5017,7 +5044,7 @@ export function DocumentViewer({
                     className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t("viewer.nextPage")}
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <CaretRight className="w-4 h-4" />
                   </button>
                 </>
               )}
@@ -5058,7 +5085,7 @@ export function DocumentViewer({
                 className="p-2 rounded-md hover:bg-muted transition-colors"
                 title={t("viewer.zoomOut")}
               >
-                <ZoomOut className="w-4 h-4" />
+                <MagnifyingGlassMinus className="w-4 h-4" />
               </button>
 
               <span className="text-sm text-muted-foreground min-w-[50px] text-center">
@@ -5070,7 +5097,7 @@ export function DocumentViewer({
                 className="p-2 rounded-md hover:bg-muted transition-colors"
                 title={t("viewer.zoomIn")}
               >
-                <ZoomIn className="w-4 h-4" />
+                <MagnifyingGlassPlus className="w-4 h-4" />
               </button>
 
               <button
@@ -5078,7 +5105,7 @@ export function DocumentViewer({
                 className="p-2 rounded-md hover:bg-muted transition-colors"
                 title={t("viewer.resetView")}
               >
-                <RotateCw className="w-4 h-4" />
+                <ArrowClockwise className="w-4 h-4" />
               </button>
 
               <div className="h-6 w-px bg-border mx-2" />
@@ -5094,7 +5121,7 @@ export function DocumentViewer({
                 )}
                 title={isFullscreen ? t("viewer.exitFullscreen") : t("viewer.enterFullscreen")}
               >
-                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isFullscreen ? <CornersIn className="w-4 h-4" /> : <CornersOut className="w-4 h-4" />}
               </button>
             </>
           )}
@@ -5179,10 +5206,10 @@ export function DocumentViewer({
                   className="absolute top-3 right-3 z-30 p-2 bg-card border border-border rounded-lg shadow-md hover:shadow-lg transition-all"
                   title={t("viewer.fontSizeSettings")}
                 >
-                  <Settings className="w-4 h-4 text-foreground" />
+                  <Gear className="w-4 h-4 text-foreground" />
                 </button>
 
-                {/* Settings panel */}
+                {/* Gear panel */}
                 <div
                   className={cn(
                     "absolute top-3 right-14 z-30 bg-card border border-border rounded-lg shadow-lg transition-all",
@@ -5458,7 +5485,7 @@ export function DocumentViewer({
                   title={t("viewer.narrowTextWidth")}
                   disabled={markdownWidthCh <= MARKDOWN_MIN_WIDTH_CH}
                 >
-                  <ZoomOut className="w-3.5 h-3.5" />
+                  <MagnifyingGlassMinus className="w-3.5 h-3.5" />
                 </button>
                 <span className="text-[11px] text-muted-foreground min-w-[50px] text-center">
                   {markdownWidthCh}ch
@@ -5469,7 +5496,7 @@ export function DocumentViewer({
                   title={t("viewer.widenTextWidth")}
                   disabled={markdownWidthCh >= MARKDOWN_MAX_WIDTH_CH}
                 >
-                  <ZoomIn className="w-3.5 h-3.5" />
+                  <MagnifyingGlassPlus className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -5521,10 +5548,10 @@ export function DocumentViewer({
               className="absolute top-3 right-3 z-30 p-2 bg-card border border-border rounded-lg shadow-md hover:shadow-lg transition-all"
               title={t("viewer.fontSizeSettings")}
             >
-              <Settings className="w-4 h-4 text-foreground" />
+              <Gear className="w-4 h-4 text-foreground" />
             </button>
 
-            {/* Settings panel */}
+            {/* Gear panel */}
             <div
               className={cn(
                 "absolute top-3 right-14 z-30 bg-card border border-border rounded-lg shadow-lg transition-all",
@@ -5738,7 +5765,7 @@ export function DocumentViewer({
                   className="group p-3 rounded-full bg-red-500/80 backdrop-blur-sm hover:bg-red-500 hover:scale-110 transition-all shadow-lg"
                   title={t("queueScroll.againTitle")}
                 >
-                  <AlertCircle className="w-6 h-6 text-white" />
+                  <WarningCircle className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {t("queueScroll.again")}
                   </span>
@@ -5774,7 +5801,7 @@ export function DocumentViewer({
                   className="group p-3 rounded-full bg-green-500/80 backdrop-blur-sm hover:bg-green-500 hover:scale-110 transition-all shadow-lg"
                   title={t("queueScroll.easyTitle")}
                 >
-                  <Sparkles className="w-6 h-6 text-white" />
+                  <Sparkle className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {t("queueScroll.easy")}
                   </span>
@@ -5787,7 +5814,7 @@ export function DocumentViewer({
                   className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg mt-2"
                   title={t("queueScroll.dismissTitle")}
                 >
-                  <EyeOff className="w-6 h-6 text-white" />
+                  <EyeSlash className="w-6 h-6 text-white" />
                   <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {t("queueScroll.dismissLabel")}
                   </span>
@@ -5906,7 +5933,7 @@ export function DocumentViewer({
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 text-foreground shadow-sm transition-colors min-h-[52px] hover:bg-muted disabled:opacity-60"
               title={t("viewer.lookupDictionaryThesaurus")}
             >
-              <Languages className="w-4 h-4" />
+              <Translate className="w-4 h-4" />
               <span className="text-xs">{isDictionaryLoading ? t("viewer.lookingUp") : t("viewer.lookup")}</span>
             </button>
           </div>
@@ -6028,7 +6055,7 @@ export function DocumentViewer({
                 className="flex items-center gap-2 px-4 py-2 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg hover:bg-background transition-colors"
                 title={t("viewer.exitFullscreen")}
               >
-                <Minimize className="w-4 h-4 text-foreground" />
+                <CornersIn className="w-4 h-4 text-foreground" />
                 <span className="text-sm font-medium text-foreground">{t("viewer.exitFullscreenShort")}</span>
                 <span className="text-xs text-muted-foreground ml-2">{t("viewer.pressF11OrEsc")}</span>
               </button>
@@ -6046,7 +6073,7 @@ export function DocumentViewer({
           aria-label={t("viewer.enterFullscreenMode")}
         >
           <div className="flex items-center justify-center w-12 h-12 bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg hover:bg-card active:scale-95 transition-all">
-            <Maximize className="w-5 h-5 text-foreground" />
+            <CornersOut className="w-5 h-5 text-foreground" />
           </div>
         </button>
       )}

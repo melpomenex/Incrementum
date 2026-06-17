@@ -5,16 +5,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Cloud,
-  CloudDownload,
-  CloudCheck,
-  WifiOff,
-  Download,
+  ArrowsCounterClockwise,
   Check,
-  AlertCircle,
-  RefreshCcw,
-  Loader2,
-} from "lucide-react";
+  CircleNotch,
+  Cloud,
+  CloudArrowDown,
+  CloudCheck,
+  Download,
+  WarningCircle,
+  WifiSlash,
+} from "@phosphor-icons/react";
 import { t } from "../../lib/i18n";
 
 interface OfflineStatus {
@@ -114,7 +114,7 @@ export function OfflineIndicator({
     >
       {isOnline ? (
         <>
-          <CloudDownload className="w-3.5 h-3.5" />
+          <CloudArrowDown className="w-3.5 h-3.5" />
           {showLabel && <span>{t("offline.pendingSync")}</span>}
           {pendingChanges > 0 && (
             <span className="font-medium">{pendingChanges}</span>
@@ -122,7 +122,7 @@ export function OfflineIndicator({
         </>
       ) : (
         <>
-          <WifiOff className="w-3.5 h-3.5" />
+          <WifiSlash className="w-3.5 h-3.5" />
           {showLabel && <span>{t("offline.offline")}</span>}
         </>
       )}
@@ -163,7 +163,7 @@ export function ContentAvailability({
         className={`inline-flex items-center gap-1 text-primary ${className}`}
         title={t("offline.downloading")}
       >
-        <Loader2 className={`${iconSize} animate-spin`} />
+        <CircleNotch className={`${iconSize} animate-spin`} />
       </div>
     );
   }
@@ -231,7 +231,7 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
         className={`flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl ${className}`}
       >
         <div className="p-2 bg-red-500/20 rounded-lg">
-          <WifiOff className="w-5 h-5 text-red-600" />
+          <WifiSlash className="w-5 h-5 text-red-600" />
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-medium text-red-600">{t("offline.youreOffline")}</h3>
@@ -249,7 +249,7 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
         className={`flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl ${className}`}
       >
         <div className="p-2 bg-amber-500/20 rounded-lg">
-          <CloudDownload className="w-5 h-5 text-amber-600" />
+          <CloudArrowDown className="w-5 h-5 text-amber-600" />
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-medium text-amber-600">
@@ -265,9 +265,9 @@ export function OfflineBanner({ onSync, className = "" }: OfflineBannerProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-colors disabled:opacity-50"
         >
           {isSyncing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <CircleNotch className="w-4 h-4 animate-spin" />
           ) : (
-            <RefreshCcw className="w-4 h-4" />
+            <ArrowsCounterClockwise className="w-4 h-4" />
           )}
           {t("offline.sync")}
         </button>
@@ -311,7 +311,7 @@ export function OfflineBadge({
       <span
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-medium ${className}`}
       >
-        <CloudDownload className="w-2.5 h-2.5" />
+        <CloudArrowDown className="w-2.5 h-2.5" />
         {t("offline.syncing")}
       </span>
     );
@@ -372,7 +372,7 @@ export function StorageUsage({
       </div>
       {percentage >= 90 && (
         <p className="text-xs text-red-500 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3" />
+          <WarningCircle className="w-3 h-3" />
           {t("offline.storageAlmostFull")}
         </p>
       )}
@@ -528,7 +528,7 @@ export function UpdateNotification({
       className={`flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl ${className}`}
     >
       <div className="p-2 bg-primary/20 rounded-lg">
-        <RefreshCcw className="w-5 h-5 text-primary" />
+        <ArrowsCounterClockwise className="w-5 h-5 text-primary" />
       </div>
       <div className="flex-1">
         <h3 className="text-sm font-medium text-foreground">{t("offline.updateAvailable")}</h3>

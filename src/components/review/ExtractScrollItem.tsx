@@ -1,5 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { AlertCircle, Star, CheckCircle, Sparkles, Scissors, MessageSquare, FileText, PencilLine, Loader2, Eye, Clock } from "lucide-react";
+import {
+  ChatCircle,
+  CheckCircle,
+  CircleNotch,
+  Clock,
+  Eye,
+  PencilLine,
+  Scissors,
+  Sparkle,
+  Star,
+  TextT,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { updateExtract, type Extract } from "../../api/extracts";
 import { generateProgressiveSummaries } from "../../api/ai";
 import { useI18n } from "../../lib/i18n";
@@ -271,7 +283,7 @@ export function ExtractScrollItem({
         if (saveStatus === "saving") {
             return (
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                     {t("extractScrollItem.saving")}
                 </span>
             );
@@ -287,7 +299,7 @@ export function ExtractScrollItem({
         if (saveStatus === "error") {
             return (
                 <span className="flex items-center gap-2 text-xs text-red-500">
-                    <AlertCircle className="w-3.5 h-3.5" />
+                    <WarningCircle className="w-3.5 h-3.5" />
                     {t("extractScrollItem.saveFailed")}
                 </span>
             );
@@ -308,7 +320,7 @@ export function ExtractScrollItem({
             {/* Card Type Badge */}
             <div className="absolute top-6 left-6 flex items-center gap-2">
                 <span className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
+                    <TextT className="w-4 h-4" />
                     {t("extractScrollItem.extract")}
                 </span>
                 <span className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium">
@@ -345,7 +357,7 @@ export function ExtractScrollItem({
                             className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-sm"
                             title={t("extractScrollItem.createFlashcardHint")}
                         >
-                            <Sparkles className="w-4 h-4" />
+                            <Sparkle className="w-4 h-4" />
                             {t("extractScrollItem.createFlashcard")}
                         </button>
                     )}
@@ -362,7 +374,7 @@ export function ExtractScrollItem({
                         className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
                         title={t("extractScrollItem.createQaHint")}
                     >
-                        <MessageSquare className="w-4 h-4" />
+                        <ChatCircle className="w-4 h-4" />
                         {t("extractScrollItem.createQa")}
                     </button>
                 </div>
@@ -389,7 +401,7 @@ export function ExtractScrollItem({
                         if (isGeneratingSummary && isSummary) {
                             return (
                                 <div className="flex flex-col items-center justify-center min-h-[300px] text-muted-foreground gap-3">
-                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <CircleNotch className="w-6 h-6 animate-spin" />
                                     <span className="text-sm">{t("extractScrollItem.generatingSummary")}</span>
                                 </div>
                             );
@@ -420,7 +432,7 @@ export function ExtractScrollItem({
                                             ? "bg-amber-500/20 text-amber-400"
                                             : "bg-blue-500/20 text-blue-400"
                                     )}>
-                                        {isSummary && <Sparkles className="w-3 h-3 inline mr-1" />}
+                                        {isSummary && <Sparkle className="w-3 h-3 inline mr-1" />}
                                         {levelLabel}
                                     </div>
                                 )}
@@ -462,7 +474,7 @@ export function ExtractScrollItem({
                         onClick={() => onRate(1)}
                         className="flex-1 py-4 bg-red-500/90 text-white rounded-xl font-medium hover:bg-red-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
-                        <AlertCircle className="w-5 h-5" />
+                        <WarningCircle className="w-5 h-5" />
                         {t("extractScrollItem.again")}
                     </button>
                     <button
@@ -483,7 +495,7 @@ export function ExtractScrollItem({
                         onClick={() => onRate(4)}
                         className="flex-1 py-4 bg-green-500/90 text-white rounded-xl font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-2 shadow-lg"
                     >
-                        <Sparkles className="w-5 h-5" />
+                        <Sparkle className="w-5 h-5" />
                         {t("extractScrollItem.easy")}
                     </button>
                 </div>
@@ -522,7 +534,7 @@ export function ExtractScrollItem({
                                     onCreateQA();
                                 }}
                             >
-                                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                                <ChatCircle className="w-4 h-4 text-muted-foreground" />
                                 {t("extractScrollItem.createQa")}
                             </button>
                         )}
@@ -535,7 +547,7 @@ export function ExtractScrollItem({
                                     onCreateFlashcard(contextMenu.selectedText);
                                 }}
                             >
-                                <Sparkles className="w-4 h-4 text-muted-foreground" />
+                                <Sparkle className="w-4 h-4 text-muted-foreground" />
                                 {t("extractScrollItem.createFlashcard")}
                             </button>
                         )}

@@ -4,7 +4,12 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Film, Upload, X, FileVideo } from 'lucide-react';
+import {
+  FileVideo,
+  FilmSlate,
+  Upload,
+  X,
+} from "@phosphor-icons/react";
 import { invokeCommand, openFilePicker, isTauri } from '../../lib/tauri';
 import { useI18n } from '../../lib/i18n';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -98,7 +103,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Film className="w-5 h-5 text-primary" />
+          <FilmSlate className="w-5 h-5 text-primary" />
           <h3 className="text-lg font-semibold">{t('emptyState.importVideo')}</h3>
         </div>
         {onCancel && (
@@ -197,7 +202,7 @@ export function VideoImport({ onImport, onCancel }: VideoImportProps) {
               </>
             ) : (
               <>
-                <Film className="w-4 h-4" />
+                <FilmSlate className="w-4 h-4" />
                 {t('emptyState.importVideo')}
               </>
             )}

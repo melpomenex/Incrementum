@@ -7,7 +7,16 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
 import { GraphNodeType, type GraphNode, type GraphEdge } from "./KnowledgeGraph";
-import { RotateCcw, ZoomIn, ZoomOut, Move3d, Sparkles, Grid3x3, Focus, Info } from "lucide-react";
+import {
+  ArrowCounterClockwise,
+  GridNine,
+  Hand,
+  Info,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
+  Sparkle,
+  Target,
+} from "@phosphor-icons/react";
 
 export interface ObsidianSphereProps {
   nodes: GraphNode[];
@@ -620,7 +629,7 @@ export function ObsidianSphere({
         {showHeader ? (
           <div className="pointer-events-auto">
             <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
+              <Sparkle className="w-5 h-5 text-primary" />
               {t("graph.knowledgeSphere")}
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -709,7 +718,7 @@ export function ObsidianSphere({
                   onClick={focusOnNode}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors"
                 >
-                  <Focus className="w-4 h-4" />
+                  <Target className="w-4 h-4" />
                   {t("graph.focusView")}
                 </button>
               </>
@@ -725,14 +734,14 @@ export function ObsidianSphere({
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all ${showGrid ? "text-primary" : ""}`}
           title={t("graph.toggleGrid")}
         >
-          <Grid3x3 className="w-5 h-5" />
+          <GridNine className="w-5 h-5" />
         </button>
         <button
           onClick={() => setShowConstellations(!showConstellations)}
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all ${showConstellations ? "text-primary" : ""}`}
           title={t("graph.toggleConnections")}
         >
-          <Move3d className="w-5 h-5" />
+          <Hand className="w-5 h-5" />
         </button>
         <div className="w-10 h-px bg-border my-1" />
         <button
@@ -740,21 +749,21 @@ export function ObsidianSphere({
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all"
           title={t("graph.zoomIn")}
         >
-          <ZoomIn className="w-5 h-5" />
+          <MagnifyingGlassPlus className="w-5 h-5" />
         </button>
         <button
           onClick={() => setZoom((z) => Math.max(0.3, z * 0.8))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all"
           title={t("graph.zoomOut")}
         >
-          <ZoomOut className="w-5 h-5" />
+          <MagnifyingGlassMinus className="w-5 h-5" />
         </button>
         <button
           onClick={resetView}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all"
           title={t("graph.resetView")}
         >
-          <RotateCcw className="w-5 h-5" />
+          <ArrowCounterClockwise className="w-5 h-5" />
         </button>
       </div>
 

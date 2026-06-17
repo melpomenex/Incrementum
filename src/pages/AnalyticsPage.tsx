@@ -3,13 +3,13 @@ import { useShallow } from "zustand/react/shallow";
 import { useAnalyticsStore } from "../stores/analyticsStore";
 import { invokeCommand } from "../lib/tauri";
 import {
-  TrendingUp,
-  TrendingDown,
   Calendar,
-  BarChart3,
-  Activity,
+  ChartBar,
   Download,
-} from "lucide-react";
+  Pulse,
+  TrendDown,
+  TrendUp,
+} from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
 
 export function AnalyticsPage() {
@@ -77,7 +77,7 @@ export function AnalyticsPage() {
             <StatCard
               label={t("analytics.totalCards")}
               value={dashboardStats?.total_cards || 0}
-              icon={<BarChart3 className="w-5 h-5" />}
+              icon={<ChartBar className="w-5 h-5" />}
               trend={
                 activityData && activityData.length > 1
                   ? ((activityData[activityData.length - 1]?.cards_learned || 0) -
@@ -88,7 +88,7 @@ export function AnalyticsPage() {
             <StatCard
               label={t("analytics.cardsLearned")}
               value={dashboardStats?.cards_learned || 0}
-              icon={<TrendingUp className="w-5 h-5" />}
+              icon={<TrendUp className="w-5 h-5" />}
             />
             <StatCard
               label={t("layout.dueToday")}
@@ -102,7 +102,7 @@ export function AnalyticsPage() {
                   Math.max(1, dashboardStats?.total_cards || 0)) *
                 100
               )}%`}
-              icon={<Activity className="w-5 h-5" />}
+              icon={<Pulse className="w-5 h-5" />}
             />
           </div>
 
@@ -138,7 +138,7 @@ export function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Activity Chart */}
+          {/* Pulse Chart */}
           <div className="bg-card border border-border rounded p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">
               {t("analytics.reviewActivity")}
@@ -233,9 +233,9 @@ function StatCard({
       {trend !== undefined && (
         <div className="flex items-center gap-1 text-xs">
           {trend >= 0 ? (
-            <TrendingUp className="w-3 h-3 text-green-500" />
+            <TrendUp className="w-3 h-3 text-green-500" />
           ) : (
-            <TrendingDown className="w-3 h-3 text-red-500" />
+            <TrendDown className="w-3 h-3 text-red-500" />
           )}
           <span
             className={

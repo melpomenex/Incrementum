@@ -4,7 +4,14 @@
  */
 
 import { useState } from "react";
-import { Server, Plus, Trash2, Check, Loader2, X } from "lucide-react";
+import {
+  Check,
+  CircleNotch,
+  HardDrives,
+  Plus,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 export interface MCPServerConfig {
@@ -80,7 +87,7 @@ export function MCPServersSettings({
 
   return (
     <div className="space-y-6">
-      {/* Server List */}
+      {/* HardDrives List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -101,7 +108,7 @@ export function MCPServersSettings({
 
         {servers.length === 0 ? (
           <div className="text-center py-12 bg-muted rounded-lg border-2 border-dashed border-muted-foreground">
-            <Server className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <HardDrives className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">{t("settings.mcpNoServers")}</p>
             <p className="text-sm text-muted-foreground mt-2">
               {t("settings.mcpNoServersDesc")}
@@ -144,13 +151,13 @@ export function MCPServersSettings({
                         title={t("settings.mcpTestConnection")}
                       >
                         {isTesting ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          <CircleNotch className="w-4 h-4 animate-spin text-muted-foreground" />
                         ) : testResult === true ? (
                           <Check className="w-4 h-4 text-green-500" />
                         ) : testResult === false ? (
                           <div className="w-4 h-4 text-red-500">×</div>
                         ) : (
-                          <Loader2 className="w-4 h-4 text-muted-foreground" />
+                          <CircleNotch className="w-4 h-4 text-muted-foreground" />
                         )}
                       </button>
 
@@ -159,7 +166,7 @@ export function MCPServersSettings({
                         className="p-2 hover:bg-destructive hover:text-destructive-foreground rounded transition-colors"
                         title={t("settings.mcpRemoveServer")}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -170,7 +177,7 @@ export function MCPServersSettings({
         )}
       </div>
 
-      {/* Add Server Form */}
+      {/* Add HardDrives Form */}
       {showAddForm && (
         <div className="p-4 bg-card border rounded-lg space-y-4">
           <div className="flex items-center justify-between">

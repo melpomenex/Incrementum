@@ -13,15 +13,15 @@ import { ForgettingCurvePanel } from "../../components/analytics/ForgettingCurve
 import { WorkloadCalendar } from "../../components/analytics/WorkloadCalendar";
 import {
   BookOpen,
-  Clock,
+  Books,
   Brain,
-  CheckCircle2,
-  FileText,
-  Sparkles,
-  Loader2,
-  TrendingUp,
-  Library,
-} from "lucide-react";
+  CheckCircle,
+  CircleNotch,
+  Clock,
+  Sparkle,
+  TextT,
+  TrendUp,
+} from "@phosphor-icons/react";
 import { getEnergyLogs, calculateEnergyCorrelation } from "../../utils/energyTracker";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useI18n } from "../../lib/i18n";
@@ -77,7 +77,7 @@ export function AnalyticsTab() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <CircleNotch className="w-5 h-5 animate-spin" />
           <span>{t("dashboard.loadingAnalytics")}</span>
         </div>
       </div>
@@ -131,14 +131,14 @@ export function AnalyticsTab() {
           <StatCard
             title={t("dashboard.cardsLearned")}
             value={dashboardStats.cards_learned}
-            icon={CheckCircle2}
+            icon={CheckCircle}
             color="green"
             description={t("dashboard.reviewedAtLeastOnce")}
           />
           <StatCard
             title={t("dashboard.retentionRate")}
             value={formatPercent(dashboardStats.retention_rate, 1)}
-            icon={TrendingUp}
+            icon={TrendUp}
             color="purple"
             description={t("dashboard.averageRetention")}
           />
@@ -157,7 +157,7 @@ export function AnalyticsTab() {
           <StatCard
             title={t("dashboard.extracts")}
             value={dashboardStats.total_extracts}
-            icon={FileText}
+            icon={TextT}
             color="green"
           />
         </div>
@@ -304,7 +304,7 @@ export function AnalyticsTab() {
             })}
             className="flex items-center gap-3 p-3 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors text-left"
           >
-            <Sparkles className="w-5 h-5 text-primary" />
+            <Sparkle className="w-5 h-5 text-primary" />
             <div>
               <p className="font-medium text-foreground">{t("dashboard.startReview")}</p>
               <p className="text-sm text-muted-foreground">
@@ -315,7 +315,7 @@ export function AnalyticsTab() {
           <button
             onClick={() => addTab({
               title: "Documents",
-              icon: <Library className="w-4 h-4" />,
+              icon: <Books className="w-4 h-4" />,
               type: "documents",
               content: DocumentsTab,
               closable: true,

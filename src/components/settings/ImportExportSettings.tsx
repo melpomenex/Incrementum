@@ -4,7 +4,15 @@
 
 import { useState, useEffect } from "react";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
-import { Download, Upload, FileDown, FileUp, RefreshCw, PackageCheck, Database } from "lucide-react";
+import {
+  ArrowsClockwise,
+  Database,
+  Download,
+  FileArrowDown,
+  FileArrowUp,
+  Package,
+  Upload,
+} from "@phosphor-icons/react";
 import { SettingsSection, SettingsRow } from "./SettingsPage";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
@@ -479,12 +487,12 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
           >
             {archiveInProgress ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <ArrowsClockwise className="w-4 h-4 animate-spin" />
                 {t("importExport.preparingArchive")}
               </>
             ) : (
               <>
-                <PackageCheck className="w-4 h-4" />
+                <Package className="w-4 h-4" />
                 {t("importExport.exportArchive")}
               </>
             )}
@@ -602,7 +610,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 disabled={isProcessing}
                 className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted disabled:opacity-50"
               >
-                <FileDown className="w-4 h-4" />
+                <FileArrowDown className="w-4 h-4" />
                 {t("importExport.exportCsv")}
               </button>
               <button
@@ -610,7 +618,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
                 disabled={isProcessing}
                 className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted disabled:opacity-50"
               >
-                <FileUp className="w-4 h-4" />
+                <FileArrowUp className="w-4 h-4" />
                 {t("importExport.incrementumPackage")}
               </button>
               <button
@@ -702,7 +710,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
           >
             {isProcessing ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <ArrowsClockwise className="w-4 h-4 animate-spin" />
                 {t("documentsView.importing")}
               </>
             ) : (
@@ -741,7 +749,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               onClick={handleExportFromCPlusPlus}
               className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90"
             >
-              <RefreshCw className="w-4 h-4" />
+              <ArrowsClockwise className="w-4 h-4" />
               {t("importExport.startMigration")}
             </button>
           </div>
@@ -840,7 +848,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
               }}
               className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90"
             >
-              <RefreshCw className="w-4 h-4" />
+              <ArrowsClockwise className="w-4 h-4" />
               {t("importExport.checkDemoContent")}
             </button>
           </div>

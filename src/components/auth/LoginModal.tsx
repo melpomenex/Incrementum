@@ -3,7 +3,13 @@
  */
 
 import React, { useState } from 'react';
-import { X, LogIn, UserPlus, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  CircleNotch,
+  SignIn,
+  UserPlus,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import * as syncClient from '../../lib/sync-client';
 
 interface LoginModalProps {
@@ -54,7 +60,7 @@ export function LoginModal({ isOpen, onClose, onAuthenticated }: LoginModalProps
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-zinc-800">
                     <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                        {mode === 'login' ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                        {mode === 'login' ? <SignIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
                         {mode === 'login' ? 'Sign In' : 'Create Account'}
                     </h2>
                     <button
@@ -69,7 +75,7 @@ export function LoginModal({ isOpen, onClose, onAuthenticated }: LoginModalProps
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {error && (
                         <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <WarningCircle className="w-4 h-4 flex-shrink-0" />
                             <span className="text-sm">{error}</span>
                         </div>
                     )}
@@ -127,12 +133,12 @@ export function LoginModal({ isOpen, onClose, onAuthenticated }: LoginModalProps
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <CircleNotch className="w-4 h-4 animate-spin" />
                                 {mode === 'login' ? 'Signing in...' : 'Creating account...'}
                             </>
                         ) : (
                             <>
-                                {mode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                                {mode === 'login' ? <SignIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
                                 {mode === 'login' ? 'Sign In' : 'Create Account'}
                             </>
                         )}

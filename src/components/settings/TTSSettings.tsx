@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
+  ArrowsClockwise,
   Check,
+  CircleNotch,
   Copy,
   Download,
-  Loader2,
-  Mic,
+  FloppyDisk,
+  Microphone,
   Play,
   Plus,
-  RefreshCw,
-  Save,
-  Trash2,
-  Volume2,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+  SpeakerHigh,
+  Trash,
+  WarningCircle,
+  WifiHigh,
+  WifiSlash,
+} from "@phosphor-icons/react";
 import { cloneVoice, generateSpeech, TTSServiceError } from "../../api/tts";
 import { checkPocketTTSAvailable } from "../../api/pocketTts";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -446,7 +446,7 @@ export function TTSSettings() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
-              <Volume2 className="h-5 w-5 text-primary" />
+              <SpeakerHigh className="h-5 w-5 text-primary" />
             </div>
             <div>
               <h4 className="text-lg font-semibold text-foreground">{t("settings.ttsTitle")}</h4>
@@ -550,9 +550,9 @@ export function TTSSettings() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {pocketStatus.available ? (
-                  <WifiOff className="h-4 w-4 text-green-600" />
+                  <WifiSlash className="h-4 w-4 text-green-600" />
                 ) : (
-                  <Wifi className="h-4 w-4 text-muted-foreground" />
+                  <WifiHigh className="h-4 w-4 text-muted-foreground" />
                 )}
                 <span className="font-medium text-foreground">
                   {pocketStatus.available
@@ -705,14 +705,14 @@ export function TTSSettings() {
             onClick={saveProviderSettings}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
-            <Save className="h-4 w-4" />
+            <FloppyDisk className="h-4 w-4" />
             {t("settings.ttsSaveProviderSettings")}
           </button>
           <button
             onClick={resetTTSSettings}
             className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm"
           >
-            <RefreshCw className="h-4 w-4" />
+            <ArrowsClockwise className="h-4 w-4" />
             {t("settings.ttsResetToDefaults")}
           </button>
         </div>
@@ -755,7 +755,7 @@ export function TTSSettings() {
                       onClick={() => removeClonedVoice(voice.id)}
                       className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -767,7 +767,7 @@ export function TTSSettings() {
         {tts.provider === "fal" && (
         <div className="rounded-lg border border-border bg-muted/20 p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Mic className="h-4 w-4 text-primary" />
+            <Microphone className="h-4 w-4 text-primary" />
             <h5 className="font-medium text-foreground">{t("settings.ttsCreateClonedVoice")}</h5>
           </div>
 
@@ -814,7 +814,7 @@ export function TTSSettings() {
             className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
           >
             {(operationState === "uploading" || operationState === "cloning") ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <CircleNotch className="h-4 w-4 animate-spin" />
             ) : (
               <Copy className="h-4 w-4" />
             )}
@@ -859,7 +859,7 @@ export function TTSSettings() {
                       onClick={() => deletePreset(preset.id)}
                       className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -988,7 +988,7 @@ export function TTSSettings() {
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
           >
             {operationState === "generating" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <CircleNotch className="h-4 w-4 animate-spin" />
             ) : (
               <Play className="h-4 w-4" />
             )}
@@ -1001,7 +1001,7 @@ export function TTSSettings() {
               disabled={operationState === "generating"}
               className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-60"
             >
-              <Volume2 className="h-4 w-4" />
+              <SpeakerHigh className="h-4 w-4" />
               {t("settings.ttsTestGroqTts")}
             </button>
           )}
@@ -1012,7 +1012,7 @@ export function TTSSettings() {
             onClick={() => void handleGenerateSpeech()}
             className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
           >
-            <RefreshCw className="h-4 w-4" />
+            <ArrowsClockwise className="h-4 w-4" />
             {t("settings.ttsRetryGeneration")}
           </button>
         )}
@@ -1032,11 +1032,11 @@ export function TTSSettings() {
           )}
         >
           {operationState === "error" ? (
-            <AlertCircle className="mt-0.5 h-4 w-4" />
+            <WarningCircle className="mt-0.5 h-4 w-4" />
           ) : operationState === "success" ? (
             <Check className="mt-0.5 h-4 w-4 text-primary" />
           ) : (
-            <Loader2 className="mt-0.5 h-4 w-4 animate-spin" />
+            <CircleNotch className="mt-0.5 h-4 w-4 animate-spin" />
           )}
           <span>{operationMessage}</span>
         </div>

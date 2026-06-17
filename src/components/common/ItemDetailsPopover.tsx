@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Info, Loader2, X, EyeOff, Eye } from "lucide-react";
+import {
+  CircleNotch,
+  Eye,
+  EyeSlash,
+  Info,
+  X,
+} from "@phosphor-icons/react";
 import { getDocument, dismissDocument } from "../../api/documents";
 import { useToast } from "../common/Toast";
 import { getExtract } from "../../api/extracts";
@@ -336,7 +342,7 @@ export function ItemDetailsPopover({
               </div>
               {isLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <CircleNotch className="h-3.5 w-3.5 animate-spin" />
                   {t("itemDetails.loadingScheduling")}
                 </div>
               ) : error ? (
@@ -433,7 +439,7 @@ export function ItemDetailsPopover({
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isUpdatingDismiss ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                   ) : details.isDismissed ? (
                     <>
                       <Eye className="w-4 h-4" />
@@ -441,7 +447,7 @@ export function ItemDetailsPopover({
                     </>
                   ) : (
                     <>
-                      <EyeOff className="w-4 h-4" />
+                      <EyeSlash className="w-4 h-4" />
                       {t("itemDetails.dismiss")}
                     </>
                   )}

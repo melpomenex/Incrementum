@@ -5,19 +5,19 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Play,
-  Pause,
-  RotateCcw,
-  SkipForward,
-  Settings,
-  Coffee,
-  Brain,
-  Sunset,
-  Volume2,
-  VolumeX,
+  ArrowCounterClockwise,
   Bell,
-  BellOff,
-} from 'lucide-react';
+  BellSlash,
+  Brain,
+  Coffee,
+  Gear,
+  Pause,
+  Play,
+  SkipForward,
+  SpeakerHigh,
+  SpeakerSlash,
+  SunDim,
+} from "@phosphor-icons/react";
 import {
   getFocusTimerState,
   startFocusTimer,
@@ -41,7 +41,7 @@ const formatTime = (seconds: number): string => {
 const phaseConfig: Record<TimerPhase, { labelKey: string; color: string; bgColor: string; icon: typeof Brain }> = {
   work: { labelKey: 'focusTimer.focus', color: 'text-primary-400', bgColor: 'bg-primary-400/20', icon: Brain },
   shortbreak: { labelKey: 'focusTimer.shortBreak', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', icon: Coffee },
-  longbreak: { labelKey: 'focusTimer.longBreak', color: 'text-amber-400', bgColor: 'bg-amber-400/20', icon: Sunset },
+  longbreak: { labelKey: 'focusTimer.longBreak', color: 'text-amber-400', bgColor: 'bg-amber-400/20', icon: SunDim },
 };
 
 // Circular Progress Component
@@ -200,7 +200,7 @@ function SettingsPanel({
               className="rounded border-border"
             />
             <span className="text-sm text-foreground flex items-center gap-1">
-              {localConfig.sound_enabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {localConfig.sound_enabled ? <SpeakerHigh className="w-4 h-4" /> : <SpeakerSlash className="w-4 h-4" />}
               {t("focusTimer.soundNotifications")}
             </span>
           </label>
@@ -213,7 +213,7 @@ function SettingsPanel({
               className="rounded border-border"
             />
             <span className="text-sm text-foreground flex items-center gap-1">
-              {localConfig.notifications_enabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+              {localConfig.notifications_enabled ? <Bell className="w-4 h-4" /> : <BellSlash className="w-4 h-4" />}
               {t("focusTimer.desktopNotifications")}
             </span>
           </label>
@@ -435,11 +435,11 @@ export function FocusTimer() {
           className="p-2 glass-button rounded-lg"
           title={t("focusTimer.settings")}
         >
-          <Settings className="w-5 h-5 text-muted-foreground" />
+          <Gear className="w-5 h-5 text-muted-foreground" />
         </button>
       </div>
 
-      {/* Settings Panel */}
+      {/* Gear Panel */}
       {showSettings && (
         <div className="mb-6">
           <SettingsPanel
@@ -494,7 +494,7 @@ export function FocusTimer() {
           className="p-3 glass-button rounded-full"
           title={t("focusTimer.reset")}
         >
-          <RotateCcw className="w-5 h-5 text-muted-foreground" />
+          <ArrowCounterClockwise className="w-5 h-5 text-muted-foreground" />
         </button>
 
         <button

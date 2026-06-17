@@ -15,21 +15,21 @@ import { Command, CommandCategory, getDefaultCommands } from "../common/CommandP
 import { useI18n } from "../../lib/i18n";
 import {
   BookOpen,
-  BarChart3,
-  Settings,
-  LayoutDashboard,
-  Library,
-  ListTodo,
+  Books,
   Brain,
-  FileText,
-  Youtube,
-  Palette,
-  Sun,
-  Moon,
-  Images,
+  ChartBar,
   Clipboard,
+  Gear,
+  Images,
+  ListChecks,
+  Moon,
+  Palette,
   Play,
-} from "lucide-react";
+  SquaresFour,
+  Sun,
+  TextT,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import type { Document, Extract } from "../../types/document";
 import type { StudyDeck } from "../../types/study-decks";
 import { fetchYouTubeTranscript } from "../../api/youtube";
@@ -465,7 +465,7 @@ export function CommandCenter() {
         id: "nav-dashboard",
         label: "Go to Dashboard",
         description: "Navigate to the dashboard",
-        icon: <LayoutDashboard className="w-4 h-4" />,
+        icon: <SquaresFour className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => navigateTo("/dashboard"),
         keywords: ["home", "main"],
@@ -474,7 +474,7 @@ export function CommandCenter() {
         id: "nav-documents",
         label: "Go to Documents",
         description: "View all documents",
-        icon: <Library className="w-4 h-4" />,
+        icon: <Books className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => navigateTo("/documents"),
         keywords: ["library", "files"],
@@ -483,7 +483,7 @@ export function CommandCenter() {
         id: "nav-queue",
         label: "Go to Queue",
         description: "View reading queue",
-        icon: <ListTodo className="w-4 h-4" />,
+        icon: <ListChecks className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => navigateTo("/queue"),
         keywords: ["list", "reading"],
@@ -492,16 +492,16 @@ export function CommandCenter() {
         id: "nav-analytics",
         label: "Go to Statistics",
         description: "View learning statistics",
-        icon: <BarChart3 className="w-4 h-4" />,
+        icon: <ChartBar className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => navigateTo("/analytics"),
         keywords: ["stats", "progress"],
       },
       {
         id: "nav-settings",
-        label: "Go to Settings",
+        label: "Go to Gear",
         description: "View application settings",
-        icon: <Settings className="w-4 h-4" />,
+        icon: <Gear className="w-4 h-4" />,
         category: CommandCategory.Navigation,
         action: () => navigateTo("/settings"),
         keywords: ["config", "preferences"],
@@ -558,7 +558,7 @@ export function CommandCenter() {
         label: "Toggle Theme Variant",
         description: `Switch between light and dark themes (current: ${theme.variant})`,
         icon: <Palette className="w-4 h-4" />,
-        category: CommandCategory.Settings,
+        category: CommandCategory.Gear,
         action: () => {
           const targetVariant = theme.variant === "dark" ? "light" : "dark";
           switchThemeVariant(targetVariant);
@@ -570,7 +570,7 @@ export function CommandCenter() {
         label: "Switch to Light Theme",
         description: "Apply a light variant theme",
         icon: <Sun className="w-4 h-4" />,
-        category: CommandCategory.Settings,
+        category: CommandCategory.Gear,
         action: () => switchThemeVariant("light"),
         keywords: ["theme", "appearance", "light", "day"],
       },
@@ -579,7 +579,7 @@ export function CommandCenter() {
         label: "Switch to Dark Theme",
         description: "Apply a dark variant theme",
         icon: <Moon className="w-4 h-4" />,
-        category: CommandCategory.Settings,
+        category: CommandCategory.Gear,
         action: () => switchThemeVariant("dark"),
         keywords: ["theme", "appearance", "dark", "night"],
       },
@@ -588,7 +588,7 @@ export function CommandCenter() {
         label: "Next Theme",
         description: `Cycle to the next theme (current: ${theme.name})`,
         icon: <Palette className="w-4 h-4" />,
-        category: CommandCategory.Settings,
+        category: CommandCategory.Gear,
         action: () => cycleTheme(1),
         keywords: ["theme", "appearance", "next", "cycle"],
       },
@@ -597,7 +597,7 @@ export function CommandCenter() {
         label: "Previous Theme",
         description: `Cycle to the previous theme (current: ${theme.name})`,
         icon: <Palette className="w-4 h-4" />,
-        category: CommandCategory.Settings,
+        category: CommandCategory.Gear,
         action: () => cycleTheme(-1),
         keywords: ["theme", "appearance", "previous", "cycle"],
       },
@@ -608,7 +608,7 @@ export function CommandCenter() {
       label: `Switch Theme: ${item.name}`,
       description: `Apply ${item.variant} theme "${item.name}"`,
       icon: <Palette className="w-4 h-4" />,
-      category: CommandCategory.Settings,
+      category: CommandCategory.Gear,
       action: () => setTheme(item.id),
       keywords: [
         "theme",
@@ -1329,10 +1329,10 @@ export function CommandCenter() {
     if (doc) {
       addTab({
         title: doc.title,
-        icon: doc.fileType === "pdf" ? <FileText className="w-4 h-4 text-red-500" /> 
+        icon: doc.fileType === "pdf" ? <TextT className="w-4 h-4 text-red-500" /> 
           : doc.fileType === "epub" ? <BookOpen className="w-4 h-4 text-blue-500" /> 
-          : doc.fileType === "youtube" ? <Youtube className="w-4 h-4 text-red-600" /> 
-          : <FileText className="w-4 h-4 text-muted-foreground" />,
+          : doc.fileType === "youtube" ? <YoutubeLogo className="w-4 h-4 text-red-600" /> 
+          : <TextT className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -1351,10 +1351,10 @@ export function CommandCenter() {
         if (freshDoc) {
           addTab({
             title: freshDoc.title,
-            icon: freshDoc.fileType === "pdf" ? <FileText className="w-4 h-4 text-red-500" /> 
+            icon: freshDoc.fileType === "pdf" ? <TextT className="w-4 h-4 text-red-500" /> 
               : freshDoc.fileType === "epub" ? <BookOpen className="w-4 h-4 text-blue-500" /> 
-              : freshDoc.fileType === "youtube" ? <Youtube className="w-4 h-4 text-red-600" /> 
-              : <FileText className="w-4 h-4 text-muted-foreground" />,
+              : freshDoc.fileType === "youtube" ? <YoutubeLogo className="w-4 h-4 text-red-600" /> 
+              : <TextT className="w-4 h-4 text-muted-foreground" />,
             type: "document-viewer",
             content: DocumentViewer,
             closable: true,

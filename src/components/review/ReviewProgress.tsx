@@ -1,4 +1,10 @@
-import { Clock, CheckCircle2, TrendingUp, Flame, Timer } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  Flame,
+  Timer,
+  TrendUp,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface ReviewProgressProps {
@@ -73,13 +79,13 @@ export function ReviewProgress({
             </div>
           )}
           <div className="flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle className="w-4 h-4" />
             <span>{t("reviewProgress.completedDone", { count: reviewsCompleted })}</span>
           </div>
         </div>
         {reviewsCompleted > 0 && (
           <div className="flex items-center gap-1">
-            <TrendingUp className="w-4 h-4" />
+            <TrendUp className="w-4 h-4" />
             <span>{t("reviewProgress.correctRate", { count: accuracy })}</span>
           </div>
         )}

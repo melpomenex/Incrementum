@@ -1,5 +1,11 @@
 import { useState, useCallback } from "react";
-import { Copy, Check, Share2, Lightbulb, FileText } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Lightbulb,
+  ShareNetwork,
+  TextT,
+} from "@phosphor-icons/react";
 import { cn } from "../../../utils";
 import { useToast } from "../../common/Toast";
 
@@ -127,7 +133,7 @@ export function SummaryActions({
         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
         title="Share"
       >
-        <Share2 className="w-4 h-4" />
+        <ShareNetwork className="w-4 h-4" />
       </button>
 
       {/* Save as Extract button */}
@@ -148,7 +154,7 @@ export function SummaryActions({
           className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
           title="Export as Document"
         >
-          <FileText className="w-4 h-4" />
+          <TextT className="w-4 h-4" />
         </button>
       )}
     </div>

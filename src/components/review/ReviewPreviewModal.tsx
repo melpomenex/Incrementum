@@ -7,17 +7,17 @@
 
 import { useState } from "react";
 import {
-  Clock,
-  Layers,
-  Target,
-  Play,
-  X,
-  TrendingUp,
   BookOpen,
   Brain,
-  Timer,
   Check,
-} from "lucide-react";
+  Clock,
+  Play,
+  Stack,
+  Target,
+  Timer,
+  TrendUp,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface ReviewPreviewModalProps {
@@ -108,7 +108,7 @@ export function ReviewPreviewModal({
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-muted/30 rounded-xl p-4 text-center border border-border">
                   <div className="flex items-center justify-center gap-2 mb-2">
-                    <Layers className="w-4 h-4 text-primary" />
+                    <Stack className="w-4 h-4 text-primary" />
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">
                       {selectedTimeBox ? t("reviewPreview.willReview") : t("reviewHome.totalDue")}
                     </span>
@@ -218,7 +218,7 @@ export function ReviewPreviewModal({
           ) : (
             <div className="text-center py-6">
               <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-10 h-10 text-green-500" />
+                <TrendUp className="w-10 h-10 text-green-500" />
               </div>
               <p className="text-muted-foreground mb-4">
                 {t("reviewPreview.completedAll")}

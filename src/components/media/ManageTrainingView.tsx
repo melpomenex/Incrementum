@@ -5,7 +5,16 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, ThumbsUp, ThumbsDown, X, Save, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  CaretDown,
+  CaretRight,
+  FloppyDisk,
+  MagnifyingGlass,
+  ThumbsDown,
+  ThumbsUp,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import type { RssClassifier, ClassifierUpdate } from "../../api/rss-classifiers";
 
@@ -104,7 +113,7 @@ export function ManageTrainingView({ onClose }: ManageTrainingViewProps) {
           onClick={() => void removeClassifier(c.id)}
           className="p-1 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash className="w-3.5 h-3.5" />
         </button>
       </div>
     );
@@ -124,8 +133,8 @@ export function ManageTrainingView({ onClose }: ManageTrainingViewProps) {
             disabled={pendingUpdates.size === 0 || isSaving}
             className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
           >
-            <Save className="w-3.5 h-3.5 inline mr-1" />
-            Save
+            <FloppyDisk className="w-3.5 h-3.5 inline mr-1" />
+            FloppyDisk
           </button>
           <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground rounded">
             <X className="w-4 h-4" />
@@ -136,12 +145,12 @@ export function ManageTrainingView({ onClose }: ManageTrainingViewProps) {
       {/* Filters */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[150px]">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search classifiers..."
+            placeholder="MagnifyingGlass classifiers..."
             className="w-full pl-7 pr-2 py-1 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -227,7 +236,7 @@ function ClassifierGroup({
         onClick={onToggle}
         className={`flex items-center gap-2 px-2 py-1.5 text-sm font-medium ${color} hover:bg-muted/40 rounded w-full text-left`}
       >
-        {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        {isExpanded ? <CaretDown className="w-3.5 h-3.5" /> : <CaretRight className="w-3.5 h-3.5" />}
         {icon}
         <span>{label}</span>
         <span className="text-xs text-muted-foreground">{count}</span>

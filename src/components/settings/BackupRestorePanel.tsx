@@ -6,18 +6,18 @@
 import { useState, useEffect } from "react";
 import { invokeCommand as invoke } from "../../lib/tauri";
 import {
-  HardDrive,
-  RefreshCw,
-  Download,
-  Trash2,
-  Check,
-  Loader2,
-  AlertCircle,
+  ArrowsClockwise,
   Calendar,
+  Check,
+  CircleNotch,
   Database,
-  FileText,
+  Download,
+  HardDrive,
   Shield,
-} from "lucide-react";
+  TextT,
+  Trash,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import type {
   CloudProviderType,
@@ -74,7 +74,7 @@ const BACKUP_PRESETS: {
         compress: true,
         encrypt: true,
       },
-      icon: <FileText className="w-5 h-5" />,
+      icon: <TextT className="w-5 h-5" />,
     },
   ];
 
@@ -321,7 +321,7 @@ export function BackupRestorePanel({
         >
           {backupInProgress ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <CircleNotch className="w-5 h-5 animate-spin" />
               {t("backup.creatingBackup")}
             </>
           ) : (
@@ -364,14 +364,14 @@ export function BackupRestorePanel({
             disabled={loading}
             className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <ArrowsClockwise className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             {t("common.refresh")}
           </button>
         </div>
 
         {loading && backups.length === 0 ? (
           <div className="p-8 text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-2" />
+            <CircleNotch className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-2" />
             <p className="text-muted-foreground">{t("backup.loadingBackups")}</p>
           </div>
         ) : backups.length === 0 ? (
@@ -402,7 +402,7 @@ export function BackupRestorePanel({
                         />
                       )}
                       {backup.compressed && (
-                        <FileText
+                        <TextT
                           className="w-4 h-4 text-muted-foreground"
                         />
                       )}
@@ -432,7 +432,7 @@ export function BackupRestorePanel({
                       className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       title={t("backup.deleteBackup")}
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -446,7 +446,7 @@ export function BackupRestorePanel({
       {restoreConflicts.length > 0 && (
         <div className="p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
           <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-300" />
+            <WarningCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-300" />
             {t("backup.restoreConflicts")}
           </h4>
           <p className="text-sm text-muted-foreground mb-3">
@@ -521,7 +521,7 @@ export function BackupRestorePanel({
               >
                 {restoreInProgress ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                     {t("backup.restoring")}
                   </>
                 ) : (
@@ -668,7 +668,7 @@ export function BackupRestorePanel({
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+            <WarningCircle className="w-5 h-5 text-destructive mt-0.5" />
             <div className="flex-1">
               <h4 className="font-medium text-destructive-foreground mb-1">{t("backup.error")}</h4>
               <p className="text-sm text-destructive/80">{error}</p>

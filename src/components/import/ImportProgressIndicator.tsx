@@ -3,7 +3,15 @@
  * Shows detailed progress for document imports with percentage, status, and estimated time
  */
 
-import { FileText, Youtube, BookOpen, Globe, Check, AlertCircle, Loader2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  CircleNotch,
+  Globe,
+  TextT,
+  WarningCircle,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 
 export type ImportType = "pdf" | "epub" | "youtube" | "web" | "arxiv" | "unknown";
 export type ImportStatus = "pending" | "downloading" | "processing" | "extracting" | "complete" | "error";
@@ -20,22 +28,22 @@ interface ImportProgressIndicatorProps {
   compact?: boolean;
 }
 
-const importTypeConfig: Record<ImportType, { icon: typeof FileText; color: string; label: string }> = {
-  pdf: { icon: FileText, color: "text-red-500", label: "PDF" },
+const importTypeConfig: Record<ImportType, { icon: typeof TextT; color: string; label: string }> = {
+  pdf: { icon: TextT, color: "text-red-500", label: "PDF" },
   epub: { icon: BookOpen, color: "text-blue-500", label: "EPUB" },
-  youtube: { icon: Youtube, color: "text-red-600", label: "YouTube" },
+  youtube: { icon: YoutubeLogo, color: "text-red-600", label: "YouTube" },
   web: { icon: Globe, color: "text-green-500", label: "Web" },
-  arxiv: { icon: FileText, color: "text-orange-500", label: "ArXiv" },
-  unknown: { icon: FileText, color: "text-muted-foreground", label: "Document" },
+  arxiv: { icon: TextT, color: "text-orange-500", label: "ArXiv" },
+  unknown: { icon: TextT, color: "text-muted-foreground", label: "Document" },
 };
 
-const statusConfig: Record<ImportStatus, { icon: typeof Loader2; color: string; label: string; animate?: boolean }> = {
-  pending: { icon: Loader2, color: "text-muted-foreground", label: "Waiting", animate: true },
-  downloading: { icon: Loader2, color: "text-blue-500", label: "Downloading", animate: true },
-  processing: { icon: Loader2, color: "text-amber-500", label: "Processing", animate: true },
-  extracting: { icon: Loader2, color: "text-purple-500", label: "Extracting text", animate: true },
+const statusConfig: Record<ImportStatus, { icon: typeof CircleNotch; color: string; label: string; animate?: boolean }> = {
+  pending: { icon: CircleNotch, color: "text-muted-foreground", label: "Waiting", animate: true },
+  downloading: { icon: CircleNotch, color: "text-blue-500", label: "Downloading", animate: true },
+  processing: { icon: CircleNotch, color: "text-amber-500", label: "Processing", animate: true },
+  extracting: { icon: CircleNotch, color: "text-purple-500", label: "Extracting text", animate: true },
   complete: { icon: Check, color: "text-green-500", label: "Complete" },
-  error: { icon: AlertCircle, color: "text-red-500", label: "Error" },
+  error: { icon: WarningCircle, color: "text-red-500", label: "Error" },
 };
 
 export function ImportProgressIndicator({
@@ -162,7 +170,7 @@ export function ImportProgressIndicator({
 
       {status === "error" && (
         <div className="mt-3 p-2 bg-red-500/10 rounded-lg text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
-          <AlertCircle className="w-3 h-3" />
+          <WarningCircle className="w-3 h-3" />
           Import failed. Please try again.
         </div>
       )}
@@ -199,7 +207,7 @@ export function ImportProgressOverlay({ imports, onClose }: ImportProgressOverla
         {/* Header */}
         <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            <CircleNotch className="w-4 h-4 text-primary animate-spin" />
             <span className="text-sm font-medium text-foreground">
               {allComplete ? "Imports Complete" : `Importing ${imports.length} item${imports.length > 1 ? "s" : ""}`}
             </span>

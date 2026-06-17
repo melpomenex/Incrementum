@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { X, Loader2, AlertTriangle, Search, ChevronLeft, ChevronRight, Crosshair } from "lucide-react";
+import {
+  CaretLeft,
+  CaretRight,
+  CircleNotch,
+  Crosshair,
+  MagnifyingGlass,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import { useDocumentStore } from "../../stores/documentStore";
 import { ResizableSplit } from "./ResizableSplit";
 import { AudiobookViewer } from "./AudiobookViewer";
@@ -159,7 +167,7 @@ export function AudiobookEpubSyncView({
     totalSegments: 0,
   });
 
-  // Search state
+  // MagnifyingGlass state
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatchIndex, setSearchMatchIndex] = useState<number | null>(null);
@@ -181,7 +189,7 @@ export function AudiobookEpubSyncView({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md px-4">
-          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <Warning className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <p className="text-muted-foreground">{loadError}</p>
         </div>
       </div>
@@ -202,7 +210,7 @@ export function AudiobookEpubSyncView({
       )}
       {isLoading || !mediaSource ? (
         <div className="flex items-center justify-center h-full">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <AudiobookViewer
@@ -219,14 +227,14 @@ export function AudiobookEpubSyncView({
     <div className="h-full flex flex-col">
       {/* EPUB toolbar */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border bg-card flex-shrink-0">
-        {/* Search toggle / input */}
+        {/* MagnifyingGlass toggle / input */}
         {showSearch ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search in book..."
-              aria-label="Search in book"
+              placeholder="MagnifyingGlass in book..."
+              aria-label="MagnifyingGlass in book"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -260,14 +268,14 @@ export function AudiobookEpubSyncView({
                   className="p-1 hover:bg-muted rounded transition-colors"
                   title="Previous match"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
+                  <CaretLeft className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
                 <button
                   onClick={() => setSearchMatchIndex((searchMatchIndex! + 1) % searchTotal)}
                   className="p-1 hover:bg-muted rounded transition-colors"
                   title="Next match"
                 >
-                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  <CaretRight className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               </>
             )}
@@ -289,9 +297,9 @@ export function AudiobookEpubSyncView({
               requestAnimationFrame(() => searchInputRef.current?.focus());
             }}
             className="p-1.5 hover:bg-muted rounded transition-colors text-muted-foreground"
-            title="Search in book"
+            title="MagnifyingGlass in book"
           >
-            <Search className="w-4 h-4" />
+            <MagnifyingGlass className="w-4 h-4" />
           </button>
         )}
 
@@ -300,7 +308,7 @@ export function AudiobookEpubSyncView({
         {/* Sync status indicator */}
         {syncState.status === "building" && (
           <span className="text-xs text-blue-600 flex items-center gap-1">
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <CircleNotch className="w-3 h-3 animate-spin" />
             Syncing...
           </span>
         )}
@@ -326,7 +334,7 @@ export function AudiobookEpubSyncView({
 
       {isLoading || !epubFileData ? (
         <div className="flex items-center justify-center flex-1">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <div className="flex-1 min-h-0">

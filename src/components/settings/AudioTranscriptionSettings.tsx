@@ -1,10 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Mic, Languages, Download, Trash2, CheckCircle2, Loader2, Info, AlertCircle,
-  Cloud, Zap, Settings2, Key, TrendingUp, Clock, AlertTriangle, Check,
-  ExternalLink, Monitor, Lock, ListMusic, XCircle, RotateCcw, ArrowUp, FileAudio,
-  X
-} from "lucide-react";
+  ArrowCounterClockwise,
+  ArrowSquareOut,
+  ArrowUp,
+  Check,
+  CheckCircle,
+  CircleNotch,
+  Clock,
+  Cloud,
+  Desktop,
+  Download,
+  FileAudio,
+  Info,
+  Key,
+  Lightning,
+  Lock,
+  Microphone,
+  Playlist,
+  Sliders,
+  Translate,
+  Trash,
+  TrendUp,
+  Warning,
+  WarningCircle,
+  X,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { downloadTranscriptionModel, deleteTranscriptionModel, enqueueAllUntranscribed } from "../../api/transcription";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
@@ -153,7 +174,7 @@ export function AudioTranscriptionSettings() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="p-2 bg-primary/10 rounded-lg">
-          <Mic className="w-5 h-5 text-primary" />
+          <Microphone className="w-5 h-5 text-primary" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-foreground">{t("settings.audioTranscription")}</h3>
@@ -178,7 +199,7 @@ export function AudioTranscriptionSettings() {
             "p-2 rounded-lg",
             isPWA() ? "bg-green-500/10 text-green-600" : "bg-blue-500/10 text-blue-600"
           )}>
-            <Monitor className="w-5 h-5" />
+            <Desktop className="w-5 h-5" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -213,7 +234,7 @@ export function AudioTranscriptionSettings() {
               : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
           )}
         >
-          <Settings2 className="w-4 h-4" />
+          <Sliders className="w-4 h-4" />
           Local STT
         </button>
         <button
@@ -242,7 +263,7 @@ export function AudioTranscriptionSettings() {
               <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
-                    <Mic className="w-5 h-5 text-primary" />
+                    <Microphone className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <p className="font-medium">{t("settings.audioAutoTranscribe")}</p>
@@ -263,7 +284,7 @@ export function AudioTranscriptionSettings() {
               </div>
 
               <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-                <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
+                <WarningCircle className="mt-0.5 h-4 w-4 text-amber-600" />
                 <div className="space-y-1">
                   <p className="font-medium">{t("settings.audioResourceWarning")}</p>
                   <p className="text-amber-800/90">
@@ -277,7 +298,7 @@ export function AudioTranscriptionSettings() {
           {/* Default Model Selection */}
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <Languages className="w-5 h-5 text-muted-foreground" />
+              <Translate className="w-5 h-5 text-muted-foreground" />
               <h4 className="font-semibold text-foreground">{t("settings.audioDefaultModel")}</h4>
             </div>
             <label className="text-xs font-medium text-muted-foreground">
@@ -320,7 +341,7 @@ export function AudioTranscriptionSettings() {
           {/* Model Selection */}
           <section className="space-y-4">
             <div className="flex items-center gap-2">
-              <Languages className="w-5 h-5 text-muted-foreground" />
+              <Translate className="w-5 h-5 text-muted-foreground" />
               <h4 className="font-semibold text-foreground">{t("settings.audioModelsAndProfiles")}</h4>
             </div>
 
@@ -360,7 +381,7 @@ export function AudioTranscriptionSettings() {
                           </span>
                         )}
                         {progress === 100 && !isDownloading && (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <CheckCircle className="w-4 h-4 text-green-500" />
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{profile.description}</p>
@@ -375,7 +396,7 @@ export function AudioTranscriptionSettings() {
                       {isDownloading ? (
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-2 text-xs font-medium text-primary">
-                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <CircleNotch className="w-3 h-3 animate-spin" />
                             <span>{t("settings.audioDownloading", { percent: Math.round(progress) })}</span>
                           </div>
                           <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -391,7 +412,7 @@ export function AudioTranscriptionSettings() {
                           className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                           title={t("settings.audioDeleteModel")}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash className="w-4 h-4" />
                         </button>
                       ) : (
                         <button
@@ -422,11 +443,11 @@ export function AudioTranscriptionSettings() {
               </p>
               <div className="pt-2 flex flex-wrap gap-4 border-t border-border mt-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                   <span>WebGPU Acceleration supported</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                   <span>WASM High Performance Fallback</span>
                 </div>
               </div>
@@ -442,11 +463,11 @@ export function AudioTranscriptionSettings() {
               </p>
               <div className="pt-2 flex flex-wrap gap-4">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <AlertCircle className="w-3.5 h-3.5" />
+                  <WarningCircle className="w-3.5 h-3.5" />
                   <span>{t("settings.audioMinRam")}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <AlertCircle className="w-3.5 h-3.5" />
+                  <WarningCircle className="w-3.5 h-3.5" />
                   <span>{t("settings.audioAvxRequired")}</span>
                 </div>
               </div>
@@ -484,7 +505,7 @@ export function AudioTranscriptionSettings() {
           {/* Groq Introduction */}
           <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-200 rounded-xl p-5 space-y-3">
             <div className="flex items-center gap-2 text-orange-600">
-              <Zap className="w-5 h-5" />
+              <Lightning className="w-5 h-5" />
               <h5 className="font-bold">{t("settings.audioFastCloud")}</h5>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -578,7 +599,7 @@ export function AudioTranscriptionSettings() {
                     rel="noopener noreferrer"
                     className="text-primary hover:underline inline-flex items-center gap-0.5 ml-1"
                   >
-                    {t("settings.audioGetFreeKey")} <ExternalLink className="w-3 h-3" />
+                    {t("settings.audioGetFreeKey")} <ArrowSquareOut className="w-3 h-3" />
                   </a>
                 </p>
               </div>
@@ -611,7 +632,7 @@ export function AudioTranscriptionSettings() {
           {isKeyValid && usageStats && (
             <section className="space-y-4">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-muted-foreground" />
+                <TrendUp className="w-5 h-5 text-muted-foreground" />
                 <h4 className="font-semibold text-foreground">{t("settings.audioUsageThisMonth")}</h4>
               </div>
               
@@ -631,7 +652,7 @@ export function AudioTranscriptionSettings() {
                 
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                    <TrendingUp className="w-3.5 h-3.5" />
+                    <TrendUp className="w-3.5 h-3.5" />
                     {t("settings.audioEstimatedCost")}
                   </div>
                   <p className="text-2xl font-bold text-foreground">
@@ -687,7 +708,7 @@ export function AudioTranscriptionSettings() {
               {/* Rate Limit Warnings */}
               {rateLimitStatus.isLimited && (
                 <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 text-red-600 flex-shrink-0" />
+                  <Warning className="mt-0.5 h-4 w-4 text-red-600 flex-shrink-0" />
                   <div>
                     <p className="font-medium">{t("settings.audioApproachingLimits")}</p>
                     <p className="text-red-800/90 text-xs mt-1">{rateLimitStatus.message}</p>
@@ -710,7 +731,7 @@ export function AudioTranscriptionSettings() {
           {/* Language Selection */}
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <Languages className="w-5 h-5 text-muted-foreground" />
+              <Translate className="w-5 h-5 text-muted-foreground" />
               <h4 className="font-semibold text-foreground">{t("settings.audioLanguage")}</h4>
             </div>
             <select
@@ -790,7 +811,7 @@ export function AudioTranscriptionSettings() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ListMusic className="w-5 h-5 text-muted-foreground" />
+              <Playlist className="w-5 h-5 text-muted-foreground" />
               <h4 className="font-semibold text-foreground">{t("settings.audioTranscriptionQueue")}</h4>
             </div>
             <button
@@ -819,7 +840,7 @@ export function AudioTranscriptionSettings() {
               className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted/50 disabled:opacity-50"
             >
               {enqueuingAll ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <CircleNotch className="h-4 w-4 animate-spin" />
               ) : (
                 <FileAudio className="h-4 w-4" />
               )}
@@ -855,7 +876,7 @@ export function AudioTranscriptionSettings() {
                         onClick={() => queueStore.clearByStatus(["completed"])}
                         className="inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-700 hover:bg-green-100 transition-colors"
                       >
-                        <CheckCircle2 className="h-3 w-3" />
+                        <CheckCircle className="h-3 w-3" />
                         Clear Completed
                       </button>
                     )}
@@ -864,7 +885,7 @@ export function AudioTranscriptionSettings() {
                         onClick={() => queueStore.clearByStatus(["failed", "completed", "cancelled"])}
                         className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash className="h-3 w-3" />
                         Clear All Finished
                       </button>
                     )}
@@ -900,7 +921,7 @@ export function AudioTranscriptionSettings() {
                         {queueStore.activePhase === "preparing" ? (
                           <>
                             <div className="flex items-center gap-1.5 text-[10px] text-blue-600">
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <CircleNotch className="h-3 w-3 animate-spin" />
                               Preparing audio...
                             </div>
                             <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -950,7 +971,7 @@ export function AudioTranscriptionSettings() {
                           className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                           title={t("settings.audioRetry")}
                         >
-                          <RotateCcw className="h-4 w-4" />
+                          <ArrowCounterClockwise className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => queueStore.cancel(entry.id)}

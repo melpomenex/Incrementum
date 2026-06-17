@@ -4,16 +4,16 @@
 
 import { useState } from "react";
 import {
-  Database,
-  Upload,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  RefreshCw,
   Archive,
+  ArrowsClockwise,
+  CheckCircle,
+  Database,
   FolderOpen,
-  FileText,
-} from "lucide-react";
+  TextT,
+  Upload,
+  Warning,
+  XCircle,
+} from "@phosphor-icons/react";
 import {
   getCPPDatabaseInfo,
   validateCPPDatabase,
@@ -417,7 +417,7 @@ export function DataMigrationUI() {
               <ul className="space-y-1">
                 {validation.warnings.map((warning, i) => (
                   <li key={i} className="text-sm text-yellow-500/80 flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <Warning className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <span>{warning}</span>
                   </li>
                 ))}
@@ -434,7 +434,7 @@ export function DataMigrationUI() {
             <h3 className="text-lg font-semibold">{t("migration.migrationProgress")}</h3>
 
             {migrationProgress.stage === "migrating" && (
-              <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+              <ArrowsClockwise className="w-5 h-5 text-primary animate-spin" />
             )}
 
             {migrationProgress.stage === "complete" && (
@@ -525,7 +525,7 @@ export function DataMigrationUI() {
           >
             {isProcessing ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <ArrowsClockwise className="w-4 h-4 animate-spin" />
                 Migrating...
               </>
             ) : (
@@ -552,7 +552,7 @@ export function DataMigrationUI() {
       {/* Info */}
       <div className="p-4 bg-muted/30 rounded-lg">
         <div className="flex items-start gap-3">
-          <FileText className="w-5 h-5 text-primary mt-0.5" />
+          <TextT className="w-5 h-5 text-primary mt-0.5" />
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground mb-1">{t("migration.migrationInfo")}</p>
             <ul className="space-y-1">

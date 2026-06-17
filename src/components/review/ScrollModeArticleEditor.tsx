@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
+  ArrowSquareOut,
   CheckCircle,
-  ExternalLink,
-  FileText,
+  CircleNotch,
   Image as ImageIcon,
-  Loader2,
   PencilLine,
   Scissors,
-} from "lucide-react";
+  TextT,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { createExtract, type Extract } from "../../api/extracts";
 import { updateDocumentContent } from "../../api/documents";
 import { useToast } from "../common/Toast";
@@ -162,7 +162,7 @@ export function ScrollModeArticleEditor({
     if (saveStatus === "saving") {
       return (
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <CircleNotch className="w-3.5 h-3.5 animate-spin" />
           Saving...
         </span>
       );
@@ -178,7 +178,7 @@ export function ScrollModeArticleEditor({
     if (saveStatus === "error") {
       return (
         <span className="flex items-center gap-2 text-xs text-red-500">
-          <AlertCircle className="w-3.5 h-3.5" />
+          <WarningCircle className="w-3.5 h-3.5" />
           Save failed
         </span>
       );
@@ -242,7 +242,7 @@ export function ScrollModeArticleEditor({
       <div className="flex items-center justify-between gap-4 border-b border-border/70 px-6 py-4">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-lg bg-blue-500/15 px-3 py-1.5 text-sm font-medium text-blue-400">
-            <FileText className="w-4 h-4" />
+            <TextT className="w-4 h-4" />
             Web Article
           </span>
           <span className="inline-flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
@@ -259,7 +259,7 @@ export function ScrollModeArticleEditor({
               rel="noopener noreferrer"
               className="flex items-center gap-1 hover:text-foreground transition-colors"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ArrowSquareOut className="w-4 h-4" />
               Open source
             </a>
           )}

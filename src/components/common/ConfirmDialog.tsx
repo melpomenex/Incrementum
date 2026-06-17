@@ -4,7 +4,12 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, X, Trash2, Check } from "lucide-react";
+import {
+  Check,
+  Trash,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 
@@ -65,7 +70,7 @@ export function ConfirmDialog({
 
   const config = variantConfig[variant];
 
-  const Icon = variant === "danger" ? Trash2 : variant === "warning" ? AlertTriangle : Check;
+  const Icon = variant === "danger" ? Trash : variant === "warning" ? Warning : Check;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -133,7 +138,7 @@ export function ConfirmDialog({
           {/* Warning message for destructive actions */}
           {variant === "danger" && (
             <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <Warning className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-red-600 dark:text-red-400">
                 {t("confirm.dangerWarning", { target: itemCount > 1 ? t("confirm.allSelectedItems") : t("confirm.thisItem") })}
               </p>
@@ -157,7 +162,7 @@ export function ConfirmDialog({
             }}
             className={`flex-1 px-4 py-2.5 min-h-[44px] ${config.confirmBg} text-primary-foreground rounded-lg transition-colors flex items-center justify-center gap-2`}
           >
-            {variant === "danger" && <Trash2 className="w-4 h-4" />}
+            {variant === "danger" && <Trash className="w-4 h-4" />}
             {confirmLabel}
           </button>
         </div>

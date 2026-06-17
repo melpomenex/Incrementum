@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Highlighter, Copy, MessageSquarePlus } from "lucide-react";
+import { ChatDots, Copy, Highlighter } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 export type HighlightColor = "yellow" | "green" | "blue" | "pink" | "purple";
@@ -269,7 +269,7 @@ export const SelectionPopup: React.FC<SelectionPopupProps> = ({
           onClick={handleAddNote}
           title={t("viewer.addNote")}
         >
-          <MessageSquarePlus className="w-4 h-4" />
+          <ChatDots className="w-4 h-4" />
           <span className="hidden sm:inline">{t("viewer.note")}</span>
         </button>
       )}

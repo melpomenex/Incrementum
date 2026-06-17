@@ -8,7 +8,7 @@ import { ObsidianSphere } from "../../graph/ObsidianSphere";
 import { GraphNodeType, type GraphNode, type GraphEdge } from "../../graph/KnowledgeGraph";
 import { invokeCommand } from "../../../lib/tauri";
 import { useCollectionStore } from "../../../stores/collectionStore";
-import { Sparkles, RefreshCw, Info } from "lucide-react";
+import { ArrowsClockwise, Info, Sparkle } from "@phosphor-icons/react";
 
 export function KnowledgeSphereTab() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -108,7 +108,7 @@ export function KnowledgeSphereTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary" />
+                <Sparkle className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <h2 className="text-xl font-semibold">Knowledge Sphere</h2>
@@ -138,7 +138,7 @@ export function KnowledgeSphereTab() {
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary" />
+            <Sparkle className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h2 className="text-xl font-semibold">Knowledge Sphere</h2>
@@ -152,7 +152,7 @@ export function KnowledgeSphereTab() {
           onClick={loadData}
           className="flex items-center gap-2 px-3 py-2 hover:bg-muted rounded-xl text-sm font-medium transition-colors"
         >
-          <RefreshCw className="w-4 h-4" />
+          <ArrowsClockwise className="w-4 h-4" />
           Refresh
         </button>
       </div>

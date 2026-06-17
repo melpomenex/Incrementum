@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Settings, Key, Check, AlertCircle, Loader2, Server } from "lucide-react";
+import {
+  Check,
+  CircleNotch,
+  Gear,
+  HardDrives,
+  Key,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import {
   getAIConfig,
   setAIConfig,
@@ -194,7 +201,7 @@ export function AISettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <CircleNotch className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -202,7 +209,7 @@ export function AISettings() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div className="flex items-center gap-3 mb-6">
-        <Settings className="w-6 h-6 text-foreground" />
+        <Gear className="w-6 h-6 text-foreground" />
         <h2 className="text-2xl font-bold text-foreground">{t("aiSettings.title")}</h2>
       </div>
 
@@ -255,7 +262,7 @@ export function AISettings() {
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isTesting === LLMProviderType.OpenAI ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
                   t("common.test")
                 )}
@@ -287,7 +294,7 @@ export function AISettings() {
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isTesting === LLMProviderType.Anthropic ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
                   t("common.test")
                 )}
@@ -319,7 +326,7 @@ export function AISettings() {
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isTesting === LLMProviderType.OpenRouter ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
                   t("common.test")
                 )}
@@ -338,14 +345,14 @@ export function AISettings() {
             {testResult.includes("successful") || testResult.includes("Connection successful") ? (
               <Check className="w-4 h-4" />
             ) : (
-              <AlertCircle className="w-4 h-4" />
+              <WarningCircle className="w-4 h-4" />
             )}
             <span className="text-sm">{testResult}</span>
           </div>
         )}
       </div>
 
-      {/* Model Settings */}
+      {/* Model Gear */}
       <div className="bg-card border border-border rounded-lg p-6">
         <h3 className="text-lg font-semibold text-foreground mb-4">{t("aiSettings.modelSettings")}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -498,10 +505,10 @@ export function AISettings() {
         </div>
       </div>
 
-      {/* Ollama Settings */}
+      {/* Ollama Gear */}
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Server className="w-5 h-5 text-muted-foreground" />
+          <HardDrives className="w-5 h-5 text-muted-foreground" />
           <h3 className="text-lg font-semibold text-foreground">{t("aiSettings.ollamaLocal")}</h3>
         </div>
 
@@ -552,7 +559,7 @@ export function AISettings() {
                 className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isLoadingOllama ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
                   t("aiSettings.refresh")
                 )}
@@ -670,7 +677,7 @@ export function AISettings() {
         >
           {isSaving ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <CircleNotch className="w-4 h-4 animate-spin" />
               {t("aiSettings.saving")}
             </>
           ) : (

@@ -2,7 +2,7 @@
  * RSS Customization Panel
  *
  * Provides ultra-customizability for RSS feeds including:
- * - Filter preferences (keywords, authors, categories)
+ * - Funnel preferences (keywords, authors, categories)
  * - Display preferences (view mode, theme, density)
  * - Layout preferences (columns, thumbnails)
  * - Sorting preferences
@@ -10,17 +10,17 @@
 
 import { useState } from "react";
 import {
-  X,
-  Filter,
-  Eye,
-  LayoutGrid,
-  ArrowUpDown,
-  Save,
-  RotateCcw,
-  Check,
-  Sliders,
+  ArrowCounterClockwise,
+  ArrowsVertical,
   BookOpen,
-} from "lucide-react";
+  Check,
+  Eye,
+  FloppyDisk,
+  Funnel,
+  GridFour,
+  Sliders,
+  X,
+} from "@phosphor-icons/react";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
 
@@ -32,7 +32,7 @@ interface RSSCustomizationPanelProps {
 }
 
 export interface RSSUserPreferenceUpdate {
-  // Filter preferences
+  // Funnel preferences
   keyword_include?: string | null;
   keyword_exclude?: string | null;
   author_whitelist?: string | null;
@@ -156,7 +156,7 @@ export function RSSCustomizationPanel({
                 onClick={resetToDefaults}
                 className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
               >
-                <RotateCcw className="w-4 h-4" />
+                <ArrowCounterClockwise className="w-4 h-4" />
                 {t("rssCustomization.reset")}
               </button>
             )}
@@ -165,8 +165,8 @@ export function RSSCustomizationPanel({
               disabled={!hasChanges}
               className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
             >
-              <Save className="w-4 h-4" />
-              Save
+              <FloppyDisk className="w-4 h-4" />
+              FloppyDisk
             </button>
             <button
               onClick={onClose}
@@ -182,7 +182,7 @@ export function RSSCustomizationPanel({
           <div className="w-48 border-r border-border bg-muted/30 p-2 space-y-1">
             <TabButton
               active={activeTab === "filters"}
-              icon={Filter}
+              icon={Funnel}
               label={t("rssCustomization.filters")}
               onClick={() => setActiveTab("filters")}
             />
@@ -194,13 +194,13 @@ export function RSSCustomizationPanel({
             />
             <TabButton
               active={activeTab === "layout"}
-              icon={LayoutGrid}
+              icon={GridFour}
               label={t("rssCustomization.layout")}
               onClick={() => setActiveTab("layout")}
             />
             <TabButton
               active={activeTab === "sorting"}
-              icon={ArrowUpDown}
+              icon={ArrowsVertical}
               label={t("rssCustomization.sorting")}
               onClick={() => setActiveTab("sorting")}
             />
@@ -266,7 +266,7 @@ function FiltersTab({
     <div className="space-y-6">
       <Section
         title="Keyword Filters"
-        description="Filter articles by keywords in title or content"
+        description="Funnel articles by keywords in title or content"
       >
         <FormField
           label="Include Keywords"
@@ -286,7 +286,7 @@ function FiltersTab({
 
       <Section
         title="Author Filters"
-        description="Filter articles by author"
+        description="Funnel articles by author"
       >
         <FormField
           label="Allowed Authors"
@@ -305,8 +305,8 @@ function FiltersTab({
       </Section>
 
       <Section
-        title="Category Filter"
-        description="Filter articles by category or tag"
+        title="Category Funnel"
+        description="Funnel articles by category or tag"
       >
         <FormField
           label="Categories"

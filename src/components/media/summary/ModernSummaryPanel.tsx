@@ -1,5 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { X, Settings, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import {
+  CaretLeft,
+  CaretRight,
+  Gear,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "../../../utils";
 import type { SummaryLength, SummaryFocus, SummaryMode } from "../../../types/rssSummary";
@@ -184,7 +190,7 @@ export function ModernSummaryPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Sparkle className="w-4 h-4 text-primary" />
             <span className="font-medium text-sm">AI Summary</span>
             {mode === "terminal" && (
               <span className="text-xs text-muted-foreground">(Terminal)</span>
@@ -208,13 +214,13 @@ export function ModernSummaryPanel({
               title="Toggle position"
             >
               {position === "left" ? (
-                <ChevronRight className="w-4 h-4" />
+                <CaretRight className="w-4 h-4" />
               ) : (
-                <ChevronLeft className="w-4 h-4" />
+                <CaretLeft className="w-4 h-4" />
               )}
             </button>
 
-            {/* Settings toggle */}
+            {/* Gear toggle */}
             {showControls && (
               <button
                 onClick={() => setShowSettings(!showSettings)}
@@ -226,7 +232,7 @@ export function ModernSummaryPanel({
                 )}
                 title="Summary settings"
               >
-                <Settings className="w-4 h-4" />
+                <Gear className="w-4 h-4" />
               </button>
             )}
 
@@ -326,7 +332,7 @@ export function ModernSummaryPanel({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Sparkles className="w-8 h-8 mb-2 opacity-50" />
+              <Sparkle className="w-8 h-8 mb-2 opacity-50" />
               <p className="text-sm">No summary yet</p>
               <p className="text-xs">Click regenerate to create one</p>
             </div>

@@ -5,17 +5,17 @@
 
 import { useState } from "react";
 import {
-  X,
-  ChevronLeft,
-  ChevronRight,
-  ScanText,
-  Settings,
-  Zap,
   Brain,
-  FileText,
+  CaretLeft,
+  CaretRight,
   Check,
-  Sparkles,
-} from "lucide-react";
+  Gear,
+  Lightning,
+  Scan,
+  Sparkle,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 
 interface OCROnboardingProps {
   onComplete: () => void;
@@ -36,19 +36,19 @@ const onboardingSteps: OnboardingStep[] = [
     id: "welcome",
     title: "Welcome to Enhanced OCR",
     description: "Incrementum now includes powerful OCR capabilities with multiple providers, math support, and automatic key phrase extraction. Let's take a quick tour!",
-    icon: Sparkles,
+    icon: Sparkle,
   },
   {
     id: "providers",
     title: "Choose Your OCR Provider",
     description: "Select from Tesseract (local), GLM-OCR (local, GPU recommended), Google Document AI, AWS Textract, Azure, Marker (PDF to Markdown), or Nougat (scientific documents). Local providers respect your privacy, while cloud providers offer higher accuracy.",
-    icon: ScanText,
+    icon: Scan,
   },
   {
     id: "auto-ocr",
     title: "Enable Auto-OCR",
     description: "Turn on Auto-OCR to automatically extract text from imported images and scanned documents. You can also enable Auto-Extract on Load to process documents when you open them.",
-    icon: Zap,
+    icon: Lightning,
   },
   {
     id: "math-ocr",
@@ -60,13 +60,13 @@ const onboardingSteps: OnboardingStep[] = [
     id: "key-phrases",
     title: "Key Phrase Extraction",
     description: "Automatically identify important keywords and topics in your documents using the RAKE algorithm. Perfect for summarization and search enhancement.",
-    icon: FileText,
+    icon: TextT,
   },
   {
     id: "settings",
-    title: "Configure Your Settings",
-    description: "Access all OCR options in Settings → Documents → OCR Settings. Configure providers, languages, and processing options to match your workflow.",
-    icon: Settings,
+    title: "Configure Your Gear",
+    description: "Access all OCR options in Gear → Documents → OCR Gear. Configure providers, languages, and processing options to match your workflow.",
+    icon: Gear,
   },
 ];
 
@@ -260,7 +260,7 @@ export function OCROnboarding({ onComplete, onSkip }: OCROnboardingProps) {
             disabled={currentStep === 0}
             className="flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <CaretLeft className="w-4 h-4" />
             Back
           </button>
 
@@ -276,7 +276,7 @@ export function OCROnboarding({ onComplete, onSkip }: OCROnboardingProps) {
               className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               {isLastStep ? "Get Started" : "Next"}
-              <ChevronRight className="w-4 h-4" />
+              <CaretRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -366,7 +366,7 @@ export function OCRFeatureHighlight({
         }`}
       >
         <div className="flex items-start gap-2 mb-2">
-          <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+          <Sparkle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
           <div>
             <div className="font-medium text-foreground text-sm">{highlight.title}</div>
             <div className="text-xs text-muted-foreground mt-1">

@@ -3,16 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useI18n } from "../lib/i18n";
 import {
   ArrowLeft,
+  ArrowsClockwise,
+  ArrowSquareOut,
   Brain,
-  Settings,
-  Loader2,
-  AlertCircle,
+  CaretDown,
   Check,
-  ChevronDown,
-  RefreshCw,
-  ExternalLink,
+  CircleNotch,
+  Gear,
+  WarningCircle,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { NotebookLMSidebar } from "../components/notebooklm/NotebookLMSidebar";
 import { NotebookLMChat } from "../components/notebooklm/NotebookLMChat";
 import { NotebookLMStudio } from "../components/notebooklm/NotebookLMStudio";
@@ -292,7 +292,7 @@ export function NotebookLMPage() {
     return (
       <div className="h-full flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <CircleNotch className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">{t("notebooklm.connecting")}</p>
         </div>
       </div>
@@ -335,7 +335,7 @@ export function NotebookLMPage() {
 
             {connectionState === "error" && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <WarningCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-700 dark:text-red-300">{connectionMessage}</p>
               </div>
             )}
@@ -365,7 +365,7 @@ export function NotebookLMPage() {
               >
                 {isConnecting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                     {t("common.connecting")}
                   </>
                 ) : (
@@ -442,7 +442,7 @@ export function NotebookLMPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <CaretDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           <button
@@ -450,12 +450,12 @@ export function NotebookLMPage() {
             className="p-2 hover:bg-muted rounded-lg transition-colors"
             title={t("common.settings")}
           >
-            <Settings className="w-5 h-5" />
+            <Gear className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Settings Panel */}
+      {/* Gear Panel */}
       {showSettings && (
         <div className="px-4 py-3 bg-muted/50 border-b border-border flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -471,9 +471,9 @@ export function NotebookLMPage() {
               title="Open browser login for NotebookLM"
             >
               {isLoggingIn ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <CircleNotch className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ArrowSquareOut className="w-3.5 h-3.5" />
               )}
               {isLoggingIn ? t("notebooklm.startingLogin") : t("notebooklm.loginTitle")}
             </button>
@@ -482,7 +482,7 @@ export function NotebookLMPage() {
             onClick={checkConnection}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <ArrowsClockwise className="w-3.5 h-3.5" />
             {t("common.refresh")}
           </button>
           <button
@@ -543,12 +543,12 @@ export function NotebookLMPage() {
                   >
                     {isLoggingIn ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <CircleNotch className="w-4 h-4 animate-spin" />
                         {t("notebooklm.startingLogin")}
                       </>
                     ) : (
                       <>
-                        <ExternalLink className="w-4 h-4" />
+                        <ArrowSquareOut className="w-4 h-4" />
                         {t("notebooklm.signIn")}
                       </>
                     )}

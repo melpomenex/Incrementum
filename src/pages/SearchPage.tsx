@@ -2,15 +2,15 @@ import { useState, useEffect } from "react";
 import { invokeCommand } from "../lib/tauri";
 import { ftsSearch, type FtsSearchResult } from "../api/ftsSearch";
 import {
-  Search as SearchIcon,
-  FileText,
   BookOpen,
-  Layers,
-  X,
+  CaretRight,
   Clock,
   Folder,
-  ChevronRight,
-} from "lucide-react";
+  MagnifyingGlass as SearchIcon,
+  Stack,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
 import { useCollectionStore } from "../stores/collectionStore";
 
@@ -147,11 +147,11 @@ export function SearchPage() {
   const getResultIcon = (type: SearchResultType) => {
     switch (type) {
       case "document":
-        return <FileText className="w-4 h-4" />;
+        return <TextT className="w-4 h-4" />;
       case "extract":
         return <BookOpen className="w-4 h-4" />;
       case "flashcard":
-        return <Layers className="w-4 h-4" />;
+        return <Stack className="w-4 h-4" />;
     }
   };
 
@@ -327,7 +327,7 @@ export function SearchPage() {
                     </div>
 
                     {/* Arrow */}
-                    <ChevronRight className="w-5 h-5 text-foreground-secondary flex-shrink-0" />
+                    <CaretRight className="w-5 h-5 text-foreground-secondary flex-shrink-0" />
                   </div>
                 </div>
               ))}

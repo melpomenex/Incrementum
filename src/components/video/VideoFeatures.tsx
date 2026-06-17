@@ -5,19 +5,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
+  ArrowSquareOut,
   Bookmark as BookmarkIcon,
-  List,
-  Plus,
-  Trash2,
-  FileText,
+  CircleNotch,
   Clock,
   Hash,
-  ExternalLink,
-  AlertCircle,
-  Sparkles,
-  Loader2,
   Info,
-} from 'lucide-react';
+  List,
+  Plus,
+  Sparkle,
+  TextT,
+  Trash,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { invokeCommand, isTauri } from "../../lib/tauri";
 import { useDocumentStore } from '../../stores/documentStore';
 import { getDocument } from '../../api/documents';
@@ -238,7 +238,7 @@ export function VideoFeatures({
               : 'border-transparent text-foreground hover:text-foreground-secondary'
           }`}
         >
-          <FileText className="w-4 h-4" />
+          <TextT className="w-4 h-4" />
           <span className="truncate">Transcript</span>
         </button>
       </div>
@@ -298,7 +298,7 @@ export function VideoFeatures({
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ArrowSquareOut className="w-4 h-4" />
             {loading ? 'Fetching...' : 'Fetch from YouTube'}
           </button>
         )}
@@ -352,7 +352,7 @@ function BookmarksView({ bookmarks, onSeek, onRemove }: BookmarksViewProps) {
             className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors opacity-0 group-hover:opacity-100"
             title="Remove bookmark"
           >
-            <Trash2 className="w-4 h-4 text-red-500" />
+            <Trash className="w-4 h-4 text-red-500" />
           </button>
         </div>
       ))}
@@ -372,7 +372,7 @@ function ChaptersView({ chapters, currentTime, onSeek, errorMessage }: ChaptersV
   if (errorMessage) {
     return (
       <div className="text-center py-8">
-        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3 opacity-50" />
+        <WarningCircle className="w-12 h-12 text-destructive mx-auto mb-3 opacity-50" />
         <p className="text-sm text-foreground-secondary">
           {errorMessage}
         </p>
@@ -555,7 +555,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
         {autoInProgress && (
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-2 text-primary text-sm font-medium">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <CircleNotch className="h-4 w-4 animate-spin" />
               Transcribing in the background…
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -592,7 +592,7 @@ function TranscriptView({ documentId, documentTitle, filePath, currentTime, onSe
         <div className="rounded-xl border border-border bg-gradient-to-br from-primary/10 via-background to-muted/40 p-4">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <Sparkle className="h-5 w-5 text-primary" />
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Generate a transcript</p>

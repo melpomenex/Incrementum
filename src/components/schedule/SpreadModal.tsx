@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { X, Loader2 } from "lucide-react";
+import { CircleNotch, X } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
@@ -219,7 +219,7 @@ export function SpreadModal({
             disabled={isSpreading || projection.stats.postponedCount === 0}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isSpreading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {isSpreading && <CircleNotch className="w-3.5 h-3.5 animate-spin" />}
             {t("schedule.spreadConfirm", {
               count: projection.stats.postponedCount.toLocaleString(),
               days: horizon,

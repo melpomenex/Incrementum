@@ -4,7 +4,13 @@
  */
 
 import { useEffect, useCallback } from "react";
-import { X, Command, CornerDownLeft, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Command,
+  KeyReturn,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import {
   useShortcutStore,
@@ -184,7 +190,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
                             ) : key === "↓" ? (
                               <ArrowDown className="w-3.5 h-3.5" />
                             ) : key === "Enter" ? (
-                              <CornerDownLeft className="w-3.5 h-3.5" />
+                              <KeyReturn className="w-3.5 h-3.5" />
                             ) : (
                               <kbd className="px-2 py-1 text-xs font-medium bg-background border border-border rounded-md min-w-[24px] text-center">
                                 {key}

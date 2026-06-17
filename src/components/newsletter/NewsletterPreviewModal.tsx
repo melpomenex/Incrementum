@@ -7,17 +7,17 @@
 
 import { useState, useEffect } from "react";
 import {
-  X,
-  Rss,
-  ExternalLink,
+  ArrowSquareOut,
   Check,
-  User,
+  CircleNotch,
   Clock,
-  FileText,
-  Loader2,
   Globe,
+  Rss,
+  TextT,
+  User,
   Users,
-} from "lucide-react";
+  X,
+} from "@phosphor-icons/react";
 import {
   getSubstackPublication,
   deriveSubstackFeedUrl,
@@ -212,7 +212,7 @@ export function NewsletterPreviewModal({
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <CircleNotch className="w-6 h-6 animate-spin text-primary" />
               <span className="ml-2 text-muted-foreground">
                 Loading preview...
               </span>
@@ -224,7 +224,7 @@ export function NewsletterPreviewModal({
           ) : uniquePosts.length > 0 ? (
             <div>
               <h3 className="font-medium text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 Recent Posts ({uniquePosts.length})
               </h3>
               <div className="space-y-3">
@@ -285,7 +285,7 @@ export function NewsletterPreviewModal({
               >
                 {subscribing ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                     Subscribing...
                   </>
                 ) : (
@@ -302,7 +302,7 @@ export function NewsletterPreviewModal({
               rel="noopener noreferrer"
               className="px-4 py-2.5 bg-background border border-border font-medium rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ArrowSquareOut className="w-4 h-4" />
               Visit
             </a>
           </div>

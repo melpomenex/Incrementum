@@ -8,13 +8,13 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useI18n } from "../../lib/i18n";
 import { GraphNodeType, LayoutAlgorithm, type GraphNode, type GraphData } from "./KnowledgeGraph";
 import {
+  ArrowsOutSimple,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
+  MapTrifold,
+  Sliders,
   X,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Settings2,
-  Map,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 export interface ObsidianGraphProps {
   data: GraphData;
@@ -502,7 +502,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
 
   const edgeAdj = useMemo(() => buildEdgeAdjacency(data.edges), [data.edges]);
 
-  // Map from node id -> SimulationNode for O(1) lookup
+  // MapTrifold from node id -> SimulationNode for O(1) lookup
   const nodeMapRef = useRef<Record<string, SimulationNode>>({});
 
   const simulationNodes = useMemo<SimulationNode[]>(() => {
@@ -1369,21 +1369,21 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
           title={t("graph.fitToView")}
         >
-          <Maximize2 className="w-5 h-5" />
+          <ArrowsOutSimple className="w-5 h-5" />
         </button>
         <button
           onClick={() => setTransform((t) => ({ ...t, k: Math.min(5, t.k * 1.2) }))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
           title={t("graph.zoomIn")}
         >
-          <ZoomIn className="w-5 h-5" />
+          <MagnifyingGlassPlus className="w-5 h-5" />
         </button>
         <button
           onClick={() => setTransform((t) => ({ ...t, k: Math.max(0.1, t.k * 0.8) }))}
           className="w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105"
           title={t("graph.zoomOut")}
         >
-          <ZoomOut className="w-5 h-5" />
+          <MagnifyingGlassMinus className="w-5 h-5" />
         </button>
         {totalNodeCount > 50 && (
           <button
@@ -1391,7 +1391,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
             className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105 ${showMinimap ? "text-primary" : ""}`}
             title={t("graph.minimap")}
           >
-            <Map className="w-5 h-5" />
+            <MapTrifold className="w-5 h-5" />
           </button>
         )}
         <button
@@ -1399,7 +1399,7 @@ export const ObsidianGraph = forwardRef<ObsidianGraphHandle, ObsidianGraphProps>
           className={`w-10 h-10 flex items-center justify-center bg-card/90 backdrop-blur border border-border rounded-xl shadow-lg hover:bg-muted transition-all hover:scale-105 ${showSettings ? "text-primary" : ""}`}
           title={t("graph.settings")}
         >
-          <Settings2 className="w-5 h-5" />
+          <Sliders className="w-5 h-5" />
         </button>
       </div>
 

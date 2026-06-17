@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
+  ArrowCounterClockwise,
   Download,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
   Plus,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 export interface MindMapNode {
   id: string;
@@ -214,7 +214,7 @@ export function MindMapViewer({ data, onAddToQueue, title }: MindMapViewerProps)
             className="p-2 hover:bg-muted rounded-lg transition-colors"
             title="Zoom out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <MagnifyingGlassMinus className="w-4 h-4" />
           </button>
           <span className="text-sm text-muted-foreground min-w-[60px] text-center">
             {Math.round(scale * 100)}%
@@ -224,7 +224,7 @@ export function MindMapViewer({ data, onAddToQueue, title }: MindMapViewerProps)
             className="p-2 hover:bg-muted rounded-lg transition-colors"
             title="Zoom in"
           >
-            <ZoomIn className="w-4 h-4" />
+            <MagnifyingGlassPlus className="w-4 h-4" />
           </button>
           <div className="w-px h-6 bg-border mx-2" />
           <button
@@ -232,7 +232,7 @@ export function MindMapViewer({ data, onAddToQueue, title }: MindMapViewerProps)
             className="p-2 hover:bg-muted rounded-lg transition-colors"
             title="Reset view"
           >
-            <RotateCcw className="w-4 h-4" />
+            <ArrowCounterClockwise className="w-4 h-4" />
           </button>
           <button
             onClick={handleExportJSON}

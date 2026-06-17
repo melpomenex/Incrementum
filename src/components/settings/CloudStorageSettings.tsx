@@ -1,5 +1,5 @@
 /**
- * Cloud Storage Settings Component
+ * Cloud Storage Gear Component
  * Configure cloud backup and sync providers (OneDrive, Google Drive, Dropbox)
  */
 
@@ -8,16 +8,16 @@ import { invokeCommand as invoke, isTauri } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import { useSearchParams } from "react-router-dom";
 import {
-  Cloud,
-  CloudOff,
+  ArrowsClockwise,
   Check,
-  Loader2,
-  RefreshCw,
-  AlertCircle,
-  Settings,
+  CircleNotch,
   Clock,
+  Cloud,
+  CloudSlash,
+  Gear,
   HardDrive,
-} from "lucide-react";
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { BackupRestorePanel } from "./BackupRestorePanel";
 
 // Types
@@ -281,12 +281,12 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
                   >
                     {isConnecting ? (
                       <>
-                        <Loader2 className="w-4 h-4 inline-block mr-2 animate-spin" />
+                        <CircleNotch className="w-4 h-4 inline-block mr-2 animate-spin" />
                         Connecting...
                       </>
                     ) : isConnected ? (
                       <>
-                        <CloudOff className="w-4 h-4 inline-block mr-2" />
+                        <CloudSlash className="w-4 h-4 inline-block mr-2" />
                         Disconnect
                       </>
                     ) : (
@@ -307,7 +307,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
       {oauthUrl && !state.isAuthenticated && (
         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-300 mt-0.5" />
+            <WarningCircle className="w-5 h-5 text-blue-600 dark:text-blue-300 mt-0.5" />
             <div className="flex-1">
               <h4 className="font-medium text-foreground mb-1">
                 Complete the sign-in process
@@ -327,7 +327,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
         </div>
       )}
 
-      {/* Sync Settings (only show when authenticated) */}
+      {/* Sync Gear (only show when authenticated) */}
       {state.isAuthenticated && (
         <>
           {/* Sync Mode */}
@@ -362,7 +362,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
                   }`}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <RefreshCw className="w-5 h-5 text-primary" />
+                  <ArrowsClockwise className="w-5 h-5 text-primary" />
                   <span className="font-medium text-foreground">{t("cloudStorage.twoWaySync")}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -518,7 +518,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+            <WarningCircle className="w-5 h-5 text-destructive mt-0.5" />
             <div className="flex-1">
               <h4 className="font-medium text-destructive-foreground mb-1">
                 Error
@@ -538,7 +538,7 @@ export function CloudStorageSettings({ onChange }: { onChange: () => void }) {
       {/* Help Text */}
       <div className="p-4 bg-muted/30 rounded-lg border border-border">
         <div className="flex items-start gap-3">
-          <Settings className="w-5 h-5 text-muted-foreground mt-0.5" />
+          <Gear className="w-5 h-5 text-muted-foreground mt-0.5" />
           <div>
             <h4 className="font-medium text-foreground mb-1">
               About Cloud Backup & Sync

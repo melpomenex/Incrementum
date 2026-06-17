@@ -1,4 +1,10 @@
-import { Clock, TrendingUp, BookOpen, Brain, Pause } from "lucide-react";
+import {
+  BookOpen,
+  Brain,
+  Clock,
+  Pause,
+  TrendUp,
+} from "@phosphor-icons/react";
 import type { QueueStats } from "../../api/queue";
 import { useI18n } from "../../lib/i18n";
 
@@ -38,7 +44,7 @@ export function QueueStatsDisplay({ stats, isLoading }: QueueStatsDisplayProps) 
 
       <div className="p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 mb-2">
-          <TrendingUp className="w-4 h-4 text-red-500" />
+          <TrendUp className="w-4 h-4 text-red-500" />
           <span className="text-sm text-muted-foreground">{t("queueLegacy.overdue")}</span>
         </div>
         <div className="text-2xl font-bold text-foreground">{stats.overdue}</div>

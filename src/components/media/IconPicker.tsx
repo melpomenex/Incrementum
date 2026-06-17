@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { X, Smile } from "lucide-react";
+import { Smiley, X } from "@phosphor-icons/react";
 
 const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
   { label: "Common", emojis: ["📁", "📰", "🌐", "💻", "📚", "🎨", "🔬", "📈", "🎮", "🎬"] },
@@ -34,7 +34,7 @@ export function IconPicker({ currentIcon, onSelect, onClose }: IconPickerProps) 
       >
         <div className="px-3 py-2 border-b border-border flex items-center justify-between">
           <span className="text-sm font-medium text-foreground flex items-center gap-1">
-            <Smile className="w-4 h-4" /> Pick Icon
+            <Smiley className="w-4 h-4" /> Pick Icon
           </span>
           <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
             <X className="w-3.5 h-3.5" />

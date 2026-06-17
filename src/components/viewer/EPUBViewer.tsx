@@ -9,7 +9,12 @@ import { useVimModeStore } from "../../stores/vimModeStore";
 import { getDeviceInfo } from "../../lib/pwa";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
-import { ChevronDown, ChevronUp, Menu, Settings } from "lucide-react";
+import {
+  CaretDown,
+  CaretUp,
+  Gear,
+  List,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { normalizeHighlightColor } from "../../utils/highlightColors";
 import { buildSegmentCfiMap, findActiveSegment, type SyncSegment } from "../../utils/epubSync";
@@ -2031,7 +2036,7 @@ export function EPUBViewer({
                     className="p-1.5 rounded-full border border-border bg-card text-foreground"
                     aria-label={t("viewer.hideToolbar")}
                   >
-                    <ChevronUp className="w-4 h-4" />
+                    <CaretUp className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -2073,7 +2078,7 @@ export function EPUBViewer({
                       className="p-1.5 rounded-full border border-border bg-card text-foreground"
                       aria-label={t("viewer.hideToolbar")}
                     >
-                      <ChevronDown className="w-4 h-4" />
+                      <CaretDown className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -2097,7 +2102,7 @@ export function EPUBViewer({
                 className="absolute top-4 left-4 z-40 p-2.5 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all"
                 aria-label={t("viewer.showToolbar")}
               >
-                <ChevronDown className="w-5 h-5 text-foreground" />
+                <CaretDown className="w-5 h-5 text-foreground" />
               </button>
 
               {/* Top-right: TOC quick access */}
@@ -2107,17 +2112,17 @@ export function EPUBViewer({
                 className="absolute top-4 right-16 z-40 p-2.5 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all"
                 aria-label={t("viewer.openTableOfContents")}
               >
-                <Menu className="w-5 h-5 text-foreground" />
+                <List className="w-5 h-5 text-foreground" />
               </button>
 
-              {/* Top-right: Settings quick access */}
+              {/* Top-right: Gear quick access */}
               <button
                 type="button"
                 onClick={() => setShowSettingsSheet(true)}
                 className="absolute top-4 right-4 z-40 p-2.5 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all"
                 aria-label={t("viewer.openSettings")}
               >
-                <Settings className="w-5 h-5 text-foreground" />
+                <Gear className="w-5 h-5 text-foreground" />
               </button>
 
               {/* Bottom center: Show toolbar & progress */}
@@ -2127,7 +2132,7 @@ export function EPUBViewer({
                 className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg active:scale-95 transition-all flex items-center gap-2"
                 aria-label={t("viewer.showToolbar")}
               >
-                <ChevronUp className="w-4 h-4 text-foreground" />
+                <CaretUp className="w-4 h-4 text-foreground" />
                 <span className="text-xs font-medium text-foreground">{progressPercent}%</span>
               </button>
             </>
@@ -2267,7 +2272,7 @@ export function EPUBViewer({
                 aria-label={t("viewer.close")}
                 title={t("viewer.close")}
               >
-                <Menu className="w-3.5 h-3.5" />
+                <List className="w-3.5 h-3.5" />
                 <span>{t("viewer.close")}</span>
               </button>
             </div>
@@ -2295,7 +2300,7 @@ export function EPUBViewer({
               aria-label={t("viewer.openTableOfContents")}
               title={t("viewer.openTableOfContents")}
             >
-              <Menu className="w-4 h-4" />
+              <List className="w-4 h-4" />
               <span>{t("viewer.tableOfContents")}</span>
             </button>
           )}

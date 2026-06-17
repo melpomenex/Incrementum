@@ -5,17 +5,17 @@
 
 import { useState, useCallback } from "react";
 import {
-  Search,
-  Filter,
-  X,
-  ChevronDown,
-  LayoutGrid,
+  CaretDown,
   Circle,
-  Tags,
-  SlidersHorizontal,
   Eye,
-  EyeOff,
-} from "lucide-react";
+  EyeSlash,
+  Funnel,
+  GridFour,
+  MagnifyingGlass,
+  Sliders,
+  TagSimple,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import {
   GraphNode,
@@ -173,7 +173,7 @@ export function GraphFilterControls({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Filter className="w-4 h-4 text-primary" />
+            <Funnel className="w-4 h-4 text-primary" />
           </div>
           <div>
             <span className="font-semibold text-sm">{t("graph.filters")}</span>
@@ -198,7 +198,7 @@ export function GraphFilterControls({
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
-            <ChevronDown
+            <CaretDown
               className={`w-4 h-4 transition-transform ${isExpanded ? "" : "-rotate-90"}`}
             />
           </button>
@@ -207,10 +207,10 @@ export function GraphFilterControls({
 
       {isExpanded && (
         <div className="flex-1 overflow-y-auto">
-          {/* Search */}
+          {/* MagnifyingGlass */}
           <div className="p-4 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={filters.searchQuery}
@@ -236,10 +236,10 @@ export function GraphFilterControls({
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                <GridFour className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium text-sm">{t("graph.nodeTypes")}</span>
               </div>
-              <ChevronDown
+              <CaretDown
                 className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "types" ? "" : "-rotate-90"}`}
               />
             </button>
@@ -292,7 +292,7 @@ export function GraphFilterControls({
                           {isSelected ? (
                             <Eye className="w-4 h-4 text-primary" />
                           ) : (
-                            <EyeOff className="w-4 h-4 text-muted-foreground" />
+                            <EyeSlash className="w-4 h-4 text-muted-foreground" />
                           )}
                         </div>
                       </button>
@@ -310,10 +310,10 @@ export function GraphFilterControls({
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                <Sliders className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium text-sm">{t("graph.layout")}</span>
               </div>
-              <ChevronDown
+              <CaretDown
                 className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "layout" ? "" : "-rotate-90"}`}
               />
             </button>
@@ -383,7 +383,7 @@ export function GraphFilterControls({
                     </span>
                   )}
                 </div>
-                <ChevronDown
+                <CaretDown
                   className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "categories" ? "" : "-rotate-90"}`}
                 />
               </button>
@@ -413,7 +413,7 @@ export function GraphFilterControls({
             </div>
           )}
 
-          {/* Tags */}
+          {/* TagSimple */}
           {availableTags.length > 0 && (
             <div className="border-b border-border">
               <button
@@ -421,7 +421,7 @@ export function GraphFilterControls({
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Tags className="w-4 h-4 text-muted-foreground" />
+                  <TagSimple className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium text-sm">{t("graph.tags")}</span>
                   {filters.tags.length > 0 && (
                     <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-md">
@@ -429,7 +429,7 @@ export function GraphFilterControls({
                     </span>
                   )}
                 </div>
-                <ChevronDown
+                <CaretDown
                   className={`w-4 h-4 text-muted-foreground transition-transform ${activeSection === "tags" ? "" : "-rotate-90"}`}
                 />
               </button>
@@ -484,7 +484,7 @@ export function applyGraphFilters(
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   let filteredNodes = [...nodes];
 
-  // Filter by search query
+  // Funnel by search query
   if (filters.searchQuery) {
     const query = filters.searchQuery.toLowerCase();
     filteredNodes = filteredNodes.filter(
@@ -495,28 +495,28 @@ export function applyGraphFilters(
     );
   }
 
-  // Filter by node types (inverted - we show types NOT in the filter list)
+  // Funnel by node types (inverted - we show types NOT in the filter list)
   if (filters.nodeTypes.length > 0) {
     filteredNodes = filteredNodes.filter(
       (node) => !filters.nodeTypes.includes(node.type)
     );
   }
 
-  // Filter by categories
+  // Funnel by categories
   if (filters.categories.length > 0) {
     filteredNodes = filteredNodes.filter(
       (node) => node.category && filters.categories.includes(node.category)
     );
   }
 
-  // Filter by tags
+  // Funnel by tags
   if (filters.tags.length > 0) {
     filteredNodes = filteredNodes.filter((node) =>
       node.tags?.some((tag) => filters.tags.includes(tag))
     );
   }
 
-  // Filter by connections
+  // Funnel by connections
   if (filters.minConnections !== undefined || filters.maxConnections !== undefined) {
     filteredNodes = filteredNodes.filter((node) => {
       const connectionCount = edges.filter(
@@ -533,7 +533,7 @@ export function applyGraphFilters(
     });
   }
 
-  // Filter edges to only include connections between filtered nodes
+  // Funnel edges to only include connections between filtered nodes
   const nodeIds = new Set(filteredNodes.map((n) => n.id));
   const filteredEdges = edges.filter(
     (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)

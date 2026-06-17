@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
-import { ScrollText, Loader2, PlayCircle, Search } from "lucide-react";
+import {
+  CircleNotch,
+  MagnifyingGlass,
+  PlayCircle,
+  Scroll,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 
 interface TranscriptPanelProps {
@@ -79,7 +84,7 @@ export function TranscriptPanel({
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ScrollText className="w-5 h-5 text-primary" />
+          <Scroll className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">Transcript</h3>
         </div>
         <div className="flex items-center gap-2">
@@ -95,12 +100,12 @@ export function TranscriptPanel({
         </div>
       </div>
 
-      {/* Search */}
+      {/* MagnifyingGlass */}
       <div className="p-2 border-b border-border relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <MagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search transcript..."
+          placeholder="MagnifyingGlass transcript..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-9 pr-4 py-1.5 bg-muted/50 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
@@ -115,14 +120,14 @@ export function TranscriptPanel({
       >
         {isTranscribing && (
           <div className="flex items-center justify-center p-4 bg-primary/5 rounded-lg border border-primary/20">
-            <Loader2 className="w-4 h-4 text-primary animate-spin mr-2" />
+            <CircleNotch className="w-4 h-4 text-primary animate-spin mr-2" />
             <span className="text-sm text-primary font-medium">Transcribing in background...</span>
           </div>
         )}
 
         {filteredSegments.length === 0 && !isTranscribing && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <ScrollText className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
+            <Scroll className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
             <p className="text-sm text-muted-foreground">No transcript available for this chapter.</p>
           </div>
         )}

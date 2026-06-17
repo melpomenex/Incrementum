@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
-  Edit,
-  Eye,
-  Ban,
-  Trash2,
-  FolderInput,
-  Star,
-  Copy,
+  ArrowCounterClockwise,
+  CaretRight,
   Clipboard,
-  ChevronRight,
-  RotateCcw,
-  Sparkles,
-} from "lucide-react";
+  Copy,
+  Eye,
+  FolderOpen,
+  Pencil,
+  Prohibit,
+  Sparkle,
+  Star,
+  Trash,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import type { LearningItem } from "../../api/learning-items";
 
@@ -122,13 +122,13 @@ export function CardContextMenu({
       className="fixed z-[100] min-w-[200px] bg-card border border-border rounded-lg shadow-lg py-1"
       style={menuStyle}
     >
-      {/* Edit */}
+      {/* Pencil */}
       {onEditInStudio && (
         <button
           onClick={() => handleAction(() => onEditInStudio(card))}
           className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
         >
-          <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
           {t("cardContextMenu.edit")}
         </button>
       )}
@@ -150,7 +150,7 @@ export function CardContextMenu({
           onClick={() => handleAction(() => onUnsuspend(card.id))}
           className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
         >
-          <RotateCcw className="h-3.5 w-3.5 text-green-500" />
+          <ArrowCounterClockwise className="h-3.5 w-3.5 text-green-500" />
           {t("cardContextMenu.unsuspend")}
         </button>
       ) : (
@@ -158,7 +158,7 @@ export function CardContextMenu({
           onClick={() => handleAction(() => onSuspend(card.id))}
           className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
         >
-          <Ban className="h-3.5 w-3.5 text-yellow-500" />
+          <Prohibit className="h-3.5 w-3.5 text-yellow-500" />
           {t("cardContextMenu.suspend")}
         </button>
       )}
@@ -173,9 +173,9 @@ export function CardContextMenu({
           <button
             className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
           >
-            <FolderInput className="h-3.5 w-3.5 text-muted-foreground" />
+            <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
             {t("cardContextMenu.moveToDeck")}
-            <ChevronRight className="h-3 w-3 text-muted-foreground ml-auto" />
+            <CaretRight className="h-3 w-3 text-muted-foreground ml-auto" />
           </button>
           {openSubmenu === "moveToDeck" && (
             <div
@@ -207,7 +207,7 @@ export function CardContextMenu({
         <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2">
           <Star className="h-3.5 w-3.5 text-muted-foreground" />
           {t("cardContextMenu.setPriority")}
-          <ChevronRight className="h-3 w-3 text-muted-foreground ml-auto" />
+          <CaretRight className="h-3 w-3 text-muted-foreground ml-auto" />
         </button>
         {openSubmenu === "priority" && (
           <div
@@ -244,7 +244,7 @@ export function CardContextMenu({
         onClick={() => handleAction(() => onDuplicate(card))}
         className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted hover:text-foreground flex items-center gap-2"
       >
-        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+        <Sparkle className="h-3.5 w-3.5 text-muted-foreground" />
         {t("cardContextMenu.duplicate")}
       </button>
 
@@ -282,7 +282,7 @@ export function CardContextMenu({
           onClick={() => setShowDeleteConfirm(true)}
           className="w-full px-3 py-1.5 text-left text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash className="h-3.5 w-3.5" />
           {t("cardContextMenu.delete")}
         </button>
       ) : (

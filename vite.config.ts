@@ -121,7 +121,7 @@ export default defineConfig(async ({ mode }) => {
             if (id.includes("node_modules/epubjs")) {
               return "epub-vendor";
             }
-            if (id.includes("node_modules/lucide-react")) {
+            if (id.includes("node_modules/@phosphor-icons")) {
               return "ui-vendor";
             }
             if (id.includes("node_modules/zustand")) {

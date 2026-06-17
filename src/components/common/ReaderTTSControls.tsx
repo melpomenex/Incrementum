@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Pause, Play, SkipBack, SkipForward, Square, Volume2, Loader2, Highlighter } from "lucide-react";
+import {
+  CircleNotch,
+  Highlighter,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  SpeakerHigh,
+  Square,
+} from "@phosphor-icons/react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { getVoicesForProvider } from "../../utils/ttsSettings";
 import { generateSpeech } from "../../api/tts";
@@ -770,7 +779,7 @@ export function ReaderTTSControls({
       )}
     >
       <div className="flex items-center gap-2">
-        <Volume2 className="h-4 w-4 text-primary" />
+        <SpeakerHigh className="h-4 w-4 text-primary" />
         <button
           onClick={() => void handlePrev()}
           className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40"
@@ -786,9 +795,9 @@ export function ReaderTTSControls({
           title={isPlaying ? (isPaused ? t("readerTts.resume") : t("readerTts.pause")) : t("readerTts.play")}
         >
           {isBuffering && isAutoPlaying ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" />
           ) : isLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <CircleNotch className="h-3.5 w-3.5 animate-spin" />
           ) : isPlaying && !isPaused ? (
             <Pause className="h-3.5 w-3.5" />
           ) : (

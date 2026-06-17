@@ -5,21 +5,21 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
+  ArrowCounterClockwise,
+  ArrowsOutSimple,
   Brain,
-  ChevronRight,
-  ChevronLeft,
+  CaretLeft,
+  CaretRight,
   Check,
-  X,
-  RotateCcw,
-  Sparkles,
+  CircleNotch,
   Clock,
   Flame,
+  Sparkle,
+  SpeakerHigh,
+  SpeakerSlash,
   Target,
-  Volume2,
-  VolumeX,
-  Loader2,
-  Maximize2,
-} from "lucide-react";
+  X,
+} from "@phosphor-icons/react";
 import { useTTS } from "../../hooks/useTTS";
 import { useI18n } from "../../lib/i18n";
 
@@ -44,10 +44,10 @@ interface QuickReviewWidgetProps {
 type Rating = "again" | "hard" | "good" | "easy";
 
 const RATING_CONFIG: Record<Rating, { label: string; color: string; bgColor: string; icon: typeof Check }> = {
-  again: { label: "again", color: "text-red-500", bgColor: "bg-red-500/20 hover:bg-red-500/30", icon: RotateCcw },
+  again: { label: "again", color: "text-red-500", bgColor: "bg-red-500/20 hover:bg-red-500/30", icon: ArrowCounterClockwise },
   hard: { label: "hard", color: "text-amber-500", bgColor: "bg-amber-500/20 hover:bg-amber-500/30", icon: X },
   good: { label: "good", color: "text-green-500", bgColor: "bg-green-500/20 hover:bg-green-500/30", icon: Check },
-  easy: { label: "easy", color: "text-blue-500", bgColor: "bg-blue-500/20 hover:bg-blue-500/30", icon: Sparkles },
+  easy: { label: "easy", color: "text-blue-500", bgColor: "bg-blue-500/20 hover:bg-blue-500/30", icon: Sparkle },
 };
 
 export function QuickReviewWidget({
@@ -216,7 +216,7 @@ export function QuickReviewWidget({
               className="p-2 hover:bg-muted rounded-lg transition-colors"
               title={t("quickReview.openFullReview")}
             >
-              <Maximize2 className="w-4 h-4 text-muted-foreground" />
+              <ArrowsOutSimple className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
           <button
@@ -225,9 +225,9 @@ export function QuickReviewWidget({
             title={isSpeaking ? t("common.stop") : t("quickReview.readAloud")}
           >
             {isSpeaking ? (
-              <VolumeX className="w-4 h-4 text-primary" />
+              <SpeakerSlash className="w-4 h-4 text-primary" />
             ) : (
-              <Volume2 className="w-4 h-4 text-muted-foreground" />
+              <SpeakerHigh className="w-4 h-4 text-muted-foreground" />
             )}
           </button>
         </div>
@@ -287,7 +287,7 @@ export function QuickReviewWidget({
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${config.bgColor} disabled:opacity-50`}
                   >
                     {isProcessing ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <CircleNotch className="w-4 h-4 animate-spin" />
                     ) : (
                       <Icon className={`w-4 h-4 ${config.color}`} />
                     )}
@@ -321,7 +321,7 @@ export function QuickReviewWidget({
             onClick={handlePrevious}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <CaretLeft className="w-4 h-4" />
             {t("quickReview.previousCard")}
           </button>
         </div>
@@ -375,7 +375,7 @@ export function InlineQuickReview({
         </p>
         <p className="text-xs text-muted-foreground">{t("quickReview.startQuickReview")}</p>
       </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      <CaretRight className="w-4 h-4 text-muted-foreground" />
     </button>
   );
 }

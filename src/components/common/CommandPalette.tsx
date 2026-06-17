@@ -4,7 +4,19 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, Command as CommandIcon, FileText, Zap, Settings, Plus, List, BarChart3, Palette, Images, Play } from "lucide-react";
+import {
+  ChartBar,
+  Command as CommandIcon,
+  Gear,
+  Images,
+  Lightning,
+  List,
+  MagnifyingGlass,
+  Palette,
+  Play,
+  Plus,
+  TextT,
+} from "@phosphor-icons/react";
 import { useI18n, t } from "../../lib/i18n";
 
 /**
@@ -30,7 +42,7 @@ export enum CommandCategory {
   Extracts = "Extracts",
   Flashcards = "Flashcards",
   Review = "Review",
-  Settings = "Settings",
+  Gear = "Gear",
   Navigation = "Navigation",
 }
 
@@ -142,7 +154,7 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
       [CommandCategory.Extracts]: [],
       [CommandCategory.Flashcards]: [],
       [CommandCategory.Review]: [],
-      [CommandCategory.Settings]: [],
+      [CommandCategory.Gear]: [],
       [CommandCategory.Navigation]: [],
     };
 
@@ -178,9 +190,9 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
           className="bg-card border border-border rounded-lg shadow-2xl overflow-hidden"
           onKeyDown={handleKeyDown}
         >
-          {/* Search Input */}
+          {/* MagnifyingGlass Input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-            <Search className="w-5 h-5 text-muted-foreground" />
+            <MagnifyingGlass className="w-5 h-5 text-muted-foreground" />
             <input
               ref={inputRef}
               type="text"
@@ -393,7 +405,7 @@ export function getDefaultCommands(): Command[] {
       id: "go-documents",
       label: t("toolbar.goToDocuments"),
       description: t("commandPalette.viewAllDocuments"),
-      icon: <FileText className="w-4 h-4" />,
+      icon: <TextT className="w-4 h-4" />,
       category: CommandCategory.Navigation,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/documents' })); },
       keywords: ["documents", "files", "library"],
@@ -422,7 +434,7 @@ export function getDefaultCommands(): Command[] {
       id: "start-review",
       label: t("toolbar.startReviewCmd"),
       description: t("commandPalette.beginReviewSession"),
-      icon: <Zap className="w-4 h-4" />,
+      icon: <Lightning className="w-4 h-4" />,
       category: CommandCategory.Review,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/review' })); },
       keywords: ["study", "practice", "learn", "review"],
@@ -441,7 +453,7 @@ export function getDefaultCommands(): Command[] {
       id: "go-analytics",
       label: t("commandPalette.goToAnalytics"),
       description: t("commandPalette.viewStatsAndProgress"),
-      icon: <BarChart3 className="w-4 h-4" />,
+      icon: <ChartBar className="w-4 h-4" />,
       category: CommandCategory.Navigation,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/analytics' })); },
       keywords: ["stats", "analytics", "charts", "progress"],
@@ -451,8 +463,8 @@ export function getDefaultCommands(): Command[] {
       id: "open-settings",
       label: t("toolbar.openSettings"),
       description: t("commandPalette.openAppSettings"),
-      icon: <Settings className="w-4 h-4" />,
-      category: CommandCategory.Settings,
+      icon: <Gear className="w-4 h-4" />,
+      category: CommandCategory.Gear,
       action: () => { window.dispatchEvent(new CustomEvent('navigate', { detail: '/settings' })); },
       keywords: ["preferences", "config", "options"],
       shortcut: "⌘,",
@@ -462,7 +474,7 @@ export function getDefaultCommands(): Command[] {
       label: t("commandPalette.toggleTheme"),
       description: t("commandPalette.switchThemeDesc"),
       icon: <Palette className="w-4 h-4" />,
-      category: CommandCategory.Settings,
+      category: CommandCategory.Gear,
       action: () => { window.dispatchEvent(new CustomEvent('toggle-theme')); },
       keywords: ["theme", "dark", "light", "mode", "appearance"],
     }),

@@ -12,32 +12,32 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  Search,
-  Rss,
-  ExternalLink,
-  Check,
-  Grid3x3,
-  List,
-  User,
-  BookOpen,
-  Heart,
-  Briefcase,
-  TrendingUp,
-  Laptop,
-  Microscope,
-  GraduationCap,
-  Palette,
-  Coffee,
-  Landmark,
-  Coins,
-  X,
-  Sparkles,
-  Link2,
-  Loader2,
-  Clock,
-  FileText,
+  ArrowSquareOut,
   ArrowUpRight,
-} from "lucide-react";
+  Bank,
+  BookOpen,
+  Briefcase,
+  Check,
+  CircleNotch,
+  Clock,
+  Coffee,
+  Coins,
+  GraduationCap,
+  GridNine,
+  Heart,
+  Laptop,
+  Link,
+  List,
+  MagnifyingGlass,
+  Microscope,
+  Palette,
+  Rss,
+  Sparkle,
+  TextT,
+  TrendUp,
+  User,
+  X,
+} from "@phosphor-icons/react";
 import {
   newsletterDirectory,
   newsletterCategories,
@@ -88,11 +88,11 @@ const PLATFORM_BADGES: Record<PlatformType, { label: string; color: string; icon
 const categoryIcons: Record<NewsletterCategory, React.ElementType> = {
   technology: Laptop,
   science: Microscope,
-  finance: TrendingUp,
+  finance: TrendUp,
   business: Briefcase,
   health: Heart,
   lifestyle: Coffee,
-  politics: Landmark,
+  politics: Bank,
   arts: Palette,
   education: GraduationCap,
   crypto: Coins,
@@ -188,7 +188,7 @@ function NewsletterPreviewModal({
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <CircleNotch className="w-6 h-6 animate-spin text-primary" />
               <span className="ml-2 text-muted-foreground">Loading preview...</span>
             </div>
           ) : error ? (
@@ -198,7 +198,7 @@ function NewsletterPreviewModal({
           ) : feed ? (
             <div>
               <h3 className="font-medium text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 Recent Articles ({feed.items.length})
               </h3>
               <div className="space-y-3">
@@ -244,7 +244,7 @@ function NewsletterPreviewModal({
             >
               {isSubscribing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                   Subscribing...
                 </>
               ) : (
@@ -260,7 +260,7 @@ function NewsletterPreviewModal({
               rel="noopener noreferrer"
               className="px-4 py-2.5 bg-background border border-border font-medium rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ArrowSquareOut className="w-4 h-4" />
               Visit
             </a>
           </div>
@@ -361,8 +361,8 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
         <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 mb-4">
           {[
             { id: "directory" as const, label: "Directory", icon: BookOpen },
-            { id: "import" as const, label: "Add by URL", icon: Link2 },
-            { id: "trending" as const, label: "Trending", icon: TrendingUp },
+            { id: "import" as const, label: "Add by URL", icon: Link },
+            { id: "trending" as const, label: "Trending", icon: TrendUp },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -387,7 +387,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
             <div className="max-w-2xl mx-auto">
               <div className="text-center mb-8">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Link2 className="w-8 h-8 text-primary" />
+                  <Link className="w-8 h-8 text-primary" />
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Import Newsletter by URL</h2>
                 <p className="text-muted-foreground">
@@ -427,7 +427,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
           <div className="h-full overflow-y-auto p-6">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center gap-3 mb-6">
-                <Sparkles className="w-6 h-6 text-yellow-500" />
+                <Sparkle className="w-6 h-6 text-yellow-500" />
                 <div>
                   <h2 className="text-lg font-semibold">Trending Newsletters</h2>
                   <p className="text-sm text-muted-foreground">
@@ -467,16 +467,16 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
 
         {activeTab === "directory" && (
           <>
-            {/* Search and Filters */}
+            {/* MagnifyingGlass and Filters */}
             <div className="px-6 py-4 border-b border-border/70 bg-muted/10">
               <div className="flex items-center gap-3">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search newsletters..."
+                    placeholder="MagnifyingGlass newsletters..."
                     className="w-full pl-10 pr-4 py-2.5 bg-background/80 border border-border/70 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
                   />
                 </div>
@@ -490,7 +490,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
                     }`}
                     title="Grid view"
                   >
-                    <Grid3x3 className="w-4 h-4" />
+                    <GridNine className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
@@ -545,7 +545,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
               {filteredNewsletters.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mb-4">
-                    <Search className="w-8 h-8 text-muted-foreground" />
+                    <MagnifyingGlass className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground mb-2">
                     No newsletters found
@@ -642,7 +642,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
                                 >
                                   {loading ? (
                                     <>
-                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      <CircleNotch className="w-4 h-4 animate-spin" />
                                       Adding...
                                     </>
                                   ) : (
@@ -661,7 +661,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
                                 className="px-3 py-2 bg-muted/60 text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted hover:text-foreground transition-all"
                                 title="Visit website"
                               >
-                                <ExternalLink className="w-4 h-4" />
+                                <ArrowSquareOut className="w-4 h-4" />
                               </a>
                             </div>
                           </div>

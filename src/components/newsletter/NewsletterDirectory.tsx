@@ -1,29 +1,29 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
-  Search,
-  Rss,
-  ExternalLink,
-  Check,
-  Grid3x3,
-  List,
-  User,
-  Heart,
+  ArrowsClockwise,
+  ArrowSquareOut,
+  Bank,
   Briefcase,
-  TrendingUp,
-  Laptop,
-  Microscope,
-  GraduationCap,
-  Palette,
+  Check,
+  CircleNotch,
   Coffee,
-  Landmark,
   Coins,
-  X,
-  Loader2,
-  AlertCircle,
   Globe,
-  RefreshCw,
+  GraduationCap,
+  GridNine,
+  Heart,
+  Laptop,
+  List,
+  MagnifyingGlass,
+  Microscope,
+  Palette,
+  Rss,
   Star,
-} from "lucide-react";
+  TrendUp,
+  User,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import {
   newsletterDirectory,
   newsletterCategories,
@@ -62,11 +62,11 @@ interface NewsletterDirectoryProps {
 const categoryIcons: Record<NewsletterCategory, React.ElementType> = {
   technology: Laptop,
   science: Microscope,
-  finance: TrendingUp,
+  finance: TrendUp,
   business: Briefcase,
   health: Heart,
   lifestyle: Coffee,
-  politics: Landmark,
+  politics: Bank,
   arts: Palette,
   education: GraduationCap,
   crypto: Coins,
@@ -192,7 +192,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           if (err instanceof SubstackApiError) {
             setSearchError(err.message);
           } else {
-            setSearchError("Search failed. Please try again.");
+            setSearchError("MagnifyingGlass failed. Please try again.");
           }
         } finally {
           setSearchLoading(false);
@@ -385,19 +385,19 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           )}
         </div>
 
-        {/* Search */}
+        {/* MagnifyingGlass */}
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search Substack for newsletters, authors, topics..."
+              placeholder="MagnifyingGlass Substack for newsletters, authors, topics..."
               className="w-full pl-10 pr-10 py-2.5 bg-background/80 border border-border/70 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
             />
             {searchLoading && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              <CircleNotch className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
             )}
           </div>
 
@@ -411,7 +411,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               }`}
               title="Grid view"
             >
-              <Grid3x3 className="w-4 h-4" />
+              <GridNine className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("list")}
@@ -494,7 +494,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
 
             {categoryLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <CircleNotch className="w-6 h-6 animate-spin text-primary" />
                 <span className="ml-2 text-muted-foreground">Loading...</span>
               </div>
             ) : hasCategoryResults ? (
@@ -527,7 +527,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           </>
         )}
 
-        {/* Search results (priority over category) */}
+        {/* MagnifyingGlass results (priority over category) */}
         {isSearching && (
           <>
             {/* Editor's Picks collapsible */}
@@ -594,27 +594,27 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               </div>
             )}
 
-            {/* Search error */}
+            {/* MagnifyingGlass error */}
             {searchError && (
               <div className="text-center py-8">
-                <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
+                <WarningCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
                 <p className="text-muted-foreground mb-3">{searchError}</p>
                 <button
                   onClick={() => handleSearchChange(searchQuery)}
                   className="px-4 py-2 bg-muted text-sm rounded-lg hover:bg-muted/80 flex items-center gap-2 mx-auto"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <ArrowsClockwise className="w-4 h-4" />
                   Retry
                 </button>
               </div>
             )}
 
-            {/* Search results heading */}
+            {/* MagnifyingGlass results heading */}
             {!searchError && hasSearchResults && (
               <div className="flex items-center gap-2 mb-4">
-                <Search className="w-5 h-5 text-primary" />
+                <MagnifyingGlass className="w-5 h-5 text-primary" />
                 <h2 className="text-lg font-semibold">
-                  Search Results
+                  MagnifyingGlass Results
                 </h2>
                 <span className="text-sm text-muted-foreground">
                   ({searchResults.length} found)
@@ -622,7 +622,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               </div>
             )}
 
-            {/* Search results grid */}
+            {/* MagnifyingGlass results grid */}
             {!searchError && hasSearchResults && (
               <>
                 <SubstackSearchGrid
@@ -651,7 +651,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
             {!searchError && !searchLoading && !hasSearchResults && isSearching && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mb-4">
-                  <Search className="w-8 h-8 text-muted-foreground" />
+                  <MagnifyingGlass className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   No results for &ldquo;{searchQuery}&rdquo;
@@ -679,7 +679,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
             {filteredCurated.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mb-4">
-                  <Search className="w-8 h-8 text-muted-foreground" />
+                  <MagnifyingGlass className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   No newsletters found
@@ -798,7 +798,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
                               className="px-4 py-2 bg-muted/60 text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted hover:text-foreground transition-all flex items-center gap-2"
                               title="Visit website"
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              <ArrowSquareOut className="w-4 h-4" />
                               <span className="hidden sm:inline">Visit</span>
                             </a>
                           </div>
@@ -972,7 +972,7 @@ function SubstackSearchGrid({
                     className="px-4 py-2 bg-muted/60 text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted hover:text-foreground transition-all flex items-center gap-2"
                     title="Visit website"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowSquareOut className="w-4 h-4" />
                   </a>
                 </div>
               </div>
@@ -1094,7 +1094,7 @@ function SubstackFeedGrid({
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-muted/60 text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted hover:text-foreground transition-all flex items-center gap-2"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ArrowSquareOut className="w-4 h-4" />
                     </a>
                   </div>
                 </div>

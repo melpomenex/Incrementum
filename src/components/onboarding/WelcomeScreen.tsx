@@ -5,15 +5,15 @@
 
 import { useState } from 'react';
 import {
-  BookOpen,
-  Layers,
-  Brain,
-  Sparkles,
-  FileText,
-  Play,
   ArrowRight,
-  Zap,
-} from 'lucide-react';
+  BookOpen,
+  Brain,
+  Lightning,
+  Play,
+  Sparkle,
+  Stack,
+  TextT,
+} from "@phosphor-icons/react";
 import { useI18n } from '../../lib/i18n';
 
 interface WelcomeScreenProps {
@@ -47,7 +47,7 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
           {/* Header */}
           <div className="p-8 text-center border-b border-border">
             <div className="w-16 h-16 bg-gradient-to-br from-primary/30 to-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
+              <Sparkle className="w-8 h-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-2">
               {t("onboarding.howToStart")}
@@ -79,11 +79,11 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
                     {t("onboarding.demoDescLong")}
                   </p>
                   <div className="flex items-center gap-2 mt-3 text-xs text-primary">
-                    <FileText className="w-3 h-3" />
+                    <TextT className="w-3 h-3" />
                     <span>{t("onboarding.samplePdf")}</span>
                     <BookOpen className="w-3 h-3 ml-2" />
                     <span>{t("onboarding.sampleEpub")}</span>
-                    <Zap className="w-3 h-3 ml-2" />
+                    <Lightning className="w-3 h-3 ml-2" />
                     <span>{t("onboarding.demoCards")}</span>
                   </div>
                 </div>
@@ -98,7 +98,7 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                  <FileText className="w-6 h-6 text-muted-foreground" />
+                  <TextT className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-foreground mb-1">{t("onboarding.startFresh")}</h3>
@@ -154,7 +154,7 @@ export function WelcomeScreen({ onComplete, onImportDemo }: WelcomeScreenProps) 
 
             <div className="text-center p-4 bg-muted/30 rounded-xl border border-border">
               <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Layers className="w-6 h-6 text-green-500" />
+                <Stack className="w-6 h-6 text-green-500" />
               </div>
               <h3 className="text-foreground font-medium mb-2">{t("onboarding.createExtracts")}</h3>
               <p className="text-sm text-muted-foreground">

@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme, ThemeId, ThemeVariant } from '../../types/theme';
-import { X, Palette, RotateCcw } from 'lucide-react';
+import { ArrowCounterClockwise, Palette, X } from "@phosphor-icons/react";
 import { useI18n } from '../../lib/i18n';
 
 interface ColorPickerProps {
@@ -214,7 +214,7 @@ export function ThemeCustomizer({ baseTheme, onClose, onSave }: ThemeCustomizerP
           onClick={handleReset}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-muted transition-colors"
         >
-          <RotateCcw className="w-4 h-4" />
+          <ArrowCounterClockwise className="w-4 h-4" />
           {t("themeCustomizer.resetToBase")}
         </button>
 

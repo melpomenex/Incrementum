@@ -1,20 +1,18 @@
 import { useState } from "react";
 import {
-  Plus,
-  Globe,
-  FileText,
-  Youtube,
-  Upload,
-
-  RefreshCw,
-
+  ArrowsClockwise,
   BookOpen,
-  ChevronDown,
-  ChevronRight,
-  Link as LinkIcon,
+  CaretDown,
+  CaretRight,
   Check,
-  Loader2,
-} from "lucide-react";
+  CircleNotch,
+  Globe,
+  Link as LinkIcon,
+  Plus,
+  TextT,
+  Upload,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import {
   notebooklmListSources,
   notebooklmAddSource,
@@ -100,14 +98,14 @@ export function NotebookLMSidebar({
   const getSourceIcon = (kind: string) => {
     switch (kind) {
       case "youtube":
-        return <Youtube className="w-4 h-4 text-red-500" />;
+        return <YoutubeLogo className="w-4 h-4 text-red-500" />;
       case "url":
         return <Globe className="w-4 h-4 text-blue-500" />;
       case "file":
         return <Upload className="w-4 h-4 text-green-500" />;
       case "text":
       default:
-        return <FileText className="w-4 h-4 text-gray-500" />;
+        return <TextT className="w-4 h-4 text-gray-500" />;
     }
   };
 
@@ -216,7 +214,7 @@ export function NotebookLMSidebar({
               >
                 {isAdding ? (
                   <span className="flex items-center justify-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <CircleNotch className="w-3 h-3 animate-spin" />
                     Adding...
                   </span>
                 ) : (
@@ -237,12 +235,12 @@ export function NotebookLMSidebar({
         <div className="flex-1 overflow-y-auto px-2">
           {_isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : sources.length === 0 ? (
             <div className="text-center py-8 px-4">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
-                <FileText className="w-6 h-6 text-muted-foreground" />
+                <TextT className="w-6 h-6 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground">
                 No sources yet. Add sources to start chatting.
@@ -292,9 +290,9 @@ export function NotebookLMSidebar({
                         className="p-1 hover:bg-background rounded"
                       >
                         {expandedSources.has(source.id) ? (
-                          <ChevronDown className="w-3.5 h-3.5" />
+                          <CaretDown className="w-3.5 h-3.5" />
                         ) : (
-                          <ChevronRight className="w-3.5 h-3.5" />
+                          <CaretRight className="w-3.5 h-3.5" />
                         )}
                       </button>
                     </div>
@@ -308,7 +306,7 @@ export function NotebookLMSidebar({
                         className="p-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-background rounded transition-colors flex items-center gap-1"
                         title="Refresh source"
                       >
-                        <RefreshCw className="w-3 h-3" />
+                        <ArrowsClockwise className="w-3 h-3" />
                         Refresh
                       </button>
                     </div>

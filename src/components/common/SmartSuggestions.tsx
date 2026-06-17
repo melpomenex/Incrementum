@@ -5,14 +5,14 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  Sparkles,
-  Zap,
-  X,
-  BookOpen,
-  Target,
   ArrowRight,
-  Loader2,
-} from "lucide-react";
+  BookOpen,
+  CircleNotch,
+  Lightning,
+  Sparkle,
+  Target,
+  X,
+} from "@phosphor-icons/react";
 import { getExtracts, type Extract } from "../../api/extracts";
 import { useI18n } from "../../lib/i18n";
 
@@ -24,7 +24,7 @@ interface SmartSuggestion {
   count: number;
   action: () => void;
   actionLabel: string;
-  icon: typeof Sparkles;
+  icon: typeof Sparkle;
   color: string;
   bgColor: string;
 }
@@ -93,7 +93,7 @@ export function SmartSuggestions({
           }
         },
         actionLabel: isCreating ? t("smartSuggestions.creating") : t("smartSuggestions.createNow"),
-        icon: Zap,
+        icon: Lightning,
         color: "text-amber-500",
         bgColor: "bg-amber-500/10",
       });
@@ -186,7 +186,7 @@ export function SmartSuggestions({
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isCreating && suggestion.type === "flashcards" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                   ) : (
                     <ArrowRight className="w-4 h-4" />
                   )}
@@ -222,7 +222,7 @@ export function InlineSuggestion({
 
   const config = {
     flashcards: {
-      icon: Zap,
+      icon: Lightning,
       label: t("smartSuggestions.createFlashcards"),
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
@@ -278,7 +278,7 @@ interface SuggestionBannerProps {
   actionLabel: string;
   onAction: () => void;
   onDismiss?: () => void;
-  icon?: typeof Sparkles;
+  icon?: typeof Sparkle;
   variant?: "info" | "success" | "warning";
 }
 
@@ -287,7 +287,7 @@ export function SuggestionBanner({
   actionLabel,
   onAction,
   onDismiss,
-  icon: Icon = Sparkles,
+  icon: Icon = Sparkle,
   variant = "info",
 }: SuggestionBannerProps) {
   const { t } = useI18n();

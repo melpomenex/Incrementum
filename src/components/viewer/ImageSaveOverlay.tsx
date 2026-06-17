@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { ImagePlus, Check, Loader2 } from "lucide-react";
+import { Check, CircleNotch, Images } from "@phosphor-icons/react";
 import { ingestImageBlob } from "../../api/image-registry";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
@@ -161,11 +161,11 @@ export function ImageSaveOverlay() {
         )}
       >
         {isSaving ? (
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <CircleNotch className="w-5 h-5 animate-spin" />
         ) : isSaved ? (
           <Check className="w-5 h-5 animate-in zoom-in-75 duration-200" />
         ) : (
-          <ImagePlus className="w-5 h-5" />
+          <Images className="w-5 h-5" />
         )}
       </button>
     </div>

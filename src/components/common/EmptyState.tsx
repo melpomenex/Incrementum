@@ -6,20 +6,20 @@
 
 import { ReactNode } from "react";
 import {
-  FileText,
   BookOpen,
-  Search,
-  Inbox,
-  BarChart3,
-  Zap,
+  ChartBar,
+  Confetti,
   FolderOpen,
-  Plus,
-  Youtube,
   Globe,
-  Sparkles,
-  PartyPopper,
+  Lightning,
+  MagnifyingGlass,
+  Plus,
+  Sparkle,
   Target,
-} from "lucide-react";
+  TextT,
+  Tray,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface EmptyStateProps {
@@ -39,12 +39,12 @@ interface EmptyStateProps {
 }
 
 const iconMap = {
-  documents: FileText,
+  documents: TextT,
   queue: BookOpen,
-  search: Search,
-  inbox: Inbox,
-  analytics: BarChart3,
-  review: Zap,
+  search: MagnifyingGlass,
+  inbox: Tray,
+  analytics: ChartBar,
+  review: Lightning,
   folder: FolderOpen,
 };
 
@@ -106,9 +106,9 @@ export function EmptyState({
 
 // Format icons for import options
 const formatIcons = [
-  { icon: FileText, label: "PDF", color: "text-red-500" },
+  { icon: TextT, label: "PDF", color: "text-red-500" },
   { icon: BookOpen, label: "EPUB", color: "text-blue-500" },
-  { icon: Youtube, label: "YouTube", color: "text-red-600" },
+  { icon: YoutubeLogo, label: "YouTube", color: "text-red-600" },
   { icon: Globe, label: "Web", color: "text-green-500" },
 ];
 
@@ -152,7 +152,7 @@ export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
       icon={
         <div className="relative">
           <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center">
-            <FileText className="w-10 h-10 text-primary" />
+            <TextT className="w-10 h-10 text-primary" />
           </div>
           <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center">
             <Plus className="w-4 h-4 text-green-500" />
@@ -187,7 +187,7 @@ export function EmptyQueue({ onStartReview }: { onStartReview?: () => void }) {
             <Target className="w-10 h-10 text-blue-500" />
           </div>
           <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Sparkle className="w-4 h-4 text-primary" />
           </div>
         </div>
       }
@@ -198,7 +198,7 @@ export function EmptyQueue({ onStartReview }: { onStartReview?: () => void }) {
           ? {
               label: t("emptyState.startReview"),
               onClick: onStartReview,
-              icon: <Zap className="w-4 h-4" />,
+              icon: <Lightning className="w-4 h-4" />,
             }
           : undefined
       }
@@ -210,7 +210,7 @@ export function EmptyQueue({ onStartReview }: { onStartReview?: () => void }) {
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
         <div className="flex -space-x-2">
           <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-            <FileText className="w-4 h-4 text-red-500" />
+            <TextT className="w-4 h-4 text-red-500" />
           </div>
           <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
             <BookOpen className="w-4 h-4 text-blue-500" />
@@ -246,7 +246,7 @@ export function EmptyAnalytics({ onImport }: { onImport?: () => void }) {
       icon={
         <div className="relative">
           <div className="w-20 h-20 bg-gradient-to-br from-purple-500/20 to-purple-500/5 rounded-full flex items-center justify-center">
-            <BarChart3 className="w-10 h-10 text-purple-500" />
+            <ChartBar className="w-10 h-10 text-purple-500" />
           </div>
         </div>
       }
@@ -277,13 +277,13 @@ export function EmptyReview({ onGoToQueue }: { onGoToQueue?: () => void }) {
       icon={
         <div className="relative">
           <div className="w-20 h-20 bg-gradient-to-br from-green-500/20 to-emerald-500/5 rounded-full flex items-center justify-center">
-            <PartyPopper className="w-10 h-10 text-green-500" />
+            <Confetti className="w-10 h-10 text-green-500" />
           </div>
           <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-500/30 rounded-full flex items-center justify-center animate-bounce">
-            <Sparkles className="w-3 h-3 text-yellow-500" />
+            <Sparkle className="w-3 h-3 text-yellow-500" />
           </div>
           <div className="absolute -bottom-1 -left-1 w-5 h-5 bg-primary/20 rounded-full flex items-center justify-center">
-            <Sparkles className="w-2.5 h-2.5 text-primary" />
+            <Sparkle className="w-2.5 h-2.5 text-primary" />
           </div>
         </div>
       }
@@ -305,7 +305,7 @@ export function EmptyReview({ onGoToQueue }: { onGoToQueue?: () => void }) {
       <div className="glass-card p-4 mb-6 max-w-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-green-500" />
+            <Lightning className="w-5 h-5 text-green-500" />
           </div>
           <div className="text-left">
             <div className="text-sm font-medium text-foreground">{t("emptyState.keepStreak")}</div>
@@ -363,7 +363,7 @@ export function EmptyLearningCards({ onCreateCards }: { onCreateCards?: () => vo
       icon={
         <div className="relative">
           <div className="w-20 h-20 bg-gradient-to-br from-indigo-500/20 to-indigo-500/5 rounded-full flex items-center justify-center">
-            <Zap className="w-10 h-10 text-indigo-500" />
+            <Lightning className="w-10 h-10 text-indigo-500" />
           </div>
         </div>
       }

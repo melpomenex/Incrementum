@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Loader2, X, Eye } from "lucide-react";
+import {
+  CircleNotch,
+  Eye,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react";
 import { getLearningItemsByExtract, getItemTypeName, type LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";
 import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
@@ -290,7 +295,7 @@ export function GeneratedCardsPopover({
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <Sparkles className="h-4 w-4 text-primary" />
+              <Sparkle className="h-4 w-4 text-primary" />
               Generated Cards
             </div>
             <button
@@ -312,7 +317,7 @@ export function GeneratedCardsPopover({
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <CircleNotch className="h-4 w-4 animate-spin" />
                   Loading cards...
                 </div>
               </div>

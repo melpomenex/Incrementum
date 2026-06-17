@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Flame } from 'lucide-react';
+import { Flame } from "@phosphor-icons/react";
 import { getReadingStreak } from '../../api/readingGoals';
 import { formatStreakDays, getStreakMilestone, getStreakColor, type ReadingStreak } from "../../types/readingGoal";
 

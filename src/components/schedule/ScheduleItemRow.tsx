@@ -1,21 +1,21 @@
 import { useState, useRef, useEffect, memo } from "react";
 import {
   BookOpen,
-  Layers,
   Brain,
+  CalendarHeart,
+  CaretDown,
+  CaretRight,
   Clock,
-  AlertTriangle,
-  Repeat,
-  ChevronDown,
-  ChevronRight,
-  Play,
-  Pause,
-  Trash2,
-  CalendarClock,
-  EyeOff,
-  Columns2,
+  Columns,
+  EyeSlash,
   Headphones,
-} from "lucide-react";
+  Pause,
+  Play,
+  Repeat,
+  Stack,
+  Trash,
+  Warning,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { parseScheduleDate } from "../../lib/scheduleUtils";
 import type { ScheduleDayItem } from "../../types/queue";
@@ -41,7 +41,7 @@ function getTypeIcon(type: ScheduleDayItem["itemType"]) {
     case "document":
       return BookOpen;
     case "extract":
-      return Layers;
+      return Stack;
     case "learning-item":
       return Brain;
     default:
@@ -266,8 +266,8 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
                     className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isExpanded
-                      ? <ChevronDown className="w-3.5 h-3.5" />
-                      : <ChevronRight className="w-3.5 h-3.5" />}
+                      ? <CaretDown className="w-3.5 h-3.5" />
+                      : <CaretRight className="w-3.5 h-3.5" />}
                   </button>
                 )}
               </div>
@@ -306,7 +306,7 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
 
                 {item.lapses != null && item.lapses > 0 && (
                   <span className="flex items-center gap-0.5 text-[10px] text-red-400">
-                    <AlertTriangle className="w-3 h-3" />
+                    <Warning className="w-3 h-3" />
                     {item.lapses}
                   </span>
                 )}
@@ -449,7 +449,7 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
                   )}
                   {item.lapses != null && item.lapses > 0 && (
                     <span className="flex items-center gap-0.5">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
+                      <Warning className="w-3 h-3 text-red-400" />
                       <span className="text-[10px] font-mono text-red-400">{item.lapses}</span>
                     </span>
                   )}
@@ -519,7 +519,7 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
                   onClick={() => { setCtxPos(null); onReadAlong(audioDoc, epubDoc); }}
                 >
                   {doc.fileType === "audio"
-                    ? <Columns2 className="w-4 h-4 text-blue-500" />
+                    ? <Columns className="w-4 h-4 text-blue-500" />
                     : <Headphones className="w-4 h-4 text-blue-500" />}
                   {doc.fileType === "audio"
                     ? `Read Along with ${best.doc.title}`
@@ -560,7 +560,7 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
                     className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
                     onClick={() => void handlePostpone(days)}
                   >
-                    <CalendarClock className="w-4 h-4 text-blue-400" />
+                    <CalendarHeart className="w-4 h-4 text-blue-400" />
                     +{days}{days === 1 ? t("queue.day") : t("queue.days")}
                   </button>
                 ))}
@@ -575,7 +575,7 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
                   className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
                   onClick={handleCtxDismiss}
                 >
-                  <EyeOff className="w-4 h-4 text-slate-400" />
+                  <EyeSlash className="w-4 h-4 text-slate-400" />
                   {t("queue.dismiss")}
                 </button>
               </>
@@ -589,7 +589,7 @@ export const ScheduleItemRow = memo(function ScheduleItemRow({
                   className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
                   onClick={handleCtxDelete}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash className="w-4 h-4" />
                   {t("queue.delete")}
                 </button>
               </>

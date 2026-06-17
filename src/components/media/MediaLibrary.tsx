@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
 import {
-  Film,
-  Music,
-  Rss,
-  Youtube,
-  Search,
-  Grid,
-  List,
-  FolderPlus,
-  Trash2,
-  Play,
-  Star,
   Download,
+  FilmSlate,
+  FolderPlus,
+  GridFour,
+  List,
+  MagnifyingGlass,
+  MusicNote,
+  Play,
+  Rss,
+  Star,
+  Trash,
   Upload,
-} from "lucide-react";
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import {
   MediaItem,
@@ -166,7 +166,7 @@ export function MediaLibrary() {
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              <Grid className="w-4 h-4" />
+              <GridFour className="w-4 h-4" />
               {t("mediaLibrary.library")}
             </button>
             <button
@@ -236,9 +236,9 @@ export function MediaLibrary() {
         {/* Header */}
         <div className="p-4 border-b border-border bg-card">
           <div className="flex items-center gap-4 mb-3">
-            {/* Search */}
+            {/* MagnifyingGlass */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={searchQuery}
@@ -279,9 +279,9 @@ export function MediaLibrary() {
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 ${viewMode === "grid" ? "bg-muted" : ""}`}
-                title="Grid view"
+                title="GridFour view"
               >
-                <Grid className="w-4 h-4" />
+                <GridFour className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
@@ -322,11 +322,11 @@ export function MediaLibrary() {
           </div>
         </div>
 
-        {/* Items Grid/List */}
+        {/* Items GridFour/List */}
         <div className="flex-1 overflow-y-auto p-4">
           {filteredItems.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
-              <Music className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <MusicNote className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <p className="text-lg mb-2">{t("mediaLibrary.noMediaItems")}</p>
               <p className="text-sm">
                 {searchQuery || filterType !== "all"
@@ -436,7 +436,7 @@ function MediaGridItem({ item, onPlay, onDelete, onRate }: MediaGridItemProps) {
         className="absolute top-2 right-2 p-1.5 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded"
         title="Delete"
       >
-        <Trash2 className="w-3 h-3" />
+        <Trash className="w-3 h-3" />
       </button>
     </div>
   );
@@ -506,7 +506,7 @@ function MediaListItem({ item, onPlay, onDelete, onRate }: MediaListItemProps) {
           className="p-2 text-destructive hover:bg-destructive/20 rounded"
           title="Delete"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -516,12 +516,12 @@ function MediaListItem({ item, onPlay, onDelete, onRate }: MediaListItemProps) {
 function getMediaIcon(type: MediaType) {
   switch (type) {
     case "video":
-      return Film;
+      return FilmSlate;
     case "audio":
-      return Music;
+      return MusicNote;
     case "podcast":
       return Rss;
     case "youtube":
-      return Youtube;
+      return YoutubeLogo;
   }
 }

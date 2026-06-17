@@ -6,17 +6,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  X,
-  ChevronLeft,
-  ChevronRight,
-  FileUp,
-  Highlighter,
+  ArrowCounterClockwise,
   Brain,
-  RotateCcw,
+  CaretLeft,
+  CaretRight,
   Check,
+  FileArrowUp,
+  Highlighter,
+  Sparkle,
   Target,
-  Sparkles,
-} from "lucide-react";
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface TutorialStep {
@@ -34,14 +34,14 @@ const getTutorialSteps = (t: (key: string, vars?: Record<string, string | number
     id: "welcome",
     title: t("onboarding.tutorialTitle"),
     description: t("onboarding.tutorialWelcomeDesc"),
-    icon: Sparkles,
+    icon: Sparkle,
     position: "center",
   },
   {
     id: "import",
     title: t("onboarding.step1Title"),
     description: t("onboarding.tutorialImportDesc"),
-    icon: FileUp,
+    icon: FileArrowUp,
     targetSelector: "[data-tutorial='import-button']",
     position: "bottom",
     spotlight: true,
@@ -66,7 +66,7 @@ const getTutorialSteps = (t: (key: string, vars?: Record<string, string | number
     id: "review",
     title: t("onboarding.step4Title"),
     description: t("onboarding.tutorialReviewDesc"),
-    icon: RotateCcw,
+    icon: ArrowCounterClockwise,
     targetSelector: "[data-tutorial='queue-nav']",
     position: "right",
     spotlight: true,
@@ -360,7 +360,7 @@ export function InteractiveTutorial({
             {step.id === "complete" && (
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 mb-6">
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
+                  <Sparkle className="w-5 h-5 text-primary" />
                   <span className="font-medium text-foreground">{t("onboarding.tutorialQuickTips")}</span>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1">
@@ -402,7 +402,7 @@ export function InteractiveTutorial({
               disabled={currentStep === 0}
               className="flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <CaretLeft className="w-4 h-4" />
               {t("common.back")}
             </button>
 
@@ -418,7 +418,7 @@ export function InteractiveTutorial({
                 className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 {isLastStep ? t("onboarding.startLearning") : t("common.next")}
-                <ChevronRight className="w-4 h-4" />
+                <CaretRight className="w-4 h-4" />
               </button>
             </div>
           </div>

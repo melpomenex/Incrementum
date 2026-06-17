@@ -23,28 +23,28 @@ import { useToast } from "./common/Toast";
 import type { QueueItem } from "../types/queue";
 
 import {
-  FileUp,
-  Link,
-  BookMarked,
+  Bookmarks,
   BookOpen,
-  Dices,
   Brain,
-  Rss,
-  LayoutDashboard,
-  Network,
-  Orbit,
-  Compass,
-  BotMessageSquare,
   Camera,
-  Settings,
+  ChatCircle,
+  ChatDots,
   Command,
-  FileText,
-  Newspaper,
-  Monitor,
-  MessageSquare,
-  Sparkles,
+  Compass,
+  Desktop,
+  DiceFive,
+  FileArrowUp,
+  Gear,
+  Graph,
   Headphones,
-} from "lucide-react";
+  Link,
+  Newspaper,
+  Planet,
+  Rss,
+  Sparkle,
+  SquaresFour,
+  TextT,
+} from "@phosphor-icons/react";
 import { CollectionSwitcher } from "./collections/CollectionSwitcher";
 
 export type ToolbarPosition = "top" | "left" | "right";
@@ -126,7 +126,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (imported.length > 0) {
       addTab({
         title: imported[0].title,
-        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+        icon: <TextT className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -244,7 +244,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleDashboard = () => {
     addTab({
       title: "Dashboard",
-      icon: <LayoutDashboard className="w-4 h-4" />,
+      icon: <SquaresFour className="w-4 h-4" />,
       type: "dashboard",
       content: DashboardTab,
       closable: false,
@@ -254,7 +254,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleContinueReading = () => {
     addTab({
       title: "Continue Reading",
-      icon: <BookMarked className="w-4 h-4" />,
+      icon: <Bookmarks className="w-4 h-4" />,
       type: "continue-reading",
       content: ContinueReadingTab,
       closable: true,
@@ -267,8 +267,8 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   // Knowledge Graph button
   const handleKnowledgeGraph = () => {
     addTab({
-      title: "Knowledge Network",
-      icon: <Network className="w-4 h-4" />,
+      title: "Knowledge Graph",
+      icon: <Graph className="w-4 h-4" />,
       type: "knowledge-network",
       content: KnowledgeGraphPage,
       closable: true,
@@ -277,7 +277,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   const handleKnowledgeGraphBackground = () => {
     addTabInBackground({
-      title: "Knowledge Network",
+      title: "Knowledge Graph",
       icon: "🕸️",
       type: "knowledge-network",
       content: KnowledgeGraphPage,
@@ -289,7 +289,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleKnowledgeSphere = () => {
     addTab({
       title: "Knowledge Sphere",
-      icon: <Orbit className="w-4 h-4" />,
+      icon: <Planet className="w-4 h-4" />,
       type: "knowledge-sphere",
       content: KnowledgeSpherePage,
       closable: true,
@@ -310,7 +310,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleWebBrowser = () => {
     addTab({
       title: "Web Browser",
-      icon: <Monitor className="w-4 h-4" />,
+      icon: <Desktop className="w-4 h-4" />,
       type: "web-browser",
       content: WebBrowserTab,
       closable: true,
@@ -331,7 +331,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleDocQA = () => {
     addTab({
       title: "Document Q&A",
-      icon: <MessageSquare className="w-4 h-4" />,
+      icon: <ChatCircle className="w-4 h-4" />,
       type: "doc-qa",
       content: DocumentQATab,
       closable: true,
@@ -352,7 +352,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
   const handleNotebookLM = () => {
     addTab({
       title: "NotebookLM",
-      icon: <Sparkles className="w-4 h-4" />,
+      icon: <Sparkle className="w-4 h-4" />,
       type: "notebooklm",
       content: NotebookLMTab,
       closable: true,
@@ -391,8 +391,8 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   const handleSettings = () => {
     addTab({
-      title: "Settings",
-      icon: <Settings className="w-4 h-4" />,
+      title: "Gear",
+      icon: <Gear className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,
       closable: true,
@@ -401,7 +401,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   const handleSettingsBackground = () => {
     addTabInBackground({
-      title: "Settings",
+      title: "Gear",
       icon: "⚙️",
       type: "settings",
       content: SettingsTab,
@@ -418,7 +418,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (item.itemType === "document") {
       addTab({
         title: item.documentTitle,
-        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+        icon: <TextT className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -430,7 +430,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (item.itemType === "extract") {
       addTab({
         title: item.documentTitle,
-        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+        icon: <TextT className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -457,7 +457,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     if (item.documentId) {
       addTab({
         title: item.documentTitle,
-        icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+        icon: <TextT className="w-4 h-4 text-muted-foreground" />,
         type: "document-viewer",
         content: DocumentViewer,
         closable: true,
@@ -473,7 +473,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     // Group 1: File Operations
     {
       id: "import-file",
-      icon: FileUp,
+      icon: FileArrowUp,
       label: t("toolbar.importFile"),
       shortcut: "Ctrl+O",
       action: handleImportFile,
@@ -489,7 +489,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
     {
       id: "read-next",
-      icon: BookMarked,
+      icon: Bookmarks,
       label: t("toolbar.readNext"),
       shortcut: "",
       action: handleReadNext,
@@ -497,7 +497,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
     {
       id: "random-item",
-      icon: Dices,
+      icon: DiceFive,
       label: t("toolbar.randomItem"),
       shortcut: "",
       action: handleRandomItem,
@@ -532,7 +532,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     // Group 3: Navigation
     {
       id: "dashboard",
-      icon: LayoutDashboard,
+      icon: SquaresFour,
       label: t("toolbar.dashboard"),
       shortcut: "Ctrl+1",
       action: handleDashboard,
@@ -548,7 +548,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
     {
       id: "knowledge-graph",
-      icon: Network,
+      icon: Graph,
       label: t("toolbar.knowledgeGraph"),
       shortcut: "Ctrl+4",
       action: handleKnowledgeGraph,
@@ -557,7 +557,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
     {
       id: "knowledge-sphere",
-      icon: Orbit,
+      icon: Planet,
       label: t("toolbar.knowledgeSphere"),
       shortcut: "Ctrl+5",
       action: handleKnowledgeSphere,
@@ -575,7 +575,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
     {
       id: "doc-qa",
-      icon: BotMessageSquare,
+      icon: ChatDots,
       label: t("toolbar.documentQA"),
       shortcut: "",
       action: handleDocQA,
@@ -584,7 +584,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
     },
     {
       id: "notebooklm",
-      icon: Sparkles,
+      icon: Sparkle,
       label: t("toolbar.notebooklm"),
       shortcut: "",
       action: handleNotebookLM,
@@ -599,10 +599,10 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       action: handleScreenshot,
       group: 3,
     }, */
-    // Group 4: Settings & Tools
+    // Group 4: Gear & Tools
     {
       id: "settings",
-      icon: Settings,
+      icon: Gear,
       label: t("toolbar.settings"),
       shortcut: "Ctrl+,",
       action: handleSettings,
@@ -670,7 +670,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
         onOpenDocument={(doc) => {
           addTab({
             title: doc.title,
-            icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+            icon: <TextT className="w-4 h-4 text-muted-foreground" />,
             type: "document-viewer",
             content: DocumentViewer,
             closable: true,

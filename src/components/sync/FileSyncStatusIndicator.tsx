@@ -2,7 +2,14 @@
  * File Sync Status Indicator Component
  */
 
-import { Cloud, Check, Download, Clock, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Check,
+  CircleNotch,
+  Clock,
+  Cloud,
+  Download,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { FileSyncStatus } from "../../lib/useFileSync";
 
 interface FileSyncStatusIndicatorProps {
@@ -42,13 +49,13 @@ const statusConfig: Record<
     label: "Waiting",
   },
   downloading: {
-    icon: Loader2,
+    icon: CircleNotch,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
     label: "Downloading",
   },
   error: {
-    icon: AlertCircle,
+    icon: WarningCircle,
     color: "text-red-500",
     bgColor: "bg-red-500/10",
     label: "Error",

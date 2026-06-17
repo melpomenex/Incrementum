@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { Mic, MicOff, Sparkles, X, Loader2, Send, Settings as SettingsIcon } from "lucide-react";
+import {
+  CircleNotch,
+  Microphone,
+  MicrophoneSlash,
+  PaperPlaneTilt,
+  Gear as SettingsIcon,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react";
 import { chatWithContext, type LLMMessage } from "../../api/llm";
 import { renderMarkdown } from "../../utils/markdown";
 import { useLLMProvidersStore, useSettingsStore } from "../../stores";
@@ -480,7 +488,7 @@ export function PwaAssistantButton({
         >
           <span className="absolute -inset-2 rounded-full bg-gradient-to-r from-cyan-400/25 via-emerald-400/25 to-fuchsia-400/25 blur-xl opacity-80 group-hover:opacity-100 transition-opacity" />
           <span className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 border border-white/10">
-            <Sparkles className="w-5 h-5 text-emerald-200" />
+            <Sparkle className="w-5 h-5 text-emerald-200" />
           </span>
           <span className="relative hidden sm:flex flex-col items-start pr-1">
             <span className="text-sm font-semibold leading-4">Ask</span>
@@ -518,7 +526,7 @@ export function PwaAssistantButton({
               <div className="flex items-center justify-between px-4 pb-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-primary" />
+                    <Sparkle className="w-4 h-4 text-primary" />
                     <div className="text-sm font-semibold text-foreground">Document Assistant</div>
                   </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">
@@ -562,7 +570,7 @@ export function PwaAssistantButton({
 
               {isListening && (
                 <div className="flex items-center gap-2 text-sm text-foreground bg-muted rounded-lg px-3 py-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <CircleNotch className="w-4 h-4 animate-spin text-muted-foreground" />
                   Listening…
                   <span className="ml-auto text-xs text-muted-foreground">Tap stop when done</span>
                 </div>
@@ -613,7 +621,7 @@ export function PwaAssistantButton({
 
               {isLoading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                   Thinking…
                 </div>
               )}
@@ -640,7 +648,7 @@ export function PwaAssistantButton({
                   }
                   disabled={!isVoiceSupported()}
                 >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  {isListening ? <MicrophoneSlash className="w-4 h-4" /> : <Microphone className="w-4 h-4" />}
                 </button>
 
                 <textarea
@@ -669,9 +677,9 @@ export function PwaAssistantButton({
                   }}
                   disabled={!input.trim() || isLoading}
                   className="p-3 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
-                  title="Send"
+                  title="PaperPlaneTilt"
                 >
-                  <Send className="w-4 h-4" />
+                  <PaperPlaneTilt className="w-4 h-4" />
                 </button>
               </div>
               <div className="mt-2 text-[11px] text-muted-foreground">

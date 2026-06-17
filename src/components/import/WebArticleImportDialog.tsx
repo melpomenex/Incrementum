@@ -7,22 +7,22 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
-  Globe,
-  Link2,
-  Loader2,
-  X,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  Clock,
-  ExternalLink,
+  ArrowsClockwise,
+  ArrowSquareOut,
   BookOpen,
-  Sparkles,
-  Eye,
+  CheckCircle,
+  CircleNotch,
+  Clock,
   Code,
-  RefreshCw,
-  ShieldAlert,
-} from "lucide-react";
+  Eye,
+  Globe,
+  Link,
+  ShieldWarning,
+  Sparkle,
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -563,7 +563,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Link className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
                       value={url}
@@ -579,9 +579,9 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                     className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center gap-2"
                   >
                     {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <CircleNotch className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Sparkles className="h-4 w-4" />
+                      <Sparkle className="h-4 w-4" />
                     )}
                     {t("webImport.fetch")}
                   </button>
@@ -635,7 +635,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               {showCorsWarning && (
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
                   <div className="flex items-start gap-2">
-                    <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <ShieldWarning className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                     <div className="text-xs text-amber-800 dark:text-amber-200">
                       <strong>{t("webImport.corsProxyUsed")}</strong>
                       <p className="mt-0.5">
@@ -713,7 +713,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
               {error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
                   <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <WarningCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-sm text-destructive font-medium">{error}</p>
                       {errorDetails && (
@@ -725,7 +725,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                     onClick={handleFetch}
                     className="mt-2 flex items-center gap-1 text-xs text-destructive hover:underline"
                   >
-                    <RefreshCw className="h-3 w-3" />
+                    <ArrowsClockwise className="h-3 w-3" />
                     {t("common.retry")}
                   </button>
                 </div>
@@ -747,12 +747,12 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                 >
                   {isImporting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <CircleNotch className="h-4 w-4 animate-spin" />
                       {t("review.importing")}
                     </>
                   ) : importSuccess ? (
                     <>
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle className="h-4 w-4" />
                       {t("webImport.importedSuccessfully")}
                     </>
                   ) : (
@@ -770,7 +770,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
           <div className="flex flex-1 flex-col overflow-hidden bg-background">
             {isLoading ? (
               <div className="flex h-full flex-col items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <CircleNotch className="h-8 w-8 animate-spin text-primary mb-4" />
                 <p className="text-sm text-muted-foreground">{t("webImport.fetchingArticle")}</p>
                 <p className="text-xs text-muted-foreground mt-2">
                   {t("webImport.fetchingHelp")}
@@ -826,7 +826,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                           <>
                             <span>•</span>
                             <span className="flex items-center gap-1">
-                              <FileText className="h-3 w-3" />
+                              <TextT className="h-3 w-3" />
                               {t("webImport.wordCount", { count: preview.wordCount.toLocaleString() })}
                             </span>
                             <span>•</span>
@@ -840,7 +840,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                           <>
                             <span>•</span>
                             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                              <ShieldAlert className="h-3 w-3" />
+                              <ShieldWarning className="h-3 w-3" />
                               {t("webImport.viaProxy")}
                             </span>
                           </>
@@ -854,7 +854,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                       className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       title={t("webImport.openOriginal")}
                     >
-                      <ExternalLink className="h-4 w-4" />
+                      <ArrowSquareOut className="h-4 w-4" />
                     </a>
                   </div>
 
@@ -919,7 +919,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                         <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-red-600 to-pink-600 opacity-25 blur-xl transition duration-1000 group-hover:opacity-40 group-hover:duration-200" />
                         <div className="relative flex h-24 w-20 flex-col items-center justify-between rounded-xl border border-red-500/20 bg-card p-3 shadow-2xl transition-transform duration-300 group-hover:scale-105">
                           <div className="self-start text-[10px] font-extrabold text-red-500 tracking-wider">PDF</div>
-                          <FileText className="h-10 w-10 text-red-500" />
+                          <TextT className="h-10 w-10 text-red-500" />
                           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                             <div className="h-full w-2/3 bg-red-500 rounded-full animate-pulse" />
                           </div>
@@ -948,7 +948,7 @@ export function WebArticleImportDialog({ isOpen, onClose, onOpenDocument }: WebA
                             className="font-medium text-primary hover:underline truncate max-w-[250px] inline-flex items-center gap-1"
                           >
                             {preview.siteName}
-                            <ExternalLink className="h-3 w-3 inline" />
+                            <ArrowSquareOut className="h-3 w-3 inline" />
                           </a>
                         </div>
                         

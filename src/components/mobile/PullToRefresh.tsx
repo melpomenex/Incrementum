@@ -6,7 +6,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { RefreshCw, Check, AlertCircle } from "lucide-react";
+import { ArrowsClockwise, Check, WarningCircle } from "@phosphor-icons/react";
 
 export interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -159,7 +159,7 @@ export function PullToRefresh({
         {!refreshing && (
           <>
             {pullDistance >= threshold ? (
-              <RefreshCw className="pull-icon pull-icon-spin" />
+              <ArrowsClockwise className="pull-icon pull-icon-spin" />
             ) : (
               <>
                 <div className="pull-arrow" />
@@ -179,9 +179,9 @@ export function PullToRefresh({
             {refreshSuccess ? (
               <Check className="refresh-icon refresh-icon-success" />
             ) : refreshError ? (
-              <AlertCircle className="refresh-icon refresh-icon-error" />
+              <WarningCircle className="refresh-icon refresh-icon-error" />
             ) : (
-              <RefreshCw className="refresh-icon refresh-icon-loading spin" />
+              <ArrowsClockwise className="refresh-icon refresh-icon-loading spin" />
             )}
             <span className="refresh-text">
               {refreshSuccess ? "Updated" : "Updating..."}

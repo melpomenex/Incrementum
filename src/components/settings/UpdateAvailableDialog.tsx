@@ -3,7 +3,12 @@
  */
 
 import { useEffect, useRef } from "react";
-import { X, ExternalLink, Clock, Ban } from "lucide-react";
+import {
+  ArrowSquareOut,
+  Clock,
+  Prohibit,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { setSkippedVersion, type UpdateInfo } from "../../utils/updateChecker";
 
@@ -216,7 +221,7 @@ export function UpdateAvailableDialog({
               "text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             )}
           >
-            <Ban className="w-3.5 h-3.5" />
+            <Prohibit className="w-3.5 h-3.5" />
             Skip This Version
           </button>
           <button
@@ -236,7 +241,7 @@ export function UpdateAvailableDialog({
               "bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             )}
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ArrowSquareOut className="w-3.5 h-3.5" />
             Update Now
           </button>
         </div>

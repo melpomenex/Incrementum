@@ -1,5 +1,23 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { X, Sliders, Sparkles, Play, Layers, Network, Info, Loader2, Check, ChevronDown, Folder, Radio, Filter, Star, Eye, Search, Rss } from "lucide-react";
+import {
+  CaretDown,
+  Check,
+  CircleNotch,
+  Eye,
+  Folder,
+  Funnel,
+  Graph,
+  Info,
+  MagnifyingGlass,
+  Play,
+  Radio,
+  Rss,
+  Sliders,
+  Sparkle,
+  Stack,
+  Star,
+  X,
+} from "@phosphor-icons/react";
 import { ObsidianGraph } from "../graph/ObsidianGraph";
 import { type GraphNode, type GraphEdge, GraphNodeType } from "../graph/KnowledgeGraph";
 import { buildSemanticGraph as buildSemanticGraphFromEngine, type EmbeddingStatus, type EmbeddingConfig } from "../../utils/semanticEngine";
@@ -332,14 +350,14 @@ export function SemanticGraphPanel({
         <div className="h-16 px-6 border-b border-border bg-card flex items-center justify-between z-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 border border-blue-500/20 flex items-center justify-center">
-              <Network className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              <Graph className="w-5 h-5 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-foreground">Semantic Relationship Graph</h2>
               <p className="text-xs text-muted-foreground">
                 {embeddingStatus === "embedding" ? (
                   <span className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <CircleNotch className="w-3 h-3 animate-spin" />
                     Generating embeddings...
                   </span>
                 ) : (
@@ -352,16 +370,16 @@ export function SemanticGraphPanel({
             </div>
           </div>
 
-          {/* Cluster Search Input Bar */}
+          {/* Cluster MagnifyingGlass Input Bar */}
           <div className="relative z-30 flex-1 max-w-xs mx-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={clusterSearchQuery}
                 onChange={(e) => handleClusterSearch(e.target.value)}
                 onFocus={() => setShowSearchDropdown(true)}
-                placeholder="Search & study a cluster..."
+                placeholder="MagnifyingGlass & study a cluster..."
                 className="w-full pl-9 pr-8 py-2 text-xs bg-muted/60 border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-foreground"
               />
               {clusterSearchQuery && (
@@ -377,7 +395,7 @@ export function SemanticGraphPanel({
               )}
             </div>
 
-            {/* Search Results Dropdown */}
+            {/* MagnifyingGlass Results Dropdown */}
             {showSearchDropdown && searchResults.length > 0 && (
               <>
                 <div 
@@ -450,7 +468,7 @@ export function SemanticGraphPanel({
               >
                 <Rss className="w-4 h-4" />
                 <span>RSS Sources</span>
-                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showRssSelector && "rotate-180")} />
+                <CaretDown className={cn("w-3.5 h-3.5 transition-transform duration-200", showRssSelector && "rotate-180")} />
               </button>
 
               {showRssSelector && (
@@ -600,19 +618,19 @@ export function SemanticGraphPanel({
 
                     {activeSelectorTab === "articles" && (
                       <div className="space-y-3 flex flex-col h-full">
-                        {/* Search articles */}
+                        {/* MagnifyingGlass articles */}
                         <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                          <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                           <input
                             type="text"
                             value={rssSearchQuery}
                             onChange={(e) => setRssSearchQuery(e.target.value)}
-                            placeholder="Search recent articles..."
+                            placeholder="MagnifyingGlass recent articles..."
                             className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/40 border border-border/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                           />
                         </div>
 
-                        {/* Recent Search Results */}
+                        {/* Recent MagnifyingGlass Results */}
                         <div className="flex-1 overflow-y-auto space-y-1 max-h-[160px] border-b border-border/40 pb-2">
                           {(() => {
                             const query = rssSearchQuery.toLowerCase().trim();
@@ -679,7 +697,7 @@ export function SemanticGraphPanel({
 
                   {/* Footer */}
                   <div className="p-3 bg-muted/40 border-t border-border/50 flex justify-between items-center text-[10px] text-muted-foreground font-medium px-4">
-                    <span>Embedding-based Semantic Search ready</span>
+                    <span>Embedding-based Semantic MagnifyingGlass ready</span>
                     <button onClick={() => setShowRssSelector(false)} className="text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider hover:underline">Done</button>
                   </div>
                 </div>
@@ -781,7 +799,7 @@ export function SemanticGraphPanel({
           ) : (
             <div className="absolute inset-0 flex items-center justify-center p-8">
               <div className="text-center max-w-sm glass-card p-8 rounded-2xl border border-border/60">
-                <Sparkles className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+                <Sparkle className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
                 <h3 className="text-base font-semibold text-foreground mb-2">No Semantic Clusters</h3>
                 <p className="text-xs text-muted-foreground">
                   Try decreasing the strictness threshold or importing documents on similar topics to establish connections.
@@ -797,7 +815,7 @@ export function SemanticGraphPanel({
         <div className="w-96 h-full bg-card border-l border-border flex flex-col shadow-2xl z-20 animate-slideLeft">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+              <Stack className="w-4 h-4 text-blue-500 dark:text-blue-400" />
               <h3 className="font-semibold text-foreground">Cluster Inspector</h3>
             </div>
             <button

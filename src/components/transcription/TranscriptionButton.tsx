@@ -13,14 +13,14 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { 
-  Loader2, 
-  CheckCircle2, 
-  AlertCircle, 
-  Sparkles,
+import {
+  CheckCircle,
+  CircleNotch,
   FileAudio,
-  Key
-} from 'lucide-react';
+  Key,
+  Sparkle,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { cn } from '../../utils';
 import { useTranscriptionService, type TranscriptionStatus } from './useTranscriptionService';
 import { TranscriptionKeyDialog } from './TranscriptionKeyDialog';
@@ -155,28 +155,28 @@ export function TranscriptionButton({
       case 'queued':
         return (
           <>
-            <Loader2 className={cn(spinnerSizes[size], 'animate-spin')} />
+            <CircleNotch className={cn(spinnerSizes[size], 'animate-spin')} />
             {showLabel && <span>Queued...</span>}
           </>
         );
       case 'processing':
         return (
           <>
-            <Loader2 className={cn(spinnerSizes[size], 'animate-spin')} />
+            <CircleNotch className={cn(spinnerSizes[size], 'animate-spin')} />
             {showLabel && <span>Transcribing...</span>}
           </>
         );
       case 'completed':
         return (
           <>
-            <CheckCircle2 className={iconSizes[size]} />
+            <CheckCircle className={iconSizes[size]} />
             {showLabel && <span>Transcribed</span>}
           </>
         );
       case 'failed':
         return (
           <>
-            <AlertCircle className={iconSizes[size]} />
+            <WarningCircle className={iconSizes[size]} />
             {showLabel && <span>Retry</span>}
           </>
         );
@@ -197,7 +197,7 @@ export function TranscriptionButton({
       default:
         return (
           <>
-            <Sparkles className={iconSizes[size]} />
+            <Sparkle className={iconSizes[size]} />
             {showLabel && <span>Transcribe</span>}
           </>
         );
@@ -281,21 +281,21 @@ function StatusIndicator({ status, error }: { status: TranscriptionStatus; error
     switch (status) {
       case 'queued':
         return {
-          icon: Loader2,
+          icon: CircleNotch,
           text: 'Queued',
           className: 'text-blue-500 bg-blue-500/10 border-blue-500/30',
           animate: true,
         };
       case 'processing':
         return {
-          icon: Loader2,
+          icon: CircleNotch,
           text: 'Transcribing...',
           className: 'text-primary bg-primary/10 border-primary/30',
           animate: true,
         };
       case 'failed':
         return {
-          icon: AlertCircle,
+          icon: WarningCircle,
           text: error?.message || 'Failed',
           className: 'text-red-500 bg-red-500/10 border-red-500/30',
           animate: false,

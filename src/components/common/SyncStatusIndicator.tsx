@@ -6,15 +6,15 @@
 import { useState, useEffect } from "react";
 import { invokeCommand } from "../../lib/tauri";
 import {
-  RefreshCw,
+  ArrowsClockwise,
   Check,
-  AlertCircle,
   Clock,
-  Upload,
   Download,
-  AlertTriangle,
+  Upload,
+  Warning,
+  WarningCircle,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import type { SyncResult } from "@/types/cloud";
 
 interface SyncStatusIndicatorProps {
@@ -122,16 +122,16 @@ export function SyncStatusIndicator({
   const getStatusIcon = () => {
     switch (syncState) {
       case "syncing":
-        return <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />;
+        return <ArrowsClockwise className="w-4 h-4 animate-spin text-blue-500" />;
       case "success":
         return <Check className="w-4 h-4 text-green-500" />;
       case "error":
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
+        return <WarningCircle className="w-4 h-4 text-red-500" />;
       case "conflicts":
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+        return <Warning className="w-4 h-4 text-yellow-500" />;
       default:
         if (conflicts > 0) {
-          return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+          return <Warning className="w-4 h-4 text-yellow-500" />;
         }
         return <Clock className="w-4 h-4 text-muted-foreground" />;
     }
@@ -190,11 +190,11 @@ export function SyncStatusIndicator({
           }
         >
           {syncState === "syncing" ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
+            <ArrowsClockwise className="w-4 h-4 animate-spin" />
           ) : syncMode === "backup" ? (
             <Upload className="w-4 h-4" />
           ) : (
-            <RefreshCw className="w-4 h-4" />
+            <ArrowsClockwise className="w-4 h-4" />
           )}
         </button>
       )}

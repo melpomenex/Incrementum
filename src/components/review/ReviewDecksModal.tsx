@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Layers, Search, X, MoreVertical } from "lucide-react";
+import {
+  Check,
+  DotsThreeVertical,
+  MagnifyingGlass,
+  Stack,
+  X,
+} from "@phosphor-icons/react";
 import type { StudyDeck } from "../../types/study-decks";
 import { useI18n } from "../../lib/i18n";
 import { DeckItemContextMenu } from "./DeckItemContextMenu";
@@ -156,7 +162,7 @@ export function ReviewDecksModal({
 
         <div className="p-6">
           <div className="relative mb-4">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -181,7 +187,7 @@ export function ReviewDecksModal({
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-primary" />
+                  <Stack className="h-4 w-4 text-primary" />
                   <span className="font-semibold text-foreground">{t("reviewHome.allDecks")}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -217,7 +223,7 @@ export function ReviewDecksModal({
                     onClick={(e) => handleMoreButtonClick(e, deck.id)}
                     className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-muted transition-colors"
                   >
-                    <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                    <DotsThreeVertical className="h-4 w-4 text-muted-foreground" />
                   </button>
 
                   <div className="flex items-center justify-between gap-3">

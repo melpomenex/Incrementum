@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import {
-  Copy,
-  ExternalLink,
-  FolderOpen,
+  ArrowSquareOut,
+  ChatCircle,
+  ChatsCircle,
   Check,
-  AlertCircle,
+  Copy,
   Download,
-  MessageSquare,
-  MessagesSquare,
-} from "lucide-react";
-import { X } from "lucide-react";
+  FolderOpen,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
+
 import {
   exportAssistantMessageToObsidian,
   exportConversationToObsidian,
@@ -164,7 +165,7 @@ export function ShareMessageDialog({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <MessageSquare className="w-4 h-4" />
+              <ChatCircle className="w-4 h-4" />
               Single Message
             </button>
           )}
@@ -176,7 +177,7 @@ export function ShareMessageDialog({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <MessagesSquare className="w-4 h-4" />
+            <ChatsCircle className="w-4 h-4" />
             Full Conversation
           </button>
         </div>
@@ -240,7 +241,7 @@ export function ShareMessageDialog({
               <div className="space-y-4">
                 {!obsidianConfig ? (
                   <div className="text-center py-6">
-                    <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                    <WarningCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground mb-1">
                       Obsidian not configured
                     </p>
@@ -292,7 +293,7 @@ export function ShareMessageDialog({
                           {exportResult.success ? (
                             <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />
                           ) : (
-                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <WarningCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                           )}
                           <span className="break-all">{exportResult.message}</span>
                         </div>
@@ -341,7 +342,7 @@ export function ShareMessageDialog({
           </span>
           {obsidianConfig && (
             <span className="flex items-center gap-1">
-              <ExternalLink className="w-3 h-3" />
+              <ArrowSquareOut className="w-3 h-3" />
               Obsidian ready
             </span>
           )}

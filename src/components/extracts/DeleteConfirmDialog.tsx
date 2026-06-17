@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { Warning, X } from "@phosphor-icons/react";
 import { deleteExtract, Extract } from "../../api/extracts";
 import { useI18n } from "../../lib/i18n";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
@@ -48,7 +48,7 @@ export function DeleteConfirmDialog({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <Warning className="w-5 h-5 text-destructive" />
             <h2 className="text-lg font-semibold text-foreground">
               {t("extracts.deleteTitle")}
             </h2>

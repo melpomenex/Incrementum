@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, Scissors, MessageSquare } from "lucide-react";
+import {
+  ChatCircle,
+  Plus,
+  Scissors,
+  X,
+} from "@phosphor-icons/react";
 import { createExtract } from "../../api/extracts";
 import { ClozeCreatorPopup } from "./ClozeCreatorPopup";
 import { QACreatorPopup } from "./QACreatorPopup";
@@ -299,7 +304,7 @@ export function ExtractCreator({
               className="px-3 py-2 bg-secondary/80 hover:bg-secondary text-secondary-foreground rounded-md transition-colors text-sm flex items-center gap-2"
               title={t("extracts.saveAndQA")}
             >
-              <MessageSquare className="w-4 h-4" />
+              <ChatCircle className="w-4 h-4" />
               + {t("extracts.qaShort")}
             </button>
           </div>

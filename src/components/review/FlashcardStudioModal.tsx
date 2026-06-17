@@ -7,7 +7,7 @@
  * - GRANULAR CONTEXT CONTROL: chapters, page ranges, text excerpts
  * - COST ESTIMATOR: see token usage before sending
  * - INTERACTIVE HIGHLIGHTING: select text directly to use as context
- * - Search within document to find relevant sections quickly
+ * - MagnifyingGlass within document to find relevant sections quickly
  * - Interactive chat with markdown rendering and syntax highlighting
  * - Live card preview with flip animation
  * - Inline card editing for quick fixes
@@ -28,43 +28,43 @@ import React, {
 } from "react";
 import { useLatexPreview } from "../../hooks/useLatexPreview";
 import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Edit2,
-  FileText,
-  Filter,
-  FolderOpen,
-  Hash,
-  Lightbulb,
-  Loader2,
-  MessageSquare,
-  Save,
-  Search,
-  Send,
-  Settings,
-  Sparkles,
-  Tag,
-  Trash2,
-  X,
-  Zap,
-  BookOpen,
   AlignLeft,
-  Quote,
-  BrainCircuit,
-  History,
-  CheckCircle2,
-  AlertCircle,
+  BookOpen,
+  Brain,
+  CaretDown,
+  CaretRight,
+  ChartBar,
+  ChatCircle,
+  Check,
+  CheckCircle,
+  CircleNotch,
+  ClockCounterClockwise,
+  Copy,
+  CurrencyDollar,
+  FloppyDisk,
+  FolderOpen,
+  FrameCorners,
+  Funnel,
+  Gear,
+  Hash,
   Highlighter,
-  Scissors,
-  ScrollText,
-  DollarSign,
-  BarChart3,
-  Type,
   Images,
-  Expand,
-} from "lucide-react";
+  Lightbulb,
+  Lightning,
+  MagnifyingGlass,
+  PaperPlaneTilt,
+  PencilSimple,
+  Quotes,
+  Scissors,
+  Scroll,
+  Sparkle,
+  Tag,
+  TextAa,
+  TextT,
+  Trash,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import {
   createLearningItem,
   generateLearningItemsFromExtract,
@@ -294,21 +294,21 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
   },
   {
     id: "deep-dive",
-    icon: <BrainCircuit className="w-4 h-4" />,
+    icon: <Brain className="w-4 h-4" />,
     label: "Deep Understanding",
     description: "Why, how, and implications",
     prompt: "Create cards that test deep understanding: why things work the way they do, how concepts relate to each other, and what the implications are. Avoid simple factual recall.",
   },
   {
     id: "examples",
-    icon: <Quote className="w-4 h-4" />,
+    icon: <Quotes className="w-4 h-4" />,
     label: "Examples & Applications",
     description: "Concrete examples and use cases",
     prompt: "Generate cards based on examples, case studies, or applications mentioned in this content. Create scenario-based questions when possible.",
   },
   {
     id: "compare",
-    icon: <Filter className="w-4 h-4" />,
+    icon: <Funnel className="w-4 h-4" />,
     label: "Compare & Contrast",
     description: "Similarities and differences",
     prompt: "Identify concepts that can be compared and contrasted. Create cards that highlight similarities, differences, relationships, and distinctions between related ideas.",
@@ -322,14 +322,14 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
   },
   {
     id: "theorems",
-    icon: <BarChart3 className="w-4 h-4" />,
+    icon: <ChartBar className="w-4 h-4" />,
     label: "Theorems & Proofs",
     description: "Mathematical theorems and key steps",
     prompt: "Identify all theorems, lemmas, corollaries, and propositions in this content. For each: create a card with the theorem statement, and optionally cards for key proof steps or applications.",
   },
   {
     id: "formulas",
-    icon: <Type className="w-4 h-4" />,
+    icon: <TextAa className="w-4 h-4" />,
     label: "Formulas & Equations",
     description: "Key formulas with explanations",
     prompt: "Extract important formulas, equations, or mathematical expressions. Create cards that show the formula and test understanding of when and how to apply it.",
@@ -947,12 +947,12 @@ function CostEstimator({
   return (
     <div className="flex items-center gap-3 px-3 py-2 bg-muted/50 rounded-lg text-xs">
       <div className="flex items-center gap-1.5 text-muted-foreground">
-        <BarChart3 className="w-3.5 h-3.5" />
+        <ChartBar className="w-3.5 h-3.5" />
         <span>{t("flashcardStudio.tokensWithCount", { count: formatTokenCount(tokens) })}</span>
       </div>
       <div className="w-px h-3 bg-border" />
       <div className="flex items-center gap-1.5 text-muted-foreground">
-        <DollarSign className="w-3.5 h-3.5" />
+        <CurrencyDollar className="w-3.5 h-3.5" />
         <span>{t("flashcardStudio.estimatedCost", { cost })}</span>
       </div>
       {pricing && (
@@ -965,7 +965,7 @@ function CostEstimator({
       )}
       {tokens > 4000 && (
         <div className="flex items-center gap-1 text-amber-500">
-          <AlertCircle className="w-3.5 h-3.5" />
+          <WarningCircle className="w-3.5 h-3.5" />
           <span>{t("flashcardStudio.largeContext")}</span>
         </div>
       )}
@@ -1045,7 +1045,7 @@ function ContextControlPanel({
   if (!document) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-600">
-        <AlertCircle className="w-3.5 h-3.5" />
+        <WarningCircle className="w-3.5 h-3.5" />
         <span>{t("flashcardStudio.selectDocumentForContext")}</span>
       </div>
     );
@@ -1074,7 +1074,7 @@ function ContextControlPanel({
             </div>
           </div>
         </div>
-        <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
+        <CaretDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
       </button>
       
       {isExpanded && (
@@ -1082,11 +1082,11 @@ function ContextControlPanel({
           {/* Mode Selection */}
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "full", label: t("flashcardStudio.contextModeFull"), icon: FileText },
+              { id: "full", label: t("flashcardStudio.contextModeFull"), icon: TextT },
               { id: "chapters", label: t("flashcardStudio.contextModeChapters"), icon: BookOpen },
-              { id: "pages", label: t("flashcardStudio.contextModePages"), icon: ScrollText },
+              { id: "pages", label: t("flashcardStudio.contextModePages"), icon: Scroll },
               { id: "excerpt", label: t("flashcardStudio.contextModeExcerpt"), icon: Highlighter },
-              { id: "search", label: t("flashcardStudio.contextModeSearch"), icon: Search },
+              { id: "search", label: t("flashcardStudio.contextModeSearch"), icon: MagnifyingGlass },
             ].map((mode) => (
               <button
                 key={mode.id}
@@ -1201,7 +1201,7 @@ function ContextControlPanel({
             </div>
           )}
           
-          {/* Search */}
+          {/* MagnifyingGlass */}
           {selection.mode === "search" && (
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">{t("flashcardStudio.searchWithinDocument")}</div>
@@ -1218,7 +1218,7 @@ function ContextControlPanel({
                   onClick={handleSearch}
                   className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90"
                 >
-                  <Search className="w-4 h-4" />
+                  <MagnifyingGlass className="w-4 h-4" />
                 </button>
               </div>
               
@@ -1479,7 +1479,7 @@ function CardPreview({
             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title={t("flashcardStudio.expandEditor")}
           >
-            <Expand className="w-3.5 h-3.5" />
+            <FrameCorners className="w-3.5 h-3.5" />
           </button>
         </div>
         <select
@@ -1813,7 +1813,7 @@ function CardPreview({
                       }}
                       className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-black/80"
                     >
-                      <Expand className="h-3 w-3" />
+                      <FrameCorners className="h-3 w-3" />
                       {t("flashcardStudio.expandImage")}
                     </button>
                     <img src={previewAsset.data_url} alt={previewAsset.file_name || t("flashcardStudio.occlusionSource")} className="w-full object-contain" />
@@ -1862,7 +1862,7 @@ function CardPreview({
             }}
             className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-muted transition-opacity"
           >
-            <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+            <PencilSimple className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -1953,7 +1953,7 @@ function ImageOcclusionEditor({
           }}
           className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-black/80"
         >
-          <Expand className="h-3 w-3" />
+          <FrameCorners className="h-3 w-3" />
           {t("flashcardStudio.expandImage")}
         </button>
         <img src={asset.data_url} alt={asset.file_name || t("flashcardStudio.occlusionEditor")} className="w-full object-contain select-none" />
@@ -2561,7 +2561,7 @@ function TemplateCard({
         <div className="font-medium text-sm text-foreground">{template.label}</div>
         <div className="text-xs text-muted-foreground mt-0.5">{template.description}</div>
       </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      <CaretRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>
   );
 }
@@ -2607,18 +2607,18 @@ function DocumentSelector({
             : "border-border bg-background text-muted-foreground hover:text-foreground"
         )}
       >
-        <FileText className="w-4 h-4" />
+        <TextT className="w-4 h-4" />
         <span className="max-w-[150px] truncate">
           {selectedDoc?.title || t("flashcardStudio.selectDocument")}
         </span>
-        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isOpen && "rotate-180")} />
+        <CaretDown className={cn("w-3.5 h-3.5 transition-transform", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden">
           <div className="p-3 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 autoFocus
                 value={query}
@@ -2710,7 +2710,7 @@ function DeckSelector({
         <span className="max-w-[120px] truncate">
           {selectedDeck?.name || t("flashcardStudio.selectDeck")}
         </span>
-        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", isOpen && "rotate-180")} />
+        <CaretDown className={cn("w-3.5 h-3.5 transition-transform", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && (
@@ -3928,7 +3928,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-gradient-to-br from-primary to-primary-600 p-2.5 text-primary-foreground shadow-lg shadow-primary/25">
-              <Sparkles className="h-5 w-5" />
+              <Sparkle className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">{t("flashcardStudio.title")}</h2>
@@ -3948,7 +3948,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   viewMode === "chat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <MessageSquare className="w-3.5 h-3.5" />
+                <ChatCircle className="w-3.5 h-3.5" />
                 {t("flashcardStudio.chat")}
               </button>
               <button
@@ -3958,7 +3958,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   viewMode === "templates" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Zap className="w-3.5 h-3.5" />
+                <Lightning className="w-3.5 h-3.5" />
                 {t("flashcardStudio.templates")}
               </button>
               <button
@@ -3968,7 +3968,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   viewMode === "history" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <History className="w-3.5 h-3.5" />
+                <ClockCounterClockwise className="w-3.5 h-3.5" />
                 {t("flashcardStudio.history")}
                 {generationHistory.length > 0 && (
                   <span className="ml-0.5 text-[10px] bg-primary-foreground/20 px-1 rounded-full">
@@ -3983,7 +3983,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   viewMode === "extracts" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <FileText className="w-3.5 h-3.5" />
+                <TextT className="w-3.5 h-3.5" />
                 {t("flashcardStudio.extracts")}
                 {allExtracts.length > 0 && (
                   <span className="ml-0.5 text-[10px] bg-primary-foreground/20 px-1 rounded-full">
@@ -3995,7 +3995,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
             {/* Provider Selector */}
             <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
-              <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+              <Gear className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={selectedProviderId ?? ""}
                 onChange={(e) => setSelectedProviderId(e.target.value || null)}
@@ -4013,7 +4013,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
             {isNotebookProviderSelected && (
               <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
                 {isNotebookLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                  <CircleNotch className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
                 ) : (
                   <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
                 )}
@@ -4084,7 +4084,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               }
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-50"
             >
-              {isSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {isSending ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <Sparkle className="w-3.5 h-3.5" />}
               {t("flashcardStudio.generateImageOcclusions")}
             </button>
             <button
@@ -4157,7 +4157,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
                       <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                        <Sparkles className="w-8 h-8 text-primary" />
+                        <Sparkle className="w-8 h-8 text-primary" />
                       </div>
                       <h3 className="text-lg font-semibold text-foreground mb-2">
                         {t("flashcardStudio.welcome")}
@@ -4243,9 +4243,9 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                       className="absolute right-3 bottom-3 p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                     >
                       {isSending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <CircleNotch className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Send className="h-4 w-4" />
+                        <PaperPlaneTilt className="h-4 w-4" />
                       )}
                     </button>
                   </div>
@@ -4309,7 +4309,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   
                   {generationHistory.length === 0 ? (
                     <div className="text-center py-12">
-                      <History className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                      <ClockCounterClockwise className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
                       <p className="text-sm text-muted-foreground">{t("flashcardStudio.noGenerationHistory")}</p>
                     </div>
                   ) : (
@@ -4354,7 +4354,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
             {viewMode === "extracts" && (
               areExtractsLoading ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                  <CircleNotch className="w-6 h-6 text-muted-foreground animate-spin" />
                 </div>
               ) : (
                 <ExtractBrowserPanel
@@ -4420,14 +4420,14 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
                   title={t("flashcardStudio.selectAll")}
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => toggleSelectAll(false)}
                   className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
                   title={t("flashcardStudio.deselectAll")}
                 >
-                  <AlertCircle className="w-4 h-4" />
+                  <WarningCircle className="w-4 h-4" />
                 </button>
                 <div className="w-px h-4 bg-border mx-1" />
                 <button
@@ -4435,7 +4435,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                   title={t("flashcardStudio.clearAll")}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -4477,7 +4477,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                       onClick={handleDeleteSelected}
                       className="flex items-center gap-1.5 text-xs text-destructive hover:opacity-80"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash className="w-3.5 h-3.5" />
                       {t("queue.delete")}
                     </button>
                   </>
@@ -4490,7 +4490,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               {draftCards.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
                   <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-                    <Sparkles className="w-6 h-6 text-muted-foreground" />
+                    <Sparkle className="w-6 h-6 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground mb-1">{t("flashcardStudio.noDraftCards")}</p>
                   <p className="text-xs text-muted-foreground">
@@ -4579,7 +4579,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                           className="p-1 rounded hover:bg-muted text-muted-foreground"
                           title={t("flashcardStudio.edit")}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <PencilSimple className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() =>
@@ -4588,7 +4588,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                           className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                           title={t("queue.delete")}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -4612,7 +4612,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               )}
             </div>
 
-            {/* Save Action */}
+            {/* FloppyDisk Action */}
             {draftCards.length > 0 && (
               <div className="border-t border-border bg-card p-4">
                 <button
@@ -4621,9 +4621,9 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Save className="w-4 h-4" />
+                    <FloppyDisk className="w-4 h-4" />
                   )}
                   {t("flashcardStudio.saveSelectedCards", { count: stats.selected })}
                 </button>

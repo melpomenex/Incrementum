@@ -4,7 +4,12 @@
  */
 
 import { useEffect, useState } from "react";
-import { Highlighter, StickyNote, Trash2, X } from "lucide-react";
+import {
+  Highlighter,
+  Note,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useAnnotationsStore } from "../../stores/annotationsStore";
 import type { RssAnnotation } from "../../api/rss-annotations";
 
@@ -63,7 +68,7 @@ export function AnnotationsPanel({ articleId, onClose }: AnnotationsPanelProps) 
             {notes.length > 0 && (
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2 flex items-center gap-1">
-                  <StickyNote className="w-3 h-3" />
+                  <Note className="w-3 h-3" />
                   Notes ({notes.length})
                 </h4>
                 <div className="space-y-2">
@@ -105,7 +110,7 @@ function AnnotationCard({
             onClick={onDelete}
             className="p-1 text-muted-foreground hover:text-red-500 rounded"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash className="w-3 h-3" />
           </button>
         </div>
       </div>

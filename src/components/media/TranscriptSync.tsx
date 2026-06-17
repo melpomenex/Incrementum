@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Clock, Search, Copy, Download, Play, CornerDownLeft } from "lucide-react";
+import {
+  Clock,
+  Copy,
+  Download,
+  KeyReturn,
+  MagnifyingGlass,
+  Play,
+} from "@phosphor-icons/react";
 
 /**
  * Transcript segment
@@ -334,9 +341,9 @@ export function TranscriptSync({
           </div>
         </div>
 
-        {/* Search */}
+        {/* MagnifyingGlass */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={effectiveSearchQuery}
@@ -346,7 +353,7 @@ export function TranscriptSync({
               onSearchQueryChange?.(nextQuery);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Search transcript..."
+            placeholder="MagnifyingGlass transcript..."
             className="w-full pl-9 pr-8 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
           />
           {effectiveSearchQuery && (
@@ -357,7 +364,7 @@ export function TranscriptSync({
               }}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground rounded"
             >
-              <CornerDownLeft className="w-3 h-3" />
+              <KeyReturn className="w-3 h-3" />
             </button>
           )}
         </div>
@@ -376,7 +383,7 @@ export function TranscriptSync({
       >
         {filteredSegments.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
-            <Search className="w-8 h-8 mb-3 opacity-50" />
+            <MagnifyingGlass className="w-8 h-8 mb-3 opacity-50" />
             <p className="text-sm">No transcript segments found</p>
             {effectiveSearchQuery && (
               <p className="text-xs mt-1 opacity-70">Try a different search term</p>

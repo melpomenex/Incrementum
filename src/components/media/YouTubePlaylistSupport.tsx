@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import {
-  List,
-  Youtube,
-  Download,
-  Loader2,
+  ArrowSquareOut,
+  CaretDown,
+  CaretRight,
   Check,
-  AlertCircle,
+  CircleNotch,
   Clock,
-  ExternalLink,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+  Download,
+  List,
+  WarningCircle,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import { extractPlaylistID, extractChannelID, getYouTubeThumbnail } from "../../api/youtube";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -150,7 +150,7 @@ export function YouTubePlaylistSupport({ url, onImport }: YouTubePlaylistSupport
           {playlistId ? (
             <List className="w-5 h-5 text-primary" />
           ) : (
-            <Youtube className="w-5 h-5 text-red-500" />
+            <YoutubeLogo className="w-5 h-5 text-red-500" />
           )}
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
         </div>
@@ -188,7 +188,7 @@ export function YouTubePlaylistSupport({ url, onImport }: YouTubePlaylistSupport
       {/* Loading */}
       {isLoading && (
         <div className="p-8 text-center">
-          <Loader2 className="w-8 h-8 mx-auto mb-2 text-primary animate-spin" />
+          <CircleNotch className="w-8 h-8 mx-auto mb-2 text-primary animate-spin" />
           <p className="text-sm text-muted-foreground">Loading videos...</p>
         </div>
       )}
@@ -197,7 +197,7 @@ export function YouTubePlaylistSupport({ url, onImport }: YouTubePlaylistSupport
       {error && (
         <div className="p-4">
           <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive">
-            <AlertCircle className="w-4 h-4" />
+            <WarningCircle className="w-4 h-4" />
             <span className="text-sm">{error}</span>
           </div>
         </div>
@@ -252,9 +252,9 @@ export function YouTubePlaylistSupport({ url, onImport }: YouTubePlaylistSupport
                       title="Expand details"
                     >
                       {expandedVideos.has(video.id) ? (
-                        <ChevronDown className="w-4 h-4" />
+                        <CaretDown className="w-4 h-4" />
                       ) : (
-                        <ChevronRight className="w-4 h-4" />
+                        <CaretRight className="w-4 h-4" />
                       )}
                     </button>
                     <a
@@ -264,7 +264,7 @@ export function YouTubePlaylistSupport({ url, onImport }: YouTubePlaylistSupport
                       className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                       title="Open on YouTube"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ArrowSquareOut className="w-4 h-4" />
                     </a>
                   </div>
                 </div>
@@ -299,7 +299,7 @@ export function YouTubePlaylistSupport({ url, onImport }: YouTubePlaylistSupport
           >
             {importStatus === "importing" ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <CircleNotch className="w-4 h-4 animate-spin" />
                 Importing {selectedVideos.size} video{selectedVideos.size !== 1 ? "s" : ""}...
               </>
             ) : importStatus === "complete" ? (

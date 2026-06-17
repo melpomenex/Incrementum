@@ -4,7 +4,13 @@
  */
 
 import { memo } from "react";
-import { CheckCircle2, ExternalLink, Plus, Rss, Trash2 } from "lucide-react";
+import {
+  ArrowSquareOut,
+  CheckCircle,
+  Plus,
+  Rss,
+  Trash,
+} from "@phosphor-icons/react";
 import type { RssDiscoveredSite } from "../../api/rss-discovery";
 import { useI18n } from "../../lib/i18n";
 
@@ -57,7 +63,7 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
               )}
               {isSubscribed && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  <CheckCircle2 className="h-3 w-3" />
+                  <CheckCircle className="h-3 w-3" />
                   {t("discoverSites.subscribed")}
                 </span>
               )}
@@ -71,7 +77,7 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
           className="rounded-lg p-2 text-muted-foreground opacity-60 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
           title={t("discoverSites.dismissSite")}
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash className="h-4 w-4" />
         </button>
       </div>
 
@@ -111,7 +117,7 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
         )}
         {isSubscribed && (
           <div className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2.5 text-sm font-medium text-primary">
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle className="h-4 w-4" />
             {t("discoverSites.addedToLibrary")}
           </div>
         )}
@@ -127,7 +133,7 @@ export const DiscoverSiteCard = memo(function DiscoverSiteCard({
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted/50"
           title={t("discoverSites.openSite")}
         >
-          <ExternalLink className="h-4 w-4" />
+          <ArrowSquareOut className="h-4 w-4" />
           {t("discoverSites.visit")}
         </a>
       </div>

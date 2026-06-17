@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { getUser, logout, isAuthenticated as checkIsAuthenticated } from "../../lib/sync-client";
-import { User, LogOut, Crown, Shield } from "lucide-react";
+import {
+  Crown,
+  Shield,
+  SignOut,
+  User,
+} from "@phosphor-icons/react";
 import { LoginModal } from "../auth/LoginModal";
 import { useI18n } from "../../lib/i18n";
 
@@ -72,7 +77,7 @@ export function UserProfilePanel() {
               onClick={handleLogout}
               className="px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg transition-colors flex items-center gap-2"
             >
-              <LogOut className="w-4 h-4" />
+              <SignOut className="w-4 h-4" />
               {t("userProfile.logOut")}
             </button>
           ) : (

@@ -6,20 +6,20 @@
 import { useState, useEffect } from "react";
 import { invokeCommand as invoke } from "../../lib/tauri";
 import {
-  X,
-  FolderOpen,
-  File,
-  FileText,
-  Download,
-  ChevronRight,
-  ChevronLeft,
-  Loader2,
-  AlertCircle,
-  Grid3x3,
-  List,
-  Search,
+  CaretLeft,
+  CaretRight,
+  CircleNotch,
   Cloud,
-} from "lucide-react";
+  Download,
+  File,
+  FolderOpen,
+  GridNine,
+  List,
+  MagnifyingGlass,
+  TextT,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import type { CloudProviderType, FileInfo } from "@/types/cloud";
 
 interface CloudFilePickerProps {
@@ -150,10 +150,10 @@ export function CloudFilePicker({
 
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (ext === "pdf") {
-      return <FileText className="w-8 h-8 text-red-500" />;
+      return <TextT className="w-8 h-8 text-red-500" />;
     }
     if (ext === "epub") {
-      return <FileText className="w-8 h-8 text-purple-500" />;
+      return <TextT className="w-8 h-8 text-purple-500" />;
     }
     if (["jpg", "jpeg", "png", "gif"].includes(ext || "")) {
       return <File className="w-8 h-8 text-green-500" />;
@@ -248,7 +248,7 @@ export function CloudFilePicker({
           <div className="flex items-center gap-1 text-sm overflow-x-auto">
             {getBreadcrumbPath().map((crumb, index, arr) => (
               <div key={crumb.path} className="flex items-center">
-                {index > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                {index > 0 && <CaretRight className="w-4 h-4 text-muted-foreground" />}
                 <button
                   onClick={() => handleNavigateTo(crumb.path)}
                   className={`px-2 py-1 rounded hover:bg-muted transition-colors ${index === arr.length - 1 ? "text-foreground font-medium" : "text-muted-foreground"
@@ -266,10 +266,10 @@ export function CloudFilePicker({
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 flex-1">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search files..."
+                  placeholder="MagnifyingGlass files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
@@ -294,7 +294,7 @@ export function CloudFilePicker({
                   className={`p-2 transition-colors ${viewMode === "grid" ? "bg-muted" : "hover:bg-muted/50"
                     }`}
                 >
-                  <Grid3x3 className="w-4 h-4" />
+                  <GridNine className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
@@ -312,12 +312,12 @@ export function CloudFilePicker({
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              <CircleNotch className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
-                <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
+                <WarningCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
                 <p className="text-muted-foreground">{error}</p>
               </div>
             </div>
@@ -391,7 +391,7 @@ export function CloudFilePicker({
                     </div>
                   </div>
                   {file.is_folder && (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <CaretRight className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
               ))}
@@ -425,7 +425,7 @@ export function CloudFilePicker({
                   disabled={importing}
                   className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <CaretLeft className="w-4 h-4" />
                   Up
                 </button>
               )}
@@ -436,7 +436,7 @@ export function CloudFilePicker({
               >
                 {importing ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                     Importing...
                   </>
                 ) : (

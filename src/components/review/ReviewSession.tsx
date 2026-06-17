@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, Sparkles, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  Sparkle,
+  Upload,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { useReviewStore, type ReviewDocumentItem, type ReviewSessionItem } from "../../stores/reviewStore";
 import { ReviewCard } from "./ReviewCard";
 import { ReviewDocumentCard } from "./ReviewDocumentCard";
@@ -363,7 +368,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     return (
       <div ref={containerRef} className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <WarningCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
             {t("reviewSession.errorLoading")}
           </h2>
@@ -473,7 +478,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
             }`}
               title={isZenMode ? t("review.exitZen") : t("review.enterZen")}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkle className="w-3.5 h-3.5" />
             {t("reviewSession.zenShort")}
           </button>
           

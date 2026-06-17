@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Document } from "../../types";
 import { renderMarkdown } from "../../utils/markdown";
 import { useI18n } from "../../lib/i18n";
-import { Sparkles } from "lucide-react";
+import { Sparkle } from "@phosphor-icons/react";
 import type { SelectionContext } from "../../types/selection";
 import { applyAnchoredTextHighlights, buildTextSelectionContext, type AnchoredTextHighlight } from "../../utils/textHighlights";
 
@@ -330,7 +330,7 @@ export function MarkdownViewer({
                 onCreateFlashcard(contextMenu.selectedText);
               }}
             >
-              <Sparkles className="w-4 h-4 text-muted-foreground" />
+              <Sparkle className="w-4 h-4 text-muted-foreground" />
               {t("extractScrollItem.createFlashcard")}
             </button>
           </div>

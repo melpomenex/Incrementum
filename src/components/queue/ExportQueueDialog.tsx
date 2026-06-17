@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { X, Download, FileJson, FileSpreadsheet, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  CheckCircle,
+  CircleNotch,
+  Download,
+  FileCode,
+  FileXls,
+  X,
+} from "@phosphor-icons/react";
 import { exportQueue, type QueueExportItem } from "../../api/queue";
 import { useI18n } from "../../lib/i18n";
 
@@ -139,7 +146,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <CircleNotch className="w-8 h-8 text-primary animate-spin" />
                 <p className="text-muted-foreground">{t("exportQueue.exporting")}</p>
               </div>
             </div>
@@ -172,7 +179,7 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity flex items-center gap-2"
                       title={t("exportQueue.downloadJson")}
                     >
-                      <FileJson className="w-4 h-4" />
+                      <FileCode className="w-4 h-4" />
                       JSON
                     </button>
                     <button
@@ -180,14 +187,14 @@ export function ExportQueueDialog({ isOpen, onClose }: ExportQueueDialogProps) {
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity flex items-center gap-2"
                       title={t("exportQueue.downloadCsv")}
                     >
-                      <FileSpreadsheet className="w-4 h-4" />
+                      <FileXls className="w-4 h-4" />
                       CSV
                     </button>
                   </div>
                 </div>
                 {exportSuccess && (
                   <div className="flex items-center gap-2 mt-3 text-green-500">
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                     <span className="text-sm">{exportSuccess}</span>
                   </div>
                 )}

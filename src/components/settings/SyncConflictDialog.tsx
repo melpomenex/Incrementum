@@ -7,15 +7,15 @@ import { useState } from "react";
 import { invokeCommand as invoke } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import {
-  AlertTriangle,
-  X,
-  Check,
-  FileText,
+  ArrowsClockwise,
   Calendar,
-  Monitor,
+  Check,
   Cloud,
-  RefreshCw,
-} from "lucide-react";
+  Desktop,
+  TextT,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import type { SyncConflict, ConflictResolution } from "@/types/cloud";
 
 interface SyncConflictDialogProps {
@@ -35,7 +35,7 @@ const RESOLUTION_OPTIONS: {
       value: "keep-local",
       labelKey: "syncConflict.keepLocal",
       descKey: "syncConflict.keepLocalDesc",
-      icon: <Monitor className="w-4 h-4" />,
+      icon: <Desktop className="w-4 h-4" />,
     },
     {
       value: "keep-remote",
@@ -53,7 +53,7 @@ const RESOLUTION_OPTIONS: {
       value: "keep-both",
       labelKey: "syncConflict.keepBoth",
       descKey: "syncConflict.keepBothDesc",
-      icon: <FileText className="w-4 h-4" />,
+      icon: <TextT className="w-4 h-4" />,
     },
   ];
 
@@ -128,7 +128,7 @@ export function SyncConflictDialog({
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-300" />
+                <Warning className="w-5 h-5 text-yellow-600 dark:text-yellow-300" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">
@@ -193,7 +193,7 @@ export function SyncConflictDialog({
                   className="p-4 bg-card border border-border rounded-lg"
                 >
                   <div className="flex items-start gap-3 mb-3">
-                    <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
+                    <TextT className="w-5 h-5 text-muted-foreground mt-0.5" />
                     <div className="flex-1">
                       <div className="font-medium text-foreground">
                         {conflict.item_type}: {conflict.item_id.slice(0, 8)}...
@@ -213,7 +213,7 @@ export function SyncConflictDialog({
                   <div className="grid grid-cols-2 gap-4 mb-3">
                     <div className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                        <Monitor className="w-3 h-3" />
+                        <Desktop className="w-3 h-3" />
                         {t("syncConflict.yourVersion")}
                       </div>
                       <div className="text-sm text-foreground">
@@ -291,7 +291,7 @@ export function SyncConflictDialog({
                 >
                   {applying ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <ArrowsClockwise className="w-4 h-4 animate-spin" />
                       {t("syncConflict.applying")}
                     </>
                   ) : (

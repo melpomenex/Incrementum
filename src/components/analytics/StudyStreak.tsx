@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Flame } from "@phosphor-icons/react";
 
 interface StudyStreakProps {
   streak: number;

@@ -4,7 +4,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 interface DayData {
   date: Date;
@@ -157,14 +157,14 @@ export function ReviewHeatmap({ data, months = 12, className = "" }: ReviewHeatm
             disabled={!canScrollLeft}
             className="p-1.5 hover:bg-muted rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+            <CaretLeft className="w-4 h-4 text-muted-foreground" />
           </button>
           <button
             onClick={() => setStartOffset((prev) => prev - 1)}
             disabled={!canScrollRight}
             className="p-1.5 hover:bg-muted rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            <CaretRight className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
       </div>

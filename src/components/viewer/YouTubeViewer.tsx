@@ -4,7 +4,22 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Play, Clock, ExternalLink, Share2, Youtube, AlertTriangle, SkipForward, Loader2, GripVertical, Layers, Scissors, X, Sparkles, RotateCcw } from "lucide-react";
+import {
+  ArrowCounterClockwise,
+  ArrowSquareOut,
+  CircleNotch,
+  Clock,
+  DotsSixVertical,
+  Play,
+  Scissors,
+  ShareNetwork,
+  SkipForward,
+  Sparkle,
+  Stack,
+  Warning,
+  X,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import { useToast } from "../common/Toast";
 import { useDocumentStore } from "../../stores";
 import { VideoFeatures } from '../video/VideoFeatures';
@@ -1031,7 +1046,7 @@ export function YouTubeViewer({
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top duration-300">
             <div className="px-4 py-3 bg-card/85 backdrop-blur-md border border-border/60 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-sm sm:max-w-md ring-1 ring-black/5">
               <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0 animate-pulse">
-                <Sparkles className="h-5.5 w-5.5" />
+                <Sparkle className="h-5.5 w-5.5" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-foreground tracking-wide uppercase opacity-90 text-left">
@@ -1049,7 +1064,7 @@ export function YouTubeViewer({
                   onClick={() => handleUndoSkip(skipNotification.originalStart!, skipNotification.originalEnd!, skipNotification.category)}
                   className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <ArrowCounterClockwise className="h-3.5 w-3.5" />
                   Undo
                 </button>
               )}
@@ -1079,7 +1094,7 @@ export function YouTubeViewer({
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-4">
                 <div className="w-full max-w-lg rounded-xl bg-background border border-border shadow-2xl p-5">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                    <Warning className="w-5 h-5 text-yellow-500 mt-0.5" />
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-foreground">
                         {t("viewer.inlinePlaybackFailed")}
@@ -1099,7 +1114,7 @@ export function YouTubeViewer({
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors font-medium border border-gray-700"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ArrowSquareOut className="w-4 h-4" />
                           {t("viewer.openInBrowser")}
                         </a>
                         <button
@@ -1180,7 +1195,7 @@ export function YouTubeViewer({
                   onClick={handleShare}
                   className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-medium border border-gray-700"
                 >
-                  <Share2 className="w-5 h-5" />
+                  <ShareNetwork className="w-5 h-5" />
                   {t("viewer.share")}
                 </button>
 
@@ -1190,7 +1205,7 @@ export function YouTubeViewer({
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-medium border border-gray-700"
                 >
-                  <ExternalLink className="w-5 h-5" />
+                  <ArrowSquareOut className="w-5 h-5" />
                   {t("viewer.browser")}
                 </a>
               </div>
@@ -1198,7 +1213,7 @@ export function YouTubeViewer({
               {inlinePlaybackLikelyUnsupported && !forceInlinePlayback && (
                 <div className="mt-4 mx-auto max-w-lg rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-left">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5" />
+                    <Warning className="w-4 h-4 text-yellow-500 mt-0.5" />
                     <div className="min-w-0">
                       <div className="text-sm text-foreground font-medium">
                         {t("viewer.inlinePlaybackMayNotWork")}
@@ -1227,7 +1242,7 @@ export function YouTubeViewer({
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-xl bg-background border border-border shadow-2xl p-6 text-center">
               <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-red-600/10 flex items-center justify-center">
-                <Youtube className="w-6 h-6 text-red-600" />
+                <YoutubeLogo className="w-6 h-6 text-red-600" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">{t("viewer.finishedWatching")}</h3>
               <p className="text-sm text-muted-foreground mb-5">
@@ -1239,7 +1254,7 @@ export function YouTubeViewer({
                   disabled={isArchiving}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
                 >
-                  {isArchiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{t("viewer.archiveVideo")}</span>}
+                  {isArchiving ? <CircleNotch className="w-4 h-4 animate-spin" /> : <span>{t("viewer.archiveVideo")}</span>}
                 </button>
                 <button
                   onClick={() => setShowArchivePrompt(false)}
@@ -1269,7 +1284,7 @@ export function YouTubeViewer({
         >
           {/* Visual grip indicator */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
-            <GripVertical className="w-3 h-3 text-muted-foreground" />
+            <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
           </div>
         </div>
       )}
@@ -1335,7 +1350,7 @@ export function YouTubeViewer({
                     )}
                     title={t("viewer.videoFeatures")}
                   >
-                    <Layers className="w-4 h-4" />
+                    <Stack className="w-4 h-4" />
                     <span className="font-medium">{t("viewer.panels")}</span>
                   </button>
                 )}
@@ -1371,14 +1386,14 @@ export function YouTubeViewer({
               {isLoadingTranscript ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <CircleNotch className="w-6 h-6 animate-spin" />
                     <span className="text-sm">{t("viewer.loadingTranscript")}</span>
                   </div>
                 </div>
               ) : transcriptError ? (
                 <div className="flex items-center justify-center h-full p-6">
                   <div className="text-center max-w-md">
-                    <AlertTriangle className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
+                    <Warning className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
                     <h3 className="text-sm font-medium text-foreground mb-2">{t("viewer.transcriptUnavailable")}</h3>
                     <p className="text-xs text-muted-foreground">{transcriptError}</p>
                     {!isTauri() && (
@@ -1428,7 +1443,7 @@ export function YouTubeViewer({
             title={t("viewer.dragToResize")}
           >
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
-              <GripVertical className="w-3 h-3 text-muted-foreground" />
+              <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
             </div>
           </div>
           {/* Header */}

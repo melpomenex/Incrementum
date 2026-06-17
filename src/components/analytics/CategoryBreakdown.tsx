@@ -1,5 +1,5 @@
 import { CategoryStats } from "../../api/analytics";
-import { FolderOpen, TrendingUp } from "lucide-react";
+import { FolderOpen, TrendUp } from "@phosphor-icons/react";
 
 interface CategoryBreakdownProps {
   categories: CategoryStats[];
@@ -54,7 +54,7 @@ export function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
 
                 {category.reviews_count > 0 && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <TrendingUp className="w-3 h-3" />
+                    <TrendUp className="w-3 h-3" />
                     {category.reviews_count} review{category.reviews_count !== 1 ? "s" : ""}
                   </div>
                 )}

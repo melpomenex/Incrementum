@@ -3,7 +3,12 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Calendar,
+  CaretLeft,
+  CaretRight,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 /**
@@ -470,7 +475,7 @@ export function DateRangeNavigation({
         className="p-2 hover:bg-muted rounded"
         title={t("dateRange.previous", { step })}
       >
-        <ChevronLeft className="w-5 h-5" />
+        <CaretLeft className="w-5 h-5" />
       </button>
 
       <div className="text-sm font-medium min-w-[200px] text-center">
@@ -482,7 +487,7 @@ export function DateRangeNavigation({
         className="p-2 hover:bg-muted rounded"
         title={t("dateRange.next", { step })}
       >
-        <ChevronRight className="w-5 h-5" />
+        <CaretRight className="w-5 h-5" />
       </button>
     </div>
   );

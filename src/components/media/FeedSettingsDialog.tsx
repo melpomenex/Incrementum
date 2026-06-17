@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { X, Settings, Download, FileText, Star, RefreshCw, LayoutGrid, Eye } from "lucide-react";
+import {
+  ArrowsClockwise,
+  Download,
+  Eye,
+  Gear,
+  GridFour,
+  Star,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { updateFeedAutoFetchPreference, type Feed } from "../../api/rss";
 import { setFeedViewPreferencesAuto } from "../../api/rss-folders";
@@ -14,7 +23,7 @@ interface FeedSettingsDialogProps {
 type AutoFetchMode = "always" | "favorites" | "manual";
 
 /**
- * Feed Settings Dialog
+ * Feed Gear Dialog
  * Configure per-feed settings including auto-fetch mode for full content,
  * auto-mark-as-read timing, view mode, and layout preferences
  */
@@ -95,7 +104,7 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
       value: "manual",
       label: "Manual",
       description: "Only fetch full content when you click the button",
-      icon: <FileText className="w-4 h-4" />,
+      icon: <TextT className="w-4 h-4" />,
     },
     {
       value: "favorites",
@@ -107,7 +116,7 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
       value: "always",
       label: "Always",
       description: "Auto-fetch full content for all new articles",
-      icon: <RefreshCw className="w-4 h-4" />,
+      icon: <ArrowsClockwise className="w-4 h-4" />,
     },
   ];
 
@@ -117,8 +126,8 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
           <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Feed Settings</h2>
+            <Gear className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Feed Gear</h2>
           </div>
           <button
             onClick={onClose}
@@ -193,7 +202,7 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
           {/* View mode preference (9.7) */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
+              <TextT className="w-4 h-4 text-muted-foreground" />
               <label className="text-sm font-medium" htmlFor="feed-view-mode">Default View Mode</label>
             </div>
             <select
@@ -211,7 +220,7 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
           {/* Layout preference (16.5) */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+              <GridFour className="w-4 h-4 text-muted-foreground" />
               <label className="text-sm font-medium" htmlFor="feed-layout">Default Layout</label>
             </div>
             <select

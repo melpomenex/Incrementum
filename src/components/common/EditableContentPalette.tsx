@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
+  ArrowSquareOut,
   ArrowUp,
   CheckCircle,
+  CircleNotch,
+  DotsSix,
   Eye,
-  ExternalLink,
-  Grip,
-  Loader2,
-  PanelsTopLeft,
   PencilLine,
-  Rows3,
-  SplitSquareVertical,
+  Rows,
+  SidebarSimple,
+  SquareSplitVertical,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { renderMarkdown } from "../../utils/markdown";
 import { processHtmlContent } from "../../utils/documentImport";
 import { cn } from "../../utils";
@@ -257,7 +257,7 @@ export function EditableContentPalette({
     if (saveStatus === "saving") {
       return (
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <CircleNotch className="w-3.5 h-3.5 animate-spin" />
           Saving
         </span>
       );
@@ -298,7 +298,7 @@ export function EditableContentPalette({
               <div className="flex flex-wrap items-center gap-2">
                 {badge && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    <PanelsTopLeft className="w-3 h-3" />
+                    <SidebarSimple className="w-3 h-3" />
                     {badge}
                   </span>
                 )}
@@ -312,8 +312,8 @@ export function EditableContentPalette({
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center rounded-xl border border-border bg-card p-1 shadow-sm">
                 {[
-                  { id: "write", label: "Write", icon: Rows3 },
-                  { id: "split", label: "Split", icon: SplitSquareVertical },
+                  { id: "write", label: "Write", icon: Rows },
+                  { id: "split", label: "Split", icon: SquareSplitVertical },
                   { id: "preview", label: "Preview", icon: Eye },
                 ].map(({ id, label, icon: Icon }) => (
                   <button
@@ -338,7 +338,7 @@ export function EditableContentPalette({
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ArrowSquareOut className="w-4 h-4" />
                   Source
                 </a>
               )}
@@ -434,7 +434,7 @@ export function EditableContentPalette({
                             className="flex items-center gap-3 rounded-2xl border border-border bg-background/70 px-3 py-2"
                           >
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                              <Grip className="w-4 h-4" />
+                              <DotsSix className="w-4 h-4" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium text-foreground">

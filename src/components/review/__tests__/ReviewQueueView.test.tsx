@@ -58,7 +58,14 @@ const mockStore = vi.hoisted(() => {
 });
 
 vi.mock("../../../stores/queueStore", () => ({
-  useQueueStore: () => mockStore,
+  // The component calls useQueueStore three ways: as a hook with no args
+  // (`useQueueStore(useShallow(selector))`), and with bare selectors
+  // (`useQueueStore((s) => s.customSubset)`). Apply the selector to the store
+  // when one is passed so per-field reads resolve correctly; without this the
+  // mock returns the whole store for every selector, making `customSubset`
+  // truthy and breaking applyFilters.
+  useQueueStore: (selector?: (s: typeof mockStore) => unknown) =>
+    selector ? selector(mockStore) : mockStore,
 }));
 
 vi.mock("../../../lib/pwa", () => ({

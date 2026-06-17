@@ -4,28 +4,28 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  Settings as SettingsIcon,
-  Sliders,
-  Palette,
-  Keyboard,
+  ArrowLeft,
+  ArrowsClockwise,
+  Bell,
+  BookOpen,
+  BookOpenText,
   Brain,
+  CaretRight,
   Cloud,
   FolderOpen,
-  Bell,
-  Shield,
-  BookOpen,
   GraduationCap,
-  RefreshCw,
+  Keyboard,
+  MagnifyingGlass,
+  Microphone,
+  Palette,
   Plug,
-  BookText,
-  Search,
-  X,
-  ChevronRight,
-  ArrowLeft,
-  Mic,
-  Volume2,
   Rss,
-} from "lucide-react";
+  Gear as SettingsIcon,
+  Shield,
+  Sliders,
+  SpeakerHigh,
+  X,
+} from "@phosphor-icons/react";
 import { KeyboardShortcutSettings } from "./KeyboardShortcutsSettings";
 import { AISettings as AIProviderSettings } from "./AIProviderSettings";
 import { ImportExportSettings as ImportExportSettingsComponent } from "./ImportExportSettings";
@@ -166,7 +166,7 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   {
     id: SettingsTab.AudioTranscription,
     label: "settings.audioTranscription",
-    icon: Mic,
+    icon: Microphone,
     keywords: [
       "audio",
       "transcription",
@@ -182,14 +182,14 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   {
     id: SettingsTab.TTS,
     label: "settings.tts",
-    icon: Volume2,
+    icon: SpeakerHigh,
     keywords: ["tts", "text to speech", "fal", "voice clone", "speech synthesis", "audio output"],
     description: "Configure Fal.ai voices, cloning, and generation presets",
   },
   {
     id: SettingsTab.Sync,
     label: "settings.sync",
-    icon: RefreshCw,
+    icon: ArrowsClockwise,
     keywords: ["synchronization", "backup", "cloud", "export", "import", "data transfer"],
     description: "Data synchronization settings",
   },
@@ -231,7 +231,7 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   {
     id: SettingsTab.Handbook,
     label: "settings.handbook",
-    icon: BookText,
+    icon: BookOpenText,
     keywords: ["guide", "help", "tutorial", "documentation", "manual", "how to", "learn"],
     description: "User guide and documentation",
   },
@@ -278,7 +278,7 @@ function SettingsMenuItem({
           )}
         </span>
         {isMobile && !description && (
-          <ChevronRight
+          <CaretRight
             className={cn(
               "w-4 h-4 ml-auto",
               isActive ? "opacity-100" : "opacity-40"
@@ -385,14 +385,14 @@ export function SettingsPage() {
             <h1 className="text-lg font-semibold">{t("settings.title")}</h1>
           </div>
 
-          {/* Search Bar */}
+          {/* MagnifyingGlass Bar */}
           <div
             className={cn(
               "relative transition-all",
               isSearchFocused && "ring-2 ring-primary rounded-lg"
             )}
           >
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
@@ -416,7 +416,7 @@ export function SettingsPage() {
         {/* Navigation */}
         <nav className="p-2 space-y-1 overflow-y-auto" style={{ maxHeight: "calc(100% - 140px)" }}>
           {searchQuery ? (
-            // Search Results
+            // MagnifyingGlass Results
             searchResults && searchResults.length > 0 ? (
               <>
                 <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -438,7 +438,7 @@ export function SettingsPage() {
               </>
             ) : (
               <div className="px-3 py-8 text-center text-muted-foreground">
-                <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <MagnifyingGlass className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">{t("settings.noSettingsFound", { query: searchQuery })}</p>
                 <p className="text-xs mt-1 opacity-70">{t("settings.tryDifferentKeywords")}</p>
               </div>
@@ -765,7 +765,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
                   "disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
-                <RefreshCw className={cn("w-3.5 h-3.5", isCheckingUpdates && "animate-spin")} />
+                <ArrowsClockwise className={cn("w-3.5 h-3.5", isCheckingUpdates && "animate-spin")} />
                 {isCheckingUpdates ? "Checking..." : "Check for Updates"}
               </button>
             </div>

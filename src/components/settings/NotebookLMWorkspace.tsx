@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-  Brain,
-  Sparkles,
   ArrowRight,
-  ExternalLink,
-  Loader2,
+  ArrowSquareOut,
+  Brain,
   Check,
-  AlertCircle,
-} from "lucide-react";
+  CircleNotch,
+  Sparkle,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { useTabsStore } from "../../stores";
 import { NotebookLMTab } from "../tabs/TabRegistry";
 import {
@@ -75,7 +75,7 @@ export function NotebookLMWorkspace() {
   const handleOpenNotebookLM = () => {
     addTab({
       title: "NotebookLM",
-      icon: <Sparkles className="w-4 h-4" />,
+      icon: <Sparkle className="w-4 h-4" />,
       type: "notebooklm",
       content: NotebookLMTab,
       closable: true,
@@ -98,7 +98,7 @@ export function NotebookLMWorkspace() {
 
             {isChecking ? (
               <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <CircleNotch className="w-4 h-4 animate-spin" />
                 Checking connection...
               </div>
             ) : health?.connected ? (
@@ -113,7 +113,7 @@ export function NotebookLMWorkspace() {
                     onClick={handleOpenNotebookLM}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkle className="w-4 h-4" />
                     Open NotebookLM Workspace
                     <ArrowRight className="w-4 h-4" />
                   </button>
@@ -128,7 +128,7 @@ export function NotebookLMWorkspace() {
             ) : (
               <div className="mt-4 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-amber-600">
-                  <AlertCircle className="w-4 h-4" />
+                  <WarningCircle className="w-4 h-4" />
                   <span>{t("notebooklm.notConnected")}</span>
                 </div>
                 
@@ -153,7 +153,7 @@ export function NotebookLMWorkspace() {
                       className="text-primary hover:underline inline-flex items-center gap-1"
                     >
                       Learn more
-                      <ExternalLink className="w-3 h-3" />
+                      <ArrowSquareOut className="w-3 h-3" />
                     </a>
                   </p>
                   <button
@@ -163,12 +163,12 @@ export function NotebookLMWorkspace() {
                   >
                     {isConnecting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <CircleNotch className="w-4 h-4 animate-spin" />
                         Connecting...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkle className="w-4 h-4" />
                         Connect to NotebookLM
                       </>
                     )}
@@ -185,7 +185,7 @@ export function NotebookLMWorkspace() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card border border-border rounded-lg p-4">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center mb-3">
-              <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <Sparkle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <h4 className="font-medium text-foreground mb-1">{t("notebooklm.chatWithSources")}</h4>
             <p className="text-sm text-muted-foreground">
@@ -205,7 +205,7 @@ export function NotebookLMWorkspace() {
           
           <div className="bg-card border border-border rounded-lg p-4">
             <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-950 rounded-lg flex items-center justify-center mb-3">
-              <ExternalLink className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <ArrowSquareOut className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h4 className="font-medium text-foreground mb-1">{t("notebooklm.syncToIncrementum")}</h4>
             <p className="text-sm text-muted-foreground">

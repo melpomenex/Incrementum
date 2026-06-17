@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Scissors, X, Check } from "lucide-react";
+import { Check, Scissors, X } from "@phosphor-icons/react";
 import { createClozeFromExtract } from "../../api/extract-review";
 import type { LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";

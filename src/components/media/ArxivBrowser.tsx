@@ -1,17 +1,17 @@
 import { useState } from "react";
 import {
-  FileText,
-  Search,
-  ExternalLink,
-  Download,
+  ArrowSquareOut,
   Bookmark,
-  BookmarkCheck,
-  Loader2,
+  BookmarkSimple,
   BookOpen,
-  ChevronDown,
-  ChevronRight,
+  CaretDown,
+  CaretRight,
+  CircleNotch,
+  Download,
   FileCode,
-} from "lucide-react";
+  MagnifyingGlass,
+  TextT,
+} from "@phosphor-icons/react";
 import {
   ArxivPaper,
   searchArxiv,
@@ -102,7 +102,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
         {/* Header */}
         <div className="p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <FileText className="w-5 h-5 text-orange-500" />
+            <TextT className="w-5 h-5 text-orange-500" />
             ArXiv
           </h2>
         </div>
@@ -127,9 +127,9 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                     className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
                   >
                     {isExpanded ? (
-                      <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                      <CaretDown className="w-3 h-3 flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                      <CaretRight className="w-3 h-3 flex-shrink-0" />
                     )}
                     <span className="truncate">{domain.name}</span>
                     <span className="ml-auto text-muted-foreground/60">{domain.categories.length}</span>
@@ -183,17 +183,17 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Search */}
+        {/* MagnifyingGlass */}
         <div className="p-4 border-b border-border bg-card">
           <div className="flex gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Search ArXiv papers..."
+                placeholder="MagnifyingGlass ArXiv papers..."
                 className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -203,9 +203,9 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <CircleNotch className="w-4 h-4 animate-spin" />
               ) : (
-                "Search"
+                "MagnifyingGlass"
               )}
             </button>
           </div>
@@ -229,8 +229,8 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
 
           {papers.length === 0 && !isLoading && !error && (
             <div className="p-8 text-center text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="mb-2">Search for papers or select a category</p>
+              <TextT className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="mb-2">MagnifyingGlass for papers or select a category</p>
               <p className="text-xs">
                 Access millions of research papers from ArXiv
               </p>
@@ -283,7 +283,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                         title={saved ? "Remove from saved" : "Save to library"}
                       >
                         {saved ? (
-                          <BookmarkCheck className="w-4 h-4 text-orange-500" />
+                          <BookmarkSimple className="w-4 h-4 text-orange-500" />
                         ) : (
                           <Bookmark className="w-4 h-4" />
                         )}
@@ -295,7 +295,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                         title="Open on ArXiv"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <ArrowSquareOut className="w-4 h-4" />
                       </a>
                       <a
                         href={importFormat === 'html' ? getArxivHtmlUrl(paper.id) : getArxivPdfUrl(paper.id)}
@@ -424,7 +424,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                 >
                   {isPaperSaved(selectedPaper.id) ? (
                     <>
-                      <BookmarkCheck className="w-4 h-4 text-orange-500" />
+                      <BookmarkSimple className="w-4 h-4 text-orange-500" />
                       Saved
                     </>
                   ) : (

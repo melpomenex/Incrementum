@@ -4,7 +4,17 @@
  */
 
 import { useEffect, useState } from "react";
-import { ScanText, Languages, Cloud, Server, Eye, Zap, FileText, Brain, Cpu } from "lucide-react";
+import {
+  Brain,
+  Cloud,
+  Cpu,
+  Eye,
+  HardDrives,
+  Lightning,
+  Scan,
+  TextT,
+  Translate,
+} from "@phosphor-icons/react";
 import { isTauri, listen } from "../../lib/tauri";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -54,7 +64,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       id: "tesseract",
       name: t("ocrSettings.tesseract"),
       description: t("ocrSettings.tesseractDesc"),
-      icon: Server,
+      icon: HardDrives,
       isCloud: false,
     },
     {
@@ -90,7 +100,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
       id: "marker",
       name: t("ocrSettings.marker"),
       description: t("ocrSettings.markerDesc"),
-      icon: FileText,
+      icon: TextT,
       isCloud: false,
     },
     {
@@ -125,7 +135,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
   ];
 
   const selectedProvider = OCR_PROVIDERS.find((p) => p.id === settings.provider);
-  const ProviderIcon = selectedProvider?.icon || ScanText;
+  const ProviderIcon = selectedProvider?.icon || Scan;
   const [runtimeStatus, setRuntimeStatus] = useState<GLMRuntimeStatus | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
@@ -316,7 +326,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
     <div className="p-6 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-primary/10 rounded-lg">
-          <ScanText className="w-5 h-5 text-primary" />
+          <Scan className="w-5 h-5 text-primary" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-foreground">{t("ocrSettings.title")}</h3>
@@ -329,7 +339,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
-              <Zap className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <Lightning className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.autoOcr")}</div>
                 <div className="text-xs text-muted-foreground mt-1">{t("ocrSettings.autoOcrDesc")}</div>
@@ -392,7 +402,7 @@ export function OCRSettings({ settings, onUpdateSettings }: OCRSettingsProps) {
         {/* Language Selection */}
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-3 mb-3">
-            <Languages className="w-5 h-5 text-muted-foreground" />
+            <Translate className="w-5 h-5 text-muted-foreground" />
             <div>
               <div className="text-sm font-medium text-foreground">{t("ocrSettings.language")}</div>
               <div className="text-xs text-muted-foreground">{t("ocrSettings.primaryLanguage")}</div>
@@ -819,7 +829,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
         {(settings.provider === "tesseract" || settings.provider === "marker" || settings.provider === "nougat" || settings.provider === "glm") && (
           <div className="bg-card border border-border rounded-lg p-4">
             <div className="flex items-center gap-3 mb-4">
-              <Server className="w-5 h-5 text-muted-foreground" />
+              <HardDrives className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.localProcessing")}</div>
                 <div className="text-xs text-muted-foreground">{t("ocrSettings.localProcessingDesc")}</div>
@@ -947,7 +957,7 @@ vllm serve zai-org/GLM-OCR --allowed-local-media-path / --port 8080`}
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
-              <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <TextT className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <div className="text-sm font-medium text-foreground">{t("ocrSettings.autoExtractOnLoad")}</div>
                 <div className="text-xs text-muted-foreground mt-1">{t("ocrSettings.autoExtractOnLoadDesc")}</div>

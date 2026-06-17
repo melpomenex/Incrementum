@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X, Calendar, BookOpen, Clock, Scissors, Sparkles, AlertTriangle, Layers } from "lucide-react";
+import {
+  BookOpen,
+  Calendar,
+  Clock,
+  Scissors,
+  Sparkle,
+  Stack,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import type { Document } from "../../types/document";
 import { useI18n } from "../../lib/i18n";
 
@@ -225,7 +234,7 @@ export function SplitDocumentDialog({
             {/* Split Size Controls */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" />
+                <Stack className="w-3.5 h-3.5" />
                 Number of Chunks
               </label>
               <div className="flex items-center gap-3">
@@ -299,7 +308,7 @@ export function SplitDocumentDialog({
           {/* Error Message */}
           {errorMsg && (
             <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/20 bg-destructive/10 text-destructive text-sm flex-shrink-0 animate-in fade-in duration-200">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <Warning className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="font-bold">Error Executing Split</h4>
                 <p className="text-xs opacity-90 mt-0.5">{errorMsg}</p>
@@ -310,7 +319,7 @@ export function SplitDocumentDialog({
           {/* Split Queue Preview Grid */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-yellow-500 animate-pulse" />
+              <Sparkle className="w-4 h-4 text-yellow-500 animate-pulse" />
               Generated Review Queue Preview ({numChunks} Chunks)
             </h3>
             <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1 border border-border/20 rounded-2xl p-2 bg-black/10 backdrop-blur-inner">

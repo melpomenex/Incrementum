@@ -4,7 +4,7 @@
  */
 
 import { formatFeedDate, generateArticleExcerpt, type FeedItem, type Feed } from "../../api/rss";
-import { Star, StarOff } from "lucide-react";
+import { Star } from "@phosphor-icons/react";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 
 interface ArticleLayoutProps {
@@ -83,7 +83,7 @@ export function MagazineLayout({
                   {item.favorite ? (
                     <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
                   ) : (
-                    <StarOff className="w-3.5 h-3.5" />
+                    <Star className="w-3.5 h-3.5" />
                   )}
                 </button>
               </div>

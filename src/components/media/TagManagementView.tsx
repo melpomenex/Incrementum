@@ -4,7 +4,15 @@
  */
 
 import { useState, useEffect } from "react";
-import { Tag, Pencil, GitMerge, Trash2, X, Search, GitBranch } from "lucide-react";
+import {
+  GitBranch,
+  GitMerge,
+  MagnifyingGlass,
+  Pencil,
+  Tag,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { useTagsStore } from "../../stores/tagsStore";
 import { useTASStore } from "../../stores/tasStore";
 import { TagPrerequisiteEditor, TasDependencyGraph } from "../tas";
@@ -85,12 +93,12 @@ export function TagManagementView({ onClose }: TagManagementViewProps) {
 
       <div className="px-4 py-2 border-b border-border">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tags..."
+            placeholder="MagnifyingGlass tags..."
             className="w-full pl-7 pr-2 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -219,7 +227,7 @@ export function TagManagementView({ onClose }: TagManagementViewProps) {
                       onClick={() => setConfirmDelete(tag.id)}
                       className="p-1 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash className="w-3 h-3" />
                     </button>
                   </>
                 )}

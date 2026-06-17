@@ -1,25 +1,23 @@
 import { useState, useEffect } from "react";
 import { useI18n } from "../../lib/i18n";
 import {
-  Wand2,
-  Loader2,
+  ArrowsClockwise,
+  Brain,
+  CaretDown,
+  CaretUp,
   Check,
-  AlertCircle,
-
-  Sparkles,
-  Headphones,
-  Video,
-  FileText,
-  Layers,
-  BrainCircuit,
-  Table,
-  Map,
-  RefreshCw,
-  Upload,
-  ChevronDown,
-  ChevronUp,
+  CircleNotch,
   Eye,
-} from "lucide-react";
+  Headphones,
+  MapTrifold,
+  Sparkle,
+  Stack,
+  Table,
+  TextT,
+  Upload,
+  Video,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import {
   notebooklmGenerateArtifact,
   notebooklmGetJobs,
@@ -42,7 +40,7 @@ const ARTIFACT_TYPES = [
     id: "flashcards",
     labelKey: "notebooklmStudio.flashcards",
     descKey: "notebooklmStudio.flashcardsDesc",
-    icon: Layers,
+    icon: Stack,
     color: "bg-blue-500",
     canImport: true,
   },
@@ -50,7 +48,7 @@ const ARTIFACT_TYPES = [
     id: "quiz",
     labelKey: "notebooklmStudio.quiz",
     descKey: "notebooklmStudio.quizDesc",
-    icon: BrainCircuit,
+    icon: Brain,
     color: "bg-purple-500",
     canImport: true,
   },
@@ -74,7 +72,7 @@ const ARTIFACT_TYPES = [
     id: "report",
     labelKey: "notebooklmStudio.studyGuide",
     descKey: "notebooklmStudio.studyGuideDesc",
-    icon: FileText,
+    icon: TextT,
     color: "bg-amber-500",
     canImport: false,
   },
@@ -82,7 +80,7 @@ const ARTIFACT_TYPES = [
     id: "mind-map",
     labelKey: "notebooklmStudio.mindMap",
     descKey: "notebooklmStudio.mindMapDesc",
-    icon: Map,
+    icon: MapTrifold,
     color: "bg-cyan-500",
     canImport: false,
   },
@@ -211,11 +209,11 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
       case "succeeded":
         return <Check className="w-4 h-4 text-green-500" />;
       case "failed":
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
+        return <WarningCircle className="w-4 h-4 text-red-500" />;
       case "running":
-        return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+        return <CircleNotch className="w-4 h-4 animate-spin text-blue-500" />;
       default:
-        return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />;
+        return <CircleNotch className="w-4 h-4 animate-spin text-muted-foreground" />;
     }
   };
 
@@ -223,7 +221,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
     return ARTIFACT_TYPES.find((t) => t.id === type) || {
       labelKey: type,
       descKey: "",
-      icon: Sparkles,
+      icon: Sparkle,
       color: "bg-gray-500",
       canImport: false,
     };
@@ -239,7 +237,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-            <Wand2 className="w-4 h-4 text-white" />
+            <Sparkle className="w-4 h-4 text-white" />
           </div>
           <div>
             <h3 className="font-semibold text-foreground">{t("notebooklmStudio.title")}</h3>
@@ -266,7 +264,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                 >
                   <div className={`w-8 h-8 ${type.color} rounded-lg flex items-center justify-center`}>
                     {isGenerating ? (
-                      <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      <CircleNotch className="w-4 h-4 text-white animate-spin" />
                     ) : (
                       <Icon className="w-4 h-4 text-white" />
                     )}
@@ -304,12 +302,12 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
                 disabled={isLoading}
                 className="p-1 hover:bg-background rounded transition-colors"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
+                <ArrowsClockwise className={`w-3.5 h-3.5 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
               </button>
               {showJobs ? (
-                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                <CaretUp className="w-4 h-4 text-muted-foreground" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <CaretDown className="w-4 h-4 text-muted-foreground" />
               )}
             </div>
           </button>
@@ -396,7 +394,7 @@ export function NotebookLMStudio({ notebookId, onSyncToIncrementum, onViewArtifa
               <>
                 {isPreviewLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : previewItems.length > 0 ? (
                   <>

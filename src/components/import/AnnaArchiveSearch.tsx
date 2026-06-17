@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Search, BookOpen, Download, Loader2, AlertCircle, CheckCircle, ServerOff, Globe, RefreshCw } from "lucide-react";
+import {
+  ArrowsClockwise,
+  BookOpen,
+  CheckCircle,
+  CircleNotch,
+  Download,
+  Globe,
+  HardDrives,
+  MagnifyingGlass,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import {
   searchBooks,
   downloadBook,
@@ -48,7 +58,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           type: "not_found",
           solutions: [
             "Try different keywords or a shorter search term",
-            "Search by author name instead of book title",
+            "MagnifyingGlass by author name instead of book title",
             "Check your spelling or try alternative spellings",
             "Try searching by ISBN if you have it",
             "Some books may not be available in the archive",
@@ -103,9 +113,9 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
     <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Search Anna's Archive</h2>
+          <h2 className="text-lg font-semibold text-foreground">MagnifyingGlass Anna's Archive</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Search 60M+ books from Anna's Archive mirrors
+            MagnifyingGlass 60M+ books from Anna's Archive mirrors
           </p>
         </div>
         {onClose && (
@@ -118,16 +128,16 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
         )}
       </div>
 
-      {/* Search Input */}
+      {/* MagnifyingGlass Input */}
       <div className="flex gap-2 mb-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Search by title, author, ISBN..."
+            placeholder="MagnifyingGlass by title, author, ISBN..."
             className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             disabled={isLoading}
           />
@@ -139,13 +149,13 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <CircleNotch className="w-4 h-4 animate-spin" />
               Searching...
             </>
           ) : (
             <>
-              <Search className="w-4 h-4" />
-              Search
+              <MagnifyingGlass className="w-4 h-4" />
+              MagnifyingGlass
             </>
           )}
         </button>
@@ -176,10 +186,10 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
         <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 mt-0.5">
-              {error.type === "network" && <ServerOff className="w-5 h-5 text-destructive" />}
-              {error.type === "not_found" && <Search className="w-5 h-5 text-destructive" />}
-              {error.type === "parse" && <AlertCircle className="w-5 h-5 text-destructive" />}
-              {error.type === "unknown" && <AlertCircle className="w-5 h-5 text-destructive" />}
+              {error.type === "network" && <HardDrives className="w-5 h-5 text-destructive" />}
+              {error.type === "not_found" && <MagnifyingGlass className="w-5 h-5 text-destructive" />}
+              {error.type === "parse" && <WarningCircle className="w-5 h-5 text-destructive" />}
+              {error.type === "unknown" && <WarningCircle className="w-5 h-5 text-destructive" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-destructive mb-2">{error.message}</p>
@@ -203,7 +213,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
                   onClick={handleRetry}
                   className="mt-3 px-3 py-1.5 bg-primary text-primary-foreground rounded text-xs hover:opacity-90 flex items-center gap-1.5 w-fit"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <ArrowsClockwise className="w-3.5 h-3.5" />
                   Try Again
                 </button>
               )}
@@ -245,7 +255,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           {!query && (
             <p className="text-xs mt-2 max-w-sm mx-auto">
               Anna's Archive searches through Library Genesis, Z-Library, Sci-Hub, and more. 
-              Search by title, author, or ISBN to find and download books.
+              MagnifyingGlass by title, author, or ISBN to find and download books.
             </p>
           )}
         </div>
@@ -315,7 +325,7 @@ function analyzeError(message: string): SearchError {
       type: "not_found",
       solutions: [
         "Try different keywords or a shorter search term",
-        "Search by author name instead of book title",
+        "MagnifyingGlass by author name instead of book title",
         "Check your spelling or try alternative spellings",
         "Try searching by ISBN if you have it",
       ],
@@ -439,7 +449,7 @@ function BookResultCard({ book, selectedFormat, isDownloading, isImported, onDow
               >
                 {isDownloading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                     Downloading...
                   </>
                 ) : (

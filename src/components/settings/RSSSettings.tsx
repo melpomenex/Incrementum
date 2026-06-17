@@ -5,14 +5,13 @@ import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import {
   Clock,
-  Settings2,
-  Sliders,
-  Percent,
   Eye,
-  EyeOff,
-  Inbox,
+  EyeSlash,
+  Percent,
   Rss,
-} from "lucide-react";
+  Sliders,
+  Tray,
+} from "@phosphor-icons/react";
 
 export function RSSSettings() {
   const { t } = useI18n();
@@ -190,7 +189,7 @@ export function RSSSettings() {
         <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-6 space-y-4 shadow-sm hover:border-border/80 transition-all">
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Settings2 className="w-5 h-5" />
+              <Sliders className="w-5 h-5" />
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Interactive Preferences</h4>
@@ -249,7 +248,7 @@ export function RSSSettings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Inbox className="w-5 h-5" />
+              <Tray className="w-5 h-5" />
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Feed Queue Inclusions</h4>
@@ -318,7 +317,7 @@ export function RSSSettings() {
                           }`}
                           title={isIncluded ? "Currently included explicitly" : "Click to include explicitly"}
                         >
-                          {isIncluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                          {isIncluded ? <Eye className="w-4 h-4" /> : <EyeSlash className="w-4 h-4" />}
                         </button>
                       </td>
                       <td className="p-3 text-center">
@@ -331,7 +330,7 @@ export function RSSSettings() {
                           }`}
                           title={isExcluded ? "Currently excluded explicitly" : "Click to exclude explicitly"}
                         >
-                          {isExcluded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {isExcluded ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </td>
                     </tr>

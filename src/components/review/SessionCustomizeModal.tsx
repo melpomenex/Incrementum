@@ -1,4 +1,11 @@
-import { X, Clock, Tag, Sliders, Target, Layers } from "lucide-react";
+import {
+  Clock,
+  Sliders,
+  Stack,
+  Tag,
+  Target,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 export interface SessionCustomization {
@@ -173,7 +180,7 @@ export function SessionCustomizeModal({
           {/* Max Items */}
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-muted-foreground" />
+              <Stack className="w-4 h-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.maximumItems")}</h3>
             </div>
             <div className="flex items-center gap-4">
@@ -257,7 +264,7 @@ export function SessionCustomizeModal({
           {/* Item Types */}
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-muted-foreground" />
+              <Stack className="w-4 h-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.itemTypes")}</h3>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -372,7 +379,7 @@ export function SessionCustomizeModal({
           {availableCategories.length > 0 && (
             <section className="space-y-3">
               <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-muted-foreground" />
+                <Stack className="w-4 h-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">{t("sessionCustomize.filterByCategory")}</h3>
               </div>
               <div className="flex flex-wrap gap-2">

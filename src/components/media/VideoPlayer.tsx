@@ -1,15 +1,15 @@
 import { useRef, useState, useEffect } from "react";
 import {
-  Play,
+  Camera,
+  CornersIn,
+  CornersOut,
   Pause,
+  Play,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize,
-  Camera,
-} from "lucide-react";
+  SpeakerHigh,
+  SpeakerSlash,
+} from "@phosphor-icons/react";
 
 interface VideoPlayerProps {
   src: string;
@@ -329,9 +329,9 @@ export function VideoPlayer({
                 title="Mute (M)"
               >
                 {isMuted || volume === 0 ? (
-                  <VolumeX className="w-5 h-5" />
+                  <SpeakerSlash className="w-5 h-5" />
                 ) : (
-                  <Volume2 className="w-5 h-5" />
+                  <SpeakerHigh className="w-5 h-5" />
                 )}
               </button>
               <input
@@ -380,9 +380,9 @@ export function VideoPlayer({
               title="Fullscreen (F)"
             >
               {isFullscreen ? (
-                <Minimize className="w-5 h-5" />
+                <CornersIn className="w-5 h-5" />
               ) : (
-                <Maximize className="w-5 h-5" />
+                <CornersOut className="w-5 h-5" />
               )}
             </button>
           </div>

@@ -1,5 +1,19 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Trash2, Edit, Tag, Calendar, FileText, Sparkles, Loader2, CheckSquare, Square, X, Eye, PencilLine, PanelsTopLeft } from "lucide-react";
+import {
+  Calendar,
+  CheckSquare,
+  CircleNotch,
+  Eye,
+  Pencil,
+  PencilLine,
+  SidebarSimple,
+  Sparkle,
+  Square,
+  Tag,
+  TextT,
+  Trash,
+  X,
+} from "@phosphor-icons/react";
 import { getExtracts, updateExtract, type Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { bulkGenerateCards } from "../../api/extract-bulk";
@@ -352,7 +366,7 @@ export function ExtractsList({
   if (extracts.length === 0) {
     return (
       <div className="text-center py-12">
-        <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+        <TextT className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
         <h3 className="text-lg font-semibold text-foreground mb-2">
           {t("extracts.noExtractsYet")}
         </h3>
@@ -448,12 +462,12 @@ export function ExtractsList({
               >
                 {bulkOperationLoading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                     {t("common.processing")}
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Sparkle className="w-3.5 h-3.5" />
                     {t("extracts.generateCards")}
                   </>
                 )}
@@ -465,12 +479,12 @@ export function ExtractsList({
               >
                 {bulkOperationLoading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                     {t("extracts.deleting")}
                   </>
                 ) : (
                   <>
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash className="w-3.5 h-3.5" />
                     {t("common.delete")}
                   </>
                 )}
@@ -549,21 +563,21 @@ export function ExtractsList({
                   className="p-1.5 rounded hover:bg-muted transition-colors"
                   title="Open extract palette"
                 >
-                  <PanelsTopLeft className="w-4 h-4 text-muted-foreground" />
+                  <SidebarSimple className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <button
                   onClick={() => handleEdit(extract)}
                   className="p-1.5 rounded hover:bg-muted transition-colors"
                   title={t("extracts.editExtract")}
                 >
-                  <Edit className="w-4 h-4 text-muted-foreground" />
+                  <Pencil className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <button
                   onClick={() => handleDelete(extract)}
                   className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
                   title={t("extracts.deleteExtract")}
                 >
-                  <Trash2 className="w-4 h-4 text-destructive" />
+                  <Trash className="w-4 h-4 text-destructive" />
                 </button>
               </div>
             </div>
@@ -699,7 +713,7 @@ export function ExtractsList({
                     >
                       {count ? (
                         <span className="flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-primary" />
+                          <Sparkle className="w-3 h-3 text-primary" />
                           {t("extracts.cardsGenerated", { count })}
                         </span>
                       ) : (
@@ -728,12 +742,12 @@ export function ExtractsList({
                   >
                     {generatingIds.has(extract.id) ? (
                       <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <CircleNotch className="w-3 h-3 animate-spin" />
                         {t("extracts.generating")}
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-3 h-3" />
+                        <Sparkle className="w-3 h-3" />
                         {t("extracts.generateCards")}
                       </>
                     )}

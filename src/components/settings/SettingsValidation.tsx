@@ -5,7 +5,12 @@
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
+import {
+  CheckCircle,
+  Info,
+  Warning,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
 
@@ -306,7 +311,7 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
       {result.warnings.length > 0 && (
         <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
           <div className="flex items-center gap-2 text-yellow-500 mb-2">
-            <AlertTriangle className="w-5 h-5" />
+            <Warning className="w-5 h-5" />
             <span className="text-sm font-semibold">{t("settings.validationWarnings", { count: result.warnings.length })}</span>
           </div>
           <ul className="space-y-1">

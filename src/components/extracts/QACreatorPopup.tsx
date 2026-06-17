@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, X, Check } from "lucide-react";
+import { ChatCircle, Check, X } from "@phosphor-icons/react";
 import { createQAFromExtract } from "../../api/extract-review";
 import type { LearningItem } from "../../api/learning-items";
 import { cn } from "../../utils";
@@ -62,7 +62,7 @@ export function QACreatorPopup({ extractId, onCreated, onCancel }: QACreatorPopu
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <MessageSquare className="w-5 h-5" />
+                            <ChatCircle className="w-5 h-5" />
                         </div>
                         <div>
                             <h3 className="text-lg font-semibold text-foreground">{t("extracts.createQACard")}</h3>

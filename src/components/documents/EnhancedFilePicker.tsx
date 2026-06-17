@@ -5,18 +5,18 @@
 
 import { useState } from "react";
 import {
-  FileText,
-  Upload,
-  Link,
-  Download,
   Book,
   Camera,
-  X,
-  File,
-  AlertCircle,
-  CheckCircle2,
+  CheckCircle,
   Database,
-} from "lucide-react";
+  Download,
+  File,
+  Link,
+  TextT,
+  Upload,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { validateUrl, validateArxivInput } from "../../utils/documentImport";
 
 export type ImportSource = "local" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo" | "json";
@@ -47,7 +47,7 @@ const importOptions: ImportOption[] = [
   {
     id: "arxiv",
     label: "Arxiv Paper",
-    icon: FileText,
+    icon: TextT,
     description: "Import academic papers from Arxiv",
     supportedFormats: ["arxiv.org"],
   },
@@ -256,7 +256,7 @@ export function EnhancedFilePicker({
               </p>
             </div>
             <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-md">
-              <CheckCircle2 className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
+              <CheckCircle className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
               <div className="text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">Features:</p>
                 <ul className="mt-1 space-y-1">
@@ -378,7 +378,7 @@ export function EnhancedFilePicker({
 
             {error && (
               <div className="mt-4 p-3 bg-destructive/10 border border-destructive text-destructive rounded-md flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <WarningCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}

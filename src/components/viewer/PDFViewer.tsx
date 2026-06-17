@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { TextLayerBuilder } from "pdfjs-dist/web/pdf_viewer.mjs";
-import { List, ChevronLeft, ChevronRight, Maximize, Minimize, Scan } from "lucide-react";
+import {
+  CaretLeft,
+  CaretRight,
+  CornersIn,
+  CornersOut,
+  List,
+  Scan,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import type { PdfDest, ViewState } from "../../types/readerPosition";
 import type { PdfRect, PdfSelectionContext, ViewportRect } from "../../types/selection";
@@ -3219,7 +3226,7 @@ export function PDFViewer({
                 className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title={t("viewer.previousPage")}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <CaretLeft className="w-4 h-4" />
               </button>
 
               <PdfPageIndicator
@@ -3239,7 +3246,7 @@ export function PDFViewer({
                 className="p-2 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title={t("viewer.nextPage")}
               >
-                <ChevronRight className="w-4 h-4" />
+                <CaretRight className="w-4 h-4" />
               </button>
             </div>
 
@@ -3253,7 +3260,7 @@ export function PDFViewer({
                 )}
                 title={t("viewer.fitToPage")}
               >
-                <Maximize className="w-4 h-4" />
+                <CornersOut className="w-4 h-4" />
               </button>
 
               <button
@@ -3264,7 +3271,7 @@ export function PDFViewer({
                 )}
                 title={t("viewer.fitToWidth")}
               >
-                <Minimize className="w-4 h-4" />
+                <CornersIn className="w-4 h-4" />
               </button>
 
               <div className="h-6 w-px bg-border mx-2" />

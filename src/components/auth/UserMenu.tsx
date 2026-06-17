@@ -2,7 +2,7 @@
  * User Menu Dropdown - Shown when user is authenticated
  */
 
-import { Settings, LogOut } from 'lucide-react';
+import { Gear, SignOut } from "@phosphor-icons/react";
 
 interface UserMenuProps {
   user: { id: string; email: string; subscriptionTier?: string } | null;
@@ -47,15 +47,15 @@ export function UserMenu({ user, onLogout, onOpenSettings }: UserMenuProps) {
             onClick={onOpenSettings}
             className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
           >
-            <Settings className="w-4 h-4" />
-            Settings
+            <Gear className="w-4 h-4" />
+            Gear
           </button>
         )}
         <button
           onClick={onLogout}
           className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-muted flex items-center gap-2"
         >
-          <LogOut className="w-4 h-4" />
+          <SignOut className="w-4 h-4" />
           Sign out
         </button>
       </div>

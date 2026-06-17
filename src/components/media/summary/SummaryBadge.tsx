@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Sparkle } from "@phosphor-icons/react";
 import { cn } from "../../../utils";
 
 interface SummaryBadgeProps {
@@ -26,7 +26,7 @@ export function SummaryBadge({ isVisible, onClick, className }: SummaryBadgeProp
         className
       )}
     >
-      <Sparkles className="w-3 h-3" />
+      <Sparkle className="w-3 h-3" />
       <span>AI Summary</span>
     </button>
   );

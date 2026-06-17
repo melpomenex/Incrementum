@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import type { Tab } from "../../../stores";
 import { TabContextMenu } from "./TabContextMenu";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
+import { getTabIcon } from "../../tabs/TabIcons";
 
 interface TabBarProps {
   tabs: Tab[];
@@ -261,7 +262,7 @@ export function TabBar({
           `}
           aria-label="Scroll tabs left"
         >
-          <ChevronLeft className={isNarrow ? "w-3 h-3" : "w-4 h-4"} />
+          <CaretLeft className={isNarrow ? "w-3 h-3" : "w-4 h-4"} />
         </button>
 
         {/* Tab scroll container */}
@@ -330,9 +331,10 @@ export function TabBar({
                   <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-8 bg-primary z-10" />
                 )}
 
-                {/* Tab icon - always show */}
+                {/* Tab icon - derive from tab type via the Phosphor registry so
+                    every navigation path renders a consistent glyph. */}
                 <span className={isNarrow ? "w-3 h-3" : "w-4 h-4 flex-shrink-0 flex items-center justify-center"}>
-                  {tab.icon}
+                  {getTabIcon(tab.type)}
                 </span>
 
                 {/* Tab title - truncate with ellipsis, hide if very narrow */}
@@ -424,7 +426,7 @@ export function TabBar({
           `}
           aria-label="Scroll tabs right"
         >
-          <ChevronRight className={isNarrow ? "w-3 h-3" : "w-4 h-4"} />
+          <CaretRight className={isNarrow ? "w-3 h-3" : "w-4 h-4"} />
         </button>
       </div>
 

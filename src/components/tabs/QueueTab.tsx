@@ -7,7 +7,7 @@ import { QueueScrollPage } from "../../pages/QueueScrollPage";
 import { usePaneId } from "../common/Tabs";
 import { getDeviceInfo } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
-import { Brain, FileText, Layers } from "lucide-react";
+import { Brain, Stack, TextT } from "@phosphor-icons/react";
 
 export function QueueTab() {
   const { addTab } = useTabsStore();
@@ -31,7 +31,7 @@ export function QueueTab() {
   const handleOpenDocument = (item: QueueItem) => {
     addTab({
       title: item.documentTitle,
-      icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+      icon: <TextT className="w-4 h-4 text-muted-foreground" />,
       type: "document-viewer",
       content: DocumentViewer,
       closable: true,
@@ -42,7 +42,7 @@ export function QueueTab() {
   const handleOpenScrollMode = () => {
     addTab({
       title: "Scroll Mode",
-      icon: <Layers className="w-4 h-4" />,
+      icon: <Stack className="w-4 h-4" />,
       type: "queue-scroll",
       content: QueueScrollPage,
       closable: true,

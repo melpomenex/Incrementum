@@ -1,27 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
-  AlertTriangle,
-  CalendarClock,
-  ChevronDown,
-  ChevronUp,
+  ArrowCounterClockwise,
+  CalendarHeart,
+  CaretDown,
+  CaretUp,
   Clock,
-  EyeOff,
-  Filter,
+  DeviceMobile,
+  EyeSlash,
+  Funnel,
+  Graph,
   Info,
   Keyboard,
-  LayoutList,
-  Network,
+  Lightning,
+  ListBullets,
   Pause,
   Play,
-  RotateCcw,
   Rss,
-  Smartphone,
-  Sparkles,
+  Sparkle,
   Target,
-  Trash2,
-  Zap,
-} from "lucide-react";
+  Trash,
+  Warning,
+} from "@phosphor-icons/react";
 import { DynamicVirtualList } from "../common/VirtualList";
 import { useQueueStore } from "../../stores/queueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -784,7 +784,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 className="flex-1 md:flex-none px-3 md:px-4 py-2 md:py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-md hover:opacity-90 flex items-center justify-center gap-2 min-h-[44px] text-sm md:text-base"
                 title={t("queue.scrollModeTooltip")}
               >
-                <Smartphone className="w-4 h-4" />
+                <DeviceMobile className="w-4 h-4" />
                 {t("queue.scrollMode")}
               </button>
             )}
@@ -799,7 +799,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               className="px-4 py-2 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-md hover:from-blue-500/20 hover:to-indigo-500/20 transition-all flex items-center gap-1.5 font-medium shadow-sm"
               title="Visualize semantic relationships in this queue"
             >
-              <Network className="w-4 h-4" />
+              <Graph className="w-4 h-4" />
               <span>Semantic Graph</span>
             </button>
             <button
@@ -858,7 +858,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
               placeholder={t("queue.searchPlaceholder")}
               className="w-full pl-4 pr-10 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Funnel className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           </div>
           {queueMode === "reading" && (
             <div className="flex items-center gap-1 bg-muted/60 rounded-md p-1">
@@ -877,7 +877,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   }`}
                 title={t("queue.filterAllItemsDesc")}
               >
-                <LayoutList className="w-3 h-3" />
+                <ListBullets className="w-3 h-3" />
                 {t("queue.filterAllItems")}
               </button>
               <button
@@ -886,7 +886,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   }`}
                 title={t("queue.filterNewOnlyDesc")}
               >
-                <Sparkles className="w-3 h-3" />
+                <Sparkle className="w-3 h-3" />
                 {t("queue.filterNewOnly")}
               </button>
               <button
@@ -913,7 +913,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 className="p-1 hover:bg-amber-500/20 rounded transition-colors"
                 title={t("queue.clearSession")}
               >
-                <RotateCcw className="w-3 h-3 text-amber-700" />
+                <ArrowCounterClockwise className="w-3 h-3 text-amber-700" />
               </button>
             </div>
           )}
@@ -921,9 +921,9 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           {/* TAS Status Indicator */}
           <TASQueueIndicator />
 
-          {/* File Type Filter */}
+          {/* File Type Funnel */}
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Funnel className="w-4 h-4 text-muted-foreground" />
             <select
               value={selectedFileType}
               onChange={(event) => setSelectedFileType(event.target.value)}
@@ -1027,7 +1027,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
             <div className="mb-4 p-4 rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 dark:from-blue-500/10 dark:to-indigo-500/10 flex items-center justify-between shadow-sm animate-fadeIn">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Sparkles className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                  <Sparkle className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Studying Custom Semantic Cluster</h3>
@@ -1050,7 +1050,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
           ) : visibleItems.length === 0 ? (
             sessionCustomization.semanticStudy?.enabled && sessionCustomization.semanticStudy?.focalTopic ? (
               <div className="p-8 text-center max-w-md mx-auto my-12 glass-card rounded-2xl border border-blue-500/20 bg-blue-500/5 dark:bg-blue-400/5 animate-scaleIn">
-                <AlertTriangle className="w-12 h-12 text-blue-500 dark:text-blue-400 mx-auto mb-4" />
+                <Warning className="w-12 h-12 text-blue-500 dark:text-blue-400 mx-auto mb-4" />
                 <h3 className="text-base font-semibold text-foreground mb-2">No Related Items Found</h3>
                 <p className="text-xs text-muted-foreground mb-6">
                   We couldn't find any items in your library semantically matching <strong>"{sessionCustomization.semanticStudy?.focalTopic}"</strong> at the threshold of {sessionCustomization.semanticStudy?.relatednessThreshold}%.
@@ -1065,7 +1065,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     }}
                     className="px-4 py-2 bg-background border border-border hover:bg-muted text-foreground rounded-xl text-xs font-semibold transition-all shadow-sm"
                   >
-                    Clear Filter
+                    Clear Funnel
                   </button>
                   <button
                     onClick={() => {
@@ -1308,7 +1308,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                   className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
                                   title={t("queueScroll.dismissTitle")}
                                 >
-                                  <EyeOff className="w-4 h-4 text-white" />
+                                  <EyeSlash className="w-4 h-4 text-white" />
                                   <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                                     {t("queue.dismiss")}
                                   </span>
@@ -1343,7 +1343,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 }}
                                 className="p-2 bg-muted rounded-md text-muted-foreground hover:text-foreground"
                               >
-                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                {isExpanded ? <CaretUp className="w-4 h-4" /> : <CaretDown className="w-4 h-4" />}
                               </button>
                             </div>
                           </div>
@@ -1351,7 +1351,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                           {isExpanded && (
                             <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground space-y-2">
                               <div className="flex items-center gap-3">
-                                <Sparkles className="w-4 h-4" />
+                                <Sparkle className="w-4 h-4" />
                                 <span>
                                   {t("queue.fsrsSummary", {
                                     stability: getFsrsMetrics(item).stability,
@@ -1371,7 +1371,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                               </div>
                               {status === "drifted" && (
                                 <div className="flex items-center gap-3 text-muted-foreground">
-                                  <AlertTriangle className="w-4 h-4" />
+                                  <Warning className="w-4 h-4" />
                                   <span>
                                     {t("queue.driftedStateMessage")}
                                   </span>
@@ -1496,7 +1496,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                                 className="group relative w-8 h-8 rounded-full bg-slate-500 hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105"
                                 title={t("queueScroll.dismissTitle")}
                               >
-                                <EyeOff className="w-4 h-4 text-white" />
+                                <EyeSlash className="w-4 h-4 text-white" />
                                 <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                                   {t("queue.dismiss")}
                                 </span>
@@ -1531,7 +1531,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                               }}
                               className="p-2 bg-muted rounded-md text-muted-foreground hover:text-foreground"
                             >
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              {isExpanded ? <CaretUp className="w-4 h-4" /> : <CaretDown className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
@@ -1539,7 +1539,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                         {isExpanded && (
                           <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground space-y-2">
                             <div className="flex items-center gap-3">
-                              <Sparkles className="w-4 h-4" />
+                              <Sparkle className="w-4 h-4" />
                               <span>
                                 {t("queue.fsrsSummary", {
                                   stability: getFsrsMetrics(item).stability,
@@ -1559,7 +1559,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                             </div>
                             {status === "drifted" && (
                               <div className="flex items-center gap-3 text-muted-foreground">
-                                <AlertTriangle className="w-4 h-4" />
+                                <Warning className="w-4 h-4" />
                                 <span>
                                   {t("queue.driftedStateMessage")}
                                 </span>
@@ -1584,7 +1584,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                 onClick={() => setInspectorOpen(false)}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <LayoutList className="w-4 h-4" />
+                <ListBullets className="w-4 h-4" />
               </button>
             </div>
             {!selectedItem ? (
@@ -1734,7 +1734,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
                     onClick={() => void handleCtxPostpone(ctxItem, days)}
                   >
-                    <CalendarClock className="w-4 h-4 text-blue-400" />
+                    <CalendarHeart className="w-4 h-4 text-blue-400" />
                     +{days} {days === 1 ? t("queue.day") : t("queue.days")}
                   </button>
                 ))}
@@ -1751,7 +1751,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     await applyScheduleShift(t("queue.compressIntervals"), -Math.max(1, Math.round(Math.abs(getDaysUntilDue(ctxItem)) * 0.5)));
                   }}
                 >
-                  <Zap className="w-4 h-4 text-orange-400" />
+                  <Lightning className="w-4 h-4 text-orange-400" />
                   {t("queue.compressIntervals")}
                 </button>
 
@@ -1764,7 +1764,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     await applyScheduleShift(t("queue.rescheduleIntelligently"), -getDaysUntilDue(ctxItem));
                   }}
                 >
-                  <RotateCcw className="w-4 h-4 text-purple-400" />
+                  <ArrowCounterClockwise className="w-4 h-4 text-purple-400" />
                   {t("queue.rescheduleIntelligently")}
                 </button>
 
@@ -1775,7 +1775,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
                   onClick={() => void handleCtxDelete(ctxItem)}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash className="w-4 h-4" />
                   {t("queue.delete")}
                 </button>
               </>
@@ -1790,7 +1790,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                   className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-muted/80 flex items-center gap-2"
                   onClick={() => { setCtxPos(null); setCtxItem(null); void handleDismissDocument(ctxItem); }}
                 >
-                  <EyeOff className="w-4 h-4 text-slate-400" />
+                  <EyeSlash className="w-4 h-4 text-slate-400" />
                   {t("queue.dismiss")}
                 </button>
 
@@ -1802,7 +1802,7 @@ export function ReviewQueueView({ onStartReview, onOpenDocument, onOpenScrollMod
                     toast.info(t("queue.delete"), t("queueScroll.onlyDocuments"));
                   }}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash className="w-4 h-4" />
                   {t("queue.delete")}
                 </button>
               </>

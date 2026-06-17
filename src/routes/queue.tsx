@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, ArrowUpDown, Play, Square, CheckSquare, Download, CalendarClock } from "lucide-react";
+import {
+  ArrowsVertical,
+  CalendarHeart,
+  CheckSquare,
+  Download,
+  Funnel,
+  MagnifyingGlass,
+  Play,
+  Square,
+} from "@phosphor-icons/react";
 import { useShallow } from "zustand/react/shallow";
 import { useQueueStore } from "../stores";
 import { QueueStatsDisplay } from "../components/queue/QueueStats";
@@ -201,13 +210,13 @@ export function Queue() {
       {/* Statistics */}
       <QueueStatsDisplay stats={stats} isLoading={isLoading} />
 
-      {/* Search and Filters */}
+      {/* MagnifyingGlass and Filters */}
       <div className="flex items-center gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <input
             type="text"
-            aria-label="Search queue"
+            aria-label="MagnifyingGlass queue"
             placeholder={t("queueLegacy.searchItems")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -220,7 +229,7 @@ export function Queue() {
           className="p-2 bg-card border border-border rounded-md hover:bg-muted transition-colors"
           title={t("queueLegacy.toggleFilters")}
         >
-          <Filter className="w-4 h-4" />
+          <Funnel className="w-4 h-4" />
         </button>
 
         <button
@@ -236,7 +245,7 @@ export function Queue() {
             direction: sortOptions.direction,
           })}
         >
-          <ArrowUpDown className="w-4 h-4" />
+          <ArrowsVertical className="w-4 h-4" />
         </button>
 
         <button
@@ -253,7 +262,7 @@ export function Queue() {
           className="p-2 bg-card border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
           title={t("postpone.postponeAllTitle")}
         >
-          <CalendarClock className="w-4 h-4" />
+          <CalendarHeart className="w-4 h-4" />
         </button>
 
         <button

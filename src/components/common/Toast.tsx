@@ -5,7 +5,13 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { create } from "zustand";
-import { Check, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
+import {
+  Check,
+  Info,
+  Warning,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { playFeedback, vibrate } from "../../utils/soundService";
 
 /**
@@ -108,8 +114,8 @@ export const useToastStore = create<ToastStore>((set, _get) => ({
  */
 const ToastIcons = {
   [ToastType.Success]: Check,
-  [ToastType.Error]: AlertCircle,
-  [ToastType.Warning]: AlertTriangle,
+  [ToastType.Error]: WarningCircle,
+  [ToastType.Warning]: Warning,
   [ToastType.Info]: Info,
 };
 

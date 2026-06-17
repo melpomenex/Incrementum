@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Scan, X } from "lucide-react";
+import { Scan, X } from "@phosphor-icons/react";
 import { cn } from "../../utils";
 
 export interface SelectionRect {

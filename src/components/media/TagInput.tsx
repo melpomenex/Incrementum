@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Plus } from "lucide-react";
+import { Plus, X } from "@phosphor-icons/react";
 import { useTagsStore } from "../../stores/tagsStore";
 import type { RssTag } from "../../api/rss-tags";
 

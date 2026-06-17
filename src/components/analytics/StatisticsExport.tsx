@@ -4,7 +4,12 @@
  */
 
 import { useState, useCallback } from "react";
-import { Download, FileText, Image, Table } from "lucide-react";
+import {
+  Download,
+  Image,
+  Table,
+  TextT,
+} from "@phosphor-icons/react";
 
 /**
  * Export format
@@ -488,14 +493,14 @@ export function StatisticsExportButton({ data }: { data: StatisticsData }) {
                 onClick={() => handleExport(StatisticsExportFormat.JSON)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 Export as JSON
               </button>
               <button
                 onClick={() => handleExport(StatisticsExportFormat.PDF)}
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted rounded text-left"
               >
-                <FileText className="w-4 h-4" />
+                <TextT className="w-4 h-4" />
                 Export as PDF
               </button>
               <button

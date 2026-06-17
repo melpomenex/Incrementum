@@ -9,7 +9,14 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { X, Maximize2, Minimize2, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
+import {
+  ArrowsInSimple,
+  ArrowsOutSimple,
+  CaretLeft,
+  CaretRight,
+  DotsThreeVertical,
+  X,
+} from "@phosphor-icons/react";
 import { getDeviceInfo, type DeviceInfo } from "../../lib/pwa";
 
 interface MobileReadingWrapperProps {
@@ -139,7 +146,7 @@ export function MobileReadingWrapper({
             className="mobile-header-btn"
             aria-label="Menu"
           >
-            <MoreVertical className="w-5 h-5" />
+            <DotsThreeVertical className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -163,7 +170,7 @@ export function MobileReadingWrapper({
               className="mobile-nav-btn"
               aria-label="Previous page"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <CaretLeft className="w-5 h-5" />
             </button>
 
             <span className="mobile-page-indicator">
@@ -176,7 +183,7 @@ export function MobileReadingWrapper({
               className="mobile-nav-btn"
               aria-label="Next page"
             >
-              <ChevronRight className="w-5 h-5" />
+              <CaretRight className="w-5 h-5" />
             </button>
           </div>
         )}
@@ -188,7 +195,7 @@ export function MobileReadingWrapper({
             className="mobile-action-btn"
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            {isFullscreen ? <ArrowsInSimple className="w-5 h-5" /> : <ArrowsOutSimple className="w-5 h-5" />}
           </button>
 
           {/* Reading Progress Indicator */}

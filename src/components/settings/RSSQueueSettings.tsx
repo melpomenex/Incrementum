@@ -9,7 +9,17 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { X, Rss, Settings2, Percent, ListFilter, EyeOff, Eye, ArrowUpDown, Headphones } from "lucide-react";
+import {
+  ArrowsVertical,
+  Eye,
+  EyeSlash,
+  Funnel,
+  Headphones,
+  Percent,
+  Rss,
+  Sliders,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { defaultSettings, useSettingsStore, type RSSQueueSettings, type PodcastQueueSettings } from "../../stores/settingsStore";
 import { getSubscribedFeeds } from "../../api/rss";
@@ -156,7 +166,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               {includeInQueue ? (
                 <Eye className="w-5 h-5 text-green-500" />
               ) : (
-                <EyeOff className="w-5 h-5 text-muted-foreground" />
+                <EyeSlash className="w-5 h-5 text-muted-foreground" />
               )}
               <div>
                 <h3 className="font-medium">{t("settings.rssIncludeInQueue")}</h3>
@@ -209,7 +219,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ListFilter className="w-4 h-4 text-muted-foreground" />
+                    <Funnel className="w-4 h-4 text-muted-foreground" />
                     <span className="font-medium">{t("settings.rssMaxItemsPerSession")}</span>
                   </div>
                   <span className="text-sm font-medium">
@@ -235,7 +245,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ListFilter className="w-4 h-4 text-muted-foreground" />
+                    <Funnel className="w-4 h-4 text-muted-foreground" />
                     <span className="font-medium">{t("settings.rssAutoRemoveOld")}</span>
                   </div>
                   <span className="text-sm font-medium">
@@ -260,7 +270,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               {/* Options */}
               <div className="space-y-3">
                 <h3 className="font-medium flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-muted-foreground" />
+                  <Sliders className="w-4 h-4 text-muted-foreground" />
                   {t("settings.options")}
                 </h3>
                 
@@ -314,7 +324,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
               {feeds.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="font-medium flex items-center gap-2">
-                    <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                    <ArrowsVertical className="w-4 h-4 text-muted-foreground" />
                     {t("settings.rssFeedSelection")}
                   </h3>
                   <p className="text-sm text-muted-foreground">
@@ -380,7 +390,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                                   className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                                   title={t("settings.rssExcludeFromQueue")}
                                 >
-                                  <EyeOff className="w-4 h-4" />
+                                  <EyeSlash className="w-4 h-4" />
                                 </button>
                               </>
                             )}
@@ -436,7 +446,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 {podcastIncludeInQueue ? (
                   <Eye className="w-5 h-5 text-green-500" />
                 ) : (
-                  <EyeOff className="w-5 h-5 text-muted-foreground" />
+                  <EyeSlash className="w-5 h-5 text-muted-foreground" />
                 )}
                 <div>
                   <h3 className="font-medium">Include podcasts in queue</h3>
@@ -467,7 +477,7 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <div className="space-y-3 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ListFilter className="w-4 h-4 text-muted-foreground" />
+                      <Funnel className="w-4 h-4 text-muted-foreground" />
                       <span className="font-medium">Max episodes per session</span>
                     </div>
                     <span className="text-sm font-medium">

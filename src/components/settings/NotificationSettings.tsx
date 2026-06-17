@@ -6,19 +6,19 @@
 import { useState, useEffect } from "react";
 import {
   Bell,
-  BellRing,
-  Clock,
+  BellRinging,
   Calendar,
-  Volume2,
-  VolumeX,
-  Smartphone,
-  Monitor,
-  AlertCircle,
   CheckCircle,
-  XCircle,
+  Clock,
+  Desktop,
+  DeviceMobile,
   Info,
   Play,
-} from "lucide-react";
+  SpeakerHigh,
+  SpeakerSlash,
+  WarningCircle,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useI18n } from "../../lib/i18n";
 import { isTauri, isPWA } from "../../lib/tauri";
@@ -220,7 +220,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
         };
       default:
         return {
-          icon: AlertCircle,
+          icon: WarningCircle,
           color: "text-yellow-500",
           bg: "bg-yellow-500/10",
           text: "Permission not requested",
@@ -236,9 +236,9 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
       {/* Platform Info */}
       <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
         {platform === "tauri" ? (
-          <Monitor className="w-5 h-5 text-primary" />
+          <Desktop className="w-5 h-5 text-primary" />
         ) : platform === "pwa" ? (
-          <Smartphone className="w-5 h-5 text-primary" />
+          <DeviceMobile className="w-5 h-5 text-primary" />
         ) : (
           <Info className="w-5 h-5 text-primary" />
         )}
@@ -373,7 +373,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
             <div className="ml-8 p-4 bg-muted/30 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <BellRing className="w-4 h-4 text-muted-foreground" />
+                  <BellRinging className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">{t("notificationSettings.reminderTime")}</span>
                 </div>
                 <input
@@ -418,9 +418,9 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
           <div className="flex items-start justify-between py-4 border-b border-border last:border-0">
             <div className="flex items-start gap-3">
               {notificationSettings.soundEnabled ? (
-                <Volume2 className="w-5 h-5 text-muted-foreground mt-0.5" />
+                <SpeakerHigh className="w-5 h-5 text-muted-foreground mt-0.5" />
               ) : (
-                <VolumeX className="w-5 h-5 text-muted-foreground mt-0.5" />
+                <SpeakerSlash className="w-5 h-5 text-muted-foreground mt-0.5" />
               )}
               <div>
                 <p className="font-medium">{t("notificationSettings.notificationSounds")}</p>
@@ -448,7 +448,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
             <div className="ml-8 p-4 bg-muted/30 rounded-lg space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Volume2 className="w-4 h-4 text-muted-foreground" />
+                  <SpeakerHigh className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">{t("notificationSettings.sound")}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -509,7 +509,7 @@ export function NotificationSettings({ onChange }: NotificationSettingsProps) {
         <div className="space-y-4">
           <div className="flex items-start justify-between py-4 border-b border-border last:border-0">
             <div className="flex items-start gap-3">
-              <Volume2 className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <SpeakerHigh className="w-5 h-5 text-muted-foreground mt-0.5" />
               <div>
                 <p className="font-medium">{t("notificationSettings.uiSoundEffectsLabel")}</p>
                 <p className="text-sm text-muted-foreground">

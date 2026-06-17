@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Share2, X, MessageSquare } from "lucide-react";
+import { ChatCircle, ShareNetwork, X } from "@phosphor-icons/react";
 import { useAnnotationsStore } from "../../stores/annotationsStore";
 import type { FeedItem } from "../../api/rss";
 
@@ -51,7 +51,7 @@ export function ShareWithComment({ article, onClose }: ShareWithCommentProps) {
       >
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Share2 className="w-4 h-4" />
+            <ShareNetwork className="w-4 h-4" />
             Share Story
           </h3>
           <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -61,7 +61,7 @@ export function ShareWithComment({ article, onClose }: ShareWithCommentProps) {
         <div className="p-4">
           <p className="text-sm text-foreground font-medium line-clamp-2 mb-3">{article.title}</p>
           <div className="flex items-start gap-2 mb-4">
-            <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5" />
+            <ChatCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
             <textarea
               autoFocus
               value={comment}
@@ -83,7 +83,7 @@ export function ShareWithComment({ article, onClose }: ShareWithCommentProps) {
               disabled={isSharing}
               className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
             >
-              <Share2 className="w-3.5 h-3.5" />
+              <ShareNetwork className="w-3.5 h-3.5" />
               Share
             </button>
           </div>

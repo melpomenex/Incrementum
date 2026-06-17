@@ -1,17 +1,17 @@
 import { useState, useCallback } from "react";
 import {
-  Eye,
-  Pencil,
+  ChartBar,
+  CircleNotch,
   Clock,
+  Eye,
+  FloppyDisk,
+  Pencil,
+  Stack,
   Tag,
-  Save,
+  TextT,
+  Warning,
   X,
-  Loader2,
-  BarChart3,
-  FileText,
-  AlertTriangle,
-  Layers,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -58,7 +58,7 @@ export function CardPreviewPanel({
   if (!card) {
     return (
       <div className="flex flex-col items-center justify-center text-muted-foreground gap-2 p-4 h-full">
-        <FileText className="h-10 w-10 opacity-30" />
+        <TextT className="h-10 w-10 opacity-30" />
         <p className="text-xs text-center">Select a card to preview</p>
       </div>
     );
@@ -153,7 +153,7 @@ function PreviewTab({
         <span className="tabular-nums">{card.review_count} reviews</span>
         {card.lapses > 0 && (
           <span className="flex items-center gap-0.5 text-yellow-600">
-            <AlertTriangle className="h-2.5 w-2.5" />
+            <Warning className="h-2.5 w-2.5" />
             {card.lapses} lapses
           </span>
         )}
@@ -197,7 +197,7 @@ function PreviewTab({
           onClick={() => onEditInStudio(card)}
           className="flex items-center gap-1.5 text-xs text-primary hover:underline"
         >
-          <FileText className="h-3 w-3" />
+          <TextT className="h-3 w-3" />
           Edit in Studio
         </button>
       )}
@@ -280,8 +280,8 @@ function EditTab({
           disabled={saving || !hasChanges}
           className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
         >
-          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-          Save
+          {saving ? <CircleNotch className="h-3 w-3 animate-spin" /> : <FloppyDisk className="h-3 w-3" />}
+          FloppyDisk
         </button>
         <button
           onClick={handleCancel}
@@ -305,7 +305,7 @@ function HistoryTab({ card }: { card: LearningItem }) {
       {/* Review stats grid */}
       <section>
         <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          <BarChart3 className="h-3 w-3" />
+          <ChartBar className="h-3 w-3" />
           Review Stats
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -322,7 +322,7 @@ function HistoryTab({ card }: { card: LearningItem }) {
       {card.memory_state && (
         <section>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            <Layers className="h-3 w-3" />
+            <Stack className="h-3 w-3" />
             Memory State
           </div>
           <div className="rounded-md border border-border/60 p-2 space-y-1">

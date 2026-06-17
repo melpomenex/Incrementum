@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { CaretDown, CaretUp } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import type { ForecastPoint } from "../../api/analytics";
 import { ScheduleTimeline } from "./ScheduleTimeline";
@@ -42,7 +42,7 @@ export function ScheduleDashboard({
           onClick={onToggleCollapse}
           className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded hover:bg-muted transition-colors text-muted-foreground"
         >
-          <ChevronDown className="w-3 h-3" />
+          <CaretDown className="w-3 h-3" />
           {t("common.expand")}
         </button>
       </div>
@@ -60,7 +60,7 @@ export function ScheduleDashboard({
             onClick={onToggleCollapse}
             className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded hover:bg-muted transition-colors text-muted-foreground"
           >
-            <ChevronUp className="w-3 h-3" />
+            <CaretUp className="w-3 h-3" />
             {t("common.collapse")}
           </button>
         </div>

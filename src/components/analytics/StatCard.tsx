@@ -1,10 +1,10 @@
 import React from "react";
-import { LucideIcon } from "lucide-react";
+import { type Icon } from "@phosphor-icons/react";
 
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon;
+  icon: Icon;
   trend?: {
     value: number;
     isPositive: boolean;

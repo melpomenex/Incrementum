@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Power, Loader2 } from "lucide-react";
+import { CircleNotch, Power } from "@phosphor-icons/react";
 import { toggleFeedActiveAuto } from "../../api/rss-folders";
 import type { Feed } from "../../api/rss";
 
@@ -66,7 +66,7 @@ export function DisabledFeedsView({ feeds, onFeedToggled, onBack }: DisabledFeed
                 className="px-3 py-1.5 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 disabled:opacity-50 flex items-center gap-1"
               >
                 {toggling === feed.id ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <CircleNotch className="w-3 h-3 animate-spin" />
                 ) : (
                   <Power className="w-3 h-3" />
                 )}

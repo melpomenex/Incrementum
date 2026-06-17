@@ -1,15 +1,14 @@
 import { useRef, useState, useEffect } from "react";
 import {
-  Play,
+  List,
   Pause,
+  Play,
+  Repeat,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
-  Repeat,
-  Repeat1,
-  List,
-} from "lucide-react";
+  SpeakerHigh,
+  SpeakerSlash,
+} from "@phosphor-icons/react";
 
 interface AudioPlayerProps {
   src: string;
@@ -431,7 +430,7 @@ export function AudioPlayer({
                 title={`Repeat: ${repeatMode}`}
               >
                 {repeatMode === "one" ? (
-                  <Repeat1 className="w-5 h-5" />
+                  <Repeat className="w-5 h-5" />
                 ) : (
                   <Repeat className="w-5 h-5" />
                 )}
@@ -498,9 +497,9 @@ export function AudioPlayer({
                 title="Mute (M)"
               >
                 {isMuted || volume === 0 ? (
-                  <VolumeX className="w-5 h-5" />
+                  <SpeakerSlash className="w-5 h-5" />
                 ) : (
-                  <Volume2 className="w-5 h-5" />
+                  <SpeakerHigh className="w-5 h-5" />
                 )}
               </button>
               <input

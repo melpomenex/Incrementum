@@ -3,7 +3,7 @@
  * Shows current location in the application hierarchy
  */
 
-import { ChevronRight, Home } from "lucide-react";
+import { CaretRight, House } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
 interface BreadcrumbItem {
@@ -76,7 +76,7 @@ export function Breadcrumb({
             className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded px-1"
             aria-label={`Go to ${homeLabel} home`}
           >
-            <Home className="w-3 h-3" aria-hidden="true" />
+            <House className="w-3 h-3" aria-hidden="true" />
             <span className="hidden sm:inline">{homeLabel}</span>
           </button>
         </li>
@@ -86,7 +86,7 @@ export function Breadcrumb({
 
           return (
             <li key={index} className="flex items-center">
-              <ChevronRight
+              <CaretRight
                 className="w-3 h-3 mx-1 text-muted-foreground/50"
                 aria-hidden="true"
               />

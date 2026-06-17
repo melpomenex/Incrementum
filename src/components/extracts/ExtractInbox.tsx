@@ -1,23 +1,23 @@
 import { useState, useEffect } from "react";
 import {
-    Inbox,
-    Sparkles,
-    FileText,
-    Clock,
-    Brain,
-    Target,
-    MessageSquare,
-    Loader2,
-    RefreshCw,
-    CheckCircle,
-    AlertCircle,
-    BookOpen,
-    Zap,
-    ChevronDown,
-    ChevronUp,
-    Trash2,
-    Eye,
-} from "lucide-react";
+  ArrowsClockwise,
+  BookOpen,
+  Brain,
+  CaretDown,
+  CaretUp,
+  ChatCircle,
+  CheckCircle,
+  CircleNotch,
+  Clock,
+  Eye,
+  Lightning,
+  Sparkle,
+  Target,
+  TextT,
+  Trash,
+  Tray,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { getExtracts, deleteExtract, type Extract } from "../../api/extracts";
 import { summarizeContent, extractKeyPoints, generateQuestions } from "../../api/ai";
 import { cn } from "../../utils";
@@ -130,7 +130,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <CircleNotch className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -138,7 +138,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
     if (extracts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-center p-8">
-                <Inbox className="w-16 h-16 text-muted-foreground/40 mb-4" />
+                <Tray className="w-16 h-16 text-muted-foreground/40 mb-4" />
                 <h3 className="text-lg font-semibold text-foreground">{t("extracts.noExtractsYet")}</h3>
                 <p className="text-sm text-muted-foreground mt-2 max-w-sm">
                     {t("extracts.inboxEmptyDesc")}
@@ -153,7 +153,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
             <div className="flex items-center justify-between p-6 border-b border-border/50">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-xl">
-                        <Inbox className="w-6 h-6 text-primary" />
+                        <Tray className="w-6 h-6 text-primary" />
                     </div>
                     <div>
                         <h2 className="text-xl font-bold text-foreground">{t("extracts.inboxTitle")}</h2>
@@ -165,7 +165,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                     className="p-2 hover:bg-muted rounded-lg transition-colors"
                     title="Refresh"
                 >
-                    <RefreshCw className="w-5 h-5 text-muted-foreground" />
+                    <ArrowsClockwise className="w-5 h-5 text-muted-foreground" />
                 </button>
             </div>
 
@@ -220,9 +220,9 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                             className="p-1.5 hover:bg-muted rounded-lg transition-colors"
                                         >
                                             {isExpanded ? (
-                                                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                                <CaretUp className="w-4 h-4 text-muted-foreground" />
                                             ) : (
-                                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                                <CaretDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </button>
                                     </div>
@@ -235,7 +235,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                         {formatDate(extract.date_created)}
                                     </span>
                                     <span className="flex items-center gap-1">
-                                        <FileText className="w-3.5 h-3.5" />
+                                        <TextT className="w-3.5 h-3.5" />
                                         {wordCount} words
                                     </span>
                                     <span className="flex items-center gap-1">
@@ -273,17 +273,17 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                                 onClick={() => handleAnalyze(extract)}
                                                 className="w-full py-3 px-4 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
                                             >
-                                                <Sparkles className="w-5 h-5" />
+                                                <Sparkle className="w-5 h-5" />
                                                 {t("extracts.analyzeWithAI")}
                                             </button>
                                         ) : analysis.loading ? (
                                             <div className="flex items-center justify-center py-8 gap-3">
-                                                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                                <CircleNotch className="w-5 h-5 animate-spin text-primary" />
                                                 <span className="text-sm text-muted-foreground">{t("extracts.analyzing")}</span>
                                             </div>
                                         ) : analysis.error ? (
                                             <div className="flex items-center justify-center py-4 gap-2 text-destructive">
-                                                <AlertCircle className="w-5 h-5" />
+                                                <WarningCircle className="w-5 h-5" />
                                                 <span className="text-sm">{analysis.error}</span>
                                             </div>
                                         ) : (
@@ -330,7 +330,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                                 {analysis.questions && analysis.questions.length > 0 && (
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-2">
-                                                            <MessageSquare className="w-4 h-4 text-purple-500" />
+                                                            <ChatCircle className="w-4 h-4 text-purple-500" />
                                                             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                                                 {t("extracts.questionsToExplore")}
                                                             </span>
@@ -357,7 +357,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                             onClick={() => onSelectExtract?.(extract)}
                                             className="flex-1 py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                                         >
-                                            <Zap className="w-4 h-4" />
+                                            <Lightning className="w-4 h-4" />
                                             {t("extracts.createFlashcards")}
                                         </button>
                                         <button
@@ -365,7 +365,7 @@ export function ExtractInbox({ onSelectExtract }: ExtractInboxProps) {
                                             className="p-2.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                                             title="Delete"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </div>

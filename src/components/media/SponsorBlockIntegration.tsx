@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  SkipForward,
   Eye,
-  ThumbsUp,
+  Gear,
+  SkipForward,
   ThumbsDown,
-  Settings,
-} from "lucide-react";
+  ThumbsUp,
+} from "@phosphor-icons/react";
 import {
   SponsorBlockSegment,
   fetchSponsorBlockSegments,
@@ -179,9 +179,9 @@ export function SponsorBlockIntegration({
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                  title="Settings"
+                  title="Gear"
                 >
-                  <Settings className="w-4 h-4" />
+                  <Gear className="w-4 h-4" />
                 </button>
                 <button
                   onClick={skipToNext}
@@ -257,7 +257,7 @@ export function SponsorBlockIntegration({
               })}
             </div>
 
-            {/* Settings Panel */}
+            {/* Gear Panel */}
             {showSettings && (
               <div className="px-4 py-3 border-t border-border bg-muted/30 space-y-2">
                 <label className="flex items-center gap-2 text-sm text-foreground">

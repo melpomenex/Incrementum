@@ -4,7 +4,12 @@
  */
 
 import { useState } from "react";
-import { X, BarChart3, Rss, TrendingUp } from "lucide-react";
+import {
+  ChartBar,
+  Rss,
+  TrendUp,
+  X,
+} from "@phosphor-icons/react";
 import { subscribeToFeedAuto, type Feed } from "../../api/rss";
 
 interface SiteStatisticsDialogProps {
@@ -55,7 +60,7 @@ export function SiteStatisticsDialog({ siteUrl, siteTitle, feedUrl, isOpen, onCl
       >
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
+            <ChartBar className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Site Statistics</h2>
           </div>
           <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -69,7 +74,7 @@ export function SiteStatisticsDialog({ siteUrl, siteTitle, feedUrl, isOpen, onCl
 
           <div className="space-y-3">
             <StatRow icon={<Rss className="w-4 h-4" />} label="Status" value={isSubscribed ? "Subscribed" : "Not subscribed"} highlight={!isSubscribed} />
-            <StatRow icon={<TrendingUp className="w-4 h-4" />} label="Feed URL" value={feedUrl || "Not found"} />
+            <StatRow icon={<TrendUp className="w-4 h-4" />} label="Feed URL" value={feedUrl || "Not found"} />
           </div>
 
           {!isSubscribed && feedUrl && (

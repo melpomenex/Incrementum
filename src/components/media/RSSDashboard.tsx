@@ -1,17 +1,17 @@
 import { useMemo } from "react";
-import { 
-  Rss, 
-  BookOpen, 
-  Star, 
-  Brain, 
-  Plus, 
-  Keyboard, 
-  RefreshCw, 
-  TrendingUp, 
-  Compass, 
-  History,
-  Link2
-} from "lucide-react";
+import {
+  ArrowsClockwise,
+  BookOpen,
+  Brain,
+  ClockCounterClockwise,
+  Compass,
+  Keyboard,
+  Link,
+  Plus,
+  Rss,
+  Star,
+  TrendUp,
+} from "@phosphor-icons/react";
 import { type Feed, type FeedItem, formatFeedDate } from "../../api/rss";
 import { useI18n } from "../../lib/i18n";
 
@@ -82,7 +82,7 @@ export function RSSDashboard({
             disabled={isSyncing}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg border border-border/80 transition-all disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-orange-500" : ""}`} />
+            <ArrowsClockwise className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-orange-500" : ""}`} />
             <span>{isSyncing ? t("rssReader.syncing") : t("rssReader.syncAllFeeds")}</span>
           </button>
         </div>
@@ -173,7 +173,7 @@ export function RSSDashboard({
           {/* Quick Actions */}
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-orange-500" />
+              <TrendUp className="w-4 h-4 text-orange-500" />
               {t("rssDashboard.quickActions")}
             </h4>
             <div className="grid grid-cols-1 gap-3">
@@ -211,7 +211,7 @@ export function RSSDashboard({
                 className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/40 text-left transition-all duration-200 group hover:-translate-y-0.5"
               >
                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all duration-200">
-                  <Link2 className="w-4 h-4" />
+                  <Link className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <span className="text-xs font-semibold text-foreground block">{t("rssDashboard.opmlAndNewsletters")}</span>
@@ -275,7 +275,7 @@ export function RSSDashboard({
         {/* Recent Articles Section */}
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-            <History className="w-4 h-4 text-orange-500" />
+            <ClockCounterClockwise className="w-4 h-4 text-orange-500" />
             {t("rssDashboard.recentStories")}
           </h4>
           {recentArticles.length === 0 ? (

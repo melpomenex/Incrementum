@@ -10,21 +10,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Home,
-  FileText,
-  Brain,
-  Rss,
-  Settings,
-  BarChart3,
-  X,
-  Newspaper,
-  Maximize2,
-  Minimize2,
-  Menu,
-  Search,
-  Download,
+  ArrowsInSimple,
+  ArrowsOutSimple,
   BookOpen,
-} from "lucide-react";
+  Brain,
+  ChartBar,
+  Download,
+  Gear,
+  House,
+  List,
+  MagnifyingGlass,
+  Newspaper,
+  Rss,
+  TextT,
+  X,
+} from "@phosphor-icons/react";
 import { toggleFullscreen, isFullscreen, isFullscreenSupported, isPWA } from "../../lib/pwa";
 import { useI18n } from "../../lib/i18n";
 import { useTabsStore } from "../../stores";
@@ -58,7 +58,7 @@ const primaryNavItems: NavItem[] = [
   {
     id: "dashboard",
     label: "nav.dashboard",
-    icon: Home,
+    icon: House,
     tabType: "dashboard",
     tabTitle: "nav.dashboard",
     tabIcon: "📊",
@@ -68,7 +68,7 @@ const primaryNavItems: NavItem[] = [
   {
     id: "queue",
     label: "nav.queue",
-    icon: FileText,
+    icon: TextT,
     tabType: "queue",
     tabTitle: "nav.queue",
     tabIcon: "📚",
@@ -99,7 +99,7 @@ const primaryNavItems: NavItem[] = [
   {
     id: "settings",
     label: "nav.settings",
-    icon: Settings,
+    icon: Gear,
     tabType: "settings",
     tabTitle: "nav.settings",
     tabIcon: "⚙️",
@@ -134,7 +134,7 @@ const allNavItems: NavItem[] = [
   {
     id: "analytics",
     label: "nav.analytics",
-    icon: BarChart3,
+    icon: ChartBar,
     tabType: "analytics",
     tabTitle: "nav.analytics",
     tabIcon: "📈",
@@ -309,13 +309,13 @@ export function MobileNavigation({
       >
         <span className="mobile-nav-item-background" aria-hidden="true" />
         <div className="mobile-nav-icon">
-          <Menu className="w-6 h-6" />
+          <List className="w-6 h-6" />
         </div>
         <span className="mobile-nav-label">{t("nav.more")}</span>
       </button>
     </nav>
 
-      {/* More Menu Overlay */}
+      {/* More List Overlay */}
       {showMoreMenu && (
         <div 
           className="mobile-more-overlay"
@@ -386,7 +386,7 @@ export function MobileNavigation({
                 }}
                 className="mobile-more-item"
               >
-                <Search className="w-5 h-5" />
+                <MagnifyingGlass className="w-5 h-5" />
                 <span className="flex-1 text-left">{t("mobileNav.search")}</span>
               </button>
 
@@ -410,12 +410,12 @@ export function MobileNavigation({
                 >
                   {fullscreenState ? (
                     <>
-                      <Minimize2 className="w-5 h-5" />
+                      <ArrowsInSimple className="w-5 h-5" />
                       <span className="flex-1 text-left">{t("mobileNav.exitFullscreen")}</span>
                     </>
                   ) : (
                     <>
-                      <Maximize2 className="w-5 h-5" />
+                      <ArrowsOutSimple className="w-5 h-5" />
                       <span className="flex-1 text-left">{t("mobileNav.enterFullscreen")}</span>
                     </>
                   )}
@@ -478,7 +478,7 @@ export function MobileSettingsPanel({
           <PWastatusIndicator />
         </div>
 
-        {/* Sync Settings */}
+        {/* Sync Gear */}
         <div className="mobile-settings-section">
           <h3 className="mobile-settings-section-title">{t("mobileNav.syncOffline")}</h3>
           <ToggleSetting
@@ -494,7 +494,7 @@ export function MobileSettingsPanel({
           />
         </div>
 
-        {/* Reading Settings */}
+        {/* Reading Gear */}
         <div className="mobile-settings-section">
           <h3 className="mobile-settings-section-title">{t("mobileNav.reading")}</h3>
           <SelectSetting
@@ -509,7 +509,7 @@ export function MobileSettingsPanel({
           />
         </div>
 
-        {/* Interface Settings */}
+        {/* Interface Gear */}
         <div className="mobile-settings-section">
           <h3 className="mobile-settings-section-title">{t("mobileNav.interface")}</h3>
           <ToggleSetting

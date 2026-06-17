@@ -6,19 +6,19 @@
 
 import { useState, useEffect } from "react";
 import {
-  X,
-  RotateCcw,
+  ArrowCounterClockwise,
+  BookOpen,
+  Brain,
+  CaretLeft,
+  CaretRight,
+  Clock,
+  Lightning,
+  Target,
   ThumbsDown,
   ThumbsUp,
-  Zap,
-  Brain,
-  Clock,
-  TrendingUp,
-  ChevronRight,
-  ChevronLeft,
-  BookOpen,
-  Target,
-} from "lucide-react";
+  TrendUp,
+  X,
+} from "@phosphor-icons/react";
 
 interface FSRSExplanationModalProps {
   isOpen: boolean;
@@ -55,14 +55,14 @@ const explanationSteps: ExplanationStep[] = [
             </div>
             <p className="text-xs text-muted-foreground">Reviews at optimal times</p>
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          <CaretRight className="w-5 h-5 text-muted-foreground" />
           <div className="text-center">
             <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
-              <TrendingUp className="w-6 h-6 text-green-500" />
+              <TrendUp className="w-6 h-6 text-green-500" />
             </div>
             <p className="text-xs text-muted-foreground">Intervals increase as you learn</p>
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          <CaretRight className="w-5 h-5 text-muted-foreground" />
           <div className="text-center">
             <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
               <Brain className="w-6 h-6 text-purple-500" />
@@ -84,7 +84,7 @@ const explanationSteps: ExplanationStep[] = [
           <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
-                <RotateCcw className="w-5 h-5 text-white" />
+                <ArrowCounterClockwise className="w-5 h-5 text-white" />
               </div>
               <div>
                 <div className="font-semibold text-foreground">Again</div>
@@ -126,7 +126,7 @@ const explanationSteps: ExplanationStep[] = [
           <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
+                <Lightning className="w-5 h-5 text-white" />
               </div>
               <div>
                 <div className="font-semibold text-foreground">Easy</div>
@@ -187,7 +187,7 @@ const explanationSteps: ExplanationStep[] = [
           </div>
         </div>
         <div className="flex items-start gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-          <TrendingUp className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+          <TrendUp className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
           <div className="text-sm text-foreground">
             <strong>The key insight:</strong> The more you successfully recall something, the longer the interval becomes.
             Eventually, you may only review cards once every few months!
@@ -350,7 +350,7 @@ export function FSRSExplanationModal({ isOpen, onClose }: FSRSExplanationModalPr
             disabled={isFirstStep}
             className="flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <CaretLeft className="w-4 h-4" />
             Back
           </button>
 
@@ -366,7 +366,7 @@ export function FSRSExplanationModal({ isOpen, onClose }: FSRSExplanationModalPr
               className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               {isLastStep ? "Start Reviewing" : "Next"}
-              <ChevronRight className="w-4 h-4" />
+              <CaretRight className="w-4 h-4" />
             </button>
           </div>
         </div>

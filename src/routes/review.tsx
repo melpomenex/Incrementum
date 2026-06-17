@@ -5,7 +5,7 @@ import { ReviewCard } from "../components/review/ReviewCard";
 import { RatingButtons } from "../components/review/RatingButtons";
 import { ReviewProgress } from "../components/review/ReviewProgress";
 import { ReviewComplete } from "../components/review/ReviewComplete";
-import { AlertCircle, ExternalLink, Undo2 } from "lucide-react";
+import { ArrowCounterClockwise, ArrowSquareOut, WarningCircle } from "@phosphor-icons/react";
 import { ReviewRating } from "../api/review";
 import {
   evaluateTypedAnswer,
@@ -340,7 +340,7 @@ export function Review() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <WarningCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
             {t("common.failed")}
           </h2>
@@ -411,7 +411,7 @@ export function Review() {
             disabled={!canUndoLastReview || isSubmitting}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Undo2 className="w-4 h-4" />
+            <ArrowCounterClockwise className="w-4 h-4" />
             {t("review.undo")}
           </button>
           <button
@@ -428,7 +428,7 @@ export function Review() {
             disabled={!canJumpToSource}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ArrowSquareOut className="w-4 h-4" />
             {t("review.sourceJump")}
           </button>
         </div>

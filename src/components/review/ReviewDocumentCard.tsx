@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { FileText } from "lucide-react";
+import { TextT } from "@phosphor-icons/react";
 import { useTabsStore } from "../../stores";
 import { DocumentViewer } from "../tabs/TabRegistry";
 import type { ReviewDocumentItem } from "../../stores/reviewStore";
@@ -19,7 +19,7 @@ export const ReviewDocumentCard = React.memo(function ReviewDocumentCard({ item 
   return (
     <div className="w-full max-w-2xl mx-auto px-2 md:px-0">
       <div className="flex items-center gap-2 mb-3 md:mb-4">
-        <FileText className="w-5 h-5 text-primary" />
+        <TextT className="w-5 h-5 text-primary" />
         <span className="text-xs md:text-sm uppercase tracking-wide text-foreground/80 font-medium">
           Document
         </span>
@@ -55,7 +55,7 @@ export const ReviewDocumentCard = React.memo(function ReviewDocumentCard({ item 
             onClick={() =>
               addTab({
                 title: item.documentTitle || "Document",
-                icon: <FileText className="w-4 h-4 text-muted-foreground" />,
+                icon: <TextT className="w-4 h-4 text-muted-foreground" />,
                 type: "document-viewer",
                 content: DocumentViewer,
                 closable: true,

@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
+import { ArrowSquareOut, CircleNotch, ShieldWarning } from "@phosphor-icons/react";
 import { openExternal } from "../../lib/tauri";
 import type { FeedItem } from "../../api/rss";
 
@@ -41,7 +41,7 @@ export function OriginalView({ item }: OriginalViewProps) {
   if (iframeError) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
-        <ShieldAlert className="w-12 h-12 text-muted-foreground" />
+        <ShieldWarning className="w-12 h-12 text-muted-foreground" />
         <div>
           <p className="text-foreground font-medium mb-1">Cannot embed this page</p>
           <p className="text-sm text-muted-foreground">
@@ -52,7 +52,7 @@ export function OriginalView({ item }: OriginalViewProps) {
           onClick={openInBrowser}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 flex items-center gap-2"
         >
-          <ExternalLink className="w-4 h-4" />
+          <ArrowSquareOut className="w-4 h-4" />
           Open in Browser
         </button>
       </div>
@@ -63,7 +63,7 @@ export function OriginalView({ item }: OriginalViewProps) {
     <div className="h-full relative">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/30 z-10">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
       )}
       <iframe

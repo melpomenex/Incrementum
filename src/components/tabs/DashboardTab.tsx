@@ -17,15 +17,15 @@ import { QuickReviewWidget } from "../review/QuickReviewWidget";
 import {
   BookOpen,
   Brain,
+  CaretRight,
+  ChartBar,
   Files,
-  BarChart3,
-  Settings,
+  Gear,
+  Lightning,
   Rss,
-  TrendingUp,
   Target,
-  Zap,
-  ChevronRight,
-} from "lucide-react";
+  TrendUp,
+} from "@phosphor-icons/react";
 
 interface QuickAction {
   id: string;
@@ -35,7 +35,6 @@ interface QuickAction {
   iconBg: string;
   tabType: TabType;
   tabTitle: string;
-  tabIcon: string;
   content: React.ComponentType;
   closable: boolean;
   primary?: boolean;
@@ -75,7 +74,6 @@ export function DashboardTab() {
       iconBg: "bg-blue-500/10 text-blue-500",
       tabType: "queue",
       tabTitle: "Queue",
-      tabIcon: "📚",
       content: QueueTab,
       closable: true,
       primary: true,
@@ -88,7 +86,6 @@ export function DashboardTab() {
       iconBg: "bg-purple-500/10 text-purple-500",
       tabType: "review",
       tabTitle: "Review",
-      tabIcon: "🎴",
       content: ReviewTab,
       closable: true,
       primary: true,
@@ -101,7 +98,6 @@ export function DashboardTab() {
       iconBg: "bg-green-500/10 text-green-500",
       tabType: "documents",
       tabTitle: "Documents",
-      tabIcon: "📄",
       content: DocumentsTab,
       closable: true,
     },
@@ -113,7 +109,6 @@ export function DashboardTab() {
       iconBg: "bg-orange-500/10 text-orange-500",
       tabType: "rss",
       tabTitle: "RSS Feeds",
-      tabIcon: "📰",
       content: RSSReader,
       closable: true,
     },
@@ -121,11 +116,10 @@ export function DashboardTab() {
       id: "analytics",
       title: t("dashboard.analytics"),
       description: t("dashboard.trackProgress"),
-      icon: BarChart3,
+      icon: ChartBar,
       iconBg: "bg-cyan-500/10 text-cyan-500",
       tabType: "analytics",
       tabTitle: "Analytics",
-      tabIcon: "📊",
       content: AnalyticsTab,
       closable: true,
     },
@@ -133,11 +127,10 @@ export function DashboardTab() {
       id: "settings",
       title: t("nav.settings"),
       description: t("dashboard.appPreferences"),
-      icon: Settings,
+      icon: Gear,
       iconBg: "bg-slate-500/10 text-slate-500",
       tabType: "settings",
-      tabTitle: "Settings",
-      tabIcon: "⚙️",
+      tabTitle: "Gear",
       content: SettingsTab,
       closable: true,
     },
@@ -146,7 +139,10 @@ export function DashboardTab() {
   const openTab = (action: QuickAction) => {
     addTab({
       title: action.tabTitle,
-      icon: action.tabIcon,
+      
+      // TabBar derives the icon from `type` via getTabIcon(); this field is
+      // kept for the store's ReactNode requirement but no longer rendered.
+      icon: null,
       type: action.tabType,
       content: action.content,
       closable: action.closable,
@@ -157,7 +153,7 @@ export function DashboardTab() {
     localStorage.setItem("incrementum_settings_initial_tab", "sync");
     addTab({
       title: "Settings",
-      icon: <Settings className="w-4 h-4" />,
+      icon: null,
       type: "settings",
       content: SettingsTab,
       closable: true,
@@ -243,7 +239,7 @@ export function DashboardTab() {
           <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4 md:p-6">
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-muted-foreground" />
+                <TrendUp className="w-5 h-5 text-muted-foreground" />
                 <h2 className="text-lg md:text-xl font-semibold text-foreground">
                   {t("dashboard.yourProgress")}
                 </h2>
@@ -253,7 +249,7 @@ export function DashboardTab() {
                 className="text-xs md:text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
               >
                 {t("dashboard.viewAll")}
-                <ChevronRight className="w-4 h-4" />
+                <CaretRight className="w-4 h-4" />
               </button>
             </div>
 
@@ -292,7 +288,7 @@ export function DashboardTab() {
 
               <div className="text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
-                  <Zap className="w-4 h-4 text-muted-foreground" />
+                  <Lightning className="w-4 h-4 text-muted-foreground" />
                   <span className="text-2xl md:text-3xl font-bold text-foreground">
                     {isLoading ? (
                       <span className="animate-pulse">...</span>

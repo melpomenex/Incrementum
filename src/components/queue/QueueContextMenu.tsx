@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { MoreVertical, Play, Trash2, Calendar, Loader2 } from "lucide-react";
+import {
+  Calendar,
+  CircleNotch,
+  DotsThreeVertical,
+  Play,
+  Trash,
+} from "@phosphor-icons/react";
 import type { QueueItem } from "../../types/queue";
 import { useI18n } from "../../lib/i18n";
 import { useQueueStore } from "../../stores/queueStore";
@@ -58,7 +64,7 @@ export function QueueContextMenu({ item, onDelete, onStartReview }: QueueContext
           className="p-1.5 rounded hover:bg-muted transition-colors"
           title={t("delete.moreOptions")}
         >
-          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+          <DotsThreeVertical className="w-4 h-4 text-muted-foreground" />
         </button>
 
         {isOpen && (
@@ -89,7 +95,7 @@ export function QueueContextMenu({ item, onDelete, onStartReview }: QueueContext
                   className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                   {postponeLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                   ) : (
                     <Calendar className="w-4 h-4" />
                   )}
@@ -101,7 +107,7 @@ export function QueueContextMenu({ item, onDelete, onStartReview }: QueueContext
                 onClick={handleDelete}
                 className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash className="w-4 h-4" />
                 {t("common.delete")}
               </button>
             </div>

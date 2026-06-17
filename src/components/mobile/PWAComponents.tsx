@@ -10,11 +10,11 @@
 
 import { useState, useEffect } from "react";
 import {
+  ArrowsClockwise,
   Download,
+  WifiSlash,
   X,
-  WifiOff,
-  RefreshCw,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { isOnline, listenNetworkChanges } from "../../lib/pwa";
 import { isTauri } from "../../lib/tauri";
@@ -116,13 +116,13 @@ export function OfflineIndicator() {
 
   return (
     <div className="offline-indicator">
-      <WifiOff className="w-4 h-4 mr-2" />
+      <WifiSlash className="w-4 h-4 mr-2" />
       <span className="offline-text">{t("pwa.offlineMessage")}</span>
       <button
         onClick={() => window.location.reload()}
         className="offline-retry-btn"
       >
-        <RefreshCw className="w-4 h-4 mr-2" />
+        <ArrowsClockwise className="w-4 h-4 mr-2" />
         {t("pwa.retry")}
       </button>
     </div>

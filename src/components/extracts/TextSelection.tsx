@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface TextSelectionProps {

@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { Activity, Clock, Zap, Trash2 } from "lucide-react";
+import {
+  Clock,
+  Lightning,
+  Pulse,
+  Trash,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { usePerformance } from "../../utils/performance";
 
@@ -68,7 +73,7 @@ export function PerformanceMonitorPanel() {
         className="fixed bottom-4 right-4 z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"
         title={t("performanceMonitor.show")}
       >
-        <Activity className="w-5 h-5" />
+        <Pulse className="w-5 h-5" />
       </button>
     );
   }
@@ -78,7 +83,7 @@ export function PerformanceMonitorPanel() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Activity className="w-5 h-5 text-primary" />
+          <Pulse className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">{t("performanceMonitor.title")}</h3>
           <span className="text-xs text-muted-foreground">
             {t("performanceMonitor.metricsCount", { count: metrics.length })}
@@ -94,14 +99,14 @@ export function PerformanceMonitorPanel() {
             }`}
             title={isPaused ? t("performanceMonitor.resume") : t("performanceMonitor.pause")}
           >
-            {isPaused ? <Clock className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+            {isPaused ? <Clock className="w-4 h-4" /> : <Lightning className="w-4 h-4" />}
           </button>
           <button
             onClick={handleClear}
             className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
             title={t("performanceMonitor.clearMetrics")}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsVisible(false)}

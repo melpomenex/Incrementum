@@ -2,7 +2,7 @@
  * Signup Prompt - Encourages users to create account after onboarding
  */
 
-import { Cloud, CheckCircle, ArrowRight } from 'lucide-react';
+import { ArrowRight, CheckCircle, Cloud } from "@phosphor-icons/react";
 import { useI18n } from '../../lib/i18n';
 
 interface SignupPromptProps {

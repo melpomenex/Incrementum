@@ -1,0 +1,271 @@
+Codemod complete: 268 files migrated, 464 skipped (no lucide import).
+Distinct body-rename operations: 152
+
+src/components/Toolbar.tsx: 1 import(s) -> 1, 21 specs, body renames: FileUp->FileArrowUp; BookMarked->Bookmarks; Dices->DiceFive; LayoutDashboard->SquaresFour; Network->Graph; Orbit->Planet; BotMessageSquare->ChatDots; Settings->Gear; FileText->TextT; Monitor->Desktop; MessageSquare->ChatCircle; Sparkles->Sparkle
+src/components/analytics/ActivityChart.tsx: 1 import(s) -> 1, 1 specs, body renames: BarChart3->ChartBar
+src/components/analytics/CategoryBreakdown.tsx: 1 import(s) -> 1, 2 specs, body renames: TrendingUp->TrendUp
+src/components/analytics/DateRangePicker.tsx: 1 import(s) -> 1, 4 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight
+src/components/analytics/LearningAnalytics.tsx: 1 import(s) -> 1, 8 specs, body renames: TrendingUp->TrendUp; Award->Medal; BarChart3->ChartBar; Activity->Pulse
+src/components/analytics/ProgressRings.tsx: 1 import(s) -> 1, 4 specs, body renames: TrendingUp->TrendUp
+src/components/analytics/ReviewHeatmap.tsx: 1 import(s) -> 1, 2 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight
+src/components/analytics/ScheduleVisualization.tsx: 1 import(s) -> 1, 1 specs, body renames: BarChart->ChartBarHorizontal
+src/components/analytics/StatCard.tsx: 1 import(s) -> 1, 1 specs
+src/components/analytics/StatisticsExport.tsx: 1 import(s) -> 1, 4 specs, body renames: FileText->TextT
+src/components/analytics/StudyStreak.tsx: 1 import(s) -> 1, 1 specs
+src/components/analytics/WorkloadCalendar.tsx: 1 import(s) -> 1, 4 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; CalendarDays->CalendarBlank
+src/components/analytics/WorkloadDayPopover.tsx: 1 import(s) -> 1, 5 specs, body renames: FileText->TextT
+src/components/assistant/AssistantPanel.tsx: 1 import(s) -> 1, 21 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; MessageSquare->ChatCircle; Send->PaperPlaneTilt; Sparkles->Sparkle; FileText->TextT; Settings->Gear; Loader2->CircleNotch; PanelLeftClose->SidebarSimple; PanelRightClose->SidebarSimple; Share2->ShareNetwork; ImagePlus->Images; ChevronDown->CaretDown; Zap->Lightning; AlertCircle->WarningCircle
+src/components/assistant/PwaAssistantButton.tsx: 1 import(s) -> 1, 7 specs, body renames: Mic->Microphone; MicOff->MicrophoneSlash; Sparkles->Sparkle; Loader2->CircleNotch; Send->PaperPlaneTilt
+src/components/assistant/ShareMessageDialog.tsx: 2 import(s) -> 1, 9 specs, body renames: ExternalLink->ArrowSquareOut; AlertCircle->WarningCircle; MessageSquare->ChatCircle; MessagesSquare->ChatsCircle
+src/components/auth/LoginModal.tsx: 1 import(s) -> 1, 5 specs, body renames: LogIn->SignIn; AlertCircle->WarningCircle; Loader2->CircleNotch
+src/components/auth/UserMenu.tsx: 1 import(s) -> 1, 2 specs, body renames: Settings->Gear; LogOut->SignOut
+src/components/collections/CollectionSelector.tsx: 1 import(s) -> 1, 2 specs, body renames: ChevronDown->CaretDown
+src/components/collections/CollectionSwitcher.tsx: 1 import(s) -> 1, 5 specs, body renames: Trash2->Trash
+src/components/collections/CollectionsPanel.tsx: 1 import(s) -> 1, 1 specs
+src/components/common/Breadcrumb.tsx: 1 import(s) -> 1, 2 specs, body renames: ChevronRight->CaretRight; Home->House
+src/components/common/CommandPalette.tsx: 1 import(s) -> 1, 11 specs, body renames: Search->MagnifyingGlass; FileText->TextT; Zap->Lightning; Settings->Gear; BarChart3->ChartBar
+src/components/common/ConfirmDialog.tsx: 1 import(s) -> 1, 4 specs, body renames: AlertTriangle->Warning; Trash2->Trash
+src/components/common/DragDropUpload.tsx: 1 import(s) -> 1, 7 specs, body renames: FileText->TextT; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; Loader2->CircleNotch
+src/components/common/EditableContentPalette.tsx: 1 import(s) -> 1, 12 specs, body renames: ExternalLink->ArrowSquareOut; Grip->DotsSix; Loader2->CircleNotch; PanelsTopLeft->SidebarSimple; Rows3->Rows; SplitSquareVertical->SquareSplitVertical
+src/components/common/EmptyState.tsx: 1 import(s) -> 1, 13 specs, body renames: FileText->TextT; Search->MagnifyingGlass; Inbox->Tray; BarChart3->ChartBar; Zap->Lightning; Youtube->YoutubeLogo; Sparkles->Sparkle; PartyPopper->Confetti
+src/components/common/GeneratedCardsPopover.tsx: 1 import(s) -> 1, 4 specs, body renames: Sparkles->Sparkle; Loader2->CircleNotch
+src/components/common/GlobalPasteHandler.tsx: 1 import(s) -> 1, 7 specs, body renames: ClipboardPaste->ClipboardText; Loader2->CircleNotch; Save->FloppyDisk; FileText->TextT
+src/components/common/ItemDetailsPopover.tsx: 1 import(s) -> 1, 5 specs, body renames: Loader2->CircleNotch; EyeOff->EyeSlash
+src/components/common/KeyboardShortcutsHelp.tsx: 1 import(s) -> 1, 5 specs, body renames: CornerDownLeft->KeyReturn
+src/components/common/KeyboardShortcutsPanel.tsx: 1 import(s) -> 1, 13 specs, body renames: CornerDownLeft->KeyReturn; Search->MagnifyingGlass; RotateCcw->ArrowCounterClockwise; ListOrdered->ListNumbers; PanelLeft->SidebarSimple; HelpCircle->Question
+src/components/common/PerformanceMonitor.tsx: 1 import(s) -> 1, 4 specs, body renames: Activity->Pulse; Zap->Lightning; Trash2->Trash
+src/components/common/ProcessingProgress.tsx: 1 import(s) -> 1, 4 specs, body renames: Loader2->CircleNotch; CheckCircle2->CheckCircle; AlertCircle->WarningCircle
+src/components/common/ReaderTTSControls.tsx: 1 import(s) -> 1, 8 specs, body renames: Volume2->SpeakerHigh; Loader2->CircleNotch
+src/components/common/RichContentRenderer.tsx: 1 import(s) -> 1, 3 specs, body renames: ExternalLink->ArrowSquareOut; FileText->TextT; Loader2->CircleNotch
+src/components/common/ShortcutTooltip.tsx: 1 import(s) -> 1, 7 specs, body renames: CornerDownLeft->KeyReturn; Delete->Backspace
+src/components/common/SmartSuggestions.tsx: 1 import(s) -> 1, 7 specs, body renames: Sparkles->Sparkle; Zap->Lightning; Loader2->CircleNotch
+src/components/common/SyncStatusIndicator.tsx: 1 import(s) -> 1, 8 specs, body renames: RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle; AlertTriangle->Warning
+src/components/common/Tabs/TabBar.tsx: 1 import(s) -> 1, 3 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight
+src/components/common/Toast.tsx: 1 import(s) -> 1, 5 specs, body renames: AlertCircle->WarningCircle; AlertTriangle->Warning
+src/components/common/UndoRedoIndicator.tsx: 1 import(s) -> 1, 2 specs, body renames: Undo->ArrowCounterClockwise; Redo->ArrowClockwise
+src/components/documents/CloudFilePicker.tsx: 1 import(s) -> 1, 13 specs, body renames: FileText->TextT; ChevronRight->CaretRight; ChevronLeft->CaretLeft; Loader2->CircleNotch; AlertCircle->WarningCircle; Grid3x3->GridNine; Search->MagnifyingGlass
+src/components/documents/DocumentsView.tsx: 1 import(s) -> 1, 25 specs, body renames: AlertCircle->WarningCircle; BookAudio->Headphones; FileText->TextT; Filter->Funnel; Layers->Stack; LayoutGrid->GridFour; Link2->Link; Loader2->CircleNotch; MoreHorizontal->DotsThree; Search->MagnifyingGlass; Sparkles->Sparkle; Trash2->Trash; Youtube->YoutubeLogo; ChevronLeft->CaretLeft; ChevronRight->CaretRight; Columns2->Columns
+src/components/documents/EnhancedFilePicker.tsx: 1 import(s) -> 1, 11 specs, body renames: FileText->TextT; AlertCircle->WarningCircle; CheckCircle2->CheckCircle
+src/components/documents/SimilarContent.tsx: 1 import(s) -> 1, 7 specs, body renames: Sparkles->Sparkle; FileText->TextT; Youtube->YoutubeLogo; ChevronRight->CaretRight
+src/components/extracts/ClozeCreatorPopup.tsx: 1 import(s) -> 1, 3 specs
+src/components/extracts/CreateExtractDialog.tsx: 1 import(s) -> 1, 11 specs, body renames: Bold->TextB; Italic->TextItalic; Layers->Stack
+src/components/extracts/DeleteConfirmDialog.tsx: 1 import(s) -> 1, 2 specs, body renames: AlertTriangle->Warning
+src/components/extracts/EditExtractDialog.tsx: 1 import(s) -> 1, 9 specs, body renames: Bold->TextB; Italic->TextItalic; Layers->Stack
+src/components/extracts/ExtractCreator.tsx: 1 import(s) -> 1, 4 specs, body renames: MessageSquare->ChatCircle
+src/components/extracts/ExtractInbox.tsx: 1 import(s) -> 1, 17 specs, body renames: Inbox->Tray; Sparkles->Sparkle; FileText->TextT; MessageSquare->ChatCircle; Loader2->CircleNotch; RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle; Zap->Lightning; ChevronDown->CaretDown; ChevronUp->CaretUp; Trash2->Trash
+src/components/extracts/ExtractsList.tsx: 1 import(s) -> 1, 13 specs, body renames: Trash2->Trash; Edit->Pencil; FileText->TextT; Sparkles->Sparkle; Loader2->CircleNotch; PanelsTopLeft->SidebarSimple
+src/components/extracts/PasteExtractDialog.tsx: 1 import(s) -> 1, 8 specs, body renames: Search->MagnifyingGlass; Layers->Stack
+src/components/extracts/QACreatorPopup.tsx: 1 import(s) -> 1, 3 specs, body renames: MessageSquare->ChatCircle
+src/components/extracts/TextSelection.tsx: 1 import(s) -> 1, 1 specs
+src/components/focus/FocusTimer.tsx: 1 import(s) -> 1, 12 specs, body renames: RotateCcw->ArrowCounterClockwise; Settings->Gear; Sunset->SunDim; Volume2->SpeakerHigh; VolumeX->SpeakerSlash; BellOff->BellSlash
+src/components/goals/ReadingGoalsPanel.tsx: 1 import(s) -> 1, 8 specs, body renames: Edit->Pencil; CheckCircle2->CheckCircle; TrendingUp->TrendUp
+src/components/goals/StreakBadge.tsx: 1 import(s) -> 1, 1 specs
+src/components/graph/GraphExport.tsx: 1 import(s) -> 1, 4 specs, body renames: FileText->TextT; Network->Graph
+src/components/graph/GraphFilters.tsx: 1 import(s) -> 1, 10 specs, body renames: Search->MagnifyingGlass; Filter->Funnel; ChevronDown->CaretDown; LayoutGrid->GridFour; Tags->TagSimple; SlidersHorizontal->Sliders; EyeOff->EyeSlash
+src/components/graph/NodeDetailView.tsx: 1 import(s) -> 1, 15 specs, body renames: ExternalLink->ArrowSquareOut; Edit3->PencilSimple; Trash2->Trash; Link2->Link; Share2->ShareNetwork; MoreHorizontal->DotsThree; ChevronRight->CaretRight; FileText->TextT; Quote->Quotes; BrainCircuit->Brain; Sparkles->Sparkle
+src/components/graph/ObsidianGraph.tsx: 1 import(s) -> 1, 6 specs, body renames: ZoomIn->MagnifyingGlassPlus; ZoomOut->MagnifyingGlassMinus; Maximize2->ArrowsOutSimple; Settings2->Sliders; Map->MapTrifold
+src/components/graph/ObsidianSphere.tsx: 1 import(s) -> 1, 8 specs, body renames: RotateCcw->ArrowCounterClockwise; ZoomIn->MagnifyingGlassPlus; ZoomOut->MagnifyingGlassMinus; Move3d->Hand; Sparkles->Sparkle; Grid3x3->GridNine; Focus->Target
+src/components/image-registry/ImageRegistryLibrary.tsx: 1 import(s) -> 1, 10 specs, body renames: ClipboardPaste->ClipboardText; ImagePlus->Images; Search->MagnifyingGlass; Trash2->Trash; Link2->Link; CalendarDays->CalendarBlank; ArrowDownUp->ArrowsVertical; Expand->FrameCorners
+src/components/import/AnnaArchiveSearch.tsx: 1 import(s) -> 1, 9 specs, body renames: Search->MagnifyingGlass; Loader2->CircleNotch; AlertCircle->WarningCircle; ServerOff->HardDrives; RefreshCw->ArrowsClockwise
+src/components/import/ArxivImportDialog.tsx: 1 import(s) -> 1, 16 specs, body renames: FileText->TextT; Search->MagnifyingGlass; ExternalLink->ArrowSquareOut; BookmarkCheck->BookmarkSimple; Loader2->CircleNotch; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; ChevronDown->CaretDown; ChevronRight->CaretRight
+src/components/import/AudiobookImportDialog.tsx: 1 import(s) -> 1, 23 specs, body renames: BookAudio->Headphones; Search->MagnifyingGlass; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; Loader2->CircleNotch; FileText->TextT; Sparkles->Sparkle; ImageIcon->Image; ChevronLeft->CaretLeft; ChevronRight->CaretRight; Mic->Microphone; Languages->Translate; Volume2->SpeakerHigh; AlertTriangle->Warning; Layers->Stack
+src/components/import/ImportDialog.tsx: 1 import(s) -> 1, 5 specs, body renames: FileText->TextT; AlertCircle->WarningCircle; Loader2->CircleNotch
+src/components/import/ImportPreview.tsx: 1 import(s) -> 1, 12 specs, body renames: Loader2->CircleNotch; AlertCircle->WarningCircle; Youtube->YoutubeLogo; AlertTriangle->Warning; ExternalLink->ArrowSquareOut
+src/components/import/ImportProgressIndicator.tsx: 1 import(s) -> 1, 7 specs, body renames: FileText->TextT; Youtube->YoutubeLogo; AlertCircle->WarningCircle; Loader2->CircleNotch
+src/components/import/KindleImportDialog.tsx: 1 import(s) -> 1, 12 specs, body renames: ChevronDown->CaretDown; ChevronUp->CaretUp; FileText->TextT; Loader2->CircleNotch; AlertCircle->WarningCircle; StickyNote->Note; AlertTriangle->Warning
+src/components/import/MarkdownBundlePreview.tsx: 1 import(s) -> 1, 8 specs, body renames: FileText->TextT; Loader2->CircleNotch; CheckCircle2->CheckCircle; AlertCircle->WarningCircle
+src/components/import/TagSuggestions.tsx: 1 import(s) -> 1, 8 specs, body renames: Sparkles->Sparkle; Loader2->CircleNotch; RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle
+src/components/import/VideoImport.tsx: 1 import(s) -> 1, 4 specs, body renames: Film->FilmSlate
+src/components/import/WebArticleImportDialog.tsx: 1 import(s) -> 1, 15 specs, body renames: Link2->Link; Loader2->CircleNotch; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; FileText->TextT; ExternalLink->ArrowSquareOut; Sparkles->Sparkle; RefreshCw->ArrowsClockwise; ShieldAlert->ShieldWarning
+src/components/layout/MainLayout.tsx: 1 import(s) -> 1, 3 specs, body renames: LayoutDashboard->SquaresFour; ListTodo->ListChecks; Monitor->Desktop
+src/components/learning/LearningCardsList.tsx: 1 import(s) -> 1, 7 specs, body renames: EyeOff->EyeSlash; Trash2->Trash; Edit->Pencil; RefreshCw->ArrowsClockwise; Save->FloppyDisk
+src/components/media/AnnotationsPanel.tsx: 1 import(s) -> 1, 4 specs, body renames: StickyNote->Note; Trash2->Trash
+src/components/media/ArticleContextOverlay.tsx: 1 import(s) -> 1, 7 specs, body renames: FileText->TextT; ExternalLink->ArrowSquareOut
+src/components/media/ArticleLayouts.tsx: 1 import(s) -> 1, 1 specs, body renames: StarOff->Star
+src/components/media/ArxivBrowser.tsx: 1 import(s) -> 1, 11 specs, body renames: FileText->TextT; Search->MagnifyingGlass; ExternalLink->ArrowSquareOut; BookmarkCheck->BookmarkSimple; Loader2->CircleNotch; ChevronDown->CaretDown; ChevronRight->CaretRight
+src/components/media/AudioPlayer.tsx: 1 import(s) -> 1, 8 specs, body renames: Volume2->SpeakerHigh; VolumeX->SpeakerSlash; Repeat1->Repeat
+src/components/media/ClipExtractor.tsx: 1 import(s) -> 1, 8 specs, body renames: Trash2->Trash; Film->FilmSlate; Volume2->SpeakerHigh
+src/components/media/ClusterPill.tsx: 1 import(s) -> 1, 2 specs, body renames: Link2->Link
+src/components/media/DisabledFeedsView.tsx: 1 import(s) -> 1, 2 specs, body renames: Loader2->CircleNotch
+src/components/media/DiscoverSiteCard.tsx: 1 import(s) -> 1, 5 specs, body renames: CheckCircle2->CheckCircle; ExternalLink->ArrowSquareOut; Trash2->Trash
+src/components/media/DiscoverSitesPanel.tsx: 1 import(s) -> 1, 9 specs, body renames: Loader2->CircleNotch; RefreshCw->ArrowsClockwise; Search->MagnifyingGlass; Sparkles->Sparkle; TrendingUp->TrendUp
+src/components/media/FeedSettingsDialog.tsx: 1 import(s) -> 1, 8 specs, body renames: Settings->Gear; FileText->TextT; RefreshCw->ArrowsClockwise; LayoutGrid->GridFour
+src/components/media/FeedStatisticsDialog.tsx: 1 import(s) -> 1, 6 specs, body renames: BarChart3->ChartBar; FileText->TextT
+src/components/media/FolderContextMenu.tsx: 1 import(s) -> 1, 6 specs, body renames: Trash2->Trash; BarChart3->ChartBar
+src/components/media/FolderTree.tsx: 1 import(s) -> 1, 8 specs, body renames: ChevronRight->CaretRight; ChevronDown->CaretDown; MoreVertical->DotsThreeVertical; Trash2->Trash; Edit3->PencilSimple
+src/components/media/IconPicker.tsx: 1 import(s) -> 1, 2 specs, body renames: Smile->Smiley
+src/components/media/KeyboardHelpOverlay.tsx: 1 import(s) -> 1, 2 specs
+src/components/media/KeyboardShortcutPreferences.tsx: 1 import(s) -> 1, 3 specs, body renames: AlertTriangle->Warning; RotateCcw->ArrowCounterClockwise
+src/components/media/ManageTrainingView.tsx: 1 import(s) -> 1, 8 specs, body renames: Search->MagnifyingGlass; Save->FloppyDisk; Trash2->Trash; ChevronDown->CaretDown; ChevronRight->CaretRight
+src/components/media/MediaLibrary.tsx: 1 import(s) -> 1, 13 specs, body renames: Film->FilmSlate; Music->MusicNote; Youtube->YoutubeLogo; Search->MagnifyingGlass; Grid->GridFour; Trash2->Trash
+src/components/media/NoteEditor.tsx: 1 import(s) -> 1, 4 specs, body renames: StickyNote->Note; Save->FloppyDisk; Trash2->Trash
+src/components/media/OCRProcessor.tsx: 1 import(s) -> 1, 12 specs, body renames: FileText->TextT; Loader2->CircleNotch; AlertCircle->WarningCircle; Trash2->Trash; Edit->Pencil; Save->FloppyDisk; Settings->Gear; Languages->Translate
+src/components/media/OriginalView.tsx: 1 import(s) -> 1, 3 specs, body renames: ExternalLink->ArrowSquareOut; ShieldAlert->ShieldWarning; Loader2->CircleNotch
+src/components/media/PodcastManager.tsx: 1 import(s) -> 1, 24 specs, body renames: Search->MagnifyingGlass; Trash2->Trash; CheckCircle2->CheckCircle; RefreshCw->ArrowsClockwise; Filter->Funnel; Loader2->CircleNotch; AlertCircle->WarningCircle; ExternalLink->ArrowSquareOut; FileText->TextT; MessageSquare->ChatCircle
+src/components/media/RSSCustomizationPanel.tsx: 1 import(s) -> 1, 10 specs, body renames: Filter->Funnel; LayoutGrid->GridFour; ArrowUpDown->ArrowsVertical; Save->FloppyDisk; RotateCcw->ArrowCounterClockwise
+src/components/media/RSSDashboard.tsx: 1 import(s) -> 1, 11 specs, body renames: RefreshCw->ArrowsClockwise; TrendingUp->TrendUp; History->ClockCounterClockwise; Link2->Link
+src/components/media/RSSFullContentView.tsx: 1 import(s) -> 1, 11 specs, body renames: Loader2->CircleNotch; RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle; CheckCircle2->CheckCircle; ExternalLink->ArrowSquareOut; Type->TextAa; Sparkles->Sparkle; Settings->Gear
+src/components/media/RSSReader.tsx: 1 import(s) -> 1, 27 specs, body renames: Search->MagnifyingGlass; StarOff->Star; ExternalLink->ArrowSquareOut; RefreshCw->ArrowsClockwise; Settings->Gear; Trash2->Trash; CheckCircle2->CheckCircle; Import->ArrowSquareIn; Network->Graph; Link2->Link; FileText->TextT; MoreVertical->DotsThreeVertical; EyeOff->EyeSlash; GripVertical->DotsSixVertical
+src/components/media/RSSScrollMode.tsx: 1 import(s) -> 1, 22 specs, body renames: ChevronUp->CaretUp; ChevronDown->CaretDown; ExternalLink->ArrowSquareOut; StarOff->Star; CheckCircle2->CheckCircle; Sparkles->Sparkle; Undo->ArrowCounterClockwise; EyeOff->EyeSlash; FileText->TextT; Loader2->CircleNotch; AlertCircle->WarningCircle; RefreshCw->ArrowsClockwise
+src/components/media/ReadStoriesView.tsx: 1 import(s) -> 1, 4 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; Loader2->CircleNotch
+src/components/media/RelatedStoriesPanel.tsx: 1 import(s) -> 1, 2 specs, body renames: ExternalLink->ArrowSquareOut
+src/components/media/RiverOfNewsView.tsx: 1 import(s) -> 1, 4 specs, body renames: Loader2->CircleNotch
+src/components/media/SearchResults.tsx: 1 import(s) -> 1, 2 specs
+src/components/media/ShareWithComment.tsx: 1 import(s) -> 1, 3 specs, body renames: Share2->ShareNetwork; MessageSquare->ChatCircle
+src/components/media/SharedStoriesView.tsx: 1 import(s) -> 1, 2 specs, body renames: MessageSquare->ChatCircle; Share2->ShareNetwork
+src/components/media/SiteBySiteTraining.tsx: 1 import(s) -> 1, 4 specs
+src/components/media/SiteStatisticsDialog.tsx: 1 import(s) -> 1, 4 specs, body renames: BarChart3->ChartBar; TrendingUp->TrendUp
+src/components/media/SponsorBlockIntegration.tsx: 1 import(s) -> 1, 5 specs, body renames: Settings->Gear
+src/components/media/StoryView.tsx: 1 import(s) -> 1, 6 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; ExternalLink->ArrowSquareOut
+src/components/media/StoryViewModeSwitcher.tsx: 1 import(s) -> 1, 4 specs, body renames: ExternalLink->ArrowSquareOut; FileText->TextT
+src/components/media/TagInput.tsx: 1 import(s) -> 1, 2 specs
+src/components/media/TagManagementView.tsx: 1 import(s) -> 1, 7 specs, body renames: Trash2->Trash; Search->MagnifyingGlass
+src/components/media/TrainingMenu.tsx: 1 import(s) -> 1, 7 specs, body renames: Type->TextAa; ChevronRight->CaretRight
+src/components/media/TranscriptPanel.tsx: 1 import(s) -> 1, 4 specs, body renames: ScrollText->Scroll; Loader2->CircleNotch; Search->MagnifyingGlass
+src/components/media/TranscriptSync.tsx: 1 import(s) -> 1, 6 specs, body renames: Search->MagnifyingGlass; CornerDownLeft->KeyReturn
+src/components/media/VideoPlayer.tsx: 1 import(s) -> 1, 9 specs, body renames: Volume2->SpeakerHigh; VolumeX->SpeakerSlash; Maximize->CornersOut; Minimize->CornersIn
+src/components/media/YouTubeImport.tsx: 1 import(s) -> 1, 13 specs, body renames: Youtube->YoutubeLogo; Loader2->CircleNotch; AlertCircle->WarningCircle; Search->MagnifyingGlass; ExternalLink->ArrowSquareOut; Settings->Gear
+src/components/media/YouTubePlaylistManager.tsx: 1 import(s) -> 1, 13 specs, body renames: ListVideo->Queue; RefreshCw->ArrowsClockwise; Trash2->Trash; Settings->Gear; AlertCircle->WarningCircle; Loader2->CircleNotch; ExternalLink->ArrowSquareOut; ChevronDown->CaretDown; ChevronRight->CaretRight
+src/components/media/YouTubePlaylistSupport.tsx: 1 import(s) -> 1, 10 specs, body renames: Youtube->YoutubeLogo; Loader2->CircleNotch; AlertCircle->WarningCircle; ExternalLink->ArrowSquareOut; ChevronDown->CaretDown; ChevronRight->CaretRight
+src/components/media/YouTubeSearch.tsx: 1 import(s) -> 1, 6 specs, body renames: Search->MagnifyingGlass; Youtube->YoutubeLogo; ExternalLink->ArrowSquareOut; Loader2->CircleNotch
+src/components/media/summary/ModernSummaryPanel.tsx: 1 import(s) -> 1, 5 specs, body renames: Settings->Gear; ChevronLeft->CaretLeft; ChevronRight->CaretRight; Sparkles->Sparkle
+src/components/media/summary/SummaryActions.tsx: 1 import(s) -> 1, 5 specs, body renames: Share2->ShareNetwork; FileText->TextT
+src/components/media/summary/SummaryBadge.tsx: 1 import(s) -> 1, 1 specs, body renames: Sparkles->Sparkle
+src/components/migration/DataMigrationUI.tsx: 1 import(s) -> 1, 9 specs, body renames: AlertTriangle->Warning; RefreshCw->ArrowsClockwise; FileText->TextT
+src/components/migration/MigrationReport.tsx: 1 import(s) -> 1, 5 specs, body renames: FileText->TextT; AlertTriangle->Warning
+src/components/mobile/MobileNavigation.tsx: 1 import(s) -> 1, 14 specs, body renames: Home->House; FileText->TextT; Settings->Gear; BarChart3->ChartBar; Maximize2->ArrowsOutSimple; Minimize2->ArrowsInSimple; Menu->List; Search->MagnifyingGlass
+src/components/mobile/MobileQueueView.tsx: 1 import(s) -> 1, 12 specs, body renames: Smartphone->DeviceMobile; Search->MagnifyingGlass; ChevronDown->CaretDown; CalendarDays->CalendarBlank; SlidersHorizontal->Sliders
+src/components/mobile/MobileReadingWrapper.tsx: 1 import(s) -> 1, 6 specs, body renames: Maximize2->ArrowsOutSimple; Minimize2->ArrowsInSimple; ChevronLeft->CaretLeft; ChevronRight->CaretRight; MoreVertical->DotsThreeVertical
+src/components/mobile/PWAComponents.tsx: 1 import(s) -> 1, 4 specs, body renames: WifiOff->WifiSlash; RefreshCw->ArrowsClockwise
+src/components/mobile/PullToRefresh.tsx: 1 import(s) -> 1, 3 specs, body renames: RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle
+src/components/newsletter/NewsletterDirectory.tsx: 1 import(s) -> 1, 23 specs, body renames: Search->MagnifyingGlass; ExternalLink->ArrowSquareOut; Grid3x3->GridNine; TrendingUp->TrendUp; Landmark->Bank; Loader2->CircleNotch; AlertCircle->WarningCircle; RefreshCw->ArrowsClockwise
+src/components/newsletter/NewsletterDirectoryEnhanced.tsx: 1 import(s) -> 1, 25 specs, body renames: Search->MagnifyingGlass; ExternalLink->ArrowSquareOut; Grid3x3->GridNine; TrendingUp->TrendUp; Landmark->Bank; Sparkles->Sparkle; Link2->Link; Loader2->CircleNotch; FileText->TextT
+src/components/newsletter/NewsletterPreviewModal.tsx: 1 import(s) -> 1, 10 specs, body renames: ExternalLink->ArrowSquareOut; FileText->TextT; Loader2->CircleNotch
+src/components/newsletter/NewsletterUrlImporter.tsx: 1 import(s) -> 1, 12 specs, body renames: Link2->Link; Search->MagnifyingGlass; Loader2->CircleNotch; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; ExternalLink->ArrowSquareOut; Sparkles->Sparkle; FileText->TextT
+src/components/notebooklm/NotebookLMChat.tsx: 1 import(s) -> 1, 10 specs, body renames: Send->PaperPlaneTilt; Loader2->CircleNotch; Sparkles->Sparkle; MessageSquare->ChatCircle; Save->FloppyDisk
+src/components/notebooklm/NotebookLMLoginPanel.tsx: 1 import(s) -> 1, 10 specs, body renames: CheckCircle2->CheckCircle; Loader2->CircleNotch; ExternalLink->ArrowSquareOut; LogOut->SignOut; RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle
+src/components/notebooklm/NotebookLMSidebar.tsx: 1 import(s) -> 1, 12 specs, body renames: FileText->TextT; Youtube->YoutubeLogo; RefreshCw->ArrowsClockwise; ChevronDown->CaretDown; ChevronRight->CaretRight; Loader2->CircleNotch
+src/components/notebooklm/NotebookLMStudio.tsx: 1 import(s) -> 1, 16 specs, body renames: Wand2->Sparkle; Loader2->CircleNotch; AlertCircle->WarningCircle; Sparkles->Sparkle; FileText->TextT; Layers->Stack; BrainCircuit->Brain; Map->MapTrifold; RefreshCw->ArrowsClockwise; ChevronDown->CaretDown; ChevronUp->CaretUp
+src/components/notebooklm/artifacts/ArtifactViewer.tsx: 1 import(s) -> 1, 8 specs, body renames: FileText->TextT; Map->MapTrifold; Loader2->CircleNotch
+src/components/notebooklm/artifacts/MindMapViewer.tsx: 1 import(s) -> 1, 5 specs, body renames: ZoomIn->MagnifyingGlassPlus; ZoomOut->MagnifyingGlassMinus; RotateCcw->ArrowCounterClockwise
+src/components/onboarding/FSRSExplanationModal.tsx: 1 import(s) -> 1, 12 specs, body renames: RotateCcw->ArrowCounterClockwise; Zap->Lightning; TrendingUp->TrendUp; ChevronRight->CaretRight; ChevronLeft->CaretLeft
+src/components/onboarding/InteractiveTutorial.tsx: 1 import(s) -> 1, 10 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; FileUp->FileArrowUp; RotateCcw->ArrowCounterClockwise; Sparkles->Sparkle
+src/components/onboarding/OCROnboarding.tsx: 1 import(s) -> 1, 10 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; ScanText->Scan; Settings->Gear; Zap->Lightning; FileText->TextT; Sparkles->Sparkle
+src/components/onboarding/SignupPrompt.tsx: 1 import(s) -> 1, 3 specs
+src/components/onboarding/WelcomeScreen.tsx: 1 import(s) -> 1, 8 specs, body renames: Layers->Stack; Sparkles->Sparkle; FileText->TextT; Zap->Lightning
+src/components/pwa/OfflineIndicator.tsx: 1 import(s) -> 1, 9 specs, body renames: CloudDownload->CloudArrowDown; WifiOff->WifiSlash; AlertCircle->WarningCircle; RefreshCcw->ArrowsCounterClockwise; Loader2->CircleNotch
+src/components/pwa/PWAComponents.tsx: 1 import(s) -> 1, 7 specs, body renames: Share->ShareNetwork; Smartphone->DeviceMobile
+src/components/queue/AutoPostponePrompt.tsx: 1 import(s) -> 1, 2 specs, body renames: CalendarClock->CalendarHeart; Loader2->CircleNotch
+src/components/queue/BulkActionBar.tsx: 1 import(s) -> 1, 5 specs, body renames: Loader2->CircleNotch; Trash2->Trash
+src/components/queue/ExportQueueDialog.tsx: 1 import(s) -> 1, 6 specs, body renames: FileJson->FileCode; FileSpreadsheet->FileXls; Loader2->CircleNotch; CheckCircle2->CheckCircle
+src/components/queue/PostponeAllDialog.tsx: 1 import(s) -> 1, 2 specs, body renames: CalendarClock->CalendarHeart; Loader2->CircleNotch
+src/components/queue/QueueContextMenu.tsx: 1 import(s) -> 1, 5 specs, body renames: MoreVertical->DotsThreeVertical; Trash2->Trash; Loader2->CircleNotch
+src/components/queue/QueueNavigationControls.tsx: 1 import(s) -> 1, 3 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight
+src/components/queue/QueueStats.tsx: 1 import(s) -> 1, 5 specs, body renames: TrendingUp->TrendUp
+src/components/queue/ScrollOverlayControls.tsx: 1 import(s) -> 1, 14 specs, body renames: ChevronUp->CaretUp; ChevronDown->CaretDown; AlertCircle->WarningCircle; Sparkles->Sparkle; Settings2->Sliders; EyeOff->EyeSlash; FileText->TextT
+src/components/queue/ScrollQueueSettings.tsx: 1 import(s) -> 1, 1 specs
+src/components/queue/SmartCollections.tsx: 1 import(s) -> 1, 9 specs, body renames: AlertTriangle->Warning; Sparkles->Sparkle; TrendingUp->TrendUp; RefreshCcw->ArrowsCounterClockwise; ChevronRight->CaretRight
+src/components/review/BreakReminderModal.tsx: 1 import(s) -> 1, 5 specs, body renames: RefreshCw->ArrowsClockwise
+src/components/review/CardContextMenu.tsx: 1 import(s) -> 1, 11 specs, body renames: Edit->Pencil; Ban->Prohibit; Trash2->Trash; FolderInput->FolderOpen; ChevronRight->CaretRight; RotateCcw->ArrowCounterClockwise; Sparkles->Sparkle
+src/components/review/CardPreviewPanel.tsx: 1 import(s) -> 1, 11 specs, body renames: Save->FloppyDisk; Loader2->CircleNotch; BarChart3->ChartBar; FileText->TextT; AlertTriangle->Warning; Layers->Stack
+src/components/review/DeckItemContextMenu.tsx: 1 import(s) -> 1, 8 specs, body renames: Edit3->PencilSimple; Ban->Prohibit; RotateCcw->ArrowCounterClockwise; Trash2->Trash; FileSpreadsheet->FileXls
+src/components/review/DeckManager.tsx: 1 import(s) -> 1, 25 specs, body renames: ChevronDown->CaretDown; ChevronRight->CaretRight; Search->MagnifyingGlass; Trash2->Trash; Ban->Prohibit; Layers->Stack; ArrowUpDown->ArrowsVertical; Loader2->CircleNotch; Inbox->Tray; CheckCircle2->CheckCircle; Edit3->PencilSimple
+src/components/review/DeckManagerCardRow.tsx: 1 import(s) -> 1, 4 specs, body renames: AlertTriangle->Warning; MoreHorizontal->DotsThree
+src/components/review/DeckStatsPanel.tsx: 1 import(s) -> 1, 10 specs, body renames: BarChart3->ChartBar; Activity->Pulse
+src/components/review/ExtractBrowserPanel.tsx: 1 import(s) -> 1, 8 specs, body renames: ChevronDown->CaretDown; ChevronRight->CaretRight; Loader2->CircleNotch; Search->MagnifyingGlass; Sparkles->Sparkle; FileText->TextT; MessageSquare->ChatCircle
+src/components/review/ExtractScrollItem.tsx: 1 import(s) -> 1, 11 specs, body renames: AlertCircle->WarningCircle; Sparkles->Sparkle; MessageSquare->ChatCircle; FileText->TextT; Loader2->CircleNotch
+src/components/review/FSRSInspector.tsx: 1 import(s) -> 1, 6 specs, body renames: Activity->Pulse; TrendingDown->TrendDown
+src/components/review/FlashcardScrollItem.tsx: 1 import(s) -> 1, 7 specs, body renames: AlertCircle->WarningCircle; Sparkles->Sparkle; MessageSquare->ChatCircle
+src/components/review/FlashcardStudioModal.tsx: 1 import(s) -> 1, 36 specs, body renames: ChevronDown->CaretDown; ChevronRight->CaretRight; Edit2->PencilSimple; FileText->TextT; Filter->Funnel; Loader2->CircleNotch; MessageSquare->ChatCircle; Save->FloppyDisk; Search->MagnifyingGlass; Send->PaperPlaneTilt; Settings->Gear; Sparkles->Sparkle; Trash2->Trash; Zap->Lightning; Quote->Quotes; BrainCircuit->Brain; History->ClockCounterClockwise; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; ScrollText->Scroll; DollarSign->CurrencyDollar; BarChart3->ChartBar; Type->TextAa; Expand->FrameCorners
+src/components/review/InlineCardEditor.tsx: 1 import(s) -> 1, 6 specs, body renames: Loader2->CircleNotch; ExternalLink->ArrowSquareOut; Ban->Prohibit
+src/components/review/QuickReviewWidget.tsx: 1 import(s) -> 1, 14 specs, body renames: ChevronRight->CaretRight; ChevronLeft->CaretLeft; RotateCcw->ArrowCounterClockwise; Sparkles->Sparkle; Volume2->SpeakerHigh; VolumeX->SpeakerSlash; Loader2->CircleNotch; Maximize2->ArrowsOutSimple
+src/components/review/RatingButtons.tsx: 1 import(s) -> 1, 4 specs, body renames: RotateCcw->ArrowCounterClockwise; Zap->Lightning
+src/components/review/ReviewCard.tsx: 1 import(s) -> 1, 6 specs, body renames: FileText->TextT; Volume2->SpeakerHigh; VolumeX->SpeakerSlash
+src/components/review/ReviewComplete.tsx: 1 import(s) -> 1, 5 specs, body renames: CheckCircle2->CheckCircle; Home->House
+src/components/review/ReviewDecksModal.tsx: 1 import(s) -> 1, 5 specs, body renames: Layers->Stack; Search->MagnifyingGlass; MoreVertical->DotsThreeVertical
+src/components/review/ReviewDocumentCard.tsx: 1 import(s) -> 1, 1 specs, body renames: FileText->TextT
+src/components/review/ReviewFeedback.tsx: 1 import(s) -> 1, 5 specs, body renames: PartyPopper->Confetti
+src/components/review/ReviewHome.tsx: 1 import(s) -> 1, 10 specs, body renames: BarChart3->ChartBar; FolderKanban->FolderPlus; Layers->Stack; RefreshCw->ArrowsClockwise; Sparkles->Sparkle; Zap->Lightning
+src/components/review/ReviewPreviewModal.tsx: 1 import(s) -> 1, 10 specs, body renames: Layers->Stack; TrendingUp->TrendUp
+src/components/review/ReviewProgress.tsx: 1 import(s) -> 1, 5 specs, body renames: CheckCircle2->CheckCircle; TrendingUp->TrendUp
+src/components/review/ReviewQueueView.tsx: 1 import(s) -> 1, 20 specs, body renames: AlertTriangle->Warning; CalendarClock->CalendarHeart; ChevronDown->CaretDown; ChevronUp->CaretUp; EyeOff->EyeSlash; Filter->Funnel; LayoutList->ListBullets; Network->Graph; RotateCcw->ArrowCounterClockwise; Smartphone->DeviceMobile; Sparkles->Sparkle; Trash2->Trash; Zap->Lightning
+src/components/review/ReviewSession.tsx: 1 import(s) -> 1, 4 specs, body renames: AlertCircle->WarningCircle; Sparkles->Sparkle
+src/components/review/ReviewTransparencyPanel.tsx: 1 import(s) -> 1, 2 specs, body renames: FlaskConical->Flask
+src/components/review/ScrollModeArticleEditor.tsx: 1 import(s) -> 1, 8 specs, body renames: AlertCircle->WarningCircle; ExternalLink->ArrowSquareOut; FileText->TextT; Loader2->CircleNotch
+src/components/review/SemanticGraphPanel.tsx: 1 import(s) -> 1, 17 specs, body renames: Sparkles->Sparkle; Layers->Stack; Network->Graph; Loader2->CircleNotch; ChevronDown->CaretDown; Filter->Funnel; Search->MagnifyingGlass
+src/components/review/SessionCustomizeModal.tsx: 1 import(s) -> 1, 6 specs, body renames: Layers->Stack
+src/components/schedule/ScheduleDashboard.tsx: 1 import(s) -> 1, 2 specs, body renames: ChevronDown->CaretDown; ChevronUp->CaretUp
+src/components/schedule/ScheduleItemRow.tsx: 1 import(s) -> 1, 15 specs, body renames: Layers->Stack; AlertTriangle->Warning; ChevronDown->CaretDown; ChevronRight->CaretRight; Trash2->Trash; CalendarClock->CalendarHeart; EyeOff->EyeSlash; Columns2->Columns
+src/components/schedule/ScheduleTable.tsx: 1 import(s) -> 1, 13 specs, body renames: Trash2->Trash; CalendarClock->CalendarHeart; EyeOff->EyeSlash; AlertTriangle->Warning; ChevronDown->CaretDown; ChevronRight->CaretRight; Layers->Stack
+src/components/schedule/ScheduleToolbar.tsx: 1 import(s) -> 1, 6 specs, body renames: Zap->Lightning; LayoutGrid->GridFour; Table2->Table; ChevronDown->CaretDown; ChevronUp->CaretUp; Filter->Funnel
+src/components/schedule/SpreadModal.tsx: 1 import(s) -> 1, 2 specs, body renames: Loader2->CircleNotch
+src/components/search/CommandCenter.tsx: 1 import(s) -> 1, 15 specs, body renames: BarChart3->ChartBar; Settings->Gear; LayoutDashboard->SquaresFour; Library->Books; ListTodo->ListChecks; FileText->TextT; Youtube->YoutubeLogo
+src/components/search/GlobalSearch.tsx: 1 import(s) -> 1, 6 specs, body renames: Search->MagnifyingGlass; SlidersHorizontal->Sliders; Link2->Link
+src/components/settings/AISettings.tsx: 1 import(s) -> 1, 6 specs, body renames: Settings->Gear; AlertCircle->WarningCircle; Loader2->CircleNotch; Server->HardDrives
+src/components/settings/AppStateBackupDialog.tsx: 1 import(s) -> 1, 15 specs, body renames: Settings->Gear; Layers->Stack; AlertCircle->WarningCircle; Loader2->CircleNotch; ChevronDown->CaretDown; ChevronUp->CaretUp; FileText->TextT
+src/components/settings/AudioTranscriptionSettings.tsx: 1 import(s) -> 1, 25 specs, body renames: Mic->Microphone; Languages->Translate; Trash2->Trash; CheckCircle2->CheckCircle; Loader2->CircleNotch; AlertCircle->WarningCircle; Zap->Lightning; Settings2->Sliders; TrendingUp->TrendUp; AlertTriangle->Warning; ExternalLink->ArrowSquareOut; Monitor->Desktop; ListMusic->Playlist; RotateCcw->ArrowCounterClockwise
+src/components/settings/BackupRestorePanel.tsx: 1 import(s) -> 1, 11 specs, body renames: RefreshCw->ArrowsClockwise; Trash2->Trash; Loader2->CircleNotch; AlertCircle->WarningCircle; FileText->TextT
+src/components/settings/CloudStorageSettings.tsx: 1 import(s) -> 1, 9 specs, body renames: CloudOff->CloudSlash; Loader2->CircleNotch; RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle; Settings->Gear
+src/components/settings/ImportExportSettings.tsx: 1 import(s) -> 1, 7 specs, body renames: FileDown->FileArrowDown; FileUp->FileArrowUp; RefreshCw->ArrowsClockwise; PackageCheck->Package
+src/components/settings/IntegrationSettings.tsx: 1 import(s) -> 1, 17 specs, body renames: RefreshCw->ArrowsClockwise; Server->HardDrives; ListVideo->Queue; Trash2->Trash; AlertCircle->WarningCircle; Sparkles->Sparkle
+src/components/settings/LLMProviderSettings.tsx: 1 import(s) -> 1, 10 specs, body renames: EyeOff->EyeSlash; Trash2->Trash; Loader2->CircleNotch; RefreshCw->ArrowsClockwise; DollarSign->CurrencyDollar
+src/components/settings/MCPServersSettings.tsx: 1 import(s) -> 1, 6 specs, body renames: Server->HardDrives; Trash2->Trash; Loader2->CircleNotch
+src/components/settings/NotebookLMWorkspace.tsx: 1 import(s) -> 1, 7 specs, body renames: Sparkles->Sparkle; ExternalLink->ArrowSquareOut; Loader2->CircleNotch; AlertCircle->WarningCircle
+src/components/settings/NotificationSettings.tsx: 1 import(s) -> 1, 13 specs, body renames: BellRing->BellRinging; Volume2->SpeakerHigh; VolumeX->SpeakerSlash; Smartphone->DeviceMobile; Monitor->Desktop; AlertCircle->WarningCircle
+src/components/settings/OCRSettings.tsx: 1 import(s) -> 1, 9 specs, body renames: ScanText->Scan; Languages->Translate; Server->HardDrives; Zap->Lightning; FileText->TextT
+src/components/settings/RSSQueueSettings.tsx: 1 import(s) -> 1, 9 specs, body renames: Settings2->Sliders; ListFilter->Funnel; EyeOff->EyeSlash; ArrowUpDown->ArrowsVertical
+src/components/settings/RSSSettings.tsx: 1 import(s) -> 1, 7 specs, body renames: Settings2->Sliders; EyeOff->EyeSlash; Inbox->Tray
+src/components/settings/SettingsPage.tsx: 1 import(s) -> 1, 21 specs, body renames: RefreshCw->ArrowsClockwise; BookText->BookOpenText; Search->MagnifyingGlass; ChevronRight->CaretRight; Mic->Microphone; Volume2->SpeakerHigh
+src/components/settings/SettingsValidation.tsx: 1 import(s) -> 1, 4 specs, body renames: AlertTriangle->Warning
+src/components/settings/SmartQueuesSettings.tsx: 1 import(s) -> 1, 2 specs, body renames: RefreshCw->ArrowsClockwise
+src/components/settings/SyncConflictDialog.tsx: 1 import(s) -> 1, 8 specs, body renames: AlertTriangle->Warning; FileText->TextT; Monitor->Desktop; RefreshCw->ArrowsClockwise
+src/components/settings/SyncSettings.tsx: 1 import(s) -> 1, 16 specs, body renames: CloudOff->CloudSlash; RefreshCw->ArrowsClockwise; FileText->TextT; History->ClockCounterClockwise; ShieldAlert->ShieldWarning; Wifi->WifiHigh; KeyRound->Key
+src/components/settings/TTSSettings.tsx: 1 import(s) -> 1, 14 specs, body renames: AlertCircle->WarningCircle; Loader2->CircleNotch; Mic->Microphone; RefreshCw->ArrowsClockwise; Save->FloppyDisk; Trash2->Trash; Volume2->SpeakerHigh; Wifi->WifiHigh; WifiOff->WifiSlash
+src/components/settings/ThemeCustomizer.tsx: 1 import(s) -> 1, 3 specs, body renames: RotateCcw->ArrowCounterClockwise
+src/components/settings/ThemeGallery.tsx: 1 import(s) -> 1, 5 specs, body renames: Maximize2->ArrowsOutSimple; Smartphone->DeviceMobile; Sparkles->Sparkle
+src/components/settings/ThemePicker.tsx: 1 import(s) -> 1, 7 specs, body renames: Trash2->Trash; Sparkles->Sparkle
+src/components/settings/UpdateAvailableDialog.tsx: 1 import(s) -> 1, 4 specs, body renames: ExternalLink->ArrowSquareOut; Ban->Prohibit
+src/components/settings/UserProfilePanel.tsx: 1 import(s) -> 1, 4 specs, body renames: LogOut->SignOut
+src/components/sync/FileSyncStatusIndicator.tsx: 1 import(s) -> 1, 6 specs, body renames: AlertCircle->WarningCircle; Loader2->CircleNotch
+src/components/sync/OfflineSyncIndicator.tsx: 1 import(s) -> 1, 9 specs, body renames: CloudOff->CloudSlash; RefreshCw->ArrowsClockwise; Wifi->WifiHigh; WifiOff->WifiSlash; Server->HardDrives; CheckCircle2->CheckCircle; ChevronDown->CaretDown
+src/components/sync/SyncStatusIndicator.tsx: 1 import(s) -> 1, 5 specs, body renames: CloudOff->CloudSlash; RefreshCw->ArrowsClockwise; AlertCircle->WarningCircle
+src/components/tabs/AnalyticsTab.tsx: 1 import(s) -> 1, 9 specs, body renames: CheckCircle2->CheckCircle; FileText->TextT; Sparkles->Sparkle; Loader2->CircleNotch; TrendingUp->TrendUp; Library->Books
+src/components/tabs/DashboardTab.tsx: 1 import(s) -> 1, 10 specs, body renames: BarChart3->ChartBar; Settings->Gear; TrendingUp->TrendUp; Zap->Lightning; ChevronRight->CaretRight
+src/components/tabs/DocumentQATab.tsx: 1 import(s) -> 1, 14 specs, body renames: MessageSquare->ChatCircle; Send->PaperPlaneTilt; Loader2->CircleNotch; FileText->TextT; Settings->Gear; Sparkles->Sparkle; Trash2->Trash; FlaskConical->Flask; Wand2->Sparkle; Save->FloppyDisk; AlertCircle->WarningCircle
+src/components/tabs/DocumentsTab.tsx: 1 import(s) -> 1, 3 specs, body renames: FileText->TextT; Youtube->YoutubeLogo
+src/components/tabs/QueueTab.tsx: 1 import(s) -> 1, 3 specs, body renames: FileText->TextT; Layers->Stack
+src/components/tabs/ScreenshotTab.tsx: 1 import(s) -> 1, 5 specs, body renames: Trash2->Trash
+src/components/tabs/TabIcons.tsx: 1 import(s) -> 1, 19 specs, body renames: LayoutDashboard->SquaresFour; Library->Books; ListTodo->ListChecks; BarChart3->ChartBar; Settings->Gear; FileText->TextT; Youtube->YoutubeLogo; Network->Graph; Orbit->Planet; Monitor->Desktop; MessageSquare->ChatCircle; BookMarked->Bookmarks; Layers->Stack; LucideIcon->IconType
+src/components/tabs/WebBrowserTab.tsx: 1 import(s) -> 1, 17 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; RotateCw->ArrowClockwise; ExternalLink->ArrowSquareOut; HighlighterIcon->Highlighter; BookmarkPlus->BookmarkSimple; Sparkles->Sparkle; MessageSquare->ChatCircle; Trash2->Trash
+src/components/tabs/knowledge/KnowledgeSphereTab.tsx: 1 import(s) -> 1, 3 specs, body renames: Sparkles->Sparkle; RefreshCw->ArrowsClockwise
+src/components/transcription/TranscriptionButton.tsx: 1 import(s) -> 1, 6 specs, body renames: Loader2->CircleNotch; CheckCircle2->CheckCircle; AlertCircle->WarningCircle; Sparkles->Sparkle
+src/components/transcription/TranscriptionKeyDialog.tsx: 1 import(s) -> 1, 8 specs, body renames: ExternalLink->ArrowSquareOut; AlertCircle->WarningCircle; Zap->Lightning
+src/components/transcription/TranscriptionQueueActions.tsx: 1 import(s) -> 1, 4 specs, body renames: Mic->Microphone; CheckCircle2->CheckCircle
+src/components/video/VideoExtracts.tsx: 1 import(s) -> 1, 11 specs, body renames: Trash2->Trash; Edit->Pencil; CheckCircle2->CheckCircle; AlertTriangle->Warning
+src/components/video/VideoFeatures.tsx: 1 import(s) -> 1, 12 specs, body renames: Trash2->Trash; FileText->TextT; ExternalLink->ArrowSquareOut; AlertCircle->WarningCircle; Sparkles->Sparkle; Loader2->CircleNotch
+src/components/viewer/AudiobookEpubSyncView.tsx: 1 import(s) -> 1, 7 specs, body renames: Loader2->CircleNotch; AlertTriangle->Warning; Search->MagnifyingGlass; ChevronLeft->CaretLeft; ChevronRight->CaretRight
+src/components/viewer/AudiobookViewer.tsx: 1 import(s) -> 1, 20 specs, body renames: Volume2->SpeakerHigh; VolumeX->SpeakerSlash; BookmarkPlus->BookmarkSimple; FileText->TextT; Maximize2->ArrowsOutSimple; Minimize2->ArrowsInSimple; Loader2->CircleNotch; Mic->Microphone; Sparkles->Sparkle; RotateCcw->ArrowCounterClockwise
+src/components/viewer/DocumentViewer.tsx: 1 import(s) -> 1, 26 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; ZoomIn->MagnifyingGlassPlus; ZoomOut->MagnifyingGlassMinus; RotateCw->ArrowClockwise; FileText->TextT; Search->MagnifyingGlass; Maximize->CornersOut; Minimize->CornersIn; Share2->ShareNetwork; Loader2->CircleNotch; Languages->Translate; PanelsTopLeft->SidebarSimple; Settings->Gear; AlertCircle->WarningCircle; Sparkles->Sparkle; EyeOff->EyeSlash
+src/components/viewer/EPUBViewer.tsx: 1 import(s) -> 1, 4 specs, body renames: ChevronDown->CaretDown; ChevronUp->CaretUp; Menu->List; Settings->Gear
+src/components/viewer/ImageSaveOverlay.tsx: 1 import(s) -> 1, 3 specs, body renames: ImagePlus->Images; Loader2->CircleNotch
+src/components/viewer/LocalVideoPlayer.tsx: 1 import(s) -> 1, 13 specs, body renames: Volume2->SpeakerHigh; VolumeX->SpeakerSlash; Maximize->CornersOut; Layers->Stack; GripVertical->DotsSixVertical; Sparkles->Sparkle; RotateCcw->ArrowCounterClockwise
+src/components/viewer/MarkdownViewer.tsx: 1 import(s) -> 1, 1 specs, body renames: Sparkles->Sparkle
+src/components/viewer/OcrRegionSelector.tsx: 1 import(s) -> 1, 2 specs
+src/components/viewer/OcrTextPreview.tsx: 1 import(s) -> 1, 3 specs, body renames: RotateCcw->ArrowCounterClockwise; FileText->TextT
+src/components/viewer/PDFViewer.tsx: 1 import(s) -> 1, 6 specs, body renames: ChevronLeft->CaretLeft; ChevronRight->CaretRight; Maximize->CornersOut; Minimize->CornersIn
+src/components/viewer/PriorityControl.tsx: 1 import(s) -> 1, 3 specs, body renames: ChevronUp->CaretUp; ChevronDown->CaretDown
+src/components/viewer/SelectionPopup.tsx: 1 import(s) -> 1, 3 specs, body renames: MessageSquarePlus->ChatDots
+src/components/viewer/SplitDocumentDialog.tsx: 1 import(s) -> 1, 8 specs, body renames: Sparkles->Sparkle; AlertTriangle->Warning; Layers->Stack
+src/components/viewer/YouTubeViewer.tsx: 1 import(s) -> 1, 14 specs, body renames: ExternalLink->ArrowSquareOut; Share2->ShareNetwork; Youtube->YoutubeLogo; AlertTriangle->Warning; Loader2->CircleNotch; GripVertical->DotsSixVertical; Layers->Stack; Sparkles->Sparkle; RotateCcw->ArrowCounterClockwise
+src/pages/AIWorkflowsPage.tsx: 1 import(s) -> 1, 7 specs, body renames: Sparkles->Sparkle; FileText->TextT; HelpCircle->Question; Wand2->Sparkle; Send->PaperPlaneTilt; Loader2->CircleNotch
+src/pages/AnalyticsPage.tsx: 1 import(s) -> 1, 6 specs, body renames: TrendingUp->TrendUp; TrendingDown->TrendDown; BarChart3->ChartBar; Activity->Pulse
+src/pages/IntegrationsPage.tsx: 1 import(s) -> 1, 12 specs, body renames: Loader2->CircleNotch; AlertCircle->WarningCircle; Gem->Diamond; Layers->Stack; Sparkles->Sparkle; ExternalLink->ArrowSquareOut
+src/pages/KnowledgeGraphPage.tsx: 1 import(s) -> 1, 12 specs, body renames: Network->Graph; Sparkles->Sparkle; Grid3x3->GridNine; Search->MagnifyingGlass; Filter->Funnel; FileText->TextT; MessageSquare->ChatCircle; Maximize2->ArrowsOutSimple
+src/pages/NotebookLMPage.tsx: 1 import(s) -> 1, 10 specs, body renames: Settings->Gear; Loader2->CircleNotch; AlertCircle->WarningCircle; ChevronDown->CaretDown; RefreshCw->ArrowsClockwise; ExternalLink->ArrowSquareOut
+src/pages/QueuePage.tsx: 1 import(s) -> 1, 3 specs, body renames: FileText->TextT; Layers->Stack
+src/pages/QueueScrollPage.tsx: 1 import(s) -> 1, 13 specs, body renames: Sparkles->Sparkle; ExternalLink->ArrowSquareOut; MessageSquare->ChatCircle; Settings2->Sliders; FileText->TextT; EyeOff->EyeSlash; Loader2->CircleNotch; AlertCircle->WarningCircle; RefreshCw->ArrowsClockwise
+src/pages/SearchPage.tsx: 1 import(s) -> 1, 8 specs, body renames: FileText->TextT; Layers->Stack; ChevronRight->CaretRight
+src/routes/dashboard.tsx: 1 import(s) -> 1, 8 specs, body renames: CheckCircle2->CheckCircle; FileText->TextT; Sparkles->Sparkle; Loader2->CircleNotch; TrendingUp->TrendUp
+src/routes/documents.tsx: 1 import(s) -> 1, 2 specs, body renames: Link2->Link; Mic->Microphone
+src/routes/queue.tsx: 1 import(s) -> 1, 8 specs, body renames: Search->MagnifyingGlass; Filter->Funnel; ArrowUpDown->ArrowsVertical; CalendarClock->CalendarHeart
+src/routes/review.tsx: 1 import(s) -> 1, 3 specs, body renames: AlertCircle->WarningCircle; ExternalLink->ArrowSquareOut; Undo2->ArrowCounterClockwise

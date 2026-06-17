@@ -9,7 +9,7 @@
  */
 
 import { useRef, useEffect, useState } from "react";
-import { ExternalLink, FileText, Loader2 } from "lucide-react";
+import { ArrowSquareOut, CircleNotch, TextT } from "@phosphor-icons/react";
 import DOMPurify from "dompurify";
 
 interface ThemeColors {
@@ -219,7 +219,7 @@ export function RichContentRenderer({
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
           >
-            <ExternalLink className="w-3 h-3" />
+            <ArrowSquareOut className="w-3 h-3" />
             View source
           </a>
         )}
@@ -231,7 +231,7 @@ export function RichContentRenderer({
     return (
       <div className={`${className}`}>
         <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-          <FileText className="w-3 h-3" />
+          <TextT className="w-3 h-3" />
           <span>Rich content available</span>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-2">{content}</p>
@@ -252,7 +252,7 @@ export function RichContentRenderer({
     <div className={`relative ${className}`}>
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>
       )}
       <iframe
@@ -271,7 +271,7 @@ export function RichContentRenderer({
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
-            <ExternalLink className="w-3 h-3" />
+            <ArrowSquareOut className="w-3 h-3" />
             View original source
           </a>
         </div>

@@ -5,20 +5,20 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  Play,
+  ArrowCounterClockwise,
+  CornersOut,
+  DotsSixVertical,
   Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
+  Play,
+  Scissors,
   SkipBack,
   SkipForward,
+  Sparkle,
+  SpeakerHigh,
+  SpeakerSlash,
+  Stack,
   X,
-  Scissors,
-  Layers,
-  GripVertical,
-  Sparkles,
-  RotateCcw,
-} from 'lucide-react';
+} from "@phosphor-icons/react";
 import { cn } from '../../utils';
 import { saveDocumentPosition, timePosition } from '../../api/position';
 import { useI18n } from '../../lib/i18n';
@@ -1236,7 +1236,7 @@ export function LocalVideoPlayer({
           >
             <div className="px-4 py-3 bg-card/85 backdrop-blur-md border border-border/60 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-sm sm:max-w-md ring-1 ring-black/5">
               <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm flex-shrink-0 animate-pulse">
-                <Sparkles className="h-5.5 w-5.5" />
+                <Sparkle className="h-5.5 w-5.5" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-foreground tracking-wide uppercase opacity-90 text-left">
@@ -1257,7 +1257,7 @@ export function LocalVideoPlayer({
                   }}
                   className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <ArrowCounterClockwise className="h-3.5 w-3.5" />
                   Undo
                 </button>
               )}
@@ -1379,7 +1379,7 @@ export function LocalVideoPlayer({
               className="p-1 hover:bg-white/20 rounded transition-colors"
               title={t("viewer.fullscreenF")}
             >
-              <Maximize className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
+              <CornersOut className={cn("w-5 h-5", mediaType === "audio" ? "text-foreground" : "text-white")} />
             </button>
           </div>
         </div>
@@ -1497,9 +1497,9 @@ export function LocalVideoPlayer({
                   title={t("viewer.mute")}
                 >
                   {isMuted || volume === 0 ? (
-                    <VolumeX className="w-5 h-5" />
+                    <SpeakerSlash className="w-5 h-5" />
                   ) : (
-                    <Volume2 className="w-5 h-5" />
+                    <SpeakerHigh className="w-5 h-5" />
                   )}
                 </button>
                 <input
@@ -1519,7 +1519,7 @@ export function LocalVideoPlayer({
                 className="p-1 hover:bg-white/20 rounded transition-colors"
                 title={t("viewer.fullscreenF")}
               >
-                <Maximize className="w-5 h-5" />
+                <CornersOut className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -1555,7 +1555,7 @@ export function LocalVideoPlayer({
           title={t("viewer.dragToResize")}
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
-            <GripVertical className="w-3 h-3 text-muted-foreground" />
+            <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
           </div>
         </div>
       )}
@@ -1587,7 +1587,7 @@ export function LocalVideoPlayer({
                     )}
                     title={t("viewer.videoFeatures")}
                   >
-                    <Layers className="w-4 h-4" />
+                    <Stack className="w-4 h-4" />
                     <span className="font-medium">{t("viewer.panels")}</span>
                   </button>
                 )}
@@ -1690,7 +1690,7 @@ export function LocalVideoPlayer({
             title={t("viewer.dragToResize")}
           >
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/80 shadow-sm">
-              <GripVertical className="w-3 h-3 text-muted-foreground" />
+              <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
             </div>
           </div>
           {/* Header */}

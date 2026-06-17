@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart } from "lucide-react";
+import { ChartBarHorizontal } from "@phosphor-icons/react";
 import { getDueWorkloadForecast, getReviewStatistics } from "../../api/algorithm";
 
 interface ReviewStatistics {
@@ -55,7 +55,7 @@ export function ScheduleVisualization() {
     return (
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
-          <BarChart className="w-5 h-5 text-muted-foreground" />
+          <ChartBarHorizontal className="w-5 h-5 text-muted-foreground" />
           <h3 className="text-lg font-semibold text-foreground">Schedule Overview</h3>
         </div>
         <div className="animate-pulse space-y-3">
@@ -71,7 +71,7 @@ export function ScheduleVisualization() {
     return (
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
-          <BarChart className="w-5 h-5 text-muted-foreground" />
+          <ChartBarHorizontal className="w-5 h-5 text-muted-foreground" />
           <h3 className="text-lg font-semibold text-foreground">Schedule Overview</h3>
         </div>
         <p className="text-muted-foreground">
@@ -107,7 +107,7 @@ export function ScheduleVisualization() {
   return (
     <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center gap-3 mb-6">
-        <BarChart className="w-5 h-5 text-primary" />
+        <ChartBarHorizontal className="w-5 h-5 text-primary" />
         <h3 className="text-lg font-semibold text-foreground">Schedule Overview</h3>
       </div>
 

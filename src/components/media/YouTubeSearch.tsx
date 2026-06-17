@@ -1,12 +1,12 @@
 import { useState } from "react";
 import {
-  Search,
-  Youtube,
-  Eye,
-  ExternalLink,
+  ArrowSquareOut,
+  CircleNotch,
   Download,
-  Loader2,
-} from "lucide-react";
+  Eye,
+  MagnifyingGlass,
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import { getYouTubeThumbnail, getYouTubeWatchURL, formatDuration, formatViewCount } from "../../api/youtube";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -72,11 +72,11 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      {/* Search Header */}
+      {/* MagnifyingGlass Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Youtube className="w-5 h-5 text-red-500" />
-          <h2 className="text-lg font-semibold text-foreground">YouTube Search</h2>
+          <YoutubeLogo className="w-5 h-5 text-red-500" />
+          <h2 className="text-lg font-semibold text-foreground">YouTube MagnifyingGlass</h2>
         </div>
 
         <div className="mt-3 flex gap-2">
@@ -85,7 +85,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Search YouTube videos..."
+            placeholder="MagnifyingGlass YouTube videos..."
             className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
@@ -94,11 +94,11 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
           >
             {isSearching ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <CircleNotch className="w-4 h-4 animate-spin" />
             ) : (
-              <Search className="w-4 h-4" />
+              <MagnifyingGlass className="w-4 h-4" />
             )}
-            Search
+            MagnifyingGlass
           </button>
         </div>
 
@@ -113,7 +113,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
       <div className="max-h-[500px] overflow-y-auto">
         {results.length === 0 && !isSearching && !error && (
           <div className="p-8 text-center text-muted-foreground">
-            <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <MagnifyingGlass className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>Enter a search query to find YouTube videos</p>
             <p className="text-xs mt-1">
               Note: YouTube search requires yt-dlp or YouTube API key
@@ -169,7 +169,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
                     className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                     title="Open on YouTube"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowSquareOut className="w-4 h-4" />
                   </a>
                   <button
                     onClick={() => onImport?.(result.id, result)}

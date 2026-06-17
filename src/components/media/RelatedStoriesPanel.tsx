@@ -3,7 +3,7 @@
  * Slide-out panel showing related articles when clicking "Related" pill
  */
 
-import { X, ExternalLink } from "lucide-react";
+import { ArrowSquareOut, X } from "@phosphor-icons/react";
 import type { RssStoryCluster } from "../../api/rss-clusters";
 
 interface RelatedStoriesPanelProps {
@@ -71,7 +71,7 @@ export function RelatedStoriesPanel({
                   className="inline-flex items-center gap-1 mt-1 text-[10px] text-muted-foreground hover:text-primary"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <ExternalLink className="w-2.5 h-2.5" />
+                  <ArrowSquareOut className="w-2.5 h-2.5" />
                   Open
                 </a>
               )}

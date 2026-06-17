@@ -1,5 +1,11 @@
 import { useEffect, useRef } from "react";
-import { CheckCircle2, Home, Flame, Trophy, Clock } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  Flame,
+  House,
+  Trophy,
+} from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../lib/i18n";
 import { playNotificationGatedFeedback } from "../../utils/soundService";
@@ -51,7 +57,7 @@ export function ReviewComplete({
       {/* Success Icon */}
       <div className="mb-6">
         <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto">
-          <CheckCircle2 className="w-12 h-12 text-green-500" />
+          <CheckCircle className="w-12 h-12 text-green-500" />
         </div>
       </div>
 
@@ -139,7 +145,7 @@ export function ReviewComplete({
           onClick={() => navigate("/")}
           className="px-6 py-3 bg-card border border-border text-foreground rounded-lg hover:bg-muted transition-colors font-medium flex items-center justify-center gap-2"
         >
-          <Home className="w-4 h-4" />
+          <House className="w-4 h-4" />
           {t("reviewComplete.goToDashboard")}
         </button>
       </div>

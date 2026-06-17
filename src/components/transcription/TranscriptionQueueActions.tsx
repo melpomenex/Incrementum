@@ -6,7 +6,12 @@
  */
 
 import { useState, useEffect } from "react";
-import { FileAudio, FileVideo, Mic, CheckCircle2 } from 'lucide-react';
+import {
+  CheckCircle,
+  FileAudio,
+  FileVideo,
+  Microphone,
+} from "@phosphor-icons/react";
 import { cn } from '../../utils';
 import { TranscriptionButton, TranscriptionStatusBadge } from './TranscriptionButton';
 import { getVideoTranscript } from '../../api/video-extracts';
@@ -43,7 +48,7 @@ function getMediaIcon(fileType?: DocumentFileType) {
     case 'youtube':
       return <FileVideo className="w-4 h-4" />;
     default:
-      return <Mic className="w-4 h-4" />;
+      return <Microphone className="w-4 h-4" />;
   }
 }
 
@@ -101,7 +106,7 @@ export function TranscriptionQueueActions({
             className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full"
             title="Transcript available"
           >
-            <CheckCircle2 className="w-3 h-3" />
+            <CheckCircle className="w-3 h-3" />
             Transcribed
           </span>
         ) : (
@@ -133,7 +138,7 @@ export function TranscriptionQueueActions({
         "p-2 rounded-lg",
         hasTranscript ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
       )}>
-        {hasTranscript ? <CheckCircle2 className="w-4 h-4" /> : getMediaIcon(fileType)}
+        {hasTranscript ? <CheckCircle className="w-4 h-4" /> : getMediaIcon(fileType)}
       </div>
       
       <div className="flex-1 min-w-0">
@@ -218,7 +223,7 @@ export function TranscriptionQueueIndicator({
         )}
         title="Transcript available"
       >
-        <CheckCircle2 className="w-3.5 h-3.5" />
+        <CheckCircle className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Transcribed</span>
       </span>
     );

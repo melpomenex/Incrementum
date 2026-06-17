@@ -4,7 +4,12 @@
  */
 
 import { useState, useEffect } from "react";
-import { Clock, Loader2, Rss, ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  CircleNotch,
+  Clock,
+  Rss,
+} from "@phosphor-icons/react";
 import { getRiverOfNewsAuto } from "../../api/rss-folders";
 
 interface RiverOfNewsViewProps {
@@ -63,7 +68,7 @@ export function RiverOfNewsView({ folderId, folderName, feeds: _feeds, onSelectA
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : articles.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">

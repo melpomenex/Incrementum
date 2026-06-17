@@ -4,7 +4,12 @@
  */
 
 import { useState } from "react";
-import { ThumbsUp, ThumbsDown, SkipForward, X } from "lucide-react";
+import {
+  SkipForward,
+  ThumbsDown,
+  ThumbsUp,
+  X,
+} from "@phosphor-icons/react";
 import { useClassifiersStore } from "../../stores/classifiersStore";
 import type { Feed } from "../../api/rss";
 import { sanitizeHtml } from "../common/RichContentRenderer";

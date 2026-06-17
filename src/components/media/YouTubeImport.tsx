@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
 import {
-  Youtube,
-  Download,
-  Loader2,
+  ArrowSquareOut,
   Check,
-  AlertCircle,
-  Search,
-  List,
-  Play,
+  CircleNotch,
   Clock,
+  Download,
   Eye,
-  ExternalLink,
-  Settings,
+  Gear,
+  List,
+  MagnifyingGlass,
+  Play,
+  WarningCircle,
   X,
-} from "lucide-react";
+  YoutubeLogo,
+} from "@phosphor-icons/react";
 import {
   isYouTubeURL,
   getYouTubeURLType,
@@ -193,7 +193,7 @@ export function YouTubeImportDialog({
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Youtube className="w-5 h-5 text-red-500" />
+            <YoutubeLogo className="w-5 h-5 text-red-500" />
             <h2 className="text-lg font-semibold text-foreground">Import from YouTube</h2>
           </div>
           <button
@@ -210,7 +210,7 @@ export function YouTubeImportDialog({
           {ytdlpAvailable === false && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 mt-0.5" />
+                <WarningCircle className="w-4 h-4 mt-0.5" />
                 <div className="text-sm">
                   <div>yt-dlp is not installed. You can install it with one click.</div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -220,7 +220,7 @@ export function YouTubeImportDialog({
                       className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                     >
                       {installingYtdlp ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <CircleNotch className="w-4 h-4 animate-spin" />
                       ) : (
                         <Download className="w-4 h-4" />
                       )}
@@ -273,9 +273,9 @@ export function YouTubeImportDialog({
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                 >
                   {status === "fetching" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Search className="w-4 h-4" />
+                    <MagnifyingGlass className="w-4 h-4" />
                   )}
                   Fetch Info
                 </button>
@@ -287,7 +287,7 @@ export function YouTubeImportDialog({
               <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                 {importType === "video" && <Play className="w-3 h-3" />}
                 {importType === "playlist" && <List className="w-3 h-3" />}
-                {importType === "channel" && <Youtube className="w-3 h-3" />}
+                {importType === "channel" && <YoutubeLogo className="w-3 h-3" />}
                 Detected: {importType}
               </div>
             )}
@@ -333,7 +333,7 @@ export function YouTubeImportDialog({
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                     title="Open on YouTube"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowSquareOut className="w-4 h-4" />
                   </a>
                 </div>
               </div>
@@ -364,14 +364,14 @@ export function YouTubeImportDialog({
                 </div>
               )}
 
-              {/* Download Settings */}
+              {/* Download Gear */}
               <div className="pt-2 border-t border-border">
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-2"
                 >
-                  <Settings className="w-4 h-4" />
-                  Download Settings
+                  <Gear className="w-4 h-4" />
+                  Download Gear
                 </button>
 
                 {showSettings && (
@@ -448,7 +448,7 @@ export function YouTubeImportDialog({
           {/* Error */}
           {error && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive">
-              <AlertCircle className="w-4 h-4" />
+              <WarningCircle className="w-4 h-4" />
               <span className="text-sm">{error}</span>
             </div>
           )}

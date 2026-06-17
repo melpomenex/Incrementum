@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { useI18n } from "../../lib/i18n";
 import {
-  Send,
-  Loader2,
-  Sparkles,
   BookOpen,
-  MessageSquare,
-  Copy,
-  Save,
+  ChatCircle,
   Check,
-  ThumbsUp,
+  CircleNotch,
+  Copy,
+  FloppyDisk,
+  PaperPlaneTilt,
+  Sparkle,
   ThumbsDown,
-} from "lucide-react";
+  ThumbsUp,
+} from "@phosphor-icons/react";
 import { notebooklmAsk, notebooklmResearch } from "../../api/integrations";
 import { createDocument, getDocuments, updateDocument, updateDocumentContent } from "../../api/documents";
 import { createExtract, getExtracts } from "../../api/extracts";
@@ -411,7 +411,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
       <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-card">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
+            <Sparkle className="w-4 h-4 text-white" />
           </div>
           <div>
             <h2 className="font-semibold text-foreground">{t("notebooklm.title")}</h2>
@@ -430,7 +430,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto">
             <div className="w-16 h-16 mb-6 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-600/20 flex items-center justify-center">
-              <MessageSquare className="w-8 h-8 text-emerald-600" />
+              <ChatCircle className="w-8 h-8 text-emerald-600" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-2">
               {t("notebooklmChat.startConversation")}
@@ -483,7 +483,7 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                   ) : message.isResearch ? (
                     <BookOpen className="w-4 h-4 text-white" />
                   ) : (
-                    <Sparkles className="w-4 h-4 text-white" />
+                    <Sparkle className="w-4 h-4 text-white" />
                   )}
                 </div>
 
@@ -554,11 +554,11 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                         title={savedMessageIds.has(message.id) ? t("notebooklmChat.alreadySavedAsExtract") : t("notebooklmChat.saveAsExtract")}
                       >
                         {savingMessageIds.has(message.id) ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                         ) : savedMessageIds.has(message.id) ? (
                           <Check className="w-3.5 h-3.5" />
                         ) : (
-                          <Save className="w-3.5 h-3.5" />
+                          <FloppyDisk className="w-3.5 h-3.5" />
                         )}
                       </button>
                       <button
@@ -633,9 +633,9 @@ export function NotebookLMChat({ notebookId, notebookTitle }: NotebookLMChatProp
                 className="p-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <CircleNotch className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <PaperPlaneTilt className="w-4 h-4" />
                 )}
               </button>
             </div>

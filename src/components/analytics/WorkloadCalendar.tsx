@@ -1,5 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays, X } from "lucide-react";
+import {
+  CalendarBlank,
+  CaretLeft,
+  CaretRight,
+  X,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { getWorkloadData, type WorkloadDay } from "../../api/analytics";
 import { WorkloadDayPopover } from "./WorkloadDayPopover";
@@ -267,12 +272,12 @@ export function WorkloadCalendar() {
       {/* Compact header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <CalendarBlank className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium">{t("calendar.workloadCalendar")}</h3>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={navigatePrev} className="p-1 rounded hover:bg-muted transition-colors">
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <CaretLeft className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => setExpandedMonth({ year: centerYear, month: centerMonth })}
@@ -281,7 +286,7 @@ export function WorkloadCalendar() {
             {formatMonth(centerYear, centerMonth, t)}
           </button>
           <button onClick={navigateNext} className="p-1 rounded hover:bg-muted transition-colors">
-            <ChevronRight className="h-3.5 w-3.5" />
+            <CaretRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

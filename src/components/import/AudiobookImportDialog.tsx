@@ -8,31 +8,30 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  BookAudio,
-  Upload,
-  Search,
-  X,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Clock,
-  User,
-  Headphones,
-  FileText,
-  Sparkles,
-  ImageIcon,
-  ChevronLeft,
-  ChevronRight,
-  SkipForward,
-  List,
   Bookmark,
-  Mic,
-  Languages,
-  Volume2,
+  CaretLeft,
+  CaretRight,
+  CheckCircle,
+  CircleNotch,
+  Clock,
   FolderOpen,
-  AlertTriangle,
-  Layers,
-} from "lucide-react";
+  Headphones,
+  Image,
+  List,
+  MagnifyingGlass,
+  Microphone,
+  SkipForward,
+  Sparkle,
+  SpeakerHigh,
+  Stack,
+  TextT,
+  Translate,
+  Upload,
+  User,
+  Warning,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
 import { useToast } from "../common/Toast";
@@ -446,7 +445,7 @@ export function AudiobookImportDialog({
         setSelectedCover(covers[0]);
       }
     } catch {
-      showError("Search failed", "Could not fetch metadata");
+      showError("MagnifyingGlass failed", "Could not fetch metadata");
     } finally {
       setIsLoading(false);
     }
@@ -796,7 +795,7 @@ export function AudiobookImportDialog({
         <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-              <BookAudio className="h-5 w-5 text-amber-500" />
+              <Headphones className="h-5 w-5 text-amber-500" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">
@@ -823,9 +822,9 @@ export function AudiobookImportDialog({
           <div className="flex items-center gap-2 border-b border-border bg-card/50 px-6 py-3">
             {[
               { id: "select", label: "Select File", icon: Upload },
-              { id: "metadata", label: "Metadata", icon: ImageIcon },
-              { id: "transcript", label: "Transcript", icon: FileText },
-              { id: "confirm", label: "Confirm", icon: CheckCircle2 },
+              { id: "metadata", label: "Metadata", icon: Image },
+              { id: "transcript", label: "Transcript", icon: TextT },
+              { id: "confirm", label: "Confirm", icon: CheckCircle },
             ].map((step, index) => {
               const isActive = currentStep === step.id;
               const isPast = [
@@ -849,7 +848,7 @@ export function AudiobookImportDialog({
                     {step.label}
                   </div>
                   {index < 3 && (
-                    <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
+                    <CaretRight className="h-4 w-4 mx-1 text-muted-foreground" />
                   )}
                 </div>
               );
@@ -863,7 +862,7 @@ export function AudiobookImportDialog({
           {currentStep === "select" && (
             <div className="flex h-full flex-col items-center justify-center p-8 text-center">
               <div className="mb-6 rounded-full bg-amber-500/10 p-6">
-                <BookAudio className="h-12 w-12 text-amber-500" />
+                <Headphones className="h-12 w-12 text-amber-500" />
               </div>
               <h3 className="mb-2 text-xl font-semibold text-foreground">
                 Import Audiobooks
@@ -937,7 +936,7 @@ export function AudiobookImportDialog({
           {/* Batch Mode - Loading */}
           {importMode === "batch" && currentStep === "select" && isLoading && (
             <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <CircleNotch className="h-12 w-12 animate-spin text-primary mb-4" />
               <h3 className="mb-2 text-xl font-semibold">Scanning Directory...</h3>
               <p className="text-muted-foreground">
                 Found {batchItems.length} audiobook files
@@ -997,8 +996,8 @@ export function AudiobookImportDialog({
                           {item.status === "loading" && "Loading..."}
                           {item.status === "pending" && "Pending"}
                         </span>
-                        {item.status === "ready" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                        {item.status === "error" && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                        {item.status === "ready" && <CheckCircle className="h-4 w-4 text-green-500" />}
+                        {item.status === "error" && <Warning className="h-4 w-4 text-destructive" />}
                       </div>
                       
                       {/* Cover */}
@@ -1011,7 +1010,7 @@ export function AudiobookImportDialog({
                           />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center">
-                            <BookAudio className="h-8 w-8 text-muted-foreground" />
+                            <Headphones className="h-8 w-8 text-muted-foreground" />
                           </div>
                         )}
                       </div>
@@ -1053,7 +1052,7 @@ export function AudiobookImportDialog({
                   className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
                 >
                   Continue
-                  <ChevronRight className="h-4 w-4" />
+                  <CaretRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -1075,7 +1074,7 @@ export function AudiobookImportDialog({
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
-                      <BookAudio className="h-16 w-16 text-muted-foreground/50" />
+                      <Headphones className="h-16 w-16 text-muted-foreground/50" />
                     </div>
                   )}
                 </div>
@@ -1103,13 +1102,13 @@ export function AudiobookImportDialog({
                 )}
                 
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs text-muted-foreground">Search covers:</p>
+                  <p className="text-xs text-muted-foreground">MagnifyingGlass covers:</p>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search by title..."
+                      placeholder="MagnifyingGlass by title..."
                       className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
                     />
                     <button
@@ -1117,7 +1116,7 @@ export function AudiobookImportDialog({
                       disabled={isLoading}
                       className="rounded-lg bg-muted p-1.5 hover:bg-muted/80"
                     >
-                      <Search className="h-4 w-4" />
+                      <MagnifyingGlass className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -1126,7 +1125,7 @@ export function AudiobookImportDialog({
                 {multiPartBook && (
                   <div className="mt-6 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
                     <div className="flex items-center gap-2 mb-2">
-                      <Layers className="h-4 w-4 text-amber-500" />
+                      <Stack className="h-4 w-4 text-amber-500" />
                       <span className="text-sm font-medium text-amber-600">Multi-Part Book</span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">
@@ -1182,7 +1181,7 @@ export function AudiobookImportDialog({
                         Narrator
                       </label>
                       <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                        <Mic className="h-4 w-4 text-muted-foreground" />
+                        <Microphone className="h-4 w-4 text-muted-foreground" />
                         <input
                           type="text"
                           value={metadata.narrator || ""}
@@ -1209,7 +1208,7 @@ export function AudiobookImportDialog({
                         Language
                       </label>
                       <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                        <Languages className="h-4 w-4 text-muted-foreground" />
+                        <Translate className="h-4 w-4 text-muted-foreground" />
                         <input
                           type="text"
                           value={metadata.language || "en"}
@@ -1235,7 +1234,7 @@ export function AudiobookImportDialog({
                   {searchResults.length > 0 && (
                     <div className="rounded-lg border border-border bg-muted/30 p-3">
                       <p className="mb-2 text-xs font-medium text-muted-foreground">
-                        Search Results - Click to apply:
+                        MagnifyingGlass Results - Click to apply:
                       </p>
                       <div className="space-y-2">
                         {searchResults.slice(0, 3).map((result, idx) => (
@@ -1264,7 +1263,7 @@ export function AudiobookImportDialog({
                     className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                   >
                     Next: Transcript
-                    <ChevronRight className="h-4 w-4" />
+                    <CaretRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -1286,7 +1285,7 @@ export function AudiobookImportDialog({
                   <div className="flex-1 rounded-lg border border-border bg-muted/30 p-4">
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <CheckCircle className="h-5 w-5 text-green-500" />
                         <span className="font-medium">Transcript Ready</span>
                       </div>
                       <span className="text-xs text-muted-foreground">
@@ -1322,9 +1321,9 @@ export function AudiobookImportDialog({
                     >
                       <div className="mb-3 rounded-full bg-primary/10 p-3">
                         {isGeneratingTranscript ? (
-                          <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                          <CircleNotch className="h-6 w-6 text-primary animate-spin" />
                         ) : (
-                          <Sparkles className="h-6 w-6 text-primary" />
+                          <Sparkle className="h-6 w-6 text-primary" />
                         )}
                       </div>
                       <h4 className="mb-1 font-medium">
@@ -1382,7 +1381,7 @@ export function AudiobookImportDialog({
                 // Batch mode - simplified transcript info
                 <div className="flex-1 rounded-lg border border-border bg-muted/30 p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <AlertCircle className="h-5 w-5 text-amber-500" />
+                    <WarningCircle className="h-5 w-5 text-amber-500" />
                     <p className="font-medium">Batch Import Note</p>
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -1401,12 +1400,12 @@ export function AudiobookImportDialog({
                   onClick={() => setCurrentStep("metadata")}
                   className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <CaretLeft className="h-4 w-4" />
                   Back
                 </button>
                 {isGeneratingTranscript && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                    <CircleNotch className="h-3 w-3 animate-spin text-primary" />
                     Transcription continues in the background
                   </span>
                 )}
@@ -1415,7 +1414,7 @@ export function AudiobookImportDialog({
                   className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                 >
                   {isGeneratingTranscript ? "Continue to Import" : "Next: Confirm"}
-                  <ChevronRight className="h-4 w-4" />
+                  <CaretRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -1441,7 +1440,7 @@ export function AudiobookImportDialog({
                       />
                     ) : (
                       <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-muted">
-                        <BookAudio className="h-12 w-12 text-muted-foreground" />
+                        <Headphones className="h-12 w-12 text-muted-foreground" />
                       </div>
                     )}
                     
@@ -1452,7 +1451,7 @@ export function AudiobookImportDialog({
                       <div className="mt-2 flex flex-wrap gap-2">
                         {multiPartBook && (
                           <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">
-                            <Layers className="h-3 w-3" />
+                            <Stack className="h-3 w-3" />
                             {selectedFiles.length} parts
                           </span>
                         )}
@@ -1468,7 +1467,7 @@ export function AudiobookImportDialog({
                         </span>
                         {transcript && (
                           <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-600">
-                            <FileText className="h-3 w-3" />
+                            <TextT className="h-3 w-3" />
                             Transcript included
                           </span>
                         )}
@@ -1508,7 +1507,7 @@ export function AudiobookImportDialog({
                             />
                           ) : (
                             <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
-                              <BookAudio className="h-6 w-6 text-muted-foreground" />
+                              <Headphones className="h-6 w-6 text-muted-foreground" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -1520,7 +1519,7 @@ export function AudiobookImportDialog({
                               {formatDuration(item.metadata?.duration || 0)}
                             </p>
                           </div>
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <CheckCircle className="h-4 w-4 text-green-500" />
                         </div>
                       ))}
                     </div>
@@ -1534,12 +1533,12 @@ export function AudiobookImportDialog({
                   </h5>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-center gap-2">
-                      <Volume2 className="h-4 w-4 text-primary" />
+                      <SpeakerHigh className="h-4 w-4 text-primary" />
                       Listen with full audiobook controls (speed, bookmarks, sleep timer)
                     </li>
                     {importMode === "single" && transcript ? (
                       <li className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
+                        <TextT className="h-4 w-4 text-primary" />
                         Read along with synchronized transcript
                       </li>
                     ) : null}
@@ -1560,7 +1559,7 @@ export function AudiobookImportDialog({
                     onClick={() => setCurrentStep("transcript")}
                     className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <CaretLeft className="h-4 w-4" />
                     Back
                   </button>
                   <button
@@ -1570,7 +1569,7 @@ export function AudiobookImportDialog({
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <CircleNotch className="h-4 w-4 animate-spin" />
                         {importMode === "batch" 
                           ? `Importing ${importProgress.current} of ${importProgress.total}...`
                           : "Importing..."
@@ -1578,7 +1577,7 @@ export function AudiobookImportDialog({
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="h-4 w-4" />
+                        <CheckCircle className="h-4 w-4" />
                         Import {importMode === "batch" ? `${batchItems.filter(i => i.status === "ready").length} Audiobooks` : "Audiobook"}
                       </>
                     )}

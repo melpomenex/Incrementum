@@ -5,15 +5,15 @@
 
 import { useState, useEffect } from "react";
 import {
-  Sparkles,
-  Tag,
-  Plus,
-  X,
-  Loader2,
-  RefreshCw,
+  ArrowsClockwise,
   Check,
-  AlertCircle,
-} from "lucide-react";
+  CircleNotch,
+  Plus,
+  Sparkle,
+  Tag,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { useAITagSuggestions, generateBasicTags, type TagSuggestion } from "../../hooks/useAITagSuggestions";
 import { useI18n } from "../../lib/i18n";
 
@@ -104,7 +104,7 @@ export function TagSuggestions({
           <span className="text-sm font-medium text-foreground">{t("videoExtract.tags")}</span>
           {isLoading && (
             <span className="text-xs text-muted-foreground">
-              <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+              <CircleNotch className="w-3 h-3 animate-spin inline mr-1" />
               {t("tagSuggestions.analyzing")}
             </span>
           )}
@@ -117,7 +117,7 @@ export function TagSuggestions({
               className="p-1.5 hover:bg-muted rounded transition-colors disabled:opacity-50"
               title={t("tagSuggestions.refreshSuggestions")}
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
+              <ArrowsClockwise className={`w-3.5 h-3.5 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />
             </button>
           )}
           <button
@@ -175,7 +175,7 @@ export function TagSuggestions({
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 p-2 bg-red-500/10 text-red-600 rounded-lg text-xs">
-          <AlertCircle className="w-3 h-3" />
+          <WarningCircle className="w-3 h-3" />
           <span>{error}</span>
         </div>
       )}
@@ -184,7 +184,7 @@ export function TagSuggestions({
       {suggestions.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Sparkles className="w-3 h-3" />
+            <Sparkle className="w-3 h-3" />
             <span>{t("tagSuggestions.suggestedTags")}</span>
           </div>
           <div className="flex flex-wrap gap-1.5">

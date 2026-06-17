@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link2, Mic } from "lucide-react";
+import { Link, Microphone } from "@phosphor-icons/react";
 import { useShallow } from "zustand/react/shallow";
 import { useDocumentStore } from "../stores";
 import { useStudyDeckStore } from "../stores/studyDeckStore";
@@ -230,7 +230,7 @@ export function Documents() {
             disabled={isImporting}
             className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <Link2 className="w-4 h-4" />
+            <Link className="w-4 h-4" />
             {isImporting ? t("review.importing") : t("documentsLegacy.importFromUrl")}
           </button>
           <button
@@ -414,7 +414,7 @@ function DocumentCard({ doc, onClick }: { doc: Document; onClick: () => void }) 
               }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
             >
-              <Mic className="w-4 h-4" />
+              <Microphone className="w-4 h-4" />
               <span>{t("documentsLegacy.transcribe")}</span>
             </button>
           ) : (

@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
-import { X, Tag as TagIcon, FolderOpen, Bold, Italic, Code, List, Layers, Eye } from "lucide-react";
+import {
+  Code,
+  Eye,
+  FolderOpen,
+  List,
+  Stack,
+  Tag as TagIcon,
+  TextB,
+  TextItalic,
+  X,
+} from "@phosphor-icons/react";
 import { updateExtract, UpdateExtractInput, Extract } from "../../api/extracts";
 import { generateLearningItemsFromExtract } from "../../api/learning-items";
 import { useI18n } from "../../lib/i18n";
@@ -37,8 +47,8 @@ const HIGHLIGHT_COLORS = [
 type AnnotationType = "bold" | "italic" | "code" | "bullet";
 
 const ANNOTATIONS = [
-  { type: "bold" as AnnotationType, icon: Bold, label: "Bold", prefix: "**", suffix: "**" },
-  { type: "italic" as AnnotationType, icon: Italic, label: "Italic", prefix: "_", suffix: "_" },
+  { type: "bold" as AnnotationType, icon: TextB, label: "TextB", prefix: "**", suffix: "**" },
+  { type: "italic" as AnnotationType, icon: TextItalic, label: "TextItalic", prefix: "_", suffix: "_" },
   { type: "code" as AnnotationType, icon: Code, label: "Code", prefix: "`", suffix: "`" },
   { type: "bullet" as AnnotationType, icon: List, label: "Bullet", prefix: "• ", suffix: "" },
 ];
@@ -353,7 +363,7 @@ export function EditExtractDialog({
           {/* Progressive Disclosure Level */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              <Layers className="w-4 h-4 inline mr-1" />
+              <Stack className="w-4 h-4 inline mr-1" />
               {t("extracts.progressiveDisclosure")}
             </label>
             <p className="text-xs text-muted-foreground mb-3">

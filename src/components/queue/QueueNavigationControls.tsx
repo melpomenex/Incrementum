@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { CaretLeft, CaretRight, List } from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 
@@ -55,7 +55,7 @@ export function QueueNavigationControls({
         className="p-2 rounded-md hover:bg-muted transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
         title={t("queueNav.previousDocument")}
       >
-        <ChevronLeft className="w-4 h-4" />
+        <CaretLeft className="w-4 h-4" />
       </button>
 
       {/* Next Document */}
@@ -65,7 +65,7 @@ export function QueueNavigationControls({
         className="p-2 rounded-md hover:bg-muted transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
         title={t("queueNav.nextDocument")}
       >
-        <ChevronRight className="w-4 h-4" />
+        <CaretRight className="w-4 h-4" />
       </button>
 
       <div className="h-6 w-px bg-border" />

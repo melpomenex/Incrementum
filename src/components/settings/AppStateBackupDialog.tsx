@@ -2,7 +2,7 @@
  * App State Backup Dialog
  *
  * Provides UI for exporting and importing complete app state including:
- * - Settings and preferences
+ * - Gear and preferences
  * - Documents with metadata and scheduling
  * - Extracts and learning items
  * - Collections
@@ -10,23 +10,23 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { 
-  Download, 
-  Upload, 
-  Settings, 
-  BookOpen, 
-  Layers, 
-  Database,
+import {
+  BookOpen,
+  CaretDown,
+  CaretUp,
   Check,
-  AlertCircle,
-  Loader2,
-  X,
-  ChevronDown,
-  ChevronUp,
+  CircleNotch,
+  Database,
+  Download,
+  Gear,
   HardDrive,
+  Stack,
   Tag,
-  FileText,
-} from "lucide-react";
+  TextT,
+  Upload,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { exportAppState, downloadExport, estimateExportSize, type ExportProgress } from "../../utils/appStateExport";
 import { importAppState, readExportFile, validateExportFile, previewExport, type ImportProgress, type ImportResult, type ImportOptions } from "../../utils/appStateImport";
 import { useDocumentStore } from "../../stores/documentStore";
@@ -265,7 +265,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
               {/* Info */}
               <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
                 <p className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
+                  <WarningCircle className="w-4 h-4" />
                   <strong>{t("backup.note")}</strong> {t("backup.exportFilesNote")}
                 </p>
               </div>
@@ -317,7 +317,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                 <div className="text-sm font-medium">{t("backup.whatsIncluded")}</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Settings className="w-4 h-4" />
+                    <Gear className="w-4 h-4" />
                     {t("backup.allSettingsAndPrefs")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -325,11 +325,11 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                     {t("backup.documentsAndMetadata")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="w-4 h-4" />
+                    <TextT className="w-4 h-4" />
                     {t("backup.extractsAndHighlights")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Layers className="w-4 h-4" />
+                    <Stack className="w-4 h-4" />
                     {t("backup.learningItemsAndScheduling")}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -347,7 +347,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
 
           {mode === "exporting" && exportProgress && (
             <div className="py-8 text-center space-y-4">
-              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+              <CircleNotch className="w-12 h-12 animate-spin text-primary mx-auto" />
               <div>
                 <div className="font-medium">{exportProgress.message}</div>
                 <div className="text-sm text-muted-foreground">
@@ -390,11 +390,11 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                       {exportPreview.stats.documentCount} {t("backup.documents").toLowerCase()}
                     </div>
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <TextT className="w-4 h-4 text-muted-foreground" />
                       {exportPreview.stats.extractCount} {t("backup.extracts").toLowerCase()}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-muted-foreground" />
+                      <Stack className="w-4 h-4 text-muted-foreground" />
                       {exportPreview.stats.learningItemCount} {t("backup.learningItems").toLowerCase()}
                     </div>
                     <div className="flex items-center gap-2">
@@ -411,7 +411,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
                   className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
                 >
-                  {showAdvancedOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {showAdvancedOptions ? <CaretUp className="w-4 h-4" /> : <CaretDown className="w-4 h-4" />}
                   {t("backup.importOptions")}
                 </button>
                 
@@ -419,10 +419,10 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                   <div className="mt-3 space-y-3 p-4 border border-border rounded-lg">
                     {/* Import toggles */}
                     {[
-                      { key: "importSettings", label: "Settings", icon: Settings },
+                      { key: "importSettings", label: "Gear", icon: Gear },
                       { key: "importDocuments", label: "Documents", icon: BookOpen },
-                      { key: "importExtracts", label: "Extracts", icon: FileText },
-                      { key: "importLearningItems", label: "Learning Items", icon: Layers },
+                      { key: "importExtracts", label: "Extracts", icon: TextT },
+                      { key: "importLearningItems", label: "Learning Items", icon: Stack },
                       { key: "importCollections", label: "Collections", icon: Tag },
                       ...(exportPreview.includesFiles ? [{ key: "importFiles", label: "Document Files", icon: HardDrive }] : []),
                     ].map(({ key, label, icon: Icon }) => (
@@ -465,7 +465,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
 
               {/* Warning */}
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600">
-                <AlertCircle className="w-4 h-4 inline mr-2" />
+                <WarningCircle className="w-4 h-4 inline mr-2" />
                 {t("backup.importWarning")}
               </div>
             </div>
@@ -473,7 +473,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
 
           {mode === "importing" && importProgress && (
             <div className="py-8 text-center space-y-4">
-              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+              <CircleNotch className="w-12 h-12 animate-spin text-primary mx-auto" />
               <div>
                 <div className="font-medium">{importProgress.message}</div>
                 <div className="text-sm text-muted-foreground">
@@ -520,7 +520,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
           {mode === "error" && (
             <div className="py-8 text-center space-y-4">
               <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
-                <AlertCircle className="w-8 h-8 text-destructive" />
+                <WarningCircle className="w-8 h-8 text-destructive" />
               </div>
               <div>
                 <div className="font-medium text-lg">{t("backup.operationFailed")}</div>

@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import {
-  Scissors,
-  Play,
-  Pause,
   Download,
-  Trash2,
+  FilmSlate,
+  Pause,
+  Play,
   Plus,
-  Film,
-  Volume2,
-} from "lucide-react";
+  Scissors,
+  SpeakerHigh,
+  Trash,
+} from "@phosphor-icons/react";
 
 interface ClipRange {
   id: string;
@@ -169,9 +169,9 @@ export function ClipExtractor({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {type === "video" ? (
-              <Film className="w-5 h-5 text-foreground" />
+              <FilmSlate className="w-5 h-5 text-foreground" />
             ) : (
-              <Volume2 className="w-5 h-5 text-foreground" />
+              <SpeakerHigh className="w-5 h-5 text-foreground" />
             )}
             <h3 className="text-lg font-semibold text-foreground">Clip Extractor</h3>
           </div>
@@ -347,7 +347,7 @@ export function ClipExtractor({
                       className="p-1.5 text-red-500 hover:bg-red-500/20 rounded transition-colors"
                       title="Delete clip"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

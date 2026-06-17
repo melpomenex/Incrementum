@@ -1,23 +1,23 @@
 import { useState, useEffect } from "react";
 import {
+  ArrowsClockwise,
   BookOpen,
   Brain,
-  Globe,
-  FolderOpen,
   Check,
-  X,
-  RefreshCw,
-  Download,
-  Upload,
-  Server,
-  Plug,
-  ListVideo,
   Cookie,
-  Trash2,
-  AlertCircle,
+  Download,
+  FolderOpen,
+  Globe,
+  HardDrives,
   Info,
-  Sparkles,
-} from "lucide-react";
+  Plug,
+  Queue,
+  Sparkle,
+  Trash,
+  Upload,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import { YouTubePlaylistManager } from "../media/YouTubePlaylistManager";
 import { NotebookLMWorkspace } from "./NotebookLMWorkspace";
 import {
@@ -357,7 +357,7 @@ export function IntegrationSettings() {
               : "bg-secondary text-secondary-foreground hover:opacity-90"
           }`}
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkle className="w-4 h-4" />
           {t("integrations.notebooklm")}
         </button>
         <button
@@ -368,7 +368,7 @@ export function IntegrationSettings() {
               : "bg-secondary text-secondary-foreground hover:opacity-90"
           }`}
         >
-          <ListVideo className="w-4 h-4" />
+          <Queue className="w-4 h-4" />
           {t("integrations.youtubePlaylists")}
         </button>
         <button
@@ -594,7 +594,7 @@ export function IntegrationSettings() {
                 disabled={isOperating}
                 className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <RefreshCw className={`w-4 h-4 ${isOperating ? "animate-spin" : ""}`} />
+                <ArrowsClockwise className={`w-4 h-4 ${isOperating ? "animate-spin" : ""}`} />
                 {t("integrations.testConnection")}
               </button>
 
@@ -690,7 +690,7 @@ export function IntegrationSettings() {
               <h3 className="text-lg font-semibold text-foreground">{t("integrations.browserExtensionServer")}</h3>
               {extensionStatus.running && (
                 <span className="ml-auto px-2 py-1 bg-green-500/20 text-green-500 text-xs rounded-full flex items-center gap-1">
-                  <Server className="w-3 h-3" />
+                  <HardDrives className="w-3 h-3" />
                   {t("integrations.running")}
                 </span>
               )}
@@ -765,7 +765,7 @@ export function IntegrationSettings() {
                     : "bg-primary text-primary-foreground"
                 }`}
               >
-                <Server className="w-4 h-4" />
+                <HardDrives className="w-4 h-4" />
                 {extensionStatus.running ? t("integrations.stopServer") : t("integrations.startServer")}
               </button>
             </div>
@@ -832,14 +832,14 @@ export function IntegrationSettings() {
                       disabled={cookieTestStatus.status === "testing"}
                       className="flex-1 px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                     >
-                      <RefreshCw className={`w-4 h-4 ${cookieTestStatus.status === "testing" ? "animate-spin" : ""}`} />
+                      <ArrowsClockwise className={`w-4 h-4 ${cookieTestStatus.status === "testing" ? "animate-spin" : ""}`} />
                       {cookieTestStatus.status === "testing" ? t("integrations.testingCookies") : t("integrations.testCookies")}
                     </button>
                     <button
                       onClick={handleClearCookies}
                       className="px-3 py-2 bg-destructive/20 text-destructive rounded-lg hover:opacity-90 flex items-center justify-center gap-2 text-sm"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash className="w-4 h-4" />
                       {t("common.clear")}
                     </button>
                   </div>
@@ -858,7 +858,7 @@ export function IntegrationSettings() {
               ) : (
                 <div className="p-4 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <AlertCircle className="w-4 h-4" />
+                    <WarningCircle className="w-4 h-4" />
                     <span className="text-sm">{t("integrations.noCookiesStored")}</span>
                   </div>
                 </div>

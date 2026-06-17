@@ -75,7 +75,7 @@ describe("resolvePdfAssistantContext", () => {
 
     expect(result.status).toBe("unavailable");
     expect(result.source).toBe("none");
-    expect(result.message).toContain("PDF text is unavailable");
+    expect(result.message).toContain("No text content available");
   });
 });
 

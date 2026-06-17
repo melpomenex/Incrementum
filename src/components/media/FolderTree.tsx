@@ -4,7 +4,16 @@
  */
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, FolderOpen, Folder, Plus, MoreVertical, Trash2, Edit3 } from "lucide-react";
+import {
+  CaretDown,
+  CaretRight,
+  DotsThreeVertical,
+  Folder,
+  FolderOpen,
+  PencilSimple,
+  Plus,
+  Trash,
+} from "@phosphor-icons/react";
 import type { RssFolder } from "../../api/rss-folders";
 import type { Feed } from "../../api/rss";
 
@@ -95,9 +104,9 @@ function FolderNode({
       >
         <span className="text-muted-foreground">
           {isExpanded && (childFolders.length > 0 || feeds.length > 0) ? (
-            <ChevronDown className="w-3 h-3" />
+            <CaretDown className="w-3 h-3" />
           ) : (
-            <ChevronRight className="w-3 h-3" />
+            <CaretRight className="w-3 h-3" />
           )}
         </span>
         <span className="text-muted-foreground">
@@ -119,7 +128,7 @@ function FolderNode({
             }}
             className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 rounded"
           >
-            <MoreVertical className="w-3 h-3" />
+            <DotsThreeVertical className="w-3 h-3" />
           </button>
           {showMenu && (
             <div
@@ -148,7 +157,7 @@ function FolderNode({
                     }}
                     className="w-full px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/60 flex items-center gap-1.5"
                   >
-                    <Edit3 className="w-3 h-3" />
+                    <PencilSimple className="w-3 h-3" />
                     Rename
                   </button>
                   <button
@@ -158,7 +167,7 @@ function FolderNode({
                     }}
                     className="w-full px-2 py-1.5 text-left text-xs text-red-500 hover:bg-red-500/10 flex items-center gap-1.5"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash className="w-3 h-3" />
                     Delete
                   </button>
                 </>

@@ -1,5 +1,10 @@
 import { ReviewRating, PreviewIntervals, formatInterval } from "../../api/review";
-import { RotateCcw, ThumbsDown, ThumbsUp, Zap } from "lucide-react";
+import {
+  ArrowCounterClockwise,
+  Lightning,
+  ThumbsDown,
+  ThumbsUp,
+} from "@phosphor-icons/react";
 import { useI18n } from "../../lib/i18n";
 
 interface RatingButtonsProps {
@@ -17,14 +22,14 @@ export function RatingButtons({
   const ratings: {
     value: ReviewRating;
     label: string;
-    icon: typeof RotateCcw;
+    icon: typeof ArrowCounterClockwise;
     color: string;
     description: string;
   }[] = [
     {
       value: 1,
       label: t("review.again"),
-      icon: RotateCcw,
+      icon: ArrowCounterClockwise,
       color: "bg-red-500 hover:bg-red-600",
       description: t("ratingButtons.againDescription"),
     },
@@ -45,7 +50,7 @@ export function RatingButtons({
     {
       value: 4,
       label: t("review.easy"),
-      icon: Zap,
+      icon: Lightning,
       color: "bg-green-500 hover:bg-green-600",
       description: t("ratingButtons.easyDescription"),
     },
