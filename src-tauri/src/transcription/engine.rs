@@ -108,18 +108,39 @@ impl TranscriptionEngine {
         None
     }
 
-    /// Resolve the on-disk path of a named sidecar binary for the current target
-    /// (e.g. `whisper` → `bin/whisper-aarch64-apple-darwin`). Uses the full Rust
-    /// target triple (exposed by build.rs as TAURI_TARGET_TRIPLE) so the filename
-    /// matches Tauri's externalBin convention and the binaries produced by
-    /// download-sidecars.js / build.rs placeholders.
+    /// Resolve the on-disk path of a named sidecar binary, searching every layout
+    /// Tauri uses across dev and bundled builds. Returns the first existing path.
+    ///
+    /// Tauri places `externalBin` binaries in *different* locations depending on
+    /// build mode and platform, and our own `download-sidecars.js`/`build.rs` use
+    /// yet another naming. Rather than guess one, we probe all candidates:
+    ///
+    ///   1. Dev source dir:  `<CARGO_MANIFEST_DIR>/bin/<name>-<triple>`  (dev builds)
+    ///   2. Resource dir:    `<resource_dir>/bin/<name>-<triple>`        (resources glob)
+    ///   3. Bundled .app:    `<exe_dir>/<name>` and `<exe_dir>/<name>.exe`
+    ///                       (Tauri externalBin on macOS/Windows — lives next to the
+    ///                       main exe in Contents/MacOS/ with NO target-triple suffix)
+    ///
+    /// The triple-suffixed names come from our build pipeline; the bare `<name>`
+    /// name is what Tauri's bundler actually writes into a production bundle.
     fn sidecar_path(&self, name: &str) -> Option<PathBuf> {
-        let bin_name = if cfg!(windows) {
-            format!("{}-{}.exe", name, env!("TAURI_TARGET_TRIPLE"))
-        } else {
-            format!("{}-{}", name, env!("TAURI_TARGET_TRIPLE"))
-        };
-        self.sidecar_bin_dir().map(|d| d.join(bin_name))
+        let triple = env!("TAURI_TARGET_TRIPLE");
+        let candidates: Vec<PathBuf> = [
+            // 1. Dev source bin/ (CARGO_MANIFEST_DIR is baked at compile time).
+            Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin").join(format!("{}-{}", name, triple))),
+            // 2. Resource dir bin/ (where resources globs land in prod).
+            self.app_handle.path().resource_dir().ok().map(|d| d.join("bin").join(format!("{}-{}", name, triple))),
+            // 3. Bundled externalBin: next to the main exe, bare name (no triple).
+            //    On macOS this is Contents/MacOS/<name>; on Windows <exe_dir>/<name>.exe.
+            std::env::current_exe().ok().and_then(|e| e.parent().map(|p| {
+                if cfg!(windows) { p.join(format!("{}.exe", name)) } else { p.join(name) }
+            })),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        candidates.into_iter().find(|p| p.exists())
     }
 
     /// Verify a named sidecar is actually usable on disk: present, non-empty, and

@@ -186,19 +186,37 @@ impl ModelManager {
         if Self::is_sherpa_model(id) { "sherpa-onnx" } else { "whisper" }
     }
 
-    /// Resolve the on-disk path of a named sidecar for the current target triple
-    /// (e.g. `sherpa-onnx` → `bin/sherpa-onnx-aarch64-apple-darwin`). Uses the full
-    /// Rust target triple (exposed by build.rs as TAURI_TARGET_TRIPLE) so the
-    /// filename matches Tauri's externalBin convention and the binaries produced
-    /// by download-sidecars.js / build.rs placeholders.
+    /// Resolve the on-disk path of a named sidecar, searching every layout Tauri
+    /// uses across dev and bundled builds. Returns the first existing path.
+    ///
+    /// Mirrors `TranscriptionEngine::sidecar_path`: probes the dev source `bin/`,
+    /// the resource `bin/`, and the bundled externalBin location (next to the main
+    /// exe, bare name with no target-triple suffix — e.g. `Contents/MacOS/sherpa-onnx`
+    /// on macOS). This matters because `is_model_installed` (which uses this) drives
+    /// whether the UI shows the Download vs Delete button, so a wrong "not installed"
+    /// verdict hides the Download button entirely.
     fn sidecar_path(&self, name: &str) -> Option<PathBuf> {
-        let bin_dir = self.sidecar_bin_dir.as_ref()?;
-        let bin_name = if cfg!(windows) {
-            format!("{}-{}.exe", name, env!("TAURI_TARGET_TRIPLE"))
-        } else {
-            format!("{}-{}", name, env!("TAURI_TARGET_TRIPLE"))
-        };
-        Some(bin_dir.join(bin_name))
+        let triple = env!("TAURI_TARGET_TRIPLE");
+        let mut candidates: Vec<PathBuf> = Vec::new();
+
+        // 1 & 2: the dev-source / resource bin dir resolved at construction.
+        if let Some(bin_dir) = self.sidecar_bin_dir.as_ref() {
+            candidates.push(bin_dir.join(format!("{}-{}", name, triple)));
+        }
+        // Dev source dir (CARGO_MANIFEST_DIR baked at compile time).
+        candidates.push(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin").join(format!("{}-{}", name, triple))
+        );
+        // 3: bundled externalBin — next to the main exe, bare name (no triple).
+        if let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())) {
+            if cfg!(windows) {
+                candidates.push(exe_dir.join(format!("{}.exe", name)));
+            } else {
+                candidates.push(exe_dir.join(name));
+            }
+        }
+
+        candidates.into_iter().find(|p| p.exists())
     }
 
     /// True if the sidecar binary required by `id` is present and non-empty

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.52.1] - 2026-06-18
+
+### Fixed & Improved
+- **Model download broken in the packaged app (v1.52.0 regression)** — In the bundled `.app`/`.exe`/AppImage, Tauri places `externalBin` sidecars next to the main executable (e.g. `Contents/MacOS/sherpa-onnx`) with no target-triple suffix, but the install-check was looking for them under `Resources/bin/<name>-<triple>`. As a result `is_model_installed` returned the wrong value for every model in the released build, so the Audio Transcription settings page showed the wrong button (or appeared to do nothing when clicked). `sidecar_path` now probes all three layouts Tauri uses — dev `bin/<name>-<triple>`, resource `bin/<name>-<triple>`, and the bundled `<exe_dir>/<name>` — so install status and the download/transcribe flow are correct in both dev and packaged builds on macOS, Linux, and Windows.
+
 ## [1.52.0] - 2026-06-18
 
 ### Added
