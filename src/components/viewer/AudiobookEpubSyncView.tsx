@@ -233,8 +233,8 @@ export function AudiobookEpubSyncView({
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="MagnifyingGlass in book..."
-              aria-label="MagnifyingGlass in book"
+              placeholder="Search in book..."
+              aria-label="Search in book"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -297,7 +297,7 @@ export function AudiobookEpubSyncView({
               requestAnimationFrame(() => searchInputRef.current?.focus());
             }}
             className="p-1.5 hover:bg-muted rounded transition-colors text-muted-foreground"
-            title="MagnifyingGlass in book"
+            title="Search in book"
           >
             <MagnifyingGlass className="w-4 h-4" />
           </button>

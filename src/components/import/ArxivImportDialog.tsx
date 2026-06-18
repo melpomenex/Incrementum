@@ -80,7 +80,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
       const results = await searchArxiv(searchQuery, 20);
       setPapers(results);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "MagnifyingGlass failed");
+      setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setIsLoading(false);
     }
@@ -300,7 +300,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="MagnifyingGlass papers by title, author, or keywords..."
+                    placeholder="Search papers by title, author, or keywords..."
                     className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                 </div>

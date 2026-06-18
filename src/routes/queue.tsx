@@ -216,7 +216,7 @@ export function Queue() {
           <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <input
             type="text"
-            aria-label="MagnifyingGlass queue"
+            aria-label="Search queue"
             placeholder={t("queueLegacy.searchItems")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

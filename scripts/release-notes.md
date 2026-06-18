@@ -1,13 +1,16 @@
 ### Added
-- **Phosphor Icon System** — Migrated the entire icon library from `lucide-react` to `@phosphor-icons/react`, giving the design system access to six weight variants per icon (Thin, Light, Regular, Bold, Fill, Duotone) for richer active/selected and emphasis states. All ~260 icons across the app now render consistently at the `regular` weight.
-- **Copy Story Link (RSS)** — Every RSS story now has a "Copy Link" button (in both the scroll feed and the focused reading view) that copies a clean article URL to the clipboard. Tracking parameters (`utm_*`, `fbclid`, `gclid`, `mc_cid`, YouTube `si`, and ~30 more) are automatically stripped, so the shared link is canonical and free of feed/marketing cruft. A toast confirms success.
+- **Local Speech-to-Text: Parakeet & SenseVoice** — Replaced the aging Whisper-only local STT stack with two state-of-the-art models, both running on-device via the bundled `sherpa-onnx` sidecar (no Python, no cloud, no account):
+  - **NVIDIA Parakeet TDT-CTC 110M** (English) — top-10 Open ASR Leaderboard accuracy at ~50× real-time on CPU. The best English local option available, clearly ahead of Whisper-large-v3.
+  - **Alibaba SenseVoice Small** (Chinese / English / Japanese / Korean / Cantonese) — non-autoregressive, fast, with built-in punctuation. The recommended pick for the app's Chinese-language users; one model covers both `zh` and `en` competently.
+  - Both are user-installed (explicit Download, like the existing Whisper models) and run through a single shared sidecar binary. The existing Whisper (Distil/base/small) models remain as a multilingual fallback.
+- **Language picker** — The transcription language dropdown now leads with Chinese (Mandarin), Chinese (Cantonese), Japanese, and Korean, and the selected language flows through to SenseVoice (`--sense-voice-language`).
 
 ### Fixed & Improved
-- **Tab & Dashboard Icons** — Navigation tabs and dashboard quick-actions previously rendered inconsistent emoji glyphs (📚 🎴 📄 📊 ⚙️) depending on how the tab was opened. Tabs now derive their icon from their type via a single centralized Phosphor registry, so every navigation path — keyboard shortcuts, vimium commands, dashboard, mobile, session restore — shows a consistent, professional glyph.
-- **Knowledge Graph RSS Label** — The RSS node-type label in the Knowledge Graph was leaking the raw i18n key `graph.rss`; the key is now defined in all six locales and resolves to "RSS".
-- **macOS Shortcut Matching** — A keyboard-shortcut combo configured for the "primary modifier" (Cmd on macOS, Ctrl elsewhere) no longer incorrectly matches bare Ctrl on macOS.
-- **Test Suite (42 fixes)** — Repaired the full test suite to green:
-  - Restored a working `localStorage`/`sessionStorage` in the test environment (Node 25's native Web Storage global was shadowing jsdom's).
-  - Fixed broken store mocks in `ReviewQueueView`, `LibraryDashboard`, and `DocumentsView` tests.
-  - Aligned stale assertions with current component behavior (smart-sections, relative-time formatting, duplicate renders).
-  - All 782 tests pass.
+- **Local STT was completely broken on macOS** — The `whisper` sidecar is dynamically linked but only carried a production-only rpath, so in dev (and in some bundle layouts) dyld failed to load `libwhisper.dylib` and every local model silently failed with a bare "transcription failed". `build.rs` now adds the dev rpath (`@executable_path`) alongside the production one and re-signs the sidecar; verified transcribing on Metal with zero environment variables.
+- **`build.rs` infinite rebuild loop** — The sidecar re-sign step ran unconditionally on every build, changing binary mtimes and tripping Tauri's dev file-watcher into a rebuild loop. Now idempotent: it only re-signs/re-rpaths when the rpaths or signature are actually missing.
+- **Long-audio transcription no longer hangs** — sherpa-onnx processed entire multi-hour files in one encoder pass (unbounded memory, no progress, looked like a freeze at 33%). Long audio is now chunked into 30s windows with per-chunk progress, matching the legacy pattern.
+- **Actionable sidecar errors** — A missing or 0-byte placeholder sidecar now returns a clear message ("sidecar not available on this platform") instead of a confusing bare failure.
+- **`is_model_installed` honesty** — A model whose engine binary is missing/a placeholder is no longer advertised as "installed".
+- **Cross-platform sidecar resolution** — Fixed sidecar path lookup to use the full Rust target triple (was using arch-only, which broke the Windows filename match) and corrected the sherpa-onnx Linux aarch64 and Windows asset names in the download script.
+- **"MagnifyingGlass" rendered as text** — A botched find-and-replace from the icon-library swap had replaced the word "Search" with the icon component name "MagnifyingGlass" inside ~35 user-facing string literals (placeholders, error messages) across ~20 components. Reverted the strings; the 169 real icon-component usages are untouched.
+- **Missing `@phosphor-icons/react` dependency** — The package was declared but never installed, blanking the whole app window in dev. Installed via `pnpm`; the lockfile is now in sync.

@@ -352,7 +352,7 @@ export function AudioTranscriptionSettings() {
                   Local Transcription
                 </p>
                 <p className="leading-relaxed">
-                  Models run as native sidecar processes with isolated memory. Whisper supports multiple languages; Moonshine is English-only but very fast.
+                  Models run as native sidecar processes with isolated memory. Whisper and Parakeet support many languages; SenseVoice is optimized for Chinese, English, Japanese, Korean, and Cantonese.
                 </p>
               </div>
             )}
@@ -371,9 +371,13 @@ export function AudioTranscriptionSettings() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-bold text-foreground">{profile.name}</span>
-                        {profile.id.startsWith("moonshine-") ? (
+                        {profile.id.startsWith("sense-voice-") ? (
+                          <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-600 rounded-full">
+                            Chinese + Multilingual
+                          </span>
+                        ) : profile.id.startsWith("parakeet-") ? (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full">
-                            Local STT
+                            High Quality
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 rounded-full">
@@ -741,6 +745,10 @@ export function AudioTranscriptionSettings() {
             >
               <option value="auto">Auto-detect</option>
               <option value="en">English</option>
+              <option value="zh">Chinese (Mandarin)</option>
+              <option value="yue">Chinese (Cantonese)</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
               <option value="es">Spanish</option>
               <option value="fr">French</option>
               <option value="de">German</option>
@@ -749,9 +757,6 @@ export function AudioTranscriptionSettings() {
               <option value="nl">Dutch</option>
               <option value="pl">Polish</option>
               <option value="ru">Russian</option>
-              <option value="ja">Japanese</option>
-              <option value="zh">Chinese</option>
-              <option value="ko">Korean</option>
               <option value="ar">Arabic</option>
               <option value="hi">Hindi</option>
               <option value="tr">Turkish</option>

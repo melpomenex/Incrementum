@@ -3408,7 +3408,7 @@ export function DocumentViewer({
         available: false,
         totalMatches: 0,
         activeMatchIndex: 0,
-        unavailableReason: "MagnifyingGlass is not available for this document type.",
+        unavailableReason: "Search is not available for this document type.",
       });
       return;
     }
@@ -4050,7 +4050,7 @@ export function DocumentViewer({
         available: false,
         totalMatches: 0,
         activeMatchIndex: 0,
-        unavailableReason: "MagnifyingGlass is not available for this document type.",
+        unavailableReason: "Search is not available for this document type.",
       });
       return;
     }

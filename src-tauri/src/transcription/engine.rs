@@ -66,6 +66,19 @@ macro_rules! set_sidecar_env {
     };
 }
 
+/// Which sherpa-onnx model family a model belongs to. Each family uses a
+/// different set of CLI flags but the same sidecar binary and the same
+/// JSON-on-stderr result format.
+#[derive(Clone, Copy, PartialEq)]
+enum SherpaFamily {
+    /// NVIDIA Parakeet TDT/CTC — `--nemo-ctc-model`. English-only (110m) or
+    /// European-only (v3); no Chinese.
+    Parakeet,
+    /// Alibaba SenseVoice — `--sense-voice-model` + `--sense-voice-language`.
+    /// Supports zh/en/ja/ko/yue; non-autoregressive; has ITN punctuation.
+    SenseVoice,
+}
+
 impl TranscriptionEngine {
     pub fn new(app_handle: AppHandle) -> Self {
         Self { app_handle }
@@ -73,17 +86,74 @@ impl TranscriptionEngine {
 
     /// Returns the directory where sidecar binaries live (resource dir + "bin" in production,
     /// src-tauri/bin in dev). Returns None if the directory can't be resolved.
+    ///
+    /// In dev (`tauri dev` / `cargo run`), Tauri creates a `target/debug/bin/` for
+    /// *resources* (dylibs etc.) but does NOT copy the `externalBin` sidecar binaries
+    /// there. So if we naively return `resource_dir()/bin` we'll find the dylibs but
+    /// miss the sidecar executables, and every transcription fails with "sidecar not
+    /// found". To handle this we prefer the dev source `bin/` dir when it exists and
+    /// actually contains sidecars; otherwise fall back to the resource dir.
     fn sidecar_bin_dir(&self) -> Option<PathBuf> {
+        // Dev source dir: the src-tauri/bin checked into the repo. In a dev build
+        // this is where the real sidecar binaries live.
+        let dev_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin");
+        if dev_dir.is_dir() && dir_contains_sidecars(&dev_dir) {
+            return Some(dev_dir);
+        }
+        // Production: the bundled Resources/bin directory.
         let dir = self.app_handle.path().resource_dir().ok()?.join("bin");
         if dir.is_dir() {
             return Some(dir);
         }
-        // Dev fallback
-        let dev_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bin");
-        if dev_dir.is_dir() {
-            return Some(dev_dir);
-        }
         None
+    }
+
+    /// Resolve the on-disk path of a named sidecar binary for the current target
+    /// (e.g. `whisper` → `bin/whisper-aarch64-apple-darwin`). Uses the full Rust
+    /// target triple (exposed by build.rs as TAURI_TARGET_TRIPLE) so the filename
+    /// matches Tauri's externalBin convention and the binaries produced by
+    /// download-sidecars.js / build.rs placeholders.
+    fn sidecar_path(&self, name: &str) -> Option<PathBuf> {
+        let bin_name = if cfg!(windows) {
+            format!("{}-{}.exe", name, env!("TAURI_TARGET_TRIPLE"))
+        } else {
+            format!("{}-{}", name, env!("TAURI_TARGET_TRIPLE"))
+        };
+        self.sidecar_bin_dir().map(|d| d.join(bin_name))
+    }
+
+    /// Verify a named sidecar is actually usable on disk: present, non-empty, and
+    /// (on macOS) a real Mach-O rather than a 0-byte placeholder. Returns an
+    /// explanatory error string if not usable, or None if it's fine.
+    ///
+    /// This catches the two failure modes that previously surfaced as a confusing
+    /// bare "transcription failed" with no detail:
+    ///   1. A 0-byte placeholder sidecar (e.g. sherpa-onnx on a target without a prebuilt asset).
+    ///   2. A missing sidecar for the current target triple.
+    fn check_sidecar_usable(&self, name: &str) -> Option<String> {
+        let path = match self.sidecar_path(name) {
+            Some(p) => p,
+            None => return Some(format!(
+                "Could not resolve sidecar '{}' location. Transcription is unavailable.",
+                name
+            )),
+        };
+        match std::fs::metadata(&path) {
+            Err(_) => Some(format!(
+                "Sidecar binary '{}' is missing (expected at {}). \
+                 This build may not support local transcription on this platform.",
+                name,
+                path.display()
+            )),
+            Ok(md) if md.len() == 0 => Some(format!(
+                "Sidecar binary '{}' is a 0-byte placeholder (at {}). \
+                 The {} sidecar was not built for this platform; \
+                 local transcription with this engine is unavailable. \
+                 Try a different model or use Groq (cloud) transcription.",
+                name, path.display(), name
+            )),
+            Ok(_) => None,
+        }
     }
 
     /// Checks whether libggml-vulkan.so is present in the sidecar bin directory.
@@ -185,6 +255,12 @@ impl TranscriptionEngine {
         let phase = if use_gpu { "transcribing-gpu" } else { "transcribing-cpu" };
         let _ = self.app_handle.emit("transcription://phase", PhasePayload { phase: phase.to_string() });
 
+        // Guard against a missing or 0-byte placeholder sidecar before spawning,
+        // so the user gets an actionable message instead of a bare "failed".
+        if let Some(reason) = self.check_sidecar_usable("whisper") {
+            return Err(anyhow!(reason));
+        }
+
         // Use the bundled sidecar binary ("whisper").
         let mut cmd = self.app_handle.shell().sidecar("whisper")
             .map_err(|e| anyhow!("Whisper sidecar not found: {}", e))?;
@@ -256,7 +332,15 @@ impl TranscriptionEngine {
             } else if !stdout_clean.is_empty() {
                 format!("Whisper transcription failed (stdout): {}", stdout_clean)
             } else {
-                "Whisper transcription failed".to_string()
+                // No output at all almost always means the sidecar was killed by
+                // the OS before producing anything — typically a dyld library-load
+                // failure or, on Apple Silicon, an invalid code signature.
+                "Whisper sidecar exited without output. This usually means it was \
+                 killed on launch — a shared library (libwhisper/libggml) could not \
+                 be loaded, or on Apple Silicon the code signature is invalid. \
+                 Rebuild the app (build.rs patches the rpath and re-signs the sidecar) \
+                 or try a different transcription provider."
+                    .to_string()
             };
             return Err(anyhow!(msg));
         }
@@ -292,7 +376,8 @@ impl TranscriptionEngine {
         Ok(())
     }
 
-    pub async fn transcribe_moonshine(
+    /// Transcribe audio using a Parakeet model via the sherpa-onnx sidecar.
+    pub async fn transcribe_parakeet(
         &self,
         audio_path: &Path,
         model_dir: &Path,
@@ -300,42 +385,116 @@ impl TranscriptionEngine {
         on_segment: impl Fn(TranscriptSegment),
         on_progress: Option<Box<dyn Fn(i32) + Send + Sync>>,
     ) -> Result<()> {
+        self.transcribe_sherpa(
+            SherpaFamily::Parakeet,
+            audio_path,
+            model_dir,
+            "auto", // Parakeet ignores language (English model)
+            on_segment,
+            on_progress,
+        )
+        .await
+    }
+
+    /// Transcribe audio using a SenseVoice model via the sherpa-onnx sidecar.
+    /// `language` is one of: auto, zh, en, ja, ko, yue.
+    pub async fn transcribe_sensevoice(
+        &self,
+        audio_path: &Path,
+        model_dir: &Path,
+        language: &str,
+        on_segment: impl Fn(TranscriptSegment),
+        on_progress: Option<Box<dyn Fn(i32) + Send + Sync>>,
+    ) -> Result<()> {
+        self.transcribe_sherpa(
+            SherpaFamily::SenseVoice,
+            audio_path,
+            model_dir,
+            language,
+            on_segment,
+            on_progress,
+        )
+        .await
+    }
+
+    /// Shared sherpa-onnx transcription path used by all model families.
+    ///
+    /// sherpa-onnx-offline runs on CPU and prints a single JSON result line to
+    /// **stderr** with a `"text"` field. On silent/no-speech audio it prints
+    /// nothing and exits 0 → we treat that as an empty transcript (success), not
+    /// an error. The only per-family difference is the CLI arg set.
+    ///
+    /// **Chunking:** sherpa-onnx-offline processes the entire file in one encoder
+    /// forward pass. For long audio (the app regularly transcribes multi-hour
+    /// podcasts/lectures) that means unbounded memory growth and *no* progress
+    /// feedback until the very end — which looks exactly like a hang in the UI.
+    /// So we chunk the WAV into fixed windows (30s) and invoke the sidecar once
+    /// per chunk, exactly like the legacy moonshine path did. Short files still
+    /// run as a single chunk; long files get bounded memory + per-chunk progress.
+    async fn transcribe_sherpa(
+        &self,
+        family: SherpaFamily,
+        audio_path: &Path,
+        model_dir: &Path,
+        language: &str,
+        on_segment: impl Fn(TranscriptSegment),
+        on_progress: Option<Box<dyn Fn(i32) + Send + Sync>>,
+    ) -> Result<()> {
         if !model_dir.exists() {
             return Err(anyhow!(
-                "Moonshine model directory not found: {}",
+                "Model directory not found: {}",
                 model_dir.display()
             ));
         }
 
-        let _ = self.app_handle.emit("transcription://phase", PhasePayload { phase: "transcribing-cpu".to_string() });
+        let _ = self.app_handle.emit(
+            "transcription://phase",
+            PhasePayload { phase: "transcribing-cpu".to_string() },
+        );
 
-        // Moonshine's encoder has a fixed context window (~30s).
-        // Chunk the WAV into overlapping 30s segments for full-length transcription.
-        let chunk_duration_ms: i64 = 30_000;
-        let total_duration_ms = get_wav_duration_ms(audio_path).unwrap_or(30_000);
-        let num_chunks = ((total_duration_ms + chunk_duration_ms - 1) / chunk_duration_ms) as usize;
+        if let Some(ref cb) = on_progress { cb(5); }
 
+        // Read + parse the prepared WAV to chunk it. Fall back to a single
+        // whole-file pass if the WAV can't be parsed (short/garbled input).
         let wav_data = std::fs::read(audio_path)
             .map_err(|e| anyhow!("Failed to read WAV file: {}", e))?;
 
-        // Parse WAV to find data chunk offset and parameters
+        let chunk_duration_ms: i64 = 30_000;
+        let total_duration_ms = get_wav_duration_ms(audio_path).unwrap_or(chunk_duration_ms);
+
+        // Single-pass fast path: short audio (≤ one chunk) → one sidecar call,
+        // one segment. Avoids chunk-WAV bookkeeping for the common short case.
+        if total_duration_ms <= chunk_duration_ms {
+            let text = self.run_sherpa_sidecar(family, model_dir, audio_path, language).await?;
+            if let Some(ref cb) = on_progress { cb(100); }
+            if !text.trim().is_empty() {
+                on_segment(TranscriptSegment {
+                    start_ms: 0,
+                    end_ms: total_duration_ms,
+                    text: text.trim().to_string(),
+                    confidence: 1.0,
+                });
+            }
+            return Ok(());
+        }
+
+        // Long-audio path: chunk into 30s windows. Parse the WAV header to find
+        // the data chunk, then build a minimal WAV per window and transcribe it.
         let channels = u16::from_le_bytes([wav_data[22], wav_data[23]]) as u64;
         let sample_rate = u32::from_le_bytes([wav_data[24], wav_data[25], wav_data[26], wav_data[27]]) as u64;
         let bits_per_sample = u16::from_le_bytes([wav_data[34], wav_data[35]]) as u64;
         let bytes_per_sample = bits_per_sample / 8;
 
-        let data_info = find_wav_data_chunk(&wav_data);
-        let (data_offset, data_size) = data_info
+        let (data_offset, data_size) = find_wav_data_chunk(&wav_data)
             .ok_or_else(|| anyhow!("Failed to parse WAV data chunk"))?;
 
-        let total_samples = (data_size as u64) / (channels * bytes_per_sample);
+        let total_samples = data_size / (channels * bytes_per_sample);
         let chunk_samples = (sample_rate * chunk_duration_ms as u64) / 1000;
+        let num_chunks = ((total_samples + chunk_samples - 1) / chunk_samples) as usize;
 
-        let mut all_text = String::new();
         let mut chunk_idx = 0usize;
-
         while (chunk_idx as u64 * chunk_samples) < total_samples {
-            let start_sample = (chunk_idx as u64 * chunk_samples);
+            let start_sample = chunk_idx as u64 * chunk_samples;
             let end_sample = std::cmp::min(start_sample + chunk_samples, total_samples);
             let chunk_byte_offset = data_offset as u64 + start_sample * channels * bytes_per_sample;
             let chunk_byte_count = (end_sample - start_sample) * channels * bytes_per_sample;
@@ -344,7 +503,8 @@ impl TranscriptionEngine {
             let end_byte = std::cmp::min((chunk_byte_offset + chunk_byte_count) as usize, wav_data.len());
             let chunk_bytes = &wav_data[chunk_byte_offset as usize..end_byte];
 
-            // Build a minimal WAV header for this chunk
+            // Build a minimal 44-byte-header WAV for this chunk and write it
+            // next to the source (same temp-dir convention as prepare_audio).
             let chunk_wav = build_wav_chunk(chunk_bytes, sample_rate as u32, channels as u16, bits_per_sample as u16);
             let chunk_path = audio_path.with_extension(format!("chunk{}.wav", chunk_idx));
             std::fs::write(&chunk_path, &chunk_wav)
@@ -353,30 +513,30 @@ impl TranscriptionEngine {
             let chunk_start_ms = (start_sample * 1000) / sample_rate;
             let chunk_end_ms = (end_sample * 1000) / sample_rate;
 
-            let text = match self.run_moonshine_sidecar(model_dir, &chunk_path).await {
+            // Per-chunk transcription. A failed chunk shouldn't abort the whole
+            // file — log and continue with an empty segment (matches the legacy
+            // moonshine behavior).
+            let text = match self.run_sherpa_sidecar(family, model_dir, &chunk_path, language).await {
                 Ok(t) => t,
                 Err(e) => {
-                    tracing::warn!("Moonshine chunk {} failed, continuing: {}", chunk_idx, e);
+                    tracing::warn!("sherpa chunk {} failed, continuing: {}", chunk_idx, e);
                     String::new()
                 }
             };
             let _ = std::fs::remove_file(&chunk_path);
 
-            if !text.is_empty() {
-                if !all_text.is_empty() { all_text.push(' '); }
-                all_text.push_str(&text);
-
+            if !text.trim().is_empty() {
                 on_segment(TranscriptSegment {
                     start_ms: chunk_start_ms as i64,
                     end_ms: chunk_end_ms as i64,
-                    text,
+                    text: text.trim().to_string(),
                     confidence: 1.0,
                 });
             }
 
             chunk_idx += 1;
             if let Some(ref cb) = on_progress {
-                cb(std::cmp::min(90, 5 + ((chunk_idx * 85) / num_chunks.max(1))) as i32);
+                cb(std::cmp::min(95, 5 + ((chunk_idx * 90) / num_chunks.max(1))) as i32);
             }
         }
 
@@ -384,35 +544,74 @@ impl TranscriptionEngine {
         Ok(())
     }
 
-    async fn run_moonshine_sidecar(&self, model_dir: &Path, wav_path: &Path) -> Result<String> {
-        let mut cmd = self.app_handle.shell().sidecar("moonshine")
-            .map_err(|e| anyhow!("Moonshine sidecar not found: {}", e))?;
+    async fn run_sherpa_sidecar(
+        &self,
+        family: SherpaFamily,
+        model_dir: &Path,
+        wav_path: &Path,
+        language: &str,
+    ) -> Result<String> {
+        // Guard against a missing or 0-byte placeholder sidecar before spawning,
+        // so callers get an actionable message instead of a bare "failed".
+        if let Some(reason) = self.check_sidecar_usable("sherpa-onnx") {
+            return Err(anyhow!(reason));
+        }
 
+        let model_file = model_dir.join("model.int8.onnx");
+        let tokens_file = model_dir.join("tokens.txt");
+        if !model_file.exists() || !tokens_file.exists() {
+            return Err(anyhow!(
+                "Model files missing in {} (expected model.int8.onnx and tokens.txt)",
+                model_dir.display()
+            ));
+        }
+
+        let mut cmd = self.app_handle.shell().sidecar("sherpa-onnx")
+            .map_err(|e| anyhow!("sherpa-onnx sidecar not found: {}", e))?;
+
+        // Belt-and-suspenders: the sidecar already has the right rpaths, but set the
+        // library path too (matches the whisper pattern) so libonnxruntime resolves.
         if let Some(bin_dir) = self.sidecar_bin_dir() {
             set_sidecar_env!(cmd, &bin_dir);
         }
 
-        let args = vec![
-            model_dir.to_string_lossy().to_string(),
-            wav_path.to_string_lossy().to_string(),
-        ];
+        // Build the per-family CLI args. All families share --tokens + the wav path;
+        // only the model-specifier flag differs.
+        let mut args = vec![format!("--tokens={}", tokens_file.to_string_lossy())];
+        match family {
+            SherpaFamily::Parakeet => {
+                args.push(format!("--nemo-ctc-model={}", model_file.to_string_lossy()));
+            }
+            SherpaFamily::SenseVoice => {
+                args.push(format!("--sense-voice-model={}", model_file.to_string_lossy()));
+                // Language: auto-detect by default; valid values are
+                // auto/zh/en/ja/ko/yue. SenseVoice requires a non-empty value,
+                // so normalize empty/unknown to "auto".
+                let lang = match language.trim() {
+                    "" | "auto" => "auto",
+                    "zh" | "en" | "ja" | "ko" | "yue" => language.trim(),
+                    // Unknown language code → let the model auto-detect rather than fail.
+                    _ => "auto",
+                };
+                args.push(format!("--sense-voice-language={}", lang));
+                // ITN adds punctuation + casing (e.g. "开放时间早上9点至下午5点。").
+                args.push("--sense-voice-use-itn=1".to_string());
+            }
+        }
+        args.push(wav_path.to_string_lossy().to_string());
 
         let (mut rx, _) = cmd.args(args).spawn().map_err(|e| {
-            anyhow!("Failed to launch sidecar 'moonshine': {}", e)
+            anyhow!("Failed to launch sidecar 'sherpa-onnx': {}", e)
         })?;
 
         let mut success = false;
-        let mut stdout_buf = String::new();
         let mut stderr_buf = String::new();
         while let Some(event) = rx.recv().await {
             match event {
-                CommandEvent::Stdout(line) => {
-                    let line_str = String::from_utf8_lossy(&line);
-                    stdout_buf.push_str(&line_str);
-                }
+                // sherpa-onnx writes its result JSON to stderr (stdout stays empty).
                 CommandEvent::Stderr(line) => {
                     let line_str = String::from_utf8_lossy(&line);
-                    if stderr_buf.len() < 4000 {
+                    if stderr_buf.len() < 16_000 {
                         stderr_buf.push_str(&line_str);
                     }
                 }
@@ -428,27 +627,52 @@ impl TranscriptionEngine {
             let stderr_clean = stderr_buf.trim();
             let msg = if !stderr_clean.is_empty() {
                 if stderr_clean.contains("onnxruntime") || stderr_clean.contains("Shared library") {
-                    format!("Moonshine binary missing ONNX Runtime dependencies.\nDetails: {}", stderr_clean)
+                    format!("sherpa-onnx missing ONNX Runtime dependencies.\nDetails: {}", stderr_clean)
                 } else {
-                    format!("Moonshine transcription failed: {}", stderr_clean)
+                    format!("sherpa-onnx transcription failed: {}", stderr_clean)
                 }
             } else {
-                "Moonshine transcription failed".to_string()
+                // No output means the sidecar was killed on launch — typically a
+                // dyld load failure (libonnxruntime unresolved) or, on Apple Silicon,
+                // an invalid code signature.
+                "sherpa-onnx sidecar exited without output. It was likely killed on \
+                 launch — libonnxruntime could not be loaded, or on Apple Silicon the \
+                 code signature is invalid. Rebuild the app (build.rs patches the rpath \
+                 and re-signs the sidecar) or use a Whisper / Groq model instead."
+                    .to_string()
             };
             return Err(anyhow!(msg));
         }
 
-        let text = stdout_buf
+        // Extract the JSON result line from stderr. On silent/no-speech audio there
+        // is no JSON line at all — treat that as an empty transcript (Ok("")).
+        let text = stderr_buf
             .lines()
-            .find(|l| l.starts_with("Detokenized: "))
-            .map(|l| l.strip_prefix("Detokenized: ").unwrap().trim())
-            .unwrap_or("")
-            .trim_start_matches("<s>")
-            .trim_end_matches("</s>")
-            .trim()
-            .to_string();
+            .find(|l| l.trim_start().starts_with('{'))
+            .and_then(|l| serde_json::from_str::<serde_json::Value>(l.trim()).ok())
+            .and_then(|v| v.get("text").and_then(|t| t.as_str()).map(|s| s.to_string()))
+            .unwrap_or_default();
         Ok(text)
     }
+}
+
+/// True if a directory contains any file whose name starts with a known sidecar
+/// prefix (`whisper-`, `sherpa-onnx-`). Used to decide whether the dev source
+/// `bin/` dir is the right place to look for sidecar executables (as opposed to
+/// the resource dir, which in dev holds dylibs but not the externalBin binaries).
+fn dir_contains_sidecars(dir: &Path) -> bool {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    for entry in entries.flatten() {
+        if let Some(name) = entry.file_name().to_str() {
+            if name.starts_with("whisper-") || name.starts_with("sherpa-onnx-") {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn get_wav_duration_ms(wav_path: &Path) -> Option<i64> {
@@ -486,6 +710,10 @@ fn find_wav_data_chunk(data: &[u8]) -> Option<(u64, u64)> {
     }
 }
 
+/// Build a minimal 44-byte-header PCM WAV from raw samples. Used to feed
+/// per-chunk slices of a long source WAV into sherpa-onnx (which has no
+/// built-in chunking and would otherwise load the entire multi-hour file into
+/// one encoder pass, growing memory without bound and reporting no progress).
 fn build_wav_chunk(pcm_data: &[u8], sample_rate: u32, channels: u16, bits_per_sample: u16) -> Vec<u8> {
     let mut wav = Vec::with_capacity(44 + pcm_data.len());
     // RIFF header

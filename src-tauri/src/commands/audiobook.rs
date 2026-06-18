@@ -683,23 +683,28 @@ pub async fn generate_audiobook_transcript(
         wav_path = Some(prepared.clone());
 
         let model_path = model_manager.get_model_path(&selected_model);
-        let is_moonshine = selected_model.starts_with("moonshine-");
+        // Route to the right engine based on the model family. Sherpa-onnx models
+        // (parakeet-*, sense-voice-*) run via the sherpa-onnx sidecar; everything
+        // else is a Whisper (ggml) model.
+        let is_parakeet = selected_model.starts_with("parakeet-");
+        let is_sense_voice = selected_model.starts_with("sense-voice-");
 
-        if is_moonshine {
-            engine.transcribe_moonshine(&prepared, &model_path, &language, move |seg| {
-                if let Ok(mut guard) = segments_for_cb.lock() {
-                    guard.push(seg);
-                }
-            }, None)
-            .await
-            .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        let on_segment = move |seg: crate::transcription::engine::TranscriptSegment| {
+            if let Ok(mut guard) = segments_for_cb.lock() {
+                guard.push(seg);
+            }
+        };
+
+        if is_sense_voice {
+            engine.transcribe_sensevoice(&prepared, &model_path, &language, on_segment, None)
+                .await
+                .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        } else if is_parakeet {
+            engine.transcribe_parakeet(&prepared, &model_path, &language, on_segment, None)
+                .await
+                .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
         } else {
-            engine
-                .transcribe(&prepared, &model_path, &language, move |seg| {
-                    if let Ok(mut guard) = segments_for_cb.lock() {
-                        guard.push(seg);
-                    }
-                }, None)
+            engine.transcribe(&prepared, &model_path, &language, on_segment, None)
                 .await
                 .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
         }

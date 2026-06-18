@@ -511,11 +511,42 @@ async fn run_transcription_job(
             .map_err(|e| IncrementumError::Internal(format!("Audio preparation failed: {}", e)))?;
 
         let model_path = model_manager.get_model_path(&selected_model);
-        let is_moonshine = selected_model.starts_with("moonshine-");
+        // Route to the right engine based on the model family. Sherpa-onnx models
+        // (parakeet-*, sense-voice-*) run via the sherpa-onnx sidecar; everything
+        // else is a Whisper (ggml) model.
+        let is_parakeet = selected_model.starts_with("parakeet-");
+        let is_sense_voice = selected_model.starts_with("sense-voice-");
 
         let cancel_post = cancel_clone.clone();
-        if is_moonshine {
-            engine.transcribe_moonshine(
+        if is_sense_voice {
+            engine.transcribe_sensevoice(
+                &prepared,
+                &model_path,
+                &lang,
+                move |seg| {
+                    if cancel_clone.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    if let Ok(mut guard) = segments_clone.lock() {
+                        guard.push(seg);
+                    }
+                },
+                Some(Box::new(move |p: i32| {
+                    let mapped = 30 + ((p as f64 / 100.0) * 70.0) as i32;
+                    let _ = app_clone.emit(
+                        "podcast://transcription-progress",
+                        serde_json::json!({
+                            "episodeId": &ep_id,
+                            "status": "transcribing",
+                            "progress": mapped
+                        }),
+                    );
+                })),
+            )
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Transcription failed: {}", e)))?;
+        } else if is_parakeet {
+            engine.transcribe_parakeet(
                 &prepared,
                 &model_path,
                 &lang,

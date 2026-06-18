@@ -98,10 +98,14 @@ impl IdleScanner {
                     continue;
                 }
 
-                // Prefer Moonshine models, otherwise fall back to the first installed model
+                // Prefer a SenseVoice or Parakeet model for background auto-transcription
+                // (best quality of the local options); otherwise fall back to any other
+                // installed model (typically Whisper). SenseVoice is preferred first
+                // because it covers the most languages (zh/en/ja/ko/yue).
                 let selected_profile = installed_profiles
                     .iter()
-                    .find(|p| p.id.starts_with("moonshine-"))
+                    .find(|p| p.id.starts_with("sense-voice-"))
+                    .or_else(|| installed_profiles.iter().find(|p| p.id.starts_with("parakeet-")))
                     .or_else(|| installed_profiles.first())
                     .unwrap(); // Safe because list is not empty
 

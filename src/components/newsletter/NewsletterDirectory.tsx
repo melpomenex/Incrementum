@@ -192,7 +192,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           if (err instanceof SubstackApiError) {
             setSearchError(err.message);
           } else {
-            setSearchError("MagnifyingGlass failed. Please try again.");
+            setSearchError("Search failed. Please try again.");
           }
         } finally {
           setSearchLoading(false);
@@ -393,7 +393,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="MagnifyingGlass Substack for newsletters, authors, topics..."
+              placeholder="Search Substack for newsletters, authors, topics..."
               className="w-full pl-10 pr-10 py-2.5 bg-background/80 border border-border/70 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
             />
             {searchLoading && (

@@ -150,7 +150,7 @@ export function ManageTrainingView({ onClose }: ManageTrainingViewProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="MagnifyingGlass classifiers..."
+            placeholder="Search classifiers..."
             className="w-full pl-7 pr-2 py-1 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Incrementum",
-  "version": "1.51.0",
+  "version": "1.52.0",
   "identifier": "com.incrementum.app",
   "build": {
     "beforeDevCommand": "",
@@ -42,8 +42,8 @@
     "targets": "all",
     "externalBin": [
       "bin/whisper",
-      "bin/pocket-tts",
-      "bin/moonshine"
+      "bin/sherpa-onnx",
+      "bin/pocket-tts"
     ],
     "resources": [
       "scripts/anna_download.py",

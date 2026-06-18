@@ -445,7 +445,7 @@ export function AudiobookImportDialog({
         setSelectedCover(covers[0]);
       }
     } catch {
-      showError("MagnifyingGlass failed", "Could not fetch metadata");
+      showError("Search failed", "Could not fetch metadata");
     } finally {
       setIsLoading(false);
     }
@@ -1108,7 +1108,7 @@ export function AudiobookImportDialog({
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="MagnifyingGlass by title..."
+                      placeholder="Search by title..."
                       className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
                     />
                     <button

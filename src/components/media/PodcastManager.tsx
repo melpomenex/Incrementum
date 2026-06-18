@@ -529,7 +529,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         const results = await searchPodcasts(value.trim());
         setPodcastSearchResults(results);
       } catch (error) {
-        setSearchError(error instanceof Error ? error.message : "MagnifyingGlass failed");
+        setSearchError(error instanceof Error ? error.message : "Search failed");
         setPodcastSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -792,7 +792,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const handleTranscribe = async (episodeId: string) => {
     const settings = useSettingsStore.getState().settings;
     const provider = settings.audioTranscription.provider;
-    const modelId = settings.audioTranscription.preferredModelId || "moonshine-tiny";
+    const modelId = settings.audioTranscription.preferredModelId || "distil-small.en";
 
     // Route to native sidecar transcription
     try {
@@ -963,7 +963,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="MagnifyingGlass podcasts..."
+              placeholder="Search podcasts..."
               className="w-full pl-9 pr-8 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {searchQuery && (
@@ -1196,7 +1196,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                         type="text"
                         value={episodeSearch}
                         onChange={(e) => setEpisodeSearch(e.target.value)}
-                        placeholder="MagnifyingGlass episodes..."
+                        placeholder="Search episodes..."
                         className="pl-8 pr-7 py-1.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary w-48"
                       />
                       {episodeSearch && (
@@ -1551,7 +1551,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                 type="text"
                 value={podcastSearchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="MagnifyingGlass for podcasts..."
+                placeholder="Search for podcasts..."
                 className="w-full pl-9 pr-8 py-2.5 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 autoFocus
               />
@@ -1775,7 +1775,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   type="text"
                   value={transcriptSearchQuery}
                   onChange={(e) => setTranscriptSearchQuery(e.target.value)}
-                  placeholder="MagnifyingGlass transcript..."
+                  placeholder="Search transcript..."
                   className="pl-7 pr-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-36"
                 />
               </div>

@@ -273,7 +273,7 @@ export function PasteExtractDialog({ isOpen, onClose, onCreate }: PasteExtractDi
                 type="text"
                 value={documentSearchQuery}
                 onChange={(e) => setDocumentSearchQuery(e.target.value)}
-                placeholder="MagnifyingGlass documents..."
+                placeholder="Search documents..."
                 className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
               <div className="mt-2 max-h-40 overflow-y-auto space-y-1">

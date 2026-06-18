@@ -457,7 +457,7 @@ async function generateTranscriptWithGroq(
 }
 
 /**
- * Generate transcript using Whisper (Tauri) or Moonshine/Groq (Web/PWA)
+ * Generate transcript using local models (Whisper/Parakeet) or Groq (Web/PWA)
  * Automatically uses the configured provider (local or Groq)
  * 
  * @param filePath Path to the audio file

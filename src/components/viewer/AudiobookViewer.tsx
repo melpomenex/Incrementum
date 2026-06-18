@@ -1389,13 +1389,13 @@ export function AudiobookViewer({
 
       const installed = currentProfiles.filter((p) => p.installed);
 
-      // Define quality ranks for local models
+      // Define quality ranks for local models (highest quality first)
       const MODEL_QUALITY_RANK = [
-        "small",             // Whisper Small (Multilingual Balanced) - ~488MB
-        "moonshine-base",    // Moonshine Base - ~115MB (Modern, highly efficient, and superior quality)
-        "distil-small.en",   // Whisper Distil Small (English Fast) - ~336MB
-        "base",              // Whisper Base (Multilingual Fast) - ~148MB
-        "moonshine-tiny",    // Moonshine Tiny - ~52MB
+        "parakeet-tdt-ctc-110m",  // Parakeet TDT-CTC 110M - ~126MB (SOTA English, very fast)
+        "sense-voice-small",      // SenseVoice Small - ~234MB (SOTA zh/en/ja/ko/yue)
+        "small",                  // Whisper Small (Multilingual Balanced) - ~488MB
+        "distil-small.en",        // Whisper Distil Small (English Fast) - ~336MB
+        "base",                   // Whisper Base (Multilingual Fast) - ~148MB
       ];
 
       // Determine model to use

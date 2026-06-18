@@ -58,7 +58,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           type: "not_found",
           solutions: [
             "Try different keywords or a shorter search term",
-            "MagnifyingGlass by author name instead of book title",
+            "Search by author name instead of book title",
             "Check your spelling or try alternative spellings",
             "Try searching by ISBN if you have it",
             "Some books may not be available in the archive",
@@ -137,7 +137,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="MagnifyingGlass by title, author, ISBN..."
+            placeholder="Search by title, author, ISBN..."
             className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             disabled={isLoading}
           />
@@ -325,7 +325,7 @@ function analyzeError(message: string): SearchError {
       type: "not_found",
       solutions: [
         "Try different keywords or a shorter search term",
-        "MagnifyingGlass by author name instead of book title",
+        "Search by author name instead of book title",
         "Check your spelling or try alternative spellings",
         "Try searching by ISBN if you have it",
       ],

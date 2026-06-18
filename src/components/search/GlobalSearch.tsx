@@ -414,7 +414,7 @@ export function GlobalSearch({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={isURLMode ? "Press Enter to import..." : "MagnifyingGlass documents, extracts, flashcards... or paste a URL"}
+                placeholder={isURLMode ? "Press Enter to import..." : "Search documents, extracts, flashcards... or paste a URL"}
                 className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
               />
               {query && (

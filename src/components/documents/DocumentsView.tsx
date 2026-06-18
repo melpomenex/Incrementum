@@ -611,13 +611,13 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
 
       const installed = profiles.filter((p) => p.installed);
 
-      // 2. Define quality ranks for local models
+      // 2. Define quality ranks for local models (highest quality first)
       const MODEL_QUALITY_RANK = [
-        "small",             // Whisper Small (Multilingual Balanced) - ~488MB
-        "moonshine-base",    // Moonshine Base - ~115MB (Modern, highly efficient, and superior quality)
-        "distil-small.en",   // Whisper Distil Small (English Fast) - ~336MB
-        "base",              // Whisper Base (Multilingual Fast) - ~148MB
-        "moonshine-tiny",    // Moonshine Tiny - ~52MB
+        "parakeet-tdt-ctc-110m",  // Parakeet TDT-CTC 110M - ~126MB (SOTA English, very fast)
+        "sense-voice-small",      // SenseVoice Small - ~234MB (SOTA zh/en/ja/ko/yue)
+        "small",                  // Whisper Small (Multilingual Balanced) - ~488MB
+        "distil-small.en",        // Whisper Distil Small (English Fast) - ~336MB
+        "base",                   // Whisper Base (Multilingual Fast) - ~148MB
       ];
 
       // Determine model to use
@@ -1414,7 +1414,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                     <input
                       autoFocus
                       type="text"
-                      placeholder="MagnifyingGlass..."
+                      placeholder="Search..."
                       value={listPairSearch}
                       onChange={(e) => setListPairSearch(e.target.value)}
                       className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md"
@@ -2457,7 +2457,7 @@ function LibraryCard({
                 <input
                   autoFocus
                   type="text"
-                  placeholder="MagnifyingGlass..."
+                  placeholder="Search..."
                   value={pairSearch}
                   onChange={(e) => setPairSearch(e.target.value)}
                   className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded-md"

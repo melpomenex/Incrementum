@@ -85,7 +85,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="MagnifyingGlass YouTube videos..."
+            placeholder="Search YouTube videos..."
             className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button

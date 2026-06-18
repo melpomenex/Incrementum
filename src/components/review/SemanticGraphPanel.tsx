@@ -379,7 +379,7 @@ export function SemanticGraphPanel({
                 value={clusterSearchQuery}
                 onChange={(e) => handleClusterSearch(e.target.value)}
                 onFocus={() => setShowSearchDropdown(true)}
-                placeholder="MagnifyingGlass & study a cluster..."
+                placeholder="Search & study a cluster..."
                 className="w-full pl-9 pr-8 py-2 text-xs bg-muted/60 border border-border/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-foreground"
               />
               {clusterSearchQuery && (
@@ -625,7 +625,7 @@ export function SemanticGraphPanel({
                             type="text"
                             value={rssSearchQuery}
                             onChange={(e) => setRssSearchQuery(e.target.value)}
-                            placeholder="MagnifyingGlass recent articles..."
+                            placeholder="Search recent articles..."
                             className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/40 border border-border/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                           />
                         </div>

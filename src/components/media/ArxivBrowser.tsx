@@ -193,7 +193,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="MagnifyingGlass ArXiv papers..."
+                placeholder="Search ArXiv papers..."
                 className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -205,7 +205,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
               {isLoading ? (
                 <CircleNotch className="w-4 h-4 animate-spin" />
               ) : (
-                "MagnifyingGlass"
+                "Search"
               )}
             </button>
           </div>

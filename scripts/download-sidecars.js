@@ -65,20 +65,6 @@ function sidecarExecutableName(baseName, targetTriple) {
   return `${baseName}-${targetTriple}${ext}`;
 }
 
-function ensureMoonshineSource() {
-  if (fs.existsSync(path.join('moonshine.cpp', 'CMakeLists.txt'))) {
-    return;
-  }
-
-  if (fs.existsSync('moonshine.cpp')) {
-    console.log('Removing corrupted moonshine.cpp directory...');
-    fs.rmSync('moonshine.cpp', { recursive: true, force: true });
-  }
-
-  console.log('Cloning moonshine.cpp...');
-  execSync('git clone --depth 1 https://github.com/locaal-ai/moonshine.cpp.git');
-}
-
 function ensureWhisperSource() {
   if (fs.existsSync(path.join('whisper.cpp', 'CMakeLists.txt'))) {
     return;
@@ -101,84 +87,135 @@ function ensureWhisperSource() {
   }
 }
 
-function patchMoonshineOnnxruntimeHashes() {
-  const cmakeFile = path.join('moonshine.cpp', 'cmake', 'FetchOnnxruntime.cmake');
-  if (!fs.existsSync(cmakeFile)) return;
+// Pinned sherpa-onnx version. NOTE: do NOT use the /releases/latest API endpoint
+// for this repo — it is stale. Bump this explicitly and update the asset map below.
+const SHERPA_ONNX_VERSION = 'v1.12.24';
 
-  let lines = fs.readFileSync(cmakeFile, 'utf8').split('\n');
-  let patched = false;
+// Map a target triple to the sherpa-onnx prebuilt tarball asset for that platform.
+// Returns null for unsupported targets (the caller skips provisioning there).
+// NOTE: asset names are verified against the v1.12.24 release — they are NOT uniform
+// (Linux aarch64 has a `-cpu` suffix the others lack; Windows uses MSVC runtime
+// variants like `-MD-Release`). Update this map explicitly when bumping
+// SHERPA_ONNX_VERSION.
+function sherpaAssetForTarget(targetTriple) {
+  // macOS arm64 / x86_64: the `-jni` bundles contain bin/sherpa-onnx-offline + lib/libonnxruntime.
+  if (targetTriple === 'aarch64-apple-darwin') {
+    return { asset: `sherpa-onnx-${SHERPA_ONNX_VERSION}-osx-arm64-jni.tar.bz2`, os: 'macos' };
+  }
+  if (targetTriple === 'x86_64-apple-darwin') {
+    return { asset: `sherpa-onnx-${SHERPA_ONNX_VERSION}-osx-x86_64-jni.tar.bz2`, os: 'macos' };
+  }
+  if (targetTriple === 'x86_64-unknown-linux-gnu') {
+    return { asset: `sherpa-onnx-${SHERPA_ONNX_VERSION}-linux-x64-shared.tar.bz2`, os: 'linux' };
+  }
+  if (targetTriple === 'aarch64-unknown-linux-gnu') {
+    // NOTE: the aarch64 Linux asset has a `-cpu` suffix (the x64 one does not).
+    return { asset: `sherpa-onnx-${SHERPA_ONNX_VERSION}-linux-aarch64-shared-cpu.tar.bz2`, os: 'linux' };
+  }
+  if (targetTriple.includes('windows')) {
+    // Windows ships MSVC-runtime variants. MD-Release = dynamic CRT release build,
+    // the right default for a normal Windows desktop (MT statically links the CRT
+    // and can conflict with the app's own runtime).
+    return { asset: `sherpa-onnx-${SHERPA_ONNX_VERSION}-win-x64-shared-MD-Release.tar.bz2`, os: 'windows' };
+  }
+  return null;
+}
 
-  // Fix typo OOnnxruntime_HASH -> Onnxruntime_HASH (MSVC)
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes('OOnnxruntime_HASH')) {
-      lines[i] = lines[i].replace('OOnnxruntime_HASH', 'Onnxruntime_HASH');
-      console.log('  Fixed typo: OOnnxruntime_HASH -> Onnxruntime_HASH');
-      patched = true;
-    }
+/// Download + provision the sherpa-onnx sidecar for the given target triple.
+/// The upstream tarball ships a `bin/sherpa-onnx-offline` executable plus a
+/// `lib/libonnxruntime.<ver>.{dylib,so,dll}`. We:
+///   1. Download + extract the tarball.
+///   2. Copy `bin/sherpa-onnx-offline` to `<BIN_DIR>/sherpa-onnx-<triple>` (Tauri externalBin naming).
+///   3. Copy the onnxruntime shared lib into <BIN_DIR> alongside it, so the
+///      @executable_path / @executable_path/../Resources/bin rpaths resolve it
+///      the same way whisper's libwhisper/libggml dylibs are resolved.
+///   4. On macOS, add the dev + prod rpaths and re-sign (build.rs redoes this on
+///      every build too, but doing it here makes the binary runnable immediately).
+function ensureSherpaSidecar(targetTriple) {
+  const sherpaName = `sherpa-onnx-${targetTriple}`;
+  const sherpaPath = path.join(BIN_DIR, sherpaName);
+  if (fs.existsSync(sherpaPath)) {
+    return;
   }
 
-  // Dynamically verify and patch SHA256 hashes for each onnxruntime tarball.
-  // The upstream repo has copy-paste errors (same hash for different platforms).
-  // We download each tarball, compute the real hash, and patch the cmake if needed.
-  // Dynamically extract onnxruntime version from the cmake file
-  let ORT_VERSION = '1.19.2'; // fallback
-  for (const line of lines) {
-    const vm = line.match(/set\(Onnxruntime_VERSION "([^"]+)"\)/);
-    if (vm) { ORT_VERSION = vm[1]; break; }
+  const assetInfo = sherpaAssetForTarget(targetTriple);
+  if (!assetInfo) {
+    console.warn(`⚠️  sherpa-onnx has no prebuilt asset for ${targetTriple}; skipping.`);
+    return;
   }
-  const ORT_BASEURL = `https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}`;
-  const PLATFORM_MAP = [
-    { stem: 'onnxruntime-osx-universal2', url: `${ORT_BASEURL}/onnxruntime-osx-universal2-${ORT_VERSION}.tgz` },
-    { stem: 'onnxruntime-win-x64', url: `${ORT_BASEURL}/onnxruntime-win-x64-${ORT_VERSION}.zip` },
-    { stem: 'onnxruntime-linux-aarch64', url: `${ORT_BASEURL}/onnxruntime-linux-aarch64-${ORT_VERSION}.tgz` },
-    { stem: 'onnxruntime-linux-x64-gpu', url: `${ORT_BASEURL}/onnxruntime-linux-x64-gpu-${ORT_VERSION}.tgz` },
-  ];
 
-  const tmpDir = '/tmp/ort-hash-check';
+  const url = `https://github.com/k2-fsa/sherpa-onnx/releases/download/${SHERPA_ONNX_VERSION}/${assetInfo.asset}`;
+  const tmpDir = path.join(BIN_DIR, '.sherpa-extract');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
   fs.mkdirSync(tmpDir, { recursive: true });
   try {
-    for (const { stem, url: realUrl } of PLATFORM_MAP) {
-      const tmpFile = path.join(tmpDir, `hc-${Date.now()}`);
-      try {
-        console.log(`  Verifying onnxruntime hash: ${stem}`);
-        execSync(`curl -fL --max-time 60 -o ${shellQuote(tmpFile)} ${shellQuote(realUrl)}`, { stdio: 'ignore' });
-        const fileBuf = fs.readFileSync(tmpFile);
-        const actualHash = createHash('sha256').update(fileBuf).digest('hex');
-        console.log(`    Actual SHA256: ${actualHash}`);
-        // Find the cmake URL line for this platform stem
-        let urlLineIdx = -1;
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].includes('Onnxruntime_URL') && lines[i].includes(stem)) {
-            urlLineIdx = i;
-            break;
-          }
+    console.log(`Downloading sherpa-onnx ${SHERPA_ONNX_VERSION} for ${targetTriple}...`);
+    const archive = path.join(tmpDir, assetInfo.asset);
+    execSync(`curl -fL --retry 3 --retry-delay 2 --max-time 300 ${shellQuote(url)} -o ${shellQuote(archive)}`, { stdio: 'inherit' });
+    execSync(`tar -xjf ${shellQuote(archive)} -C ${shellQuote(tmpDir)}`, { stdio: 'inherit' });
+
+    // Find the extracted top-level dir (sherpa-onnx-<ver>-<os>-<arch>-...).
+    const extracted = fs.readdirSync(tmpDir, { withFileTypes: true })
+      .filter(e => e.isDirectory() && e.name.startsWith('sherpa-onnx-'))
+      .map(e => path.join(tmpDir, e.name))
+      .find(p => fs.existsSync(path.join(p, 'bin')));
+    if (!extracted) throw new Error('sherpa-onnx tarball did not contain a bin/ directory');
+
+    // 1. Rename the offline CLI executable to the Tauri externalBin convention.
+    const offlineBinCandidates = [
+      path.join(extracted, 'bin', 'sherpa-onnx-offline'),
+      path.join(extracted, 'bin', 'sherpa-onnx-offline.exe'),
+    ];
+    const offlineBin = offlineBinCandidates.find(c => fs.existsSync(c));
+    if (!offlineBin) throw new Error('sherpa-onnx tarball missing bin/sherpa-onnx-offline');
+    fs.copyFileSync(offlineBin, sherpaPath);
+
+    // 2. Copy the onnxruntime shared lib into BIN_DIR (next to whisper's dylibs).
+    //    The build.rs rpath patching (@executable_path + @executable_path/../Resources/bin)
+    //    resolves it from there in both dev and bundled-.app layouts.
+    const libDir = path.join(extracted, 'lib');
+    if (fs.existsSync(libDir)) {
+      for (const f of fs.readdirSync(libDir)) {
+        if (f.startsWith('libonnxruntime') || f.startsWith('onnxruntime')) {
+          fs.copyFileSync(path.join(libDir, f), path.join(BIN_DIR, f));
         }
-        if (urlLineIdx === -1) continue;
-        // Find the next Onnxruntime_HASH line after the URL
-        for (let i = urlLineIdx + 1; i < Math.min(urlLineIdx + 5, lines.length); i++) {
-          const hm = lines[i].match(/set\(Onnxruntime_HASH SHA256=([0-9a-f]{64})\)/);
-          if (hm) {
-            if (hm[1] !== actualHash) {
-              lines[i] = lines[i].replace(hm[1], actualHash);
-              console.log(`    Patched: ${hm[1].substring(0, 16)}... -> ${actualHash.substring(0, 16)}...`);
-              patched = true;
-            } else {
-              console.log('    Hash matches, no patch needed');
-            }
-            break;
-          }
-        }
-      } catch (dlErr) {
-        console.warn(`    Could not verify hash for ${stem}: ${dlErr.message}`);
-      } finally {
-        try { fs.unlinkSync(tmpFile); } catch {}
       }
     }
+
+    // 3. On macOS, add rpaths + re-sign so the binary is runnable as-is.
+    //    build.rs will also do this on every cargo build; doing it here too means
+    //    the sidecar works even before a cargo build runs.
+    if (assetInfo.os === 'macos') {
+      try {
+        execSync(`install_name_tool -add_rpath @executable_path ${shellQuote(sherpaPath)}`, { stdio: 'ignore' });
+      } catch { /* rpath may already exist */ }
+      try {
+        execSync(`install_name_tool -add_rpath @executable_path/../Resources/bin ${shellQuote(sherpaPath)}`, { stdio: 'ignore' });
+      } catch { /* rpath may already exist */ }
+      try {
+        execSync(`codesign --force --sign - ${shellQuote(sherpaPath)}`, { stdio: 'ignore' });
+      } catch { /* codesign best-effort */ }
+    }
+
+    // On Linux, set RPATH=$ORIGIN so the binary finds libonnxruntime.so in the
+    // same directory without needing LD_LIBRARY_PATH at runtime. (Matches how the
+    // whisper Linux sidecar is handled.) patchelf may not be installed in every
+    // build env; the LD_LIBRARY_PATH fallback in engine.rs covers that case.
+    if (assetInfo.os === 'linux') {
+      try {
+        execSync(`patchelf --set-rpath '$ORIGIN' ${shellQuote(sherpaPath)}`, { stdio: 'ignore' });
+      } catch {
+        console.log('Note: patchelf not available for sherpa-onnx; relying on LD_LIBRARY_PATH at runtime');
+      }
+    }
+
+    fs.chmodSync(sherpaPath, 0o755);
+    console.log(`sherpa-onnx sidecar provisioned at ${sherpaPath}`);
+  } catch (err) {
+    console.warn(`⚠️  sherpa-onnx provisioning failed for ${targetTriple}: ${err.message}`);
+    console.warn('   Parakeet local transcription will be unavailable. Whisper/Groq still work.');
   } finally {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
-  }
-  if (patched) {
-    fs.writeFileSync(cmakeFile, lines.join('\n'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
@@ -866,8 +903,8 @@ async function main() {
   const ffmpegPath = path.join(BIN_DIR, ffmpegName);
   const whisperPath = path.join(BIN_DIR, whisperName);
   const notebooklmPath = path.join(BIN_DIR, notebooklmName);
-  const moonshineName = `moonshine-${targetTriple}`;
-  const moonshinePath = path.join(BIN_DIR, moonshineName);
+  const sherpaName = `sherpa-onnx-${targetTriple}`;
+  const sherpaPath = path.join(BIN_DIR, sherpaName);
   const notebooklmSidecarPresent = fs.existsSync(notebooklmPath);
   const notebooklmSkipped = process.env.SKIP_NOTEBOOKLM_SIDECAR === '1';
   const notebooklmRequired = !notebooklmSkipped
@@ -884,7 +921,7 @@ async function main() {
   if (
     fs.existsSync(ffmpegPath)
     && fs.existsSync(whisperPath)
-    && fs.existsSync(moonshinePath)
+    && fs.existsSync(sherpaPath)
     && (!notebooklmMustExist || notebooklmSidecarPresent)
     && (!notebooklmRequired || notebooklmRuntimeReady)
   ) {
@@ -892,7 +929,9 @@ async function main() {
     try {
       fs.chmodSync(ffmpegPath, 0o755);
       fs.chmodSync(whisperPath, 0o755);
-      fs.chmodSync(moonshinePath, 0o755);
+      if (fs.existsSync(sherpaPath)) {
+        fs.chmodSync(sherpaPath, 0o755);
+      }
       if (fs.existsSync(notebooklmPath)) {
         fs.chmodSync(notebooklmPath, 0o755);
       }
@@ -968,51 +1007,6 @@ async function main() {
         // execSync('rm -rf whisper.cpp');
     }
 
-    // Linux Moonshine (building from source using CMake)
-    const moonshineName = `moonshine-${targetTriple}`;
-    const moonshinePath = path.join(BIN_DIR, moonshineName);
-    if (!fs.existsSync(moonshinePath)) {
-        try {
-            console.log('Building Moonshine (Linux)...');
-            ensureMoonshineSource();
-            patchMoonshineOnnxruntimeHashes();
-
-            execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
-            execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
-
-            const candidates = [
-                'moonshine.cpp/build/examples/moonshine_example',
-                'moonshine.cpp/build/bin/moonshine_example',
-                'moonshine.cpp/build/src/moonshine_example',
-            ];
-            const moonshineBin = candidates.find(c => fs.existsSync(c));
-            if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
-            fs.copyFileSync(moonshineBin, moonshinePath);
-
-            // Copy ONNX Runtime shared libraries
-            const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
-            if (fs.existsSync(ortLibDir)) {
-                for (const f of fs.readdirSync(ortLibDir)) {
-                    if (f.startsWith('libonnxruntime') && f.endsWith('.so') && !f.includes('tensorrt') && !f.includes('cuda') && !f.includes('shared')) {
-                        fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
-                    }
-                }
-            }
-
-            // Set RPATH so the binary finds libonnxruntime in the same directory
-            try {
-                execSync(`patchelf --set-rpath '$ORIGIN' ${moonshinePath}`, { stdio: 'ignore' });
-            } catch {
-                console.log('Note: patchelf not available for moonshine, using LD_LIBRARY_PATH via wrapper');
-            }
-        } catch (moonshineError) {
-            console.warn(`⚠️  Moonshine native build failed for ${targetTriple}: ${moonshineError.message}`);
-            console.warn('   Moonshine native sidecar will not be available. Browser-native and Groq transcription will still work.');
-            // Clean up failed build artifacts to avoid wasting disk space
-            try { fs.rmSync('moonshine.cpp', { recursive: true, force: true }); } catch {}
-        }
-    }
-
   } else if (platform === 'darwin') {
     // Mac FFmpeg
     if (!fs.existsSync(ffmpegPath)) {
@@ -1070,43 +1064,6 @@ async function main() {
         // execSync('rm -rf whisper.cpp');
     }
 
-    // Mac Moonshine (building from source using CMake)
-    const moonshineName = `moonshine-${targetTriple}`;
-    const moonshinePath = path.join(BIN_DIR, moonshineName);
-    if (!fs.existsSync(moonshinePath)) {
-        try {
-            console.log('Building Moonshine (Mac)...');
-            ensureMoonshineSource();
-            patchMoonshineOnnxruntimeHashes();
-
-            execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
-            execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
-
-            const candidates = [
-                'moonshine.cpp/build/examples/moonshine_example',
-                'moonshine.cpp/build/bin/moonshine_example',
-                'moonshine.cpp/build/src/moonshine_example',
-            ];
-            const moonshineBin = candidates.find(c => fs.existsSync(c));
-            if (!moonshineBin) throw new Error('Failed to locate moonshine_example after build');
-            fs.copyFileSync(moonshineBin, moonshinePath);
-
-            // Copy ONNX Runtime shared libraries
-            const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
-            if (fs.existsSync(ortLibDir)) {
-                for (const f of fs.readdirSync(ortLibDir)) {
-                    if (f.startsWith('libonnxruntime') && f.endsWith('.dylib')) {
-                        fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
-                    }
-                }
-            }
-        } catch (moonshineError) {
-            console.warn(`⚠️  Moonshine native build failed for ${targetTriple}: ${moonshineError.message}`);
-            console.warn('   Moonshine native sidecar will not be available. Browser-native and Groq transcription will still work.');
-            try { fs.rmSync('moonshine.cpp', { recursive: true, force: true }); } catch {}
-        }
-    }
-
   } else if (platform === 'win32') {
     // Windows FFmpeg
     console.log('Downloading FFmpeg (Windows)...');
@@ -1148,44 +1105,11 @@ async function main() {
       // Search recursively in build directory for shared libraries
       findAndCopyLibs('whisper.cpp/build', BIN_DIR, '.dll');
     }
-
-    // Windows Moonshine (building from source via CMake)
-    const moonshineName = `moonshine-${targetTriple}`;
-    const moonshinePath = path.join(BIN_DIR, moonshineName);
-    if (!fs.existsSync(moonshinePath)) {
-      try {
-        console.log('Building Moonshine (Windows)...');
-        ensureMoonshineSource();
-        patchMoonshineOnnxruntimeHashes();
-
-        execSync(`cd moonshine.cpp && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON`);
-        execSync('cd moonshine.cpp && cmake --build build --config Release --target moonshine_example --parallel');
-
-        const candidates = [
-          'moonshine.cpp/build/examples/Release/moonshine_example.exe',
-          'moonshine.cpp/build/bin/Release/moonshine_example.exe',
-          'moonshine.cpp/build/bin/moonshine_example.exe',
-        ];
-        const moonshineBin = candidates.find(c => fs.existsSync(c));
-        if (!moonshineBin) throw new Error('Failed to locate moonshine_example.exe after build');
-        fs.copyFileSync(moonshineBin, moonshinePath);
-
-        // Copy ONNX Runtime DLL
-        const ortLibDir = 'moonshine.cpp/build/_deps/onnxruntime-src/lib';
-        if (fs.existsSync(ortLibDir)) {
-          for (const f of fs.readdirSync(ortLibDir)) {
-            if (f.startsWith('onnxruntime') && f.endsWith('.dll')) {
-              fs.copyFileSync(path.join(ortLibDir, f), path.join(BIN_DIR, f));
-            }
-          }
-        }
-      } catch (moonshineError) {
-        console.warn(`⚠️  Moonshine native build failed for ${targetTriple}: ${moonshineError.message}`);
-        console.warn('   Moonshine native sidecar will not be available. Browser-native and Groq transcription will still work.');
-        try { fs.rmSync('moonshine.cpp', { recursive: true, force: true }); } catch {}
-      }
-    }
   }
+
+  // Provision the sherpa-onnx sidecar (used by Parakeet local transcription).
+  // Platform-agnostic: downloads the right prebuilt tarball for the target triple.
+  ensureSherpaSidecar(targetTriple);
 
   // Build bundled notebooklm sidecar/runtime used by NotebookLM integration.
   if (notebooklmMustExist && (notebooklmRequired || !fs.existsSync(notebooklmPath))) {
@@ -1223,8 +1147,8 @@ async function main() {
   try {
     fs.chmodSync(ffmpegPath, 0o755);
     fs.chmodSync(whisperPath, 0o755);
-    if (fs.existsSync(moonshinePath)) {
-      fs.chmodSync(moonshinePath, 0o755);
+    if (fs.existsSync(sherpaPath)) {
+      fs.chmodSync(sherpaPath, 0o755);
     }
   } catch {
     // Windows might fail chmod, ignore

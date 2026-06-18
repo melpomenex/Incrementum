@@ -98,6 +98,29 @@ if (fs.existsSync(cargoTomlPath)) {
   fs.writeFileSync(cargoTomlPath, cargoToml, 'utf8');
 }
 
+// Cargo.lock references the crate's version in two places (the [[package]]
+// name+version block). Bump both so `cargo build` doesn't fail with a stale
+// lockfile. Plain text replacement is safe — the old version string is unique
+// enough in the lockfile, and the package name is the anchor we match against.
+const cargoLockPath = path.join(rootDir, 'src-tauri', 'Cargo.lock');
+if (fs.existsSync(cargoLockPath)) {
+  let cargoLock = fs.readFileSync(cargoLockPath, 'utf8');
+  const pkgBlock = new RegExp(
+    '(name = "incrementum-tauri"\\n)version = "' + currentVersion.replace(/\./g, '\\.') + '"'
+  );
+  if (pkgBlock.test(cargoLock)) {
+    cargoLock = cargoLock.replace(pkgBlock, `$1version = "${newVersion}"`);
+  } else {
+    // Fallback: bump any standalone occurrence of the old version (covers the
+    // case where the lock already diverged).
+    cargoLock = cargoLock.replace(
+      new RegExp('version = "' + currentVersion.replace(/\./g, '\\.') + '"', 'g'),
+      `version = "${newVersion}"`
+    );
+  }
+  fs.writeFileSync(cargoLockPath, cargoLock, 'utf8');
+}
+
 // --- 4. CHANGELOG (prepend a dated entry; avoid duplicate headers) --------
 const changelogPath = path.join(rootDir, 'CHANGELOG.md');
 const dateStr = new Date().toISOString().slice(0, 10);
