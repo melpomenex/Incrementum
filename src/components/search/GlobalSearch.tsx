@@ -21,7 +21,7 @@ import type { SearchHit } from "../../types/searchHit";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 
 /**
- * MagnifyingGlass result types
+ * Search result types
  */
 export enum SearchResultType {
   Document = "document",
@@ -33,7 +33,7 @@ export enum SearchResultType {
 }
 
 /**
- * MagnifyingGlass result
+ * Search result
  */
 export interface SearchResult {
   id: string;

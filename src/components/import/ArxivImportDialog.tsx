@@ -1,7 +1,7 @@
 /**
  * ArXiv Import Dialog
  * 
- * MagnifyingGlass and download ArXiv papers with category filtering.
+ * Search and download ArXiv papers with category filtering.
  * Provides a polished import experience matching the browser extension flow.
  */
 
@@ -314,7 +314,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                   ) : (
                     <MagnifyingGlass className="h-4 w-4" />
                   )}
-                  MagnifyingGlass
+                  Search
                 </button>
               </div>
               {selectedCategory && (

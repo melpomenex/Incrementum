@@ -42,7 +42,7 @@ export enum CommandCategory {
   Extracts = "Extracts",
   Flashcards = "Flashcards",
   Review = "Review",
-  Gear = "Gear",
+  Gear = "Settings",
   Navigation = "Navigation",
 }
 

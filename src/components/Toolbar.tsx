@@ -391,7 +391,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   const handleSettings = () => {
     addTab({
-      title: "Gear",
+      title: "Settings",
       icon: <Gear className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,
@@ -401,7 +401,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
 
   const handleSettingsBackground = () => {
     addTabInBackground({
-      title: "Gear",
+      title: "Settings",
       icon: "⚙️",
       type: "settings",
       content: SettingsTab,

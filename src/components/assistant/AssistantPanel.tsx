@@ -351,7 +351,7 @@ export function AssistantPanel({
     localStorage.setItem("incrementum_settings_initial_tab", "ai");
     
     const tabId = useTabsStore.getState().addTab({
-      title: "Gear",
+      title: "Settings",
       icon: <Gear className="w-4 h-4" />,
       type: "settings",
       content: SettingsTab,

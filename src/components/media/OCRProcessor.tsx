@@ -384,7 +384,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
-                  title="Gear"
+                  title="Settings"
                 >
                   <Gear className="w-4 h-4" />
                 </button>

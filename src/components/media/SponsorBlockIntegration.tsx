@@ -179,7 +179,7 @@ export function SponsorBlockIntegration({
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                  title="Gear"
+                  title="Settings"
                 >
                   <Gear className="w-4 h-4" />
                 </button>

@@ -155,7 +155,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           ) : (
             <>
               <MagnifyingGlass className="w-4 h-4" />
-              MagnifyingGlass
+              Search
             </>
           )}
         </button>

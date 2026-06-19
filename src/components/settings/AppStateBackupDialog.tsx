@@ -419,7 +419,7 @@ export function AppStateBackupDialog({ isOpen, onClose }: AppStateBackupDialogPr
                   <div className="mt-3 space-y-3 p-4 border border-border rounded-lg">
                     {/* Import toggles */}
                     {[
-                      { key: "importSettings", label: "Gear", icon: Gear },
+                      { key: "importSettings", label: "Settings", icon: Gear },
                       { key: "importDocuments", label: "Documents", icon: BookOpen },
                       { key: "importExtracts", label: "Extracts", icon: TextT },
                       { key: "importLearningItems", label: "Learning Items", icon: Stack },

@@ -130,7 +130,7 @@ export function DashboardTab() {
       icon: Gear,
       iconBg: "bg-slate-500/10 text-slate-500",
       tabType: "settings",
-      tabTitle: "Gear",
+      tabTitle: "Settings",
       content: SettingsTab,
       closable: true,
     },

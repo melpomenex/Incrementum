@@ -614,7 +614,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               <div className="flex items-center gap-2 mb-4">
                 <MagnifyingGlass className="w-5 h-5 text-primary" />
                 <h2 className="text-lg font-semibold">
-                  MagnifyingGlass Results
+                  Search Results
                 </h2>
                 <span className="text-sm text-muted-foreground">
                   ({searchResults.length} found)

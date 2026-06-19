@@ -72,7 +72,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      {/* MagnifyingGlass Header */}
+      {/* Search Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <YoutubeLogo className="w-5 h-5 text-red-500" />
@@ -98,7 +98,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
             ) : (
               <MagnifyingGlass className="w-4 h-4" />
             )}
-            MagnifyingGlass
+            Search
           </button>
         </div>
 

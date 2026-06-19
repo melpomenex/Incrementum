@@ -677,7 +677,7 @@ export function PwaAssistantButton({
                   }}
                   disabled={!input.trim() || isLoading}
                   className="p-3 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
-                  title="PaperPlaneTilt"
+                  title="Send"
                 >
                   <PaperPlaneTilt className="w-4 h-4" />
                 </button>
