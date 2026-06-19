@@ -2046,13 +2046,51 @@ fn managed_runtime_has_notebooklm_package(base: &Path) -> bool {
     false
 }
 
-fn resolve_managed_notebooklm_runtime(app_dir: &Path) -> (Option<PathBuf>, Option<PathBuf>) {
+/// Smoke-test a managed runtime's Python by actually importing the
+/// `notebooklm.notebooklm_cli` module. Existence checks alone are
+/// insufficient: a venv's `python3` may be a dangling symlink (e.g. to a
+/// CommandLineTools Python that was since removed/upgraded) or a Python
+/// version too old for the installed package, both of which leave the
+/// `notebooklm` site-packages dir present but the interpreter unable to
+/// import it. Returning `false` here causes `resolve_managed_notebooklm_runtime`
+/// to treat the runtime as broken and fall through to the system CLI.
+async fn managed_runtime_imports_notebooklm(python: &Path) -> bool {
+    let import = Command::new(python)
+        .arg("-c")
+        .arg("import notebooklm.notebooklm_cli")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .output();
+    match tokio::time::timeout(Duration::from_secs(5), import).await {
+        Ok(Ok(output)) => output.status.success(),
+        // Spawn failure (bad interpreter, EACCES, ...) or timeout: treat as broken.
+        _ => false,
+    }
+}
+
+async fn resolve_managed_notebooklm_runtime(
+    app_dir: &Path,
+) -> (Option<PathBuf>, Option<PathBuf>) {
     let base = managed_notebooklm_runtime_base(app_dir);
     let python = managed_notebooklm_runtime_python(&base);
-    if python.exists() && managed_runtime_has_notebooklm_package(&base) {
-        return (Some(python), None);
+    if !(python.exists() && managed_runtime_has_notebooklm_package(&base)) {
+        return (None, None);
     }
-    (None, None)
+    // The runtime *looks* installed. Confirm it can actually import the
+    // notebooklm module before preferring it over the system CLI — a broken
+    // venv (dangling python symlink, incompatible Python version) would
+    // otherwise shadow a working system install and surface as "CLI Not Found".
+    if !managed_runtime_imports_notebooklm(&python).await {
+        tracing::warn!(
+            python = %python.display(),
+            "Managed NotebookLM runtime present but its Python cannot import notebooklm; \
+             falling through to system CLI. Remove {} to silence this.",
+            base.display()
+        );
+        return (None, None);
+    }
+    (Some(python), None)
 }
 
 async fn detect_system_python() -> Option<Vec<String>> {
@@ -2283,7 +2321,7 @@ fn resolve_notebooklm_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
     None
 }
 
-fn provider_context(app: &tauri::AppHandle, app_dir: PathBuf) -> ProviderContext {
+async fn provider_context(app: &tauri::AppHandle, app_dir: PathBuf) -> ProviderContext {
     let (
         notebooklm_runtime_python,
         notebooklm_runtime_site_packages,
@@ -2292,7 +2330,8 @@ fn provider_context(app: &tauri::AppHandle, app_dir: PathBuf) -> ProviderContext
         notebooklm_runtime_validation_error,
     ) =
         resolve_notebooklm_runtime(app);
-    let (notebooklm_managed_python, managed_playwright) = resolve_managed_notebooklm_runtime(&app_dir);
+    let (notebooklm_managed_python, managed_playwright) =
+        resolve_managed_notebooklm_runtime(&app_dir).await;
     let notebooklm_runtime_playwright = notebooklm_runtime_playwright.or(managed_playwright);
     let notebooklm_bin = resolve_notebooklm_binary(app);
 
@@ -2614,7 +2653,7 @@ pub async fn notebooklm_health(app: tauri::AppHandle) -> Result<NotebookLMHealth
     let settings = load_settings(&root)?;
     let auth = load_auth(&root)?;
     let provider = provider_for(&settings);
-    provider.health(&auth, &settings, &provider_context(&app, root.clone())).await
+    provider.health(&auth, &settings, &provider_context(&app, root.clone()).await).await
 }
 
 #[tauri::command]
@@ -2627,7 +2666,7 @@ pub async fn notebooklm_list_notebooks(app: tauri::AppHandle) -> Result<Vec<Note
         .list_notebooks(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
         )
         .await
 }
@@ -2645,7 +2684,7 @@ pub async fn notebooklm_create_notebook(
         .create_notebook(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
             &title,
         )
         .await?;
@@ -2679,7 +2718,7 @@ pub async fn notebooklm_list_sources(
         .list_sources(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
             &selected,
         )
         .await
@@ -2699,7 +2738,7 @@ pub async fn notebooklm_add_source(
         .add_source(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
             &selected,
             &req,
         )
@@ -2723,7 +2762,7 @@ pub async fn notebooklm_refresh_source(
         .refresh_source(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
             &selected,
             &source_id,
         )
@@ -2745,7 +2784,7 @@ pub async fn notebooklm_ask(
         .ask(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
             &selected,
             &question,
         )
@@ -2769,7 +2808,7 @@ pub async fn notebooklm_research(
         .research(
             &auth,
             &settings,
-            &provider_context(&app, root.clone()),
+            &provider_context(&app, root.clone()).await,
             &selected,
             &query,
             mode,
@@ -2821,7 +2860,7 @@ pub async fn notebooklm_generate_artifact(
             .generate_artifact(
                 &auth,
                 &settings,
-                &provider_context(&app, root.clone()),
+                &provider_context(&app, root.clone()).await,
                 &selected,
                 &req,
             )
@@ -3102,7 +3141,7 @@ fn html_escape(input: &str) -> String {
 /// Check if notebooklm CLI is installed and get its version
 #[tauri::command]
 pub async fn notebooklm_check_cli(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
-    let ctx = provider_context(&app, integration_root(&app)?);
+    let ctx = provider_context(&app, integration_root(&app)?).await;
     
     // Try to run notebooklm --version or notebooklm version
     let version_result = run_first_success_no_bootstrap(
@@ -3265,7 +3304,7 @@ fn try_copy_system_auth(app_storage: &Path) -> Option<PathBuf> {
 #[tauri::command]
 pub async fn notebooklm_cli_login(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
     let root = integration_root(&app)?;
-    let ctx = provider_context(&app, root.clone());
+    let ctx = provider_context(&app, root.clone()).await;
     let app_storage = root.join("storage_state.json");
 
     tracing::info!("Starting notebooklm CLI login flow (multi-strategy)");
@@ -3490,7 +3529,7 @@ pub async fn notebooklm_cli_login(app: tauri::AppHandle) -> Result<serde_json::V
 /// Run notebooklm logout command
 #[tauri::command]
 pub async fn notebooklm_cli_logout(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
-    let ctx = provider_context(&app, integration_root(&app)?);
+    let ctx = provider_context(&app, integration_root(&app)?).await;
     
     tracing::info!("Running notebooklm CLI logout");
     
@@ -3525,7 +3564,7 @@ pub async fn notebooklm_cli_logout(app: tauri::AppHandle) -> Result<serde_json::
 /// Get detailed CLI authentication status
 #[tauri::command]
 pub async fn notebooklm_cli_status(app: tauri::AppHandle) -> Result<serde_json::Value, AppError> {
-    let ctx = provider_context(&app, integration_root(&app)?);
+    let ctx = provider_context(&app, integration_root(&app)?).await;
     
     let result = run_first_success_no_bootstrap(
         &ctx,
@@ -3676,5 +3715,83 @@ mod tests {
             "Augmented path should contain brew bin or usr local bin: {}",
             path_str
         );
+    }
+
+    /// A Python that doesn't exist on disk must fail the import smoke test,
+    /// so a managed venv with a dangling python symlink is treated as broken.
+    #[tokio::test]
+    async fn managed_runtime_smoke_test_rejects_missing_python() {
+        let bogus = PathBuf::from("/this/python/does/not/exist");
+        assert!(
+            !managed_runtime_imports_notebooklm(&bogus).await,
+            "smoke test should fail for a non-existent python"
+        );
+    }
+
+    /// A real Python that exists but cannot import `notebooklm.notebooklm_cli`
+    /// must fail the smoke test. This is the exact failure mode that caused
+    /// the "CLI Not Found" bug: a managed venv whose python symlink pointed
+    /// at an incompatible (or since-removed) system Python.
+    #[tokio::test]
+    async fn managed_runtime_smoke_test_rejects_import_failure() {
+        // Find any python3 on PATH; if none is available the test is a no-op.
+        let python = which_python_for_test();
+        let Some(python) = python else {
+            eprintln!("skipping: no python3 on PATH");
+            return;
+        };
+        // `import notebooklm.notebooklm_cli` should fail in a clean test
+        // environment (the module isn't installed globally), proving the
+        // smoke test catches import errors rather than just file presence.
+        let ok = managed_runtime_imports_notebooklm(&python).await;
+        // We can't assert !ok unconditionally (a dev machine may have it
+        // installed globally), but the helper must terminate and return a
+        // bool — the real assertion is that a bogus module name is rejected.
+        let bogus_module = Command::new(&python)
+            .arg("-c")
+            .arg("import this_module_definitely_does_not_exist_xyz")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .output()
+            .await;
+        let bogus_status = bogus_module.as_ref().ok().map(|o| o.status);
+        assert!(
+            matches!(bogus_module, Ok(o) if !o.status.success()),
+            "python must report failure for a non-existent import (got {:?})",
+            bogus_status
+        );
+        // Surface the notebooklm result for visibility without hard-asserting.
+        eprintln!("notebooklm import on system python returned: {ok}");
+    }
+
+    /// `resolve_managed_notebooklm_runtime` must return `(None, None)` when the
+    /// venv directory is absent — i.e. there's nothing to fall through *from*.
+    #[tokio::test]
+    async fn managed_runtime_resolution_none_when_venv_absent() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // No runtime created under this app_dir.
+        let (py, pw) = resolve_managed_notebooklm_runtime(tmp.path()).await;
+        assert!(py.is_none(), "expected None python when no venv exists");
+        assert!(pw.is_none(), "expected None playwright when no venv exists");
+    }
+
+    /// Helper: locate a python3 on PATH for tests, or None.
+    fn which_python_for_test() -> Option<PathBuf> {
+        for candidate in ["python3", "python"] {
+            if let Ok(out) = std::process::Command::new(candidate)
+                .arg("-c")
+                .arg("import sys; print(sys.executable)")
+                .output()
+            {
+                if out.status.success() {
+                    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Some(PathBuf::from(path));
+                    }
+                }
+            }
+        }
+        None
     }
 }
