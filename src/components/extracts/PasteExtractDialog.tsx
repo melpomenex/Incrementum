@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   BookOpen,
   Clipboard,
@@ -209,7 +210,10 @@ export function PasteExtractDialog({ isOpen, onClose, onCreate }: PasteExtractDi
 
   if (!isOpen) return null;
 
-  return (
+  // Portaled to document.body so the fixed-position backdrop/panel escape any
+  // ancestor stacking context (the app shell's backdrop-filter / transforms
+  // would otherwise trap the dialog and render it behind viewer content).
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => {
@@ -469,6 +473,7 @@ export function PasteExtractDialog({ isOpen, onClose, onCreate }: PasteExtractDi
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

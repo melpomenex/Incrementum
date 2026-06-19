@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowUp,
@@ -119,7 +120,9 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
 
   if (!isOpen) return null;
 
-  return (
+  // Portaled to document.body so the overlay escapes any ancestor stacking
+  // context (backdrop-filter/transforms trap fixed-position elements).
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -224,7 +227,8 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
