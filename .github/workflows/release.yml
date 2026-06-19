@@ -580,11 +580,20 @@ jobs:
             // Map each updater platform key to the asset name produced by the
             // platform jobs. Recognized keys per the Tauri updater are
             // darwin-aarch64 / darwin-x86_64 / linux-x86_64 / windows-x86_64.
-            // (The previous "linux-x86_64-appimage" / "-arch" keys were not
-            // recognized by the updater and were silently ignored.)
+            //
+            // IMPORTANT naming differences across bundle types:
+            //  - macOS updater artifact is `Incrementum.app.tar.gz` — NO version
+            //    and NO arch suffix (Tauri's macOS updater naming is simpler
+            //    than Windows/Linux). Using `<name>_<version>_<arch>.app.tar.gz`
+            //    here produces an empty signature + a 404 URL and silently
+            //    breaks macOS auto-update.
+            //  - Only darwin-aarch64 is built (the matrix has no x64 macOS job),
+            //    so darwin-x86_64 is intentionally omitted. Emitting it would
+            //    point at a nonexistent artifact.
+            //  - The AppImage is re-signed after its repack (see release-appimage
+            //    job), so its .sig matches the final uploaded bytes.
             const platforms = {
-              'darwin-aarch64':  { asset: `Incrementum_${version}_aarch64.app.tar.gz` },
-              'darwin-x86_64':   { asset: `Incrementum_${version}_x64.app.tar.gz` },
+              'darwin-aarch64':  { asset: `Incrementum.app.tar.gz` },
               'linux-x86_64':    { asset: `Incrementum_${version}_amd64.AppImage` },
               'windows-x86_64':  { asset: `Incrementum_${version}_x64-setup.exe` },
             };
