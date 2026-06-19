@@ -25,7 +25,10 @@ jobs:
             platform: macos-latest
             os: macos
             arch: aarch64
-            tauri_args: --bundles dmg
+            # `app` is required so the updater emits Incrementum_<v>_aarch64.app.tar.gz
+            # (and its .sig) alongside the dmg; the updater only consumes the
+            # .app.tar.gz, not the .dmg.
+            tauri_args: --bundles app,dmg
             required: true
           - id: windows-x86_64
             platform: windows-latest
@@ -181,8 +184,16 @@ jobs:
           SQLITE3_STATIC: ${{ matrix.os == 'linux' && '0' || '1' }}
           VCPKGRS_DYNAMIC: ${{ matrix.os == 'windows' && '0' || '' }}
           SQLX_OFFLINE: "true"
+          # macOS ad-hoc codesigning (no Developer ID yet). Separate from the
+          # updater signing key below.
           TAURI_SIGNING_IDENTITY: "-"
           APPLE_SIGNING_IDENTITY: "-"
+          # Updater artifact signing. With `createUpdaterArtifacts: true` in
+          # tauri.conf.json, Tauri emits .sig files alongside each bundle and
+          # the macOS .app.tar.gz / Windows .nsis.zip updater archives. The
+          # public half of this keypair is committed in tauri.conf.json.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: List Windows bundles (debug)
         if: matrix.os == 'windows'
@@ -220,6 +231,8 @@ jobs:
             src-tauri/target/release/bundle/**/*.exe.zip
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.msi.zip
+            src-tauri/target/release/bundle/**/*.exe.sig
+            src-tauri/target/release/bundle/**/*.msi.sig
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
@@ -234,6 +247,7 @@ jobs:
           files: |
             src-tauri/target/release/bundle/**/*.dmg
             src-tauri/target/release/bundle/**/*.app.tar.gz
+            src-tauri/target/release/bundle/**/*.app.tar.gz.sig
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
@@ -352,10 +366,27 @@ jobs:
           NOTEBOOKLM_BUNDLE_RUNTIME: "1"
           POCKET_TTS_BUNDLE_RUNTIME: "1"
 
+      # ci-build-appimage.sh repacks the AppImage after Tauri builds it
+      # (to inject the notebooklm runtime + GStreamer plugins), so the .sig
+      # Tauri produced during `tauri build` is for the pre-repack artifact
+      # and no longer matches. Re-sign the final AppImage here so the
+      # updater verifies the exact bytes the user downloads.
+      - name: Sign repacked AppImage for updater
+        run: |
+          VERSION_NO_V="${{ steps.get_version.outputs.VERSION }}"
+          VERSION_NO_V="${VERSION_NO_V#v}"
+          npx @tauri-apps/cli signer sign \
+            "src-tauri/target/release/bundle/appimage/Incrementum_${VERSION_NO_V}_amd64.AppImage"
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
       - name: Upload AppImage to release
         uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/target/release/bundle/appimage/*
+          files: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
           draft: false
           prerelease: false
           tag_name: ${{ steps.get_version.outputs.VERSION }}
@@ -519,44 +550,70 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const version = context.eventName === 'workflow_dispatch'
+
+            const tag = context.eventName === 'workflow_dispatch'
               ? '${{ github.event.inputs.version_tag }}'
               : context.ref.replace('refs/tags/', '');
-            const pubDate = new Date().toISOString().split('T')[0];
+            const version = tag.replace(/^v/, '');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const base = `https://github.com/${owner}/${repo}/releases/download/${tag}`;
+
+            // Map each updater platform key to the asset name produced by the
+            // platform jobs. Recognized keys per the Tauri updater are
+            // darwin-aarch64 / darwin-x86_64 / linux-x86_64 / windows-x86_64.
+            // (The previous "linux-x86_64-appimage" / "-arch" keys were not
+            // recognized by the updater and were silently ignored.)
+            const platforms = {
+              'darwin-aarch64':  { asset: `Incrementum_${version}_aarch64.app.tar.gz` },
+              'darwin-x86_64':   { asset: `Incrementum_${version}_x64.app.tar.gz` },
+              'linux-x86_64':    { asset: `Incrementum_${version}_amd64.AppImage` },
+              'windows-x86_64':  { asset: `Incrementum_${version}_x64-setup.exe` },
+            };
+
+            // Locate the release and its assets so we can pull the .sig file
+            // contents. The .sig assets were uploaded in the prior stage.
+            const release = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            const assets = release.data.assets;
+            const assetByName = new Map(assets.map(a => [a.name, a]));
+
+            const platformsOut = {};
+            const missing = [];
+            for (const [key, { asset }] of Object.entries(platforms)) {
+              const sigName = `${asset}.sig`;
+              const sigAsset = assetByName.get(sigName);
+              let signature = '';
+              if (sigAsset) {
+                // .sig files are small base64-ish text; download via the API
+                // using the browser_download_url to avoid rate limits.
+                const res = await fetch(sigAsset.browser_download_url);
+                signature = (await res.text()).trim();
+                if (!signature) missing.push(`${key}: ${sigName} was empty`);
+              } else {
+                missing.push(`${key}: ${sigName} not found in release assets`);
+              }
+              platformsOut[key] = {
+                signature,
+                url: `${base}/${asset}`,
+              };
+            }
+
+            // Warn (but don't hard-fail) about missing signatures so a single
+            // optional arch (e.g. windows) doesn't block the manifest. The
+            // updater simply skips platforms whose signature is empty.
+            if (missing.length) {
+              core.warning(`Signature gaps:\n${missing.join('\n')}`);
+            }
 
             const manifest = {
-              version: version,
-              notes: `See https://github.com/melpomenex/incrementum-tauri/releases/tag/${version} for release notes.`,
-              pub_date: pubDate,
-              platforms: {
-                "linux-x86_64": {
-                  signature: "",
-                  url: `https://github.com/melpomenex/incrementum-tauri/releases/download/${version}/incrementum_${version}_amd64.deb`
-                },
-                "linux-x86_64-appimage": {
-                  signature: "",
-                  url: `https://github.com/melpomenex/incrementum-tauri/releases/download/${version}/Incrementum-${version}-x86_64.AppImage`
-                },
-                "linux-x86_64-arch": {
-                  signature: "",
-                  url: `https://github.com/melpomenex/incrementum-tauri/releases/download/${version}/incrementum-${version}-1-x86_64.pkg.tar.zst`
-                },
-                "darwin-x86_64": {
-                  signature: "",
-                  url: `https://github.com/melpomenex/incrementum-tauri/releases/download/${version}/Incrementum_${version}_x64.dmg.dmg`
-                },
-                "darwin-aarch64": {
-                  signature: "",
-                  url: `https://github.com/melpomenex/incrementum-tauri/releases/download/${version}/Incrementum_${version}_aarch64.dmg.dmg`
-                },
-                "windows-x86_64": {
-                  signature: "",
-                  url: `https://github.com/melpomenex/incrementum-tauri/releases/download/${version}/Incrementum_${version}_x64-setup.exe`
-                }
-              }
+              version,
+              notes: `See https://github.com/${owner}/${repo}/releases/tag/${tag} for release notes.`,
+              pub_date: new Date().toISOString(),
+              platforms: platformsOut,
             };
 
             fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+            core.info('latest.json:\n' + JSON.stringify(manifest, null, 2));
 
       - name: Upload update manifest
         uses: softprops/action-gh-release@v2

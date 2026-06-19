@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.52.1",
+  "version": "1.53.0",
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
@@ -119,6 +119,8 @@
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "@types/katex": "^0.16.8",
     "@types/sql.js": "^1.4.9",
     "@types/three": "^0.182.0",

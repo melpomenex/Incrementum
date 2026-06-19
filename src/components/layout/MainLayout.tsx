@@ -15,6 +15,8 @@ import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
+import { isTauri } from "../../lib/tauri";
+import { checkForUpdates } from "../../utils/updateChecker";
 import { PasteExtractDialog } from "../extracts/PasteExtractDialog";
 import { Desktop, ListChecks, SquaresFour } from "@phosphor-icons/react";
 
@@ -212,6 +214,36 @@ export function MainLayout() {
     documentsLoadedRef.current = true;
     void loadDocuments();
   }, [loadDocuments]);
+
+  // Background update check on startup (desktop only). Runs once, after a
+  // short delay so it doesn't compete with boot. Respects the skip-version
+  // preference via checkForUpdates(); a found update surfaces as a toast the
+  // user can act on or ignore — no auto-prompting.
+  useEffect(() => {
+    if (!isTauri()) return;
+    const timer = window.setTimeout(() => {
+      checkForUpdates(false)
+        .then((update) => {
+          if (!update) return;
+          toast.info(
+            "Update available",
+            `Version ${update.latestVersion.replace(/^v/, "")} is ready to install.`,
+            {
+              duration: 15000,
+              action: {
+                label: "View",
+                onClick: () => openTabByType("settings"),
+              },
+            }
+          );
+        })
+        .catch((err) => {
+          console.warn("[MainLayout] startup update check failed:", err);
+        });
+    }, 30000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-save session on background/close
   useEffect(() => {

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.53.0] - 2026-06-19
+
+### Added
+- **Seamless in-app auto-updates** — Incrementum can now update itself in place. When a new version is available, you get a notification on startup and a "Check for Updates" action in Settings → General. Clicking **Update Now** downloads the new build, verifies its cryptographic signature, swaps the app in place, and relaunches — no browser, no manual installer, no re-downloading from GitHub. A progress bar tracks the download, and a manual-download fallback is offered if the in-place install ever fails. On Windows and Linux (AppImage) this works fully automatically today.
+- **Background update checks** — On launch, the app quietly checks for a new version (respecting your "skip this version" choice) and surfaces a non-intrusive notification rather than interrupting you.
+
+### Fixed & Improved
+- **Release pipeline now signs every build** — All release artifacts are cryptographically signed (minisign/ed25519) and a signed `latest.json` update manifest is published with each release. This is what enables the in-app updater to verify updates are authentic before installing them. Also fixed several latent bugs in the release workflow's manifest generation: it had been emitting empty signatures, unrecognized platform keys, and incorrect artifact URLs, all of which would have silently broken updates.
+- **AppImage signing after repack** — The Linux AppImage is repacked after the initial build (to bundle the NotebookLM runtime and GStreamer plugins), so the original build-time signature no longer matched the final artifact. The release pipeline now re-signs the exact bytes users download.
+
+### Known Limitations
+- **macOS auto-updates are not yet fully automatic.** Because the macOS build is not signed with an Apple Developer ID or notarized, Gatekeeper will prompt on the *first* install (System Settings → Privacy & Security → "Open Anyway") on macOS Sequoia and later. Existing installs generally update silently, but a fully clean experience on macOS requires Apple Developer ID signing, which is planned. Windows and Linux AppImage updates work seamlessly today. (`.deb`/`.rpm`/Arch packages cannot self-update on any platform — they remain manual downloads.)
+- **Updates re-download the full bundle.** Because the app bundles large native AI libraries (speech models, ONNX Runtime, GGML), each update is a full re-download (hundreds of MB) — there is no delta/patching.
+
 ## [1.52.1] - 2026-06-18
 
 ### Fixed & Improved

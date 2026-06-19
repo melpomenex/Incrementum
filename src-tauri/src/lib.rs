@@ -232,6 +232,12 @@ pub fn run() {
     #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+        // Updater + process (relaunch after install) are desktop-only.
+        // The plugin reads its config from the `plugins.updater` block in
+        // tauri.conf.json. `tauri-plugin-process` provides the relaunch
+        // command invoked from the frontend after a successful update.
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+        builder = builder.plugin(tauri_plugin_process::init());
     }
 
     builder = builder

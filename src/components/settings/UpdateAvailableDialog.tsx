@@ -2,15 +2,21 @@
  * UpdateAvailableDialog — modal shown when a new version is available.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowSquareOut,
   Clock,
   Prohibit,
+  Spinner,
+  Warning,
   X,
 } from "@phosphor-icons/react";
 import { cn } from "../../utils";
-import { setSkippedVersion, type UpdateInfo } from "../../utils/updateChecker";
+import {
+  relaunchApp,
+  setSkippedVersion,
+  type UpdateInfo,
+} from "../../utils/updateChecker";
 
 interface UpdateAvailableDialogProps {
   update: UpdateInfo;
@@ -130,28 +136,72 @@ function inlineMarkdown(text: string): React.ReactNode {
   return parts.length === 0 ? text : parts;
 }
 
+type InstallState =
+  | { phase: "idle" }
+  | { phase: "downloading"; fraction: number }
+  | { phase: "installing" }
+  | { phase: "error"; message: string };
+
 export function UpdateAvailableDialog({
   update,
   onClose,
 }: UpdateAvailableDialogProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
+  const [install, setInstall] = useState<InstallState>({ phase: "idle" });
 
-  // Close on Escape
+  // Close on Escape — disabled while an install is in flight so the user
+  // can't interrupt a half-applied update.
   useEffect(() => {
+    if (install.phase === "downloading" || install.phase === "installing") return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, [onClose, install.phase]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) {
+    if (
+      install.phase !== "downloading" &&
+      install.phase !== "installing" &&
+      e.target === backdropRef.current
+    ) {
       onClose();
     }
   };
 
   const handleUpdateNow = async () => {
+    // Desktop in-place update path.
+    if (update.updater) {
+      try {
+        setInstall({ phase: "downloading", fraction: 0 });
+        await update.updater.downloadAndInstall((fraction) => {
+          setInstall({ phase: "downloading", fraction });
+        });
+        // downloadAndInstall applies the update and exits the running
+        // process; relaunch brings the new version back up.
+        setInstall({ phase: "installing" });
+        await relaunchApp();
+        // If relaunch returns (e.g. it failed silently), fall through so
+        // the user sees the manual-download fallback rather than a hung UI.
+        setInstall({
+          phase: "error",
+          message: "The update was installed, but the app could not relaunch automatically. Please restart it manually.",
+        });
+      } catch (err) {
+        console.error("[UpdateAvailableDialog] in-place update failed:", err);
+        setInstall({
+          phase: "error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "The in-place update failed. You can still download the installer manually.",
+        });
+      }
+      return;
+    }
+
+    // Browser/PWA fallback: open the release page.
     try {
       const { openUrl } = await import("@tauri-apps/plugin-opener");
       await openUrl(update.downloadUrl);
@@ -159,6 +209,17 @@ export function UpdateAvailableDialog({
       window.open(update.downloadUrl, "_blank");
     }
   };
+
+  const handleDownloadManually = async () => {
+    try {
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(update.downloadUrl);
+    } catch {
+      window.open(update.downloadUrl, "_blank");
+    }
+  };
+
+  const isBusy = install.phase === "downloading" || install.phase === "installing";
 
   const handleSkipVersion = () => {
     setSkippedVersion(update.latestVersion);
@@ -212,13 +273,55 @@ export function UpdateAvailableDialog({
           )}
         </div>
 
+        {/* Install progress / error */}
+        {install.phase === "downloading" && (
+          <div className="px-5 py-3 border-t border-border space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Downloading update…</span>
+              <span>{Math.round(install.fraction * 100)}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary transition-[width] duration-200"
+                style={{ width: `${Math.round(install.fraction * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {install.phase === "installing" && (
+          <div className="px-5 py-3 border-t border-border flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner className="w-3.5 h-3.5 animate-spin" />
+            Installing update…
+          </div>
+        )}
+        {install.phase === "error" && (
+          <div className="px-5 py-3 border-t border-border space-y-2">
+            <div className="flex items-start gap-2 text-sm text-destructive">
+              <Warning className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>{install.message}</span>
+            </div>
+            <button
+              onClick={handleDownloadManually}
+              className={cn(
+                "flex items-center gap-1.5 text-sm",
+                "text-primary underline hover:opacity-80 transition-opacity"
+              )}
+            >
+              <ArrowSquareOut className="w-3.5 h-3.5" />
+              Download installer manually
+            </button>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
           <button
             onClick={handleSkipVersion}
+            disabled={isBusy}
             className={cn(
               "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm",
-              "text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              "text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+              isBusy && "opacity-50 cursor-not-allowed hover:bg-transparent"
             )}
           >
             <Prohibit className="w-3.5 h-3.5" />
@@ -226,9 +329,11 @@ export function UpdateAvailableDialog({
           </button>
           <button
             onClick={onClose}
+            disabled={isBusy}
             className={cn(
               "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm",
-              "text-foreground hover:bg-muted transition-colors"
+              "text-foreground hover:bg-muted transition-colors",
+              isBusy && "opacity-50 cursor-not-allowed hover:bg-transparent"
             )}
           >
             <Clock className="w-3.5 h-3.5" />
@@ -236,13 +341,23 @@ export function UpdateAvailableDialog({
           </button>
           <button
             onClick={handleUpdateNow}
+            disabled={isBusy}
             className={cn(
               "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium",
-              "bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              "bg-primary text-primary-foreground hover:opacity-90 transition-opacity",
+              isBusy && "opacity-70 cursor-not-allowed"
             )}
           >
-            <ArrowSquareOut className="w-3.5 h-3.5" />
-            Update Now
+            {isBusy ? (
+              <Spinner className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <ArrowSquareOut className="w-3.5 h-3.5" />
+            )}
+            {install.phase === "downloading"
+              ? "Downloading…"
+              : install.phase === "installing"
+                ? "Installing…"
+                : "Update Now"}
           </button>
         </div>
       </div>
