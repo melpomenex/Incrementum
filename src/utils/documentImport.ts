@@ -214,19 +214,48 @@ export async function importFromUrl(
         content = `Imported from ${url}`;
       }
     } else {
-      // For web pages, fetch via browser fetch with proxy fallback
-      const { html, title: fetchedTitle, fetchMethod: method } = await fetchArticleWithProxy(url);
-      fetchMethod = method;
-      title = fetchedTitle;
-      
-      content = processHtmlContent(html, url, title, preserveImages);
-      
-      // Store the HTML in a virtual file path for browser mode
-      // In Tauri mode, the backend would have stored it
+      // For web pages, fetch content. In Tauri (desktop) mode we MUST go
+      // through the backend's fetch_url_content command — reqwest is not
+      // subject to CORS, whereas a webview `fetch()` on a cross-origin URL
+      // is blocked by CORS and WebKit reports it as a cryptic "Load failed".
+      // The browser fetch + CORS-proxy fallback below is only useful in
+      // actual browser/PWA mode where there is no Rust backend to lean on.
       if (isTauri()) {
+        fetchMethod = 'direct';
         const fetched = await fetchUrlContent(validUrl.toString());
         filePath = fetched.file_path;
+
+        // Read the downloaded HTML back and parse it. readDocumentFile
+        // returns base64-encoded content.
+        let html: string;
+        try {
+          const base64Content = await readDocumentFile(fetched.file_path);
+          html = atob(base64Content);
+        } catch (error) {
+          console.warn('Failed to read fetched HTML content:', error);
+          html = `<html><head><title>${hostname}</title></head><body>
+            <h2>Imported from ${hostname}</h2>
+            <p>Content will be available once you open this document.</p>
+            <p><a href="${url}" target="_blank">View original page →</a></p>
+          </body></html>`;
+        }
+
+        const parser = new DOMParser();
+        const parsed = parser.parseFromString(html, 'text/html');
+        title =
+          parsed.querySelector('title')?.textContent?.trim() ||
+          parsed.querySelector('h1')?.textContent?.trim() ||
+          hostname;
+        content = processHtmlContent(html, url, title, preserveImages);
       } else {
+        // Browser/PWA mode - no Rust backend, so use browser fetch with
+        // CORS-proxy fallback.
+        const { html, title: fetchedTitle, fetchMethod: method } = await fetchArticleWithProxy(url);
+        fetchMethod = method;
+        title = fetchedTitle;
+
+        content = processHtmlContent(html, url, title, preserveImages);
+
         // Browser mode - use a virtual path
         filePath = `browser-fetched://article-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       }
