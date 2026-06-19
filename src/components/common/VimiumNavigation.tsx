@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { t } from "../../lib/i18n";
 
 /**
@@ -1038,15 +1039,16 @@ export function VimiumNavigationProvider({
   return (
     <>
       {children}
-      {mode === NavigationMode.Find && (
+      {mode === NavigationMode.Find && createPortal(
         <VimiumFindBar
           query={findQuery}
           onQueryChange={setFindQuery}
           results={findResults}
           onClose={hideHints}
-        />
+        />,
+        document.body
       )}
-      {mode === NavigationMode.Command && (
+      {mode === NavigationMode.Command && createPortal(
         <VimiumCommandBar
           query={commandQuery}
           onQueryChange={setCommandQuery}
@@ -1069,13 +1071,18 @@ export function VimiumNavigationProvider({
             closeCommandBar();
           }}
           commands={commandList}
-        />
+        />,
+        document.body
       )}
-      {showHelp && <VimiumHelpOverlay onClose={() => setShowHelp(false)} />}
-      {enabled && mode !== NavigationMode.Normal && (
+      {showHelp && createPortal(
+        <VimiumHelpOverlay onClose={() => setShowHelp(false)} />,
+        document.body
+      )}
+      {enabled && mode !== NavigationMode.Normal && createPortal(
         <div className="fixed bottom-4 right-4 z-[999997] bg-background border border-border rounded-md px-3 py-1 text-xs text-muted-foreground shadow">
           Vimium: {mode}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
