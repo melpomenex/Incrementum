@@ -15,7 +15,8 @@ import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, invokeCommand, listen } from "../../lib/tauri";
+import type { StartupNotice } from "../../types";
 import { checkForUpdates } from "../../utils/updateChecker";
 import { PasteExtractDialog } from "../extracts/PasteExtractDialog";
 import { Desktop, ListChecks, SquaresFour } from "@phosphor-icons/react";
@@ -242,6 +243,63 @@ export function MainLayout() {
         });
     }, 30000);
     return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Surface one-shot startup notices from the Rust backend (desktop only).
+  // The reliable path is polling `consume_startup_notice` on boot, because the
+  // webview may not be listening yet when the backend emits its event during
+  // the setup hook. We also listen to the live `database-recovered` event as a
+  // belt-and-suspenders for cases where the notice is generated after boot.
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const showDatabaseRecoveredToast = () => {
+      toast.error(
+        "Database was reset",
+        "Your local database was corrupted and has been reset to a fresh, " +
+          "empty database. The corrupt file was backed up on disk. " +
+          "Restore from a cloud backup if you have one.",
+        {
+          duration: 0, // persistent until dismissed
+          action: {
+            label: "Open Settings",
+            onClick: () => openTabByType("settings"),
+          },
+        }
+      );
+    };
+
+    // 1) Pull any pending notice that was generated before the webview booted.
+    invokeCommand<StartupNotice | null>("consume_startup_notice")
+      .then((notice) => {
+        if (notice === "DatabaseRecoveredAfterQuarantine") {
+          showDatabaseRecoveredToast();
+        }
+      })
+      .catch((err) => {
+        console.warn("[MainLayout] failed to read startup notice:", err);
+      });
+
+    // 2) Also listen for the live event in case recovery happens after boot.
+    let unlisten: (() => void) | null = null;
+    listen("database-recovered", () => {
+      showDatabaseRecoveredToast();
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch((err) => {
+        console.warn("[MainLayout] failed to listen for database-recovered:", err);
+      });
+
+    return () => {
+      try {
+        unlisten?.();
+      } catch {
+        /* ignore */
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -65,6 +65,57 @@ impl AppState {
     }
 }
 
+/// One-shot notices generated during startup that the frontend should surface
+/// to the user exactly once on boot. Stored in managed state so the frontend
+/// can poll them even if it boots after the originating event was emitted.
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+pub enum StartupNotice {
+    /// The on-disk SQLite database was corrupt; it was quarantined and a fresh
+    /// empty database was created. The user has lost local data and may want
+    /// to restore from a cloud backup.
+    DatabaseRecoveredAfterQuarantine,
+}
+
+mod startup_notice {
+    use super::StartupNotice;
+    use std::sync::Mutex;
+    use tauri::{AppHandle, Manager};
+
+    /// Managed state holding an optional pending startup notice.
+    #[derive(Default)]
+    pub struct StartupNoticeState {
+        pending: Mutex<Option<StartupNotice>>,
+    }
+
+    /// Store a startup notice, overwriting any previous one. No-op if the app
+    /// handle has no managed state yet (e.g. very early in setup).
+    pub fn set(app: &AppHandle, notice: StartupNotice) {
+        if let Some(state) = app.try_state::<StartupNoticeState>() {
+            *state.pending.lock().unwrap() = Some(notice);
+        }
+    }
+
+    /// Take and return the pending startup notice, clearing it so it is only
+    /// surfaced once. Returns `None` if there is nothing pending or the state
+    /// has not been registered.
+    pub fn take(app: &AppHandle) -> Option<StartupNotice> {
+        app.try_state::<StartupNoticeState>()?
+            .pending
+            .lock()
+            .ok()
+            .and_then(|mut g| g.take())
+    }
+
+    /// Register the managed state. Call once during setup, before any
+    /// `set`/`take` calls.
+    pub fn register(app: &AppHandle) {
+        // Idempotent: only insert if not already managed.
+        if app.try_state::<StartupNoticeState>().is_none() {
+            app.manage(StartupNoticeState::default());
+        }
+    }
+}
+
 fn startup_log_path(app: &tauri::AppHandle) -> std::path::PathBuf {
     if let Ok(app_dir) = app.path().app_data_dir() {
         app_dir.join("logs").join("startup.log")
@@ -103,6 +154,15 @@ fn install_panic_hook(app: tauri::AppHandle) {
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+/// Consume and return any pending one-shot startup notice (e.g. "your database
+/// was reset due to corruption"). Returns `null` when nothing is pending. The
+/// frontend should call this once on boot; the notice is cleared on read so it
+/// is only surfaced a single time.
+#[tauri::command]
+fn consume_startup_notice(app_handle: tauri::AppHandle) -> Option<StartupNotice> {
+    startup_notice::take(&app_handle)
 }
 
 #[cfg(target_os = "macos")]
@@ -347,6 +407,10 @@ pub fn run() {
             install_panic_hook(app_handle.clone());
             log_startup(&app_handle, "startup: begin");
 
+            // Register managed state for one-shot startup notices before any
+            // code that might set one (e.g. database recovery) runs.
+            startup_notice::register(&app_handle);
+
             // Register global keyboard shortcuts to prevent webview engines
             // (webkit2gtk on Linux, WebView2 on Windows, WKWebView on macOS)
             // from intercepting Ctrl/Cmd+key combos before JavaScript.
@@ -450,9 +514,28 @@ pub fn run() {
 
                 let db_path = app_dir.join("incrementum.db");
 
-                let db = Database::new(db_path)
+                let (db, db_outcome) = Database::open_or_recover(db_path)
                     .await
                     .context("Failed to initialize database")?;
+
+                if matches!(db_outcome, database::connection::OpenOutcome::RecoveredAfterQuarantine) {
+                    // The on-disk database was corrupt and got quarantined aside;
+                    // a fresh empty database now lives at db_path. Tell the
+                    // frontend so it can surface a "your database was reset —
+                    // restore from a backup?" notice. The webview may not be
+                    // listening yet, so also stash a pending notice the frontend
+                    // can poll on boot (see `consume_startup_notice`).
+                    log_startup(&app_handle, "startup: database was CORRUPT — quarantined and recreated");
+                    tracing::error!(
+                        "Startup database failed integrity check; quarantined the \
+                         corrupt file and created a fresh database. Local data was reset."
+                    );
+                    startup_notice::set(
+                        &app_handle,
+                        StartupNotice::DatabaseRecoveredAfterQuarantine,
+                    );
+                    let _ = app_handle.emit("database-recovered", ());
+                }
 
                 log_startup(&app_handle, "startup: database initialized");
 
@@ -611,6 +694,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            consume_startup_notice,
             apply_theme_vibrancy,
             commands::get_documents,
             commands::get_document,
