@@ -15,6 +15,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import ePub from 'epubjs';
 import { createEmptyCard, fsrs, Rating, State, type Card, type Grade } from 'ts-fsrs';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useLLMProvidersStore } from '../stores/llmProvidersStore';
 import { resolveFsrsParamsForScope } from '../utils/fsrsScope';
 import { getDefaultFsrsParameters, normalizeFsrsParameters } from '../utils/fsrsParameters';
 import { parseSm18State, sm18Review, ratingToSm18Grade } from './sm18';
@@ -609,7 +610,15 @@ const commandHandlers: Record<string, CommandHandler> = {
         let docs = await db.getDocuments();
         const collectionId = args?.collectionId as string | null | undefined;
         if (collectionId) {
-            docs = docs.filter((doc) => (doc as any).collection_id === collectionId);
+            // Collections aren't modeled in the browser backend, so documents are
+            // created without a collection_id. Treat such documents as members of
+            // the default collection so they still appear in the list (and in the
+            // Flashcard Studio document picker). Documents with an explicit
+            // collection_id must match exactly.
+            docs = docs.filter((doc) => {
+                const docCollectionId = (doc as any).collection_id;
+                return !docCollectionId || docCollectionId === collectionId;
+            });
         }
         return toCamelCase(docs);
     },
@@ -3470,7 +3479,284 @@ const commandHandlers: Record<string, CommandHandler> = {
         // Fallback: return empty array — PWA mode uses local feed data
         return [];
     },
+
+    // Image registry commands (browser-backed via IndexedDB)
+    ingest_image_asset: async (args) => {
+        const base64Data = args.base64Data as string;
+        const mimeType = (args.mimeType as string | undefined) || 'application/octet-stream';
+        const fileName = args.fileName as string | undefined;
+
+        if (!base64Data) throw new Error('ingest_image_asset: base64Data is required');
+
+        // Compute sha256 of the raw image bytes for deduplication.
+        const sha256 = await sha256Base64(base64Data);
+
+        const existing = await db.findImageAssetBySha256(sha256);
+        if (existing) {
+            return toCamelCase({
+                ...existing,
+                dataUrl: `data:${existing.mime_type};base64,${existing.base64_data}`,
+            });
+        }
+
+        // Decode to measure byte size and (optionally) dimensions.
+        const byteSize = estimateBase64ByteSize(base64Data);
+        const dimensions = await readImageDimensions(base64Data, mimeType).catch(() => null);
+
+        const asset = await db.createImageAsset({
+            mime_type: mimeType,
+            file_name: fileName,
+            byte_size: byteSize,
+            sha256,
+            width: dimensions?.width,
+            height: dimensions?.height,
+            base64_data: base64Data,
+        });
+
+        return toCamelCase({
+            ...asset,
+            dataUrl: `data:${asset.mime_type};base64,${asset.base64_data}`,
+        });
+    },
+
+    list_image_assets: async () => {
+        const assets = await db.listImageAssets();
+        return assets.map((asset) => toCamelCase({
+            ...asset,
+            dataUrl: `data:${asset.mime_type};base64,${asset.base64_data}`,
+        }));
+    },
+
+    get_image_asset: async (args) => {
+        const assetId = args.assetId as string;
+        if (!assetId) return null;
+        const asset = await db.getImageAsset(assetId);
+        if (!asset) return null;
+        return toCamelCase({
+            ...asset,
+            dataUrl: `data:${asset.mime_type};base64,${asset.base64_data}`,
+        });
+    },
+
+    delete_image_asset: async (args) => {
+        const assetId = args.assetId as string;
+        if (!assetId) return { deleted: false, reason: 'assetId is required' };
+        const existing = await db.getImageAsset(assetId);
+        if (!existing) return { deleted: false, reason: 'not found' };
+        await db.deleteImageAsset(assetId);
+        return { deleted: true };
+    },
+
+    // Generate flashcards from an extract by reusing the chat-with-context
+    // path. The desktop variant uses a naive Rust heuristic; the browser path
+    // instead drives the configured LLM (which already powers the chat flow)
+    // and persists the resulting cards.
+    generate_learning_items_from_extract: async (args) => {
+        const extractId = args.extractId as string;
+        if (!extractId) throw new Error('generate_learning_items_from_extract: extractId is required');
+
+        const extract = await db.getExtract(extractId);
+        if (!extract) throw new Error(`Extract ${extractId} not found`);
+
+        const provider = resolveActiveLlmProvider();
+        if (!provider) {
+            throw new Error('No LLM provider configured. Add one in Settings to generate flashcards from extracts.');
+        }
+
+        const systemPrompt = `You are an expert flashcard creation assistant specialized in spaced repetition.
+Generate flashcards from the provided extract. Return ONLY a JSON code block with this schema:
+
+\`\`\`json
+{
+  "cards": [
+    { "type": "qa", "question": "...", "answer": "..." },
+    { "type": "cloze", "text": "The {{c1::term}} is important." }
+  ]
+}
+\`\`\`
+
+Rules:
+- Keep cards atomic: one fact per card.
+- Create 3-7 cards unless the extract is short.
+- For cloze deletions, ensure surrounding context makes the answer inferable.
+- Return ONLY the JSON code block.`;
+
+        const userPrompt = `Create flashcards from this extract:\n\n${extract.content}`;
+
+        const response = await commandHandlers.llm_chat_with_context({
+            provider: provider.provider,
+            model: provider.model,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ],
+            context: {
+                type: 'general',
+                content: extract.content,
+            },
+            apiKey: provider.apiKey,
+            baseUrl: provider.baseUrl?.trim() || undefined,
+        }) as { content: string };
+
+        const cards = parseExtractCards(response.content);
+        if (cards.length === 0) {
+            return [];
+        }
+
+        const created: unknown[] = [];
+        for (const card of cards) {
+            const item = await db.createLearningItem({
+                extract_id: extractId,
+                document_id: extract.document_id,
+                item_type: card.type === 'cloze' ? 'Cloze' : 'Qa',
+                question: card.question,
+                answer: card.answer,
+                cloze_text: card.clozeText,
+                tags: ['extract-generated'],
+            });
+            created.push(item);
+        }
+        return toCamelCase(created);
+    },
 };
+
+/**
+ * Compute the sha256 hex digest of a base64-encoded payload.
+ * Mirrors the technique used elsewhere in this file for hashing.
+ */
+async function sha256Base64(base64Data: string): Promise<string> {
+    const binary = atob(base64Data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function estimateBase64ByteSize(base64Data: string): number {
+    const padding = base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0;
+    return Math.floor((base64Data.length * 3) / 4) - padding;
+}
+
+async function readImageDimensions(
+    base64Data: string,
+    mimeType: string
+): Promise<{ width: number; height: number } | null> {
+    if (typeof Image === 'undefined') return null;
+    return new Promise((resolve) => {
+        let settled = false;
+        // Guard against environments (e.g. jsdom) that never fire onload/onerror.
+        const timer = setTimeout(() => {
+            if (!settled) {
+                settled = true;
+                resolve(null);
+            }
+        }, 2000);
+        const img = new Image();
+        img.onload = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        };
+        img.onerror = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(null);
+        };
+        img.src = `data:${mimeType};base64,${base64Data}`;
+    });
+}
+
+/**
+ * Resolve the best available LLM provider for background generation.
+ * Prefers the highest-priority enabled provider; falls back to any enabled one.
+ */
+function resolveActiveLlmProvider() {
+    const state = useLLMProvidersStore.getState();
+    const enabled = state.providers.filter((p) => p.enabled && p.apiKey);
+    if (enabled.length === 0) return null;
+    return enabled[0];
+}
+
+/**
+ * Parse a JSON code block of flashcards emitted by the LLM into a flat list.
+ * Self-contained so this command doesn't depend on the Studio's parser.
+ */
+function parseExtractCards(content: string): Array<{
+    type: 'qa' | 'cloze';
+    question?: string;
+    answer?: string;
+    clozeText?: string;
+}> {
+    const out: Array<{
+        type: 'qa' | 'cloze';
+        question?: string;
+        answer?: string;
+        clozeText?: string;
+    }> = [];
+
+    // Prefer an explicit ```json fenced block, then a bare JSON object.
+    const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = (fenceMatch?.[1] ?? extractFirstJsonObject(content) ?? '').trim();
+    if (!candidate) return out;
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(candidate);
+    } catch {
+        return out;
+    }
+
+    const list = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as { cards?: unknown[] })?.cards)
+            ? (parsed as { cards: unknown[] }).cards
+            : [];
+    if (!Array.isArray(list)) return out;
+
+    for (const entry of list) {
+        const e = entry as {
+            type?: string;
+            question?: string;
+            answer?: string;
+            text?: string;
+        };
+        const type = (e.type || '').toLowerCase();
+        if (type === 'cloze') {
+            const text = typeof e.text === 'string' ? e.text.trim() : '';
+            if (text) out.push({ type: 'cloze', clozeText: text });
+        } else {
+            const question = typeof e.question === 'string' ? e.question.trim() : '';
+            const answer = typeof e.answer === 'string' ? e.answer.trim() : '';
+            if (question && answer) out.push({ type: 'qa', question, answer });
+        }
+    }
+    return out;
+}
+
+function extractFirstJsonObject(text: string): string | null {
+    const start = text.indexOf('{');
+    if (start < 0) return null;
+    let depth = 0;
+    let inString = false;
+    let escaping = false;
+    for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (escaping) { escaping = false; continue; }
+        if (ch === '\\') { if (inString) escaping = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+            depth--;
+            if (depth === 0) return text.slice(start, i + 1);
+        }
+    }
+    return null;
+}
 
 /**
  * Helper function to parse and return feed

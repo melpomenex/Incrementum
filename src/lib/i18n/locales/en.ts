@@ -2004,6 +2004,8 @@ export const en: Dict = {
   "flashcardStudio.extractGenerateCards": "Generate cards",
   "flashcardStudio.extractCreateCard": "Create card",
   "flashcardStudio.extractGenerationFailed": "Failed to generate cards",
+  "flashcardStudio.transcriptUnavailable": "Transcript not available",
+  "flashcardStudio.transcriptUnavailableDesc": "Media transcripts aren't available in the web app. Open this document in the desktop app, or paste the transcript manually.",
   "flashcardStudio.expandEditor": "Expand editor",
   "flashcardStudio.editCardTitle": "Edit Card",
   "flashcardStudio.editCardHint": "Edit your card in full screen. Changes are saved when you click Save.",

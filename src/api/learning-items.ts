@@ -1,4 +1,4 @@
-import { invokeCommand, isTauri } from "../lib/tauri";
+import { invokeCommand } from "../lib/tauri";
 import type { LearningItemInteractionMetadata } from "../types/learningItemInteractions";
 
 export interface LearningItem {
@@ -121,11 +121,14 @@ export async function checkSemanticDuplicateCandidates(
 }
 
 /**
- * Generate learning items from an extract
- * This automatically creates cloze deletions and Q&A pairs from the extract content
+ * Generate learning items from an extract.
+ *
+ * Desktop: the Rust backend creates cards with a heuristic generator.
+ * Browser/PWA: the browser-backend handler drives the configured LLM (the same
+ * chat path the Studio uses) to create and persist the cards. Both paths
+ * return the already-saved items.
  */
 export async function generateLearningItemsFromExtract(extractId: string): Promise<LearningItem[]> {
-  if (!isTauri()) return Promise.reject(new Error("This feature requires the desktop app"));
   return await invokeCommand<LearningItem[]>("generate_learning_items_from_extract", {
     extractId,
   });

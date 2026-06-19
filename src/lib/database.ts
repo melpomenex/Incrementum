@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { PdfSelectionContext } from '../types/selection';
 
 // Database version - increment when schema changes
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const DB_NAME = 'incrementum';
 
 // Store names
@@ -17,6 +17,7 @@ const STORES = {
     learningItems: 'learning_items',
     files: 'files',
     syncState: 'sync_state',
+    imageAssets: 'image_assets',
 } as const;
 
 // Avoid storing extremely large document content in IndexedDB values.
@@ -96,6 +97,12 @@ export async function openDatabase(): Promise<IDBDatabase> {
             // Sync state store
             if (!database.objectStoreNames.contains(STORES.syncState)) {
                 database.createObjectStore(STORES.syncState, { keyPath: 'key' });
+            }
+
+            // Image assets store (for image-occlusion flashcards)
+            if (!database.objectStoreNames.contains(STORES.imageAssets)) {
+                const imageStore = database.createObjectStore(STORES.imageAssets, { keyPath: 'id' });
+                imageStore.createIndex('by_sha256', 'sha256', { unique: false });
             }
         };
     });
@@ -794,6 +801,91 @@ export async function bulkPutLearningItems(items: LearningItem[]): Promise<void>
         const store = tx.objectStore(STORES.learningItems);
         for (const item of items) {
             store.put(item);
+        }
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    });
+}
+
+export interface ImageAsset {
+    id: string;
+    mime_type: string;
+    file_name?: string;
+    byte_size: number;
+    sha256: string;
+    width?: number;
+    height?: number;
+    created_at: string;
+    /** base64 payload (no data: prefix) */
+    base64_data: string;
+    reference_count?: number;
+    is_referenced?: boolean;
+    sync_version?: number;
+}
+
+/**
+ * Create an image asset record. The caller is responsible for computing the
+ * sha256 and deduplication — use findImageAssetBySha256 first.
+ */
+export async function createImageAsset(asset: Partial<ImageAsset>): Promise<ImageAsset> {
+    const now = new Date().toISOString();
+    const record: ImageAsset = {
+        id: asset.id || uuidv4(),
+        mime_type: asset.mime_type || 'application/octet-stream',
+        file_name: asset.file_name,
+        byte_size: asset.byte_size ?? 0,
+        sha256: asset.sha256 || '',
+        width: asset.width,
+        height: asset.height,
+        created_at: asset.created_at || now,
+        base64_data: asset.base64_data || '',
+        reference_count: asset.reference_count ?? 0,
+        is_referenced: asset.is_referenced ?? false,
+        sync_version: 0,
+    };
+    return put(STORES.imageAssets, record);
+}
+
+export async function getImageAsset(id: string): Promise<ImageAsset | null> {
+    return getById<ImageAsset>(STORES.imageAssets, id);
+}
+
+export async function findImageAssetBySha256(sha256: string): Promise<ImageAsset | null> {
+    const matches = await getByIndex<ImageAsset>(STORES.imageAssets, 'by_sha256', sha256);
+    return matches[0] ?? null;
+}
+
+export async function listImageAssets(): Promise<ImageAsset[]> {
+    const assets = await getAll<ImageAsset>(STORES.imageAssets);
+    return assets.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+}
+
+export async function updateImageAsset(id: string, updates: Partial<ImageAsset>): Promise<ImageAsset> {
+    const existing = await getImageAsset(id);
+    if (!existing) throw new Error(`Image asset ${id} not found`);
+    const updated: ImageAsset = { ...existing, ...updates, id };
+    return put(STORES.imageAssets, updated);
+}
+
+export async function deleteImageAsset(id: string): Promise<void> {
+    return deleteById(STORES.imageAssets, id);
+}
+
+export async function getChangedImageAssets(sinceSyncVersion: number): Promise<ImageAsset[]> {
+    const all = await getAll<ImageAsset>(STORES.imageAssets);
+    return all.filter((asset) => (asset.sync_version || 0) > sinceSyncVersion);
+}
+
+export async function bulkPutImageAssets(assets: ImageAsset[]): Promise<void> {
+    return withRetry((database) => {
+        const tx = database.transaction(STORES.imageAssets, 'readwrite');
+        const store = tx.objectStore(STORES.imageAssets);
+        for (const asset of assets) {
+            store.put(asset);
         }
         return new Promise((resolve, reject) => {
             tx.oncomplete = () => resolve();

@@ -87,6 +87,7 @@ import { renderMarkdown } from "../../utils/markdown";
 import { useDocumentStore, useLLMProvidersStore, useSettingsStore, useStudyDeckStore } from "../../stores";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
+import { isTauri } from "../../lib/tauri";
 import { cn } from "../../utils";
 import { buildChapterQAContext, getChapterTitles } from "../../utils/chapterUtils";
 import type { ImageOcclusionRegion, MultipleChoiceOption } from "../../types/learningItemInteractions";
@@ -2778,6 +2779,9 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const aiControls = useSettingsStore((state) => state.settings.ai.aiControls);
   const preferredProviderType = useSettingsStore((state) => state.settings.ai.provider);
   const notebookLmEnabled = useSettingsStore((state) => state.settings.features.notebooklmEnabled);
+  // NotebookLM requires the desktop backend (Google auth/cookie capture lives in
+  // Rust). Hide it in the browser/PWA rather than letting it silently no-op.
+  const notebookLmAvailable = notebookLmEnabled && isTauri();
 
   // State
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
@@ -2824,13 +2828,13 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       setSelectedProviderId(preferred?.id ?? enabledProviders[0].id);
       return;
     }
-    if (notebookLmEnabled) {
+    if (notebookLmAvailable) {
       setSelectedProviderId(NOTEBOOKLM_PROVIDER_ID);
     }
-  }, [isOpen, enabledProviders, selectedProviderId, preferredProviderType, notebookLmEnabled]);
+  }, [isOpen, enabledProviders, selectedProviderId, preferredProviderType, notebookLmAvailable]);
 
   useEffect(() => {
-    if (!isOpen || !notebookLmEnabled) return;
+    if (!isOpen || !notebookLmAvailable) return;
     const loadNotebookState = async () => {
       setIsNotebookLoading(true);
       try {
@@ -2847,13 +2851,13 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       }
     };
     void loadNotebookState();
-  }, [isOpen, notebookLmEnabled]);
+  }, [isOpen, notebookLmAvailable]);
 
   useEffect(() => {
-    if (!notebookLmEnabled && selectedProviderId === NOTEBOOKLM_PROVIDER_ID) {
+    if (!notebookLmAvailable && selectedProviderId === NOTEBOOKLM_PROVIDER_ID) {
       setSelectedProviderId(enabledProviders[0]?.id ?? null);
     }
-  }, [notebookLmEnabled, selectedProviderId, enabledProviders]);
+  }, [notebookLmAvailable, selectedProviderId, enabledProviders]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -3065,9 +3069,23 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
     const resolveMediaTranscript = async () => {
       try {
         if (selectedDocument.fileType === "video" || selectedDocument.fileType === "audio") {
-          const transcript = await getVideoTranscript(selectedDocument.id);
-          if (!cancelled) {
-            setResolvedDocumentContent(transcript?.transcript?.trim() || undefined);
+          // getVideoTranscript reaches a separate HTTP API (VITE_API_URL) that
+          // usually isn't running in the browser/PWA. Surface a clear message
+          // instead of silently leaving the user with no context.
+          try {
+            const transcript = await getVideoTranscript(selectedDocument.id);
+            if (!cancelled) {
+              setResolvedDocumentContent(transcript?.transcript?.trim() || undefined);
+            }
+          } catch (transcriptError) {
+            console.warn("Failed to resolve video/audio transcript", transcriptError);
+            if (!cancelled) {
+              setResolvedDocumentContent(undefined);
+              toast.info(
+                t("flashcardStudio.transcriptUnavailable"),
+                t("flashcardStudio.transcriptUnavailableDesc")
+              );
+            }
           }
           return;
         }
@@ -4002,7 +4020,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                 className="bg-transparent text-xs text-foreground outline-none min-w-[120px]"
               >
                 {enabledProviders.length === 0 && <option value="">{t("flashcardStudio.noProvider")}</option>}
-                {notebookLmEnabled && <option value={NOTEBOOKLM_PROVIDER_ID}>NotebookLM</option>}
+                {notebookLmAvailable && <option value={NOTEBOOKLM_PROVIDER_ID}>NotebookLM</option>}
                 {enabledProviders.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
