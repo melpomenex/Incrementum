@@ -471,7 +471,25 @@ jobs:
           # Copy built artifacts for the PKGBUILD to install
           cp src-tauri/target/release/incrementum-tauri arch-pkg/incrementum-tauri
           cp src-tauri/icons/128x128.png arch-pkg/128x128.png
-          cp src-tauri/incrementum.desktop arch-pkg/incrementum.desktop 2>/dev/null || true
+
+          # Generate the XDG desktop entry inline. It is not tracked in the
+          # repo (Tauri generates it during bundling, but this job uses
+          # --no-bundle), so create it here from the app metadata. The previous
+          # `cp src-tauri/incrementum.desktop ... || true` silently no-op'd
+          # because that file never existed, causing makepkg to fail later at
+          # the source=() validation with "incrementum.desktop was not found".
+          # printf avoids heredoc-indentation pitfalls under the YAML block scalar.
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Type=Application' \
+            'Name=Incrementum' \
+            'Comment=Spaced repetition and incremental reading for effective learning' \
+            'Exec=incrementum %U' \
+            'Icon=incrementum' \
+            'Terminal=false' \
+            'Categories=Education;' \
+            'StartupWMClass=Incrementum' \
+            > arch-pkg/incrementum.desktop
 
           # Create PKGBUILD — binary is already built with embedded frontend assets
           cat > arch-pkg/PKGBUILD << EOF
@@ -491,7 +509,7 @@ jobs:
           package() {
             install -Dm755 "\$srcdir/incrementum-tauri" "\$pkgdir/usr/bin/incrementum"
             install -Dm644 "\$srcdir/128x128.png" "\$pkgdir/usr/share/icons/hicolor/128x128/apps/incrementum.png"
-            install -Dm644 "\$srcdir/incrementum.desktop" "\$pkgdir/usr/share/applications/incrementum.desktop" 2>/dev/null || true
+            install -Dm644 "\$srcdir/incrementum.desktop" "\$pkgdir/usr/share/applications/incrementum.desktop"
           }
           EOF
 

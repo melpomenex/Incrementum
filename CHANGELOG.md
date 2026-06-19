@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.53.1] - 2026-06-19
+
+### Fixed & Improved
+- **NotebookLM "CLI Not Found" caused by a stale managed runtime** — The app maintains a private Python venv for the NotebookLM integration, and would prefer it over a system-installed `notebooklm` CLI. The existence check only verified that the venv's `python3` and the `notebooklm` package directory were present — so a venv whose `python3` symlink pointed at a since-removed or incompatible system Python (e.g. an old CommandLineTools python3.9 after an upgrade) passed the check but threw `ImportError` on every invocation, shadowing a perfectly working system install and surfacing to the user as "CLI Not Found". The resolver now actually runs `<python> -c "import notebooklm.notebooklm_cli"` (5s timeout) before trusting the managed runtime; on failure it logs a warning and falls through to the system CLI instead of reporting the integration as missing. This also unblocks the release pipeline's update-manifest generation, which had been gated behind a now-passing build.
+- **Arch Linux (pacman) release build was always failing** — The packaging step tried to copy a `src-tauri/incrementum.desktop` file that was never tracked in the repository, and the failure was hidden by a `|| true`. This caused `makepkg` to fail at the `source=()` validation ("incrementum.desktop was not found"), which in turn failed the release-readiness gate and **silently skipped generation of the update manifest (`latest.json`)** — meaning no platform could auto-update, since the updater had no manifest to consult. The XDG desktop entry is now generated inline from the app metadata (it was never meant to be a committed file; Tauri generates it during normal bundling, but the Arch job builds with `--no-bundle`), and the silent `|| true` that masked the original failure has been removed so packaging problems surface immediately.
+
 ## [1.53.0] - 2026-06-19
 
 ### Added
