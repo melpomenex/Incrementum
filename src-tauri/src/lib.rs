@@ -17,6 +17,7 @@ mod study_json_import;
 mod kindle_clippings;
 mod supermemo_import;
 mod youtube;
+mod twitter;
 mod sync;
 mod integrations;
 mod ocr;
@@ -705,6 +706,7 @@ pub fn run() {
             commands::update_document_priority,
             commands::update_document_progress,
             commands::delete_document,
+            commands::bulk_delete_documents,
             commands::dismiss_document,
             commands::collections::get_collections,
             commands::collections::create_collection,
@@ -843,6 +845,8 @@ pub fn run() {
             youtube::get_youtube_playlist_info,
             youtube::extract_youtube_video_id,
             youtube::import_youtube_video,
+            twitter::import_twitter_video,
+            twitter::get_twitter_video_info,
             youtube::get_youtube_chapters,
             commands::import_video_file,
             commands::get_video_storage_path,

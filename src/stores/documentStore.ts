@@ -47,6 +47,7 @@ interface DocumentState {
   deleteDocument: (id: string) => Promise<void>;
   deleteDocumentOptimistic: (id: string) => Promise<{ success: boolean; error?: Error; rollback?: () => void }>;
   rollbackDocumentDeletion: (id: string, document: Document) => void;
+  bulkDelete: (ids: string[]) => Promise<{ succeeded: string[]; failed: string[]; errors: string[] }>;
   importFromFile: (filePath: string) => Promise<Document>;
   importFromFiles: (filePaths: string[]) => Promise<Document[]>;
   importFromUrl: (url: string) => Promise<Document>;
@@ -204,6 +205,28 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         return newPending;
       })(),
     }));
+  },
+
+  /**
+   * Bulk delete multiple documents in a single batched call.
+   * Removes all successfully-deleted ids from state and clears
+   * currentDocument if it was among them. Failed ids are retained so
+   * the UI can surface them. Returns the backend's result summary.
+   */
+  bulkDelete: async (ids) => {
+    if (ids.length === 0) {
+      return { succeeded: [], failed: [], errors: [] };
+    }
+    const result = await documentsApi.bulkDeleteDocuments(ids);
+    const removed = new Set(result.succeeded);
+    set((state) => ({
+      documents: state.documents.filter((doc) => !removed.has(doc.id)),
+      currentDocument:
+        state.currentDocument && removed.has(state.currentDocument.id)
+          ? null
+          : state.currentDocument,
+    }));
+    return result;
   },
 
   /**

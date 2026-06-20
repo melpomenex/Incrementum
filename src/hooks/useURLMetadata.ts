@@ -16,7 +16,8 @@ import {
   type Feed,
 } from "../api/rss";
 import { useDocumentStore } from "../stores/documentStore";
-import { importYouTubeVideo } from "../api/documents";
+import { importYouTubeVideo, importTwitterVideo, fetchTwitterVideoInfo, type TwitterVideoInfo } from "../api/documents";
+import { enqueueVideoTranscription } from "../lib/videoTranscriptionQueue";
 import type { Document } from "../types/document";
 
 /**
@@ -48,6 +49,26 @@ export function checkForDuplicate(
       // Check if any YouTube document has this video ID in its filePath
       const existing = documents.find(
         (doc) => doc.fileType === "youtube" && doc.filePath.includes(videoId)
+      );
+      if (existing) {
+        return {
+          isDuplicate: true,
+          existingItem: {
+            id: existing.id,
+            title: existing.title,
+            type: "document",
+          },
+        };
+      }
+    }
+  } else if (urlType === URLType.Twitter) {
+    // Twitter videos are stored as downloaded MP4s whose filename ends with
+    // `{tweet_id}.mp4`. Dedupe by tweet id across video documents.
+    const statusIdMatch = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/);
+    if (statusIdMatch) {
+      const statusId = statusIdMatch[1];
+      const existing = documents.find(
+        (doc) => doc.fileType === "video" && doc.filePath.endsWith(`${statusId}.mp4`)
       );
       if (existing) {
         return {
@@ -103,7 +124,7 @@ export function checkForDuplicate(
  * Metadata fetch state
  */
 export interface MetadataFetchState {
-  data: YouTubeVideo | Feed | WebPageMetadata | null;
+  data: YouTubeVideo | Feed | WebPageMetadata | TwitterVideoInfo | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -163,7 +184,7 @@ export function useURLMetadata(
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      let data: YouTubeVideo | Feed | WebPageMetadata | null = null;
+      let data: YouTubeVideo | Feed | WebPageMetadata | TwitterVideoInfo | null = null;
 
         switch (urlType) {
         case URLType.YouTube: {
@@ -176,6 +197,14 @@ export function useURLMetadata(
               throw new Error("Failed to fetch video metadata");
             }
           }
+          break;
+        }
+
+        case URLType.Twitter: {
+          if (!isTauri()) {
+            throw new Error("Twitter video import requires the desktop app");
+          }
+          data = await fetchTwitterVideoInfo(url);
           break;
         }
 
@@ -282,6 +311,22 @@ export function useURLImport() {
         case URLType.YouTube: {
           result = await importYouTubeVideo(url, options.collectionId);
           await useDocumentStore.getState().loadDocuments();
+          break;
+        }
+
+        case URLType.Twitter: {
+          const doc = await importTwitterVideo(url, options.collectionId);
+          await useDocumentStore.getState().loadDocuments();
+          // Auto-queue transcription (local Whisper or Groq per user settings)
+          // so the transcript + chat-with-video are ready automatically.
+          if (doc.filePath) {
+            enqueueVideoTranscription({
+              documentId: doc.id,
+              filePath: doc.filePath,
+              documentTitle: doc.title,
+            });
+          }
+          result = doc;
           break;
         }
 

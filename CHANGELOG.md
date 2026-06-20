@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.54.0] - 2026-06-20
+
+### Added
+- **Import videos from X / Twitter links** — Paste an `x.com` or `twitter.com` post URL and the app fetches the tweet's media (using X's own API, no external tools), downloads the best-quality MP4, and creates a video document you can watch, transcribe, and chat with just like any other video. Reach it from the command palette ("Import X / Twitter Video") or by pasting a tweet link directly. Once imported, the video is auto-transcribed with your configured engine (local Whisper, Groq, or Parakeet/SenseVoice) so you can chat with the transcript right away.
+
+### Fixed & Improved
+- **Video transcription failed for Parakeet / SenseVoice models** — Selecting a Parakeet or SenseVoice transcription model (the NVIDIA/sherpa-onnx family) and then transcribing any video — a local import or the new Twitter import — failed with `whisper_init_from_file_with_params_no_state ... invalid model data (bad magic)`. The video transcription path was handing the ONNX model to whisper.cpp instead of routing it through the sherpa-onnx sidecar like the audiobook, podcast, and auto-queue paths already did. Video transcription now uses the same model-family dispatch, so Parakeet and SenseVoice work for videos too.
+- **Faster bulk document deletion** — Deleting many selected documents at once now runs as a single batched backend call instead of one delete per document, and reports partial failures (some deleted, some not) rather than failing the whole batch silently. The browser/web mode is supported as well.
+- **Podcast transcription in the audiobook player** — Podcasts opened in the audiobook viewer can now be transcribed in place (they previously used a separate pipeline that the player couldn't trigger), so the transcript-following and chat-with-transcript flows work for podcast episodes too.
+
 ## [1.53.1] - 2026-06-19
 
 ### Fixed & Improved

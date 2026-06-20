@@ -28,6 +28,7 @@ import {
   SquaresFour,
   Sun,
   TextT,
+  XLogo,
   YoutubeLogo,
 } from "@phosphor-icons/react";
 import type { Document, Extract } from "../../types/document";
@@ -664,6 +665,21 @@ export function CommandCenter() {
         keywords: ["clipboard", "paste", "save", "new", "extract", "import"],
         shortcut: undefined,
       },
+      // Import Twitter / X video command (Tauri-only — download needs the Rust backend)
+      ...(isWeb ? [] : [{
+        id: "import-twitter-video",
+        label: t("commandPalette.importTwitterVideo"),
+        description: "Download a video from an x.com or twitter.com link",
+        icon: <XLogo className="w-4 h-4" />,
+        category: CommandCategory.Documents,
+        action: () => {
+          const ui = useUIStore.getState();
+          ui.setCommandPaletteOpen(false);
+          ui.setTwitterImportDialogOpen(true);
+        },
+        keywords: ["twitter", "x.com", "tweet", "video", "import", "download"],
+        shortcut: undefined,
+      } as Command]),
       ...navigationCommands,
       ...themeCommands,
       ...themeSwitchCommands,

@@ -59,7 +59,7 @@ import { startTranscription, saveTranscript, enqueueAutoTranscription } from "..
 import { convertFileSrc, isTauri, listen } from "../../lib/tauri";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto, updateDocumentContent, getDocument } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
-import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath } from "../../api/podcast";
+import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath, getPodcastTranscript, transcribePodcastEpisode } from "../../api/podcast";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -221,6 +221,12 @@ export function AudiobookViewer({
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStatus, setDownloadStatus] = useState<string>("");
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // Podcast transcript state (podcasts are stored separately from document/audiobook transcripts)
+  const isPodcast = !!episodeId;
+  const [podcastTranscriptText, setPodcastTranscriptText] = useState<string | null>(null);
+  const [podcastTranscriptSegments, setPodcastTranscriptSegments] = useState<Array<{ start: number; end: number; text: string }>>([]);
+  const [podcastTranscriptionProgress, setPodcastTranscriptionProgress] = useState<{ status: string; progress: number } | null>(null);
 
   const shouldPlayAfterDownloadRef = useRef(false);
   const pendingAutoplayAfterDownloadRef = useRef(false);
@@ -1373,6 +1379,25 @@ export function AudiobookViewer({
   };
   
   const handleTranscribe = async () => {
+    // Podcasts use their own transcription pipeline (keyed by episodeId), and
+    // the audio is fetched by the backend — so document.filePath is often empty.
+    if (isPodcast) {
+      if (!episodeId) return;
+      const allSettings = useSettingsStore.getState().settings;
+      const audioSettings = allSettings.audioTranscription;
+      const modelId = audioSettings.preferredModelId || "distil-small.en";
+      const language = audioSettings.language || "en";
+      const autoSegment = allSettings.documents.autoProcessOnImport;
+      try {
+        setPodcastTranscriptionProgress({ status: "starting", progress: 0 });
+        await transcribePodcastEpisode(episodeId, modelId, language, autoSegment);
+      } catch (err) {
+        setPodcastTranscriptionProgress(null);
+        showError("Transcription Failed", String(err));
+      }
+      return;
+    }
+
     if (!document.filePath) {
       showError("Transcription Error", "No file path available for this document");
       return;
@@ -1449,7 +1474,9 @@ export function AudiobookViewer({
     }
   };
 
-  const isCurrentTranscribing = activeJob?.bookId === document.id;
+  const isCurrentTranscribing = isPodcast
+    ? !!podcastTranscriptionProgress
+    : activeJob?.bookId === document.id;
 
   // Text selection for extracts
   const handleTextSelection = () => {
@@ -1468,8 +1495,92 @@ export function AudiobookViewer({
   // Current chapter
   const currentChapter = getCurrentChapter();
 
+  // Podcast transcripts are stored as a single text blob; split into
+  // sentence-based segments so they render like audiobook segments. Podcast
+  // segment start/end come back in milliseconds, so divide by 1000 for seconds.
+  const podcastDisplaySegments = isPodcast
+    ? (podcastTranscriptSegments.length > 0
+        ? podcastTranscriptSegments
+        : (podcastTranscriptText || "")
+            .split(/(?<=[.!?])\s+/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((text, i) => ({ start: 0, end: 0, text, id: `pod-seg-${i}` })))
+        .map((seg) => ({
+          id: (seg as any).id || `pod-seg`,
+          text: seg.text,
+          startTime: (seg.start || 0) / 1000,
+          endTime: (seg.end || 0) / 1000,
+        }))
+    : [];
+  const hasPodcastTranscript = isPodcast && (podcastDisplaySegments.length > 0);
+
+  // Load podcast transcript when the panel is opened (podcasts are stored in
+  // podcast_episodes.transcript_text, a separate system from the document
+  // transcript tables that loadTranscript() reads from).
+  useEffect(() => {
+    if (!showTranscript || !isPodcast || !episodeId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getPodcastTranscript(episodeId);
+        if (cancelled) return;
+        setPodcastTranscriptText(res.text || null);
+        setPodcastTranscriptSegments(res.segments || []);
+      } catch (_e) {
+        if (!cancelled) {
+          setPodcastTranscriptText(null);
+          setPodcastTranscriptSegments([]);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showTranscript, isPodcast, episodeId]);
+
+  // Listen for podcast transcription progress/complete/error events so the
+  // panel's progress bar and transcript reflect the background job.
+  useEffect(() => {
+    if (!isTauri() || !isPodcast || !episodeId) return;
+    let unlisteners: Array<() => void> = [];
+
+    (async () => {
+      const u1 = await listen<{ episodeId: string; status: string; progress: number }>(
+        "podcast://transcription-progress",
+        (e) => {
+          if (e.payload.episodeId !== episodeId) return;
+          setPodcastTranscriptionProgress({ status: e.payload.status, progress: e.payload.progress });
+        },
+      );
+      const u2 = await listen<{ episodeId: string; segmentCount: number; duration: number }>(
+        "podcast://transcription-complete",
+        async (e) => {
+          if (e.payload.episodeId !== episodeId) return;
+          setPodcastTranscriptionProgress(null);
+          try {
+            const res = await getPodcastTranscript(episodeId);
+            setPodcastTranscriptText(res.text || null);
+            setPodcastTranscriptSegments(res.segments || []);
+            showSuccess("Transcription Complete", "Podcast transcript is ready.");
+          } catch (_e) { /* non-critical */ }
+        },
+      );
+      const u3 = await listen<{ episodeId: string; error: string }>(
+        "podcast://transcription-error",
+        (e) => {
+          if (e.payload.episodeId !== episodeId) return;
+          setPodcastTranscriptionProgress(null);
+          showError("Transcription Failed", e.payload.error);
+        },
+      );
+      unlisteners = [u1, u2, u3];
+    })();
+
+    return () => { unlisteners.forEach((u) => u()); };
+  }, [isPodcast, episodeId, showSuccess, showError]);
+
   useEffect(() => {
     if (!showTranscript) return;
+    if (isPodcast) return; // podcasts use the effect above, not the document transcript store
     if (transcript?.segments?.length) return;
     if (activeSegments.length > 0) return;
 
@@ -1490,6 +1601,7 @@ export function AudiobookViewer({
     tryLoad();
   }, [
     showTranscript,
+    isPodcast,
     transcript?.segments?.length,
     activeSegments.length,
     loadTranscript,
@@ -2069,7 +2181,7 @@ export function AudiobookViewer({
               className="flex-1 overflow-y-auto overscroll-contain p-4"
               onMouseUp={handleTextSelection}
             >
-              {(transcript || activeSegments.length > 0) ? (
+              {(transcript || activeSegments.length > 0 || hasPodcastTranscript) ? (
                 <>
                   {/* Extract button for selected text */}
                   {selectedText && (
@@ -2085,10 +2197,10 @@ export function AudiobookViewer({
                       </button>
                     </div>
                   )}
-                  
+
                   {/* Transcript segments */}
                   <div className="space-y-2">
-                    {(transcript?.segments || activeSegments).map((segment, idx) => {
+                    {(hasPodcastTranscript ? podcastDisplaySegments : (transcript?.segments || activeSegments)).map((segment, idx) => {
                       const id = (segment as any).id || `seg-${idx}`;
                       const startTime = (segment as any).startTime ?? (segment as any).start_ms / 1000;
                       const displayTime = sponsorBlockCuts.length > 0
@@ -2134,7 +2246,7 @@ export function AudiobookViewer({
                   <div className="mt-6 space-y-4">
                     <button
                       onClick={handleTranscribe}
-                      disabled={isCurrentTranscribing || currentStatus === 'processing'}
+                      disabled={isCurrentTranscribing || (!isPodcast && currentStatus === 'processing')}
                       className="w-full flex flex-col items-center justify-center gap-1 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50"
                     >
                       <div className="flex items-center gap-2">
@@ -2150,17 +2262,17 @@ export function AudiobookViewer({
                           </>
                         )}
                       </div>
-                      
+
                       {isCurrentTranscribing && (
                         <div className="w-full mt-2 px-1">
                           <div className="flex justify-between text-[10px] mb-1 opacity-90">
                             <span>{t("viewer.overallProgress")}</span>
-                            <span>{transcriptionProgress}%</span>
+                            <span>{(isPodcast ? (podcastTranscriptionProgress?.progress ?? 0) : transcriptionProgress)}%</span>
                           </div>
                           <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-white transition-all duration-300"
-                              style={{ width: `${transcriptionProgress}%` }}
+                              style={{ width: `${isPodcast ? (podcastTranscriptionProgress?.progress ?? 0) : transcriptionProgress}%` }}
                             />
                           </div>
                         </div>

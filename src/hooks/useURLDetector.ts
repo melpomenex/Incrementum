@@ -10,6 +10,7 @@ import { useMemo } from "react";
  */
 export enum URLType {
   YouTube = "youtube",
+  Twitter = "twitter",
   RSSFeed = "rss",
   WebPage = "web",
   Unknown = "unknown",
@@ -24,6 +25,7 @@ export interface URLDetectionResult {
   url: string;
   youtubeId?: string;
   playlistId?: string;
+  twitterStatusId?: string;
 }
 
 /**
@@ -34,6 +36,13 @@ const YOUTUBE_PATTERNS = [
   /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
   /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
   /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+];
+
+/**
+ * Twitter / X status URL patterns — captures the numeric tweet id.
+ */
+const TWITTER_PATTERNS = [
+  /(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/,
 ];
 
 /**
@@ -69,6 +78,24 @@ function extractYouTubeID(url: string): string | null {
 function extractPlaylistID(url: string): string | null {
   const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
   return match ? match[1] : null;
+}
+
+/**
+ * Extract the numeric tweet/status id from a Twitter/X URL
+ */
+function extractTwitterStatusID(url: string): string | null {
+  for (const pattern of TWITTER_PATTERNS) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+/**
+ * Detect if URL is a Twitter / X post URL
+ */
+function isTwitterURL(url: string): boolean {
+  return TWITTER_PATTERNS.some(pattern => pattern.test(url));
 }
 
 /**
@@ -112,6 +139,16 @@ function detectURL(input: string): URLDetectionResult {
     };
   }
 
+  if (isTwitterURL(trimmed)) {
+    const statusId = extractTwitterStatusID(trimmed);
+    return {
+      isURL: true,
+      type: URLType.Twitter,
+      url: trimmed,
+      twitterStatusId: statusId || undefined,
+    };
+  }
+
   if (isRSSFeedURL(trimmed)) {
     return {
       isURL: true,
@@ -144,4 +181,6 @@ export const urlDetectorUtils = {
   extractPlaylistID,
   isYouTubeURL,
   isRSSFeedURL,
+  isTwitterURL,
+  extractTwitterStatusID,
 };

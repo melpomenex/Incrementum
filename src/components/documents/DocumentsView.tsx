@@ -171,6 +171,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     importFromFiles,
     updateDocument,
     deleteDocument,
+    bulkDelete,
     segmentDocument,
   } = useDocumentStore();
   const collections = useCollectionStore((state) => state.collections);
@@ -567,11 +568,19 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
       itemCount: selectedIds.size,
       details: docTitles,
       onConfirm: async () => {
-        for (const id of selectedIds) {
-          await deleteDocument(id);
-        }
+        const ids = Array.from(selectedIds);
+        const result = await bulkDelete(ids);
         setSelectedIds(new Set());
         setActiveId(null);
+        if (result.failed.length > 0) {
+          toast.error(
+            t("documentsView.bulkDeletePartial", {
+              succeeded: result.succeeded.length,
+              total: ids.length,
+              failed: result.failed.length,
+            })
+          );
+        }
       },
     });
   };
@@ -1117,6 +1126,26 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
               {t("documentsView.selectedCount", { count: selectedIds.size })}
             </span>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const visibleIds = sortedDocuments.map((doc) => doc.id);
+                  const allSelected =
+                    visibleIds.length > 0 &&
+                    visibleIds.every((id) => selectedIds.has(id));
+                  setSelectedIds(allSelected ? new Set() : new Set(visibleIds));
+                }}
+                className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"
+              >
+                {(() => {
+                  const visibleIds = sortedDocuments.map((doc) => doc.id);
+                  const allSelected =
+                    visibleIds.length > 0 &&
+                    visibleIds.every((id) => selectedIds.has(id));
+                  return allSelected
+                    ? t("documentsView.clearSelection")
+                    : t("documentsView.selectAll");
+                })()}
+              </button>
               <button
                 onClick={handleBulkTag}
                 className="px-3 py-1.5 bg-background border border-border rounded text-sm text-foreground hover:bg-muted"

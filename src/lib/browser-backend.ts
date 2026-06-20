@@ -889,6 +889,23 @@ const commandHandlers: Record<string, CommandHandler> = {
         return null;
     },
 
+    bulk_delete_documents: async (args) => {
+        const ids = (args.documentIds ?? args.document_ids ?? []) as string[];
+        const succeeded: string[] = [];
+        const failed: string[] = [];
+        const errors: string[] = [];
+        for (const id of ids) {
+            try {
+                await db.deleteDocument(id);
+                succeeded.push(id);
+            } catch (e) {
+                failed.push(id);
+                errors.push(`${id}: ${e instanceof Error ? e.message : String(e)}`);
+            }
+        }
+        return { succeeded, failed, errors };
+    },
+
     import_document: async (args) => {
         // In browser mode, file is passed as File object or base64
         const filePath = args.filePath as string;

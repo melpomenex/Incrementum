@@ -15,11 +15,13 @@ import {
   Warning,
   WarningCircle,
   X,
+  XLogo,
   YoutubeLogo,
 } from "@phosphor-icons/react";
 import { isTauri } from "../../lib/tauri";
 import { URLType } from "../../hooks/useURLDetector";
 import type { YouTubeVideo } from "../../api/youtube";
+import type { TwitterVideoInfo } from "../../api/documents";
 import type { Feed } from "../../api/rss";
 import type { WebPageMetadata, DuplicateCheckResult } from "../../hooks/useURLMetadata";
 import { getCollections, createCollection } from "../../api/collections";
@@ -33,7 +35,7 @@ export interface ImportOptions {
 interface ImportPreviewProps {
   urlType: URLType;
   url: string;
-  data: YouTubeVideo | Feed | WebPageMetadata | null;
+  data: YouTubeVideo | Feed | WebPageMetadata | TwitterVideoInfo | null;
   isLoading: boolean;
   error: string | null;
   onImport: (options: ImportOptions) => void;
@@ -206,6 +208,33 @@ export function ImportPreview({
       return (
         <YouTubeImportPreview
           data={data as YouTubeVideo}
+          options={options}
+          tagInput={tagInput}
+          setTagInput={setTagInput}
+          onAddTag={handleAddTag}
+          onRemoveTag={handleRemoveTag}
+          onTagKeyDown={handleTagKeyDown}
+          collections={collections}
+          selectedCollection={selectedCollection}
+          showCollections={showCollections}
+          setShowCollections={setShowCollections}
+          onCollectionSelect={handleCollectionSelect}
+          showNewCollection={showNewCollection}
+          setShowNewCollection={setShowNewCollection}
+          newCollectionName={newCollectionName}
+          setNewCollectionName={setNewCollectionName}
+          onCreateCollection={handleCreateCollection}
+          onImport={handleImportClick}
+          isImporting={isImporting}
+          isDuplicate={isDuplicate}
+          existingItem={duplicateCheck.existingItem}
+          onOpenExisting={handleOpenExisting}
+        />
+      );
+    case URLType.Twitter:
+      return (
+        <TwitterImportPreview
+          data={data as TwitterVideoInfo}
           options={options}
           tagInput={tagInput}
           setTagInput={setTagInput}
@@ -556,6 +585,115 @@ function YouTubeImportPreview({
               {data.description}
             </p>
           )}
+        </div>
+
+        {/* Import button */}
+        <button
+          onClick={onImport}
+          disabled={isImporting}
+          className="flex-shrink-0 self-start px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isImporting ? (
+            <span className="flex items-center gap-2">
+              <CircleNotch className="w-4 h-4 animate-spin" />
+              Importing...
+            </span>
+          ) : isDuplicate ? (
+            "Re-import"
+          ) : (
+            "Import Video"
+          )}
+        </button>
+      </div>
+
+      {/* Import Options */}
+      <ImportOptionsUI {...optionsProps} />
+    </div>
+  );
+}
+
+interface TwitterImportPreviewProps extends ImportOptionsUIProps {
+  data: TwitterVideoInfo;
+  onImport: () => void;
+  isImporting: boolean;
+  isDuplicate: boolean;
+  existingItem?: { id: string; title: string; type: "document" | "feed" };
+  onOpenExisting?: () => void;
+}
+
+function TwitterImportPreview({
+  data,
+  onImport,
+  isImporting,
+  isDuplicate,
+  existingItem,
+  onOpenExisting,
+  ...optionsProps
+}: TwitterImportPreviewProps) {
+  return (
+    <div className="px-4 py-3">
+      {/* Duplicate warning */}
+      {isDuplicate && existingItem && (
+        <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+          <Warning className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-yellow-700 dark:text-yellow-300">
+              Already imported
+            </div>
+            <div className="text-xs text-yellow-600 dark:text-yellow-400 truncate">
+              {existingItem.title}
+            </div>
+          </div>
+          {onOpenExisting && (
+            <button
+              onClick={onOpenExisting}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 rounded hover:bg-yellow-500/30"
+            >
+              <ArrowSquareOut className="w-3 h-3" />
+              Open
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-4">
+        {/* Thumbnail */}
+        <div className="flex-shrink-0 w-32 h-20 rounded overflow-hidden bg-muted">
+          {data.thumbnailUrl ? (
+            <img
+              src={data.thumbnailUrl}
+              alt={data.title}
+              className="w-full h-full object-cover"
+            />
+          ) : null}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <XLogo className="w-4 h-4" />
+            <span className="text-xs font-medium text-muted-foreground uppercase">
+              X / Twitter Video
+            </span>
+          </div>
+
+          <h3 className="text-sm font-medium text-foreground line-clamp-2">
+            {data.title}
+          </h3>
+
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+            <span>@{data.author}</span>
+            {data.durationSecs ? (
+              <>
+                <span>•</span>
+                <span>{formatDuration(data.durationSecs)}</span>
+              </>
+            ) : null}
+          </div>
+
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-2">
+            The video will be downloaded and transcribed automatically.
+          </p>
         </div>
 
         {/* Import button */}

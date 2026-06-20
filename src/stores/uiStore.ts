@@ -22,6 +22,9 @@ interface UIState {
   // Paste Extract Dialog
   pasteExtractDialogOpen: boolean;
 
+  // Twitter / X Video Import Dialog
+  twitterImportDialogOpen: boolean;
+
   // Theme
   theme: "light" | "dark";
 
@@ -36,6 +39,7 @@ interface UIState {
   setCommandPaletteOpen: (open: boolean) => void;
   setCommandPaletteQuery: (query: string) => void;
   setPasteExtractDialogOpen: (open: boolean) => void;
+  setTwitterImportDialogOpen: (open: boolean) => void;
   setTheme: (theme: "light" | "dark") => void;
 }
 
@@ -50,6 +54,7 @@ export const useUIStore = create<UIState>((set) => ({
   commandPaletteOpen: false,
   commandPaletteQuery: "",
   pasteExtractDialogOpen: false,
+  twitterImportDialogOpen: false,
   theme: "dark",
 
   // Actions
@@ -95,6 +100,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   setCommandPaletteQuery: (commandPaletteQuery) => set({ commandPaletteQuery }),
   setPasteExtractDialogOpen: (pasteExtractDialogOpen) => set({ pasteExtractDialogOpen }),
+  setTwitterImportDialogOpen: (twitterImportDialogOpen) => set({ twitterImportDialogOpen }),
 
   setTheme: (theme) => set({ theme }),
 }));
