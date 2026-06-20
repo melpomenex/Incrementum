@@ -6,6 +6,7 @@ import { invokeCommand, isTauri, openFilePicker as tauriOpenFilePicker, openFold
 import { browserInvoke } from "../lib/browser-backend";
 import { serializeViewState } from "../lib/readerPosition";
 import { Document } from "../types/document";
+import type { BulkOperationResult } from "./extract-bulk";
 import type { ViewState } from "../types/readerPosition";
 
 /**
@@ -106,6 +107,17 @@ export async function deleteDocument(id: string): Promise<void> {
   } else {
     await invokeCommand("delete_document", { id });
   }
+}
+
+/**
+ * Delete multiple documents in a single batched call.
+ * Returns succeeded/failed/errors so partial failures can be surfaced.
+ */
+export async function bulkDeleteDocuments(documentIds: string[]): Promise<BulkOperationResult> {
+  if (isWebMode()) {
+    return await browserInvoke<BulkOperationResult>("bulk_delete_documents", { documentIds });
+  }
+  return await invokeCommand<BulkOperationResult>("bulk_delete_documents", { documentIds });
 }
 
 export async function importDocument(filePath: string, collectionId?: string): Promise<Document> {
@@ -270,6 +282,35 @@ export async function importYouTubeVideo(url: string, collectionId?: string): Pr
     return await browserInvoke<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
   }
   return await invokeCommand<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
+}
+
+/**
+ * Metadata for a Twitter/X post containing a video.
+ * Tauri-only: returned by `get_twitter_video_info` / `import_twitter_video`.
+ */
+export interface TwitterVideoInfo {
+  tweetId: string;
+  statusUrl: string;
+  title: string;
+  author: string;
+  thumbnailUrl?: string | null;
+  durationSecs?: number | null;
+  mp4Url: string;
+}
+
+/**
+ * Resolve a Twitter/X video URL to its metadata (no download). Tauri-only.
+ */
+export async function fetchTwitterVideoInfo(url: string): Promise<TwitterVideoInfo> {
+  return await invokeCommand<TwitterVideoInfo>("get_twitter_video_info", { url });
+}
+
+/**
+ * Import a Twitter/X video: downloads the best MP4 and creates a Video document.
+ * Tauri-only — throws when invoked outside the desktop app.
+ */
+export async function importTwitterVideo(url: string, collectionId?: string): Promise<Document> {
+  return await invokeCommand<Document>("import_twitter_video", { url, collectionId: collectionId ?? null });
 }
 
 /**

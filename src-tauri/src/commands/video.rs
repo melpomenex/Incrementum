@@ -310,7 +310,12 @@ pub async fn generate_video_transcript(
 
         let model_path = model_manager.get_model_path(&model_id);
 
-        engine.transcribe(&prepared, &model_path, &language, move |seg| {
+        // Route to the right engine based on the model family. Sherpa-onnx models
+        // (parakeet-*, sense-voice-*) run via the sherpa-onnx sidecar; everything
+        // else is a Whisper (ggml) model. Mirrors the audiobook/podcast/auto-queue
+        // paths — without this, selecting a Parakeet model feeds an ONNX file to
+        // whisper.cpp and fails with "invalid model data (bad magic)".
+        let on_segment = move |seg: crate::transcription::engine::TranscriptSegment| {
             let text = seg.text.trim().to_string();
             if text.is_empty() {
                 return;
@@ -326,7 +331,15 @@ pub async fn generate_video_transcript(
             }
 
             let _ = app_for_cb.emit("video-transcription://segment", segment);
-        }, None).await.map_err(|e| format!("Transcription failed: {}", e))?;
+        };
+
+        if model_id.starts_with("sense-voice-") {
+            engine.transcribe_sensevoice(&prepared, &model_path, &language, on_segment, None).await
+        } else if model_id.starts_with("parakeet-") {
+            engine.transcribe_parakeet(&prepared, &model_path, &language, on_segment, None).await
+        } else {
+            engine.transcribe(&prepared, &model_path, &language, on_segment, None).await
+        }.map_err(|e| format!("Transcription failed: {}", e))?;
 
         Ok::<(), String>(())
     }.await;

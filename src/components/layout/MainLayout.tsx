@@ -18,6 +18,7 @@ import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
 import { isTauri } from "../../lib/tauri";
 import { checkForUpdates } from "../../utils/updateChecker";
 import { PasteExtractDialog } from "../extracts/PasteExtractDialog";
+import { TwitterImportDialog } from "../documents/TwitterImportDialog";
 import { Desktop, ListChecks, SquaresFour } from "@phosphor-icons/react";
 
 const TAB_TYPE_ALIASES: Record<string, TabType> = {
@@ -1024,6 +1025,10 @@ export function MainLayout() {
         <PasteExtractDialog
           isOpen={useUIStore((s) => s.pasteExtractDialogOpen)}
           onClose={() => useUIStore.getState().setPasteExtractDialogOpen(false)}
+        />
+        <TwitterImportDialog
+          isOpen={useUIStore((s) => s.twitterImportDialogOpen)}
+          onClose={() => useUIStore.getState().setTwitterImportDialogOpen(false)}
         />
         <ImageSaveOverlay />
       </VimiumNavigationProvider>
