@@ -53,15 +53,22 @@ open class BuildTask : DefaultTask() {
 
         val cargoExecutable = resolveCargoExecutable()
 
-        // Spawn cargo with a *minimal* environment instead of inheriting the
-        // Gradle daemon's full environment. The Tauri CLI injects ~30
-        // CARGO_TARGET_* / WRY_* / TAURI_* variables for every Android ABI into
-        // the gradlew process, and the GitHub Actions runner adds many more
-        // (long PATH, toolcache vars, etc.). Gradle's project.exec inherits all
-        // of them, so when it forks cargo the combined argv+environ can exceed
-        // the kernel's ARG_MAX (execve returns E2BIG), which Gradle surfaces as
+        // Spawn cargo via ProcessBuilder with the inherited environment
+        // *minus* the redundant per-ABI variables the Tauri CLI injects for ALL
+        // four Android targets. Gradle's project.exec inherits the entire
+        // environment; on the GitHub runner that includes ~30
+        // CARGO_TARGET_*/WRY_*/TAURI_* vars (one set per ABI) plus a very long
+        // PATH. The combined argv+environ can exceed the kernel ARG_MAX when
+        // Gradle forks cargo, and execve returns E2BIG, which Gradle surfaces as
         // the opaque "A problem occurred starting process 'command 'cargo''".
-        // Building an explicit whitelist keeps the spawn well under the limit.
+        //
+        // We can't just clear the env — cargo is a dynamically-linked ELF and
+        // its loader needs the inherited LD_*/PATH/etc. So we start from the
+        // full environment and delete only the cross-ABI CARGO_TARGET_* entries
+        // for the THREE targets we are NOT building, which is where the bulk of
+        // the bloat comes from. We keep the current target's RUSTFLAGS/linker
+        // and everything else (PATH, LD_*, locale, etc.).
+        val otherAbiTargets = listOf("aarch64", "armv7", "i686", "x86_64") - target
         val pb = ProcessBuilder(
             listOfNotNull(
                 cargoExecutable,
@@ -72,33 +79,61 @@ open class BuildTask : DefaultTask() {
         pb.directory(File(project.projectDir, "$rootDirRel/src-tauri"))
         pb.redirectErrorStream(true)
         val env = pb.environment()
-        env.clear()
-        // Essentials cargo + the linker need to run at all.
-        env["PATH"] = System.getenv("PATH") ?: "/usr/bin:/bin"
-        env["HOME"] = System.getenv("HOME") ?: ""
-        env["USER"] = System.getenv("USER") ?: ""
-        env["LANG"] = System.getenv("LANG") ?: "C.UTF-8"
-        env["TERM"] = System.getenv("TERM") ?: "dumb"
-        // Cargo home / toolchain resolution.
-        System.getenv("CARGO_HOME")?.let { env["CARGO_HOME"] = it }
-        System.getenv("RUSTUP_HOME")?.let { env["RUSTUP_HOME"] = it }
-        System.getenv("RUSTUP_TOOLCHAIN")?.let { env["RUSTUP_TOOLCHAIN"] = it }
-        // NDK + cross-compile config for *this* ABI only.
+        // Drop the per-ABI vars for every target except the one we're building.
+        // These are the bulk contributors to the environment size and are the
+        // only thing that differs per-ABI; keeping the rest of the env intact
+        // preserves PATH / dynamic-loader / locale / toolchain resolution.
+        for (other in otherAbiTargets) {
+            val otherCargoTarget = when (other) {
+                "aarch64" -> "aarch64-linux-android"
+                "armv7" -> "armv7-linux-androideabi"
+                "i686" -> "i686-linux-android"
+                "x86_64" -> "x86_64-linux-android"
+                else -> null
+            } ?: continue
+            val otherEnv = otherCargoTarget.uppercase().replace('-', '_')
+            env.remove("CARGO_TARGET_${otherEnv}_LINKER")
+            env.remove("CARGO_TARGET_${otherEnv}_AR")
+            env.remove("CARGO_TARGET_${otherEnv}_RUSTFLAGS")
+            env.remove("CC_${otherCargoTarget}")
+            env.remove("AR_${otherCargoTarget}")
+        }
+        // (Re)assert this target's NDK + cross-compile config.
         env["ANDROID_NDK_HOME"] = ndkHome
         env["NDK_HOME"] = ndkHome
         env["CARGO_TARGET_${cargoTargetEnv}_LINKER"] = linkerPath
         env["CARGO_TARGET_${cargoTargetEnv}_AR"] = arPath
         env["CC_${cargoTarget}"] = linkerPath
         env["AR_${cargoTarget}"] = arPath
-        // The Tauri/Android link args (-landroid -llog -lOpenSLES). Carry the
-        // RUSTFLAGS the parent already set for this exact target so cargo links
-        // the Android system libs, but NOT the ones for the other 3 ABIs (those
-        // bloat the environment and are what triggers the ARG_MAX overflow).
-        System.getenv("CARGO_TARGET_${cargoTargetEnv}_RUSTFLAGS")?.let {
-            env["CARGO_TARGET_${cargoTargetEnv}_RUSTFLAGS"] = it
-        }
 
-        val process = pb.start()
+        val process = try {
+            pb.start()
+        } catch (e: Throwable) {
+            // The spawn itself failed (e.g. ENOENT/E2BIG). Dump diagnostics so
+            // the opaque failure ("A problem occurred starting process 'cargo'")
+            // has a concrete cause: ARG_MAX, env size, the resolved cargo path,
+            // and its ELF interpreter from `file`.
+            try {
+                val argMax = Runtime.getRuntime().exec(arrayOf("getconf", "ARG_MAX"))
+                    .inputStream.bufferedReader().use { it.readText().trim() }
+                val envSize = env.entries.sumOf { (k, v) -> k.length + v.length + 2 }
+                val fileOut = Runtime.getRuntime().exec(arrayOf("file", cargoExecutable))
+                    .inputStream.bufferedReader().use { it.readText().trim() }
+                val lsOut = Runtime.getRuntime().exec(arrayOf("ls", "-l", cargoExecutable))
+                    .inputStream.bufferedReader().use { it.readText().trim() }
+                project.logger.lifecycle(
+                    "[rustBuild spawn-fail diag] ${e.javaClass.name}: ${e.message}"
+                )
+                project.logger.lifecycle(
+                    "[rustBuild spawn-fail diag] ARG_MAX=$argMax envBytes=$envSize envEntries=${env.size} " +
+                        "cargo=$cargoExecutable exists=${File(cargoExecutable).exists()} " +
+                        "canExecute=${File(cargoExecutable).canExecute()} ls=[$lsOut] file=[$fileOut]"
+                )
+            } catch (t: Throwable) {
+                project.logger.lifecycle("[rustBuild spawn-fail diag] diag collection failed: ${t.message}")
+            }
+            throw GradleException("cargo spawn failed: ${e.message}", e)
+        }
         val output = process.inputStream.bufferedReader().use { it.readText() }
         val exitCode = process.waitFor()
         if (output.isNotBlank()) {
