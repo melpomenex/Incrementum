@@ -34,6 +34,10 @@ export interface Extract {
     stability: number;
     difficulty: number;
   };
+  /** Inherited priority score (0–100) from the parent document. */
+  priority_score?: number;
+  /** Dismissed extracts leave the review queue but remain in the library. */
+  is_dismissed?: boolean;
 }
 
 export interface CreateExtractInput {
@@ -133,4 +137,45 @@ export async function updateExtract(input: UpdateExtractInput): Promise<Extract>
  */
 export async function deleteExtract(id: string): Promise<void> {
   await invokeCommand("delete_extract", { id });
+}
+
+// ---------------------------------------------------------------------------
+// Extract lifecycle actions (SuperMemo-style Forget / Dismiss / Done)
+// ---------------------------------------------------------------------------
+
+/**
+ * Forget an extract: reset its memory state and return it to the new queue.
+ */
+export async function forgetExtract(id: string): Promise<void> {
+  await invokeCommand("forget_extract", { extractId: id, extract_id: id });
+}
+
+/**
+ * Dismiss (or undismiss) an extract: removes it from the review queue without
+ * deleting it. Defaults to dismissed=true when omitted.
+ */
+export async function dismissExtract(id: string, dismissed?: boolean): Promise<void> {
+  await invokeCommand("dismiss_extract", {
+    extractId: id,
+    extract_id: id,
+    dismissed: dismissed ?? true,
+  });
+}
+
+/**
+ * Graduate an extract: schedule it ~5 years in the future with high stability.
+ */
+export async function graduateExtract(id: string): Promise<void> {
+  await invokeCommand("graduate_extract", { extractId: id, extract_id: id });
+}
+
+/**
+ * Manually override an extract's inherited priority score (0–100).
+ */
+export async function setExtractPriority(id: string, priorityScore: number): Promise<void> {
+  await invokeCommand("set_extract_priority", {
+    id,
+    priorityScore,
+    priority_score: priorityScore,
+  });
 }

@@ -789,6 +789,63 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
       );
 
       let userQuestion = savedRawInput.replace(MENTION_REGEX, "").trim();
+
+      // Whole-library RAG branch: when no specific document is mentioned,
+      // retrieve relevant chunks across the collection and answer with
+      // citations instead of the placeholder "search all documents" prompt.
+      if (mentionedDocumentIds.length === 0) {
+        try {
+          const { ragChat, buildRagOptions } = await import("../../api/rag");
+          const { resolveEmbeddingConfigForRag } = await import("../assistant/ragConfig");
+
+          const ragConfig = await resolveEmbeddingConfigForRag();
+          const ragOptions = buildRagOptions(useSettingsStore.getState().settings.embedding);
+
+          const conversationHistory: LLMMessage[] = messages
+            .filter(m => m.role === "user" || m.role === "assistant")
+            .slice(-6)
+            .map(m => ({ role: m.role, content: m.content }));
+
+          const ragResult = await ragChat(
+            userQuestion,
+            ragConfig,
+            conversationHistory,
+            {
+              provider: provider.provider,
+              model: provider.model,
+              apiKey: provider.apiKey,
+              baseUrl: provider.baseUrl && provider.baseUrl.trim() ? provider.baseUrl : undefined,
+            },
+            ragOptions
+          );
+
+          // Render answer with a citations footer.
+          const citationsBlock =
+            ragResult.citations.length > 0
+              ? "\n\n---\n**Sources:**\n" +
+                ragResult.citations
+                  .map((c, i) => `[${i + 1}] **${c.documentTitle}** (score ${c.score.toFixed(2)})`)
+                  .join("\n")
+              : "";
+
+          const ragMessage = {
+            id: `assistant-${Date.now()}`,
+            role: "assistant" as const,
+            content: ragResult.answer + citationsBlock,
+            timestamp: Date.now(),
+            sourceDocuments: ragResult.citations.length > 0
+              ? ragResult.citations.map(c => c.documentId)
+              : undefined,
+          };
+          addMessage(ragMessage);
+          setIsProcessing(false);
+          return;
+        } catch (ragError) {
+          // Fall through to the original general-context path if RAG fails
+          // (e.g. library not indexed, embedding provider misconfigured).
+          console.warn("RAG chat failed, falling back to general context:", ragError);
+        }
+      }
       let contextPrefix = "";
       
       if (isChapterSpecific && chapterNumber) {
@@ -895,7 +952,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                 onChange={(e) => setSelectedDocumentId(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer pr-1"
               >
-                <option value="" className="bg-background text-foreground">General AI Chat</option>
+                <option value="" className="bg-background text-foreground">🌐 Whole Library (RAG)</option>
                 {documents.map((doc) => (
                   <option key={doc.id} value={doc.id} className="bg-background text-foreground">
                     {doc.title.length > 30 ? `${doc.title.slice(0, 30)}...` : doc.title}

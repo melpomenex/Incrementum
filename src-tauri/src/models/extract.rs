@@ -51,6 +51,16 @@ pub struct Extract {
     pub reps: i32,
     /// Optional source hash for import deduplication (e.g., Kindle clippings)
     pub source_hash: Option<String>,
+    /// Inherited priority score (0.0–100.0). Copied from the parent
+    /// document at creation time so that extracts surface in the reading
+    /// queue in priority order (SuperMemo-style IR priority chain).
+    /// May be overridden per-extract via `set_extract_priority`.
+    #[serde(default)]
+    pub priority_score: f64,
+    /// Dismissed extracts leave the review queue but remain in the library
+    /// (SuperMemo-style Dismiss lifecycle action).
+    #[serde(default)]
+    pub is_dismissed: bool,
 }
 
 impl Extract {
@@ -80,6 +90,8 @@ impl Extract {
             review_count: 0,
             reps: 0,
             source_hash: None,
+            priority_score: 0.0,
+            is_dismissed: false,
         }
     }
 

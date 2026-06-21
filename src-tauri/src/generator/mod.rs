@@ -216,6 +216,8 @@ mod tests {
             review_count: 0,
             reps: 0,
             source_hash: None,
+            priority_score: 0.0,
+            is_dismissed: false,
         }
     }
 

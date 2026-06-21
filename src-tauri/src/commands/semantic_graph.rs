@@ -9,7 +9,7 @@ use crate::commands::ai_key_store::AIKeyStore;
 use crate::database::Repository;
 use crate::error::IncrementumError;
 use tauri::Emitter;
-use crate::ai::embeddings::{EmbeddingProviderType, EmbeddingProvider, OpenAIEmbeddingProvider, CohereEmbeddingProvider, OpenRouterEmbeddingProvider, OllamaEmbeddingProvider};
+use crate::ai::embeddings::{EmbeddingProviderType, EmbeddingProvider};
 use crate::database::QueueItemEmbedding;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
@@ -114,45 +114,15 @@ fn item_to_embedding_text(item: &QueueItemSummary) -> String {
 
 /// Get the embedding provider from config
 fn get_provider(config: &EmbeddingConfigInput) -> Result<Box<dyn EmbeddingProvider>> {
-    match config.provider {
-        EmbeddingProviderType::OpenAI => {
-            let api_key = config.openai_api_key.as_ref()
-                .ok_or_else(|| IncrementumError::InvalidInput("OpenAI API key not configured".to_string()))?;
-            Ok(Box::new(OpenAIEmbeddingProvider::new(api_key.clone(), config.openai_model.clone())))
-        }
-        EmbeddingProviderType::Cohere => {
-            let api_key = config.cohere_api_key.as_ref()
-                .ok_or_else(|| IncrementumError::InvalidInput("Cohere API key not configured".to_string()))?;
-            Ok(Box::new(CohereEmbeddingProvider::new(api_key.clone(), config.cohere_model.clone())))
-        }
-        EmbeddingProviderType::OpenRouter => {
-            let api_key = config.openrouter_api_key.as_ref()
-                .ok_or_else(|| IncrementumError::InvalidInput("OpenRouter API key not configured".to_string()))?;
-            let model = config.openrouter_model.as_ref()
-                .ok_or_else(|| IncrementumError::InvalidInput("OpenRouter model not specified".to_string()))?;
-            Ok(Box::new(OpenRouterEmbeddingProvider::new(api_key.clone(), model.clone())))
-        }
-        EmbeddingProviderType::Ollama => {
-            let base_url = config.ollama_base_url.as_ref()
-                .ok_or_else(|| IncrementumError::InvalidInput("Ollama base URL not configured".to_string()))?;
-            let model = config.ollama_model.as_ref()
-                .ok_or_else(|| IncrementumError::InvalidInput("Ollama model not specified".to_string()))?;
-            Ok(Box::new(OllamaEmbeddingProvider::new(base_url.clone(), model.clone())))
-        }
-    }
+    crate::ai::embedding_config::build_provider(config)
 }
 
 fn provider_name(config: &EmbeddingConfigInput) -> String {
-    format!("{:?}", config.provider)
+    crate::ai::embedding_config::provider_name(config)
 }
 
 fn model_name(config: &EmbeddingConfigInput) -> String {
-    match config.provider {
-        EmbeddingProviderType::OpenAI => config.openai_model.clone().unwrap_or_else(|| "text-embedding-3-small".to_string()),
-        EmbeddingProviderType::Cohere => config.cohere_model.clone().unwrap_or_else(|| "embed-english-v3.0".to_string()),
-        EmbeddingProviderType::OpenRouter => config.openrouter_model.clone().unwrap_or_else(|| "openai/text-embedding-3-small".to_string()),
-        EmbeddingProviderType::Ollama => config.ollama_model.clone().unwrap_or_else(|| "nomic-embed-text".to_string()),
-    }
+    crate::ai::embedding_config::model_name(config)
 }
 
 #[tauri::command]

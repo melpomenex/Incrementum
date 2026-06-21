@@ -28,6 +28,84 @@ pub struct ReviewStreak {
     pub last_review_date: Option<String>,
 }
 
+/// Resolvable source context for a learning item, used to show "From: <doc>"
+/// provenance on review cards (context-retention during review).
+#[derive(Clone, serde::Serialize)]
+pub struct CardSourceContext {
+    pub document_id: String,
+    pub document_title: String,
+    pub extract_id: Option<String>,
+    /// First ~200 chars of the source extract's plain-text content.
+    pub extract_snippet: Option<String>,
+    pub page_number: Option<i32>,
+    pub source_url: Option<String>,
+}
+
+/// Resolve the source context for a learning item (document title + extract
+/// snippet). Returns `None` when the item has no resolvable source.
+#[tauri::command]
+pub async fn get_card_source_context(
+    item_id: String,
+    repo: State<'_, Repository>,
+) -> Result<Option<CardSourceContext>> {
+    let item = repo.get_all_learning_items().await?
+        .into_iter()
+        .find(|i| i.id == item_id);
+
+    let Some(item) = item else { return Ok(None) };
+
+    // Resolve document.
+    let document_id = match item.document_id.as_deref() {
+        Some(id) if !id.is_empty() => id.to_string(),
+        _ => return Ok(None),
+    };
+
+    let doc = repo.get_document(&document_id).await?;
+    let Some(doc) = doc else { return Ok(None) };
+
+    // Resolve extract (optional).
+    let (extract_id, extract_snippet, page_number, source_url) =
+        if let Some(extract_id) = item.extract_id.as_deref().filter(|s| !s.is_empty()) {
+            if let Ok(Some(extract)) = repo.get_extract(extract_id).await {
+                let snippet = source_snippet(&extract.content, 200);
+                (
+                    Some(extract.id),
+                    snippet,
+                    extract.page_number,
+                    extract.source_url,
+                )
+            } else {
+                (None, None, None, None)
+            }
+        } else {
+            (None, None, None, None)
+        };
+
+    Ok(Some(CardSourceContext {
+        document_id,
+        document_title: doc.title,
+        extract_id,
+        extract_snippet,
+        page_number,
+        source_url,
+    }))
+}
+
+/// Build an ellipsized plain-text snippet from extract content.
+fn source_snippet(content: &str, max_chars: usize) -> Option<String> {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let chars: Vec<char> = trimmed.chars().collect();
+    if chars.len() <= max_chars {
+        Some(trimmed.to_string())
+    } else {
+        let head: String = chars.into_iter().take(max_chars).collect();
+        Some(format!("{head}…"))
+    }
+}
+
 #[tauri::command]
 pub async fn get_review_streak(
     repo: State<'_, Repository>,

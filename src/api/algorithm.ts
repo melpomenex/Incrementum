@@ -312,3 +312,39 @@ export async function getSmartStartPosition(
 ): Promise<SmartStartResponse> {
   return await invokeCommand<SmartStartResponse>("get_smart_start_position", { request });
 }
+
+// ---------------------------------------------------------------------------
+// Review forecast simulator
+// ---------------------------------------------------------------------------
+
+export interface SimulatedForecastPoint {
+  date: string;
+  baseline_due: number;
+  added_reviews: number;
+  simulated_due: number;
+}
+
+export interface SimulatedForecast {
+  points: SimulatedForecastPoint[];
+  total_baseline: number;
+  total_simulated: number;
+  total_new_reviews: number;
+  peak_day: string;
+  peak_count: number;
+}
+
+/**
+ * Project the daily review load under a hypothetical new-card add rate.
+ * Read-only: never mutates persistent scheduling data.
+ */
+export async function simulateReviewForecast(
+  newCardsPerDay: number,
+  horizonDays?: number,
+  graduatingIntervalDays?: number
+): Promise<SimulatedForecast> {
+  return await invokeCommand<SimulatedForecast>("simulate_review_forecast", {
+    newCardsPerDay,
+    horizonDays: horizonDays ?? null,
+    graduatingIntervalDays: graduatingIntervalDays ?? null,
+  });
+}

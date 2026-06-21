@@ -103,6 +103,29 @@ export async function getReviewStreak(): Promise<ReviewStreak> {
   return await invokeCommand<ReviewStreak>("get_review_streak");
 }
 
+export interface CardSourceContext {
+  document_id: string;
+  document_title: string;
+  extract_id?: string;
+  extract_snippet?: string;
+  page_number?: number;
+  source_url?: string;
+}
+
+/**
+ * Resolve the source context (document title + extract snippet) for a
+ * learning item, so review cards can show provenance. Returns null when the
+ * card has no resolvable source.
+ */
+export async function getCardSourceContext(
+  itemId: string
+): Promise<CardSourceContext | null> {
+  return await invokeCommand<CardSourceContext | null>(
+    "get_card_source_context",
+    { itemId, item_id: itemId }
+  );
+}
+
 export interface LearningItem {
   id: string;
   extract_id?: string;

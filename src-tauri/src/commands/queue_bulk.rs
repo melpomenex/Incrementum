@@ -4,7 +4,7 @@ use tauri::State;
 use crate::database::Repository;
 use crate::error::Result;
 use crate::models::{LearningItem, Document};
-use chrono::{Utc, Duration};
+use chrono::{Utc, Duration, Datelike, TimeZone};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
@@ -295,4 +295,209 @@ pub async fn export_queue(
     }
 
     Ok(export_items)
+}
+
+// ---------------------------------------------------------------------------
+// Queue load management: Advance, Load Balancing, Easy Days
+// (FSRS Helper add-on equivalents, natively built in)
+// ---------------------------------------------------------------------------
+
+/// Result of a bulk load-management operation.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoadManagementResult {
+    pub affected: u64,
+    pub skipped: u64,
+}
+
+/// Advance a single item's due date closer to today (inverse of postpone).
+/// Shifts `due_date` by `-days` for learning items, or `next_reading_date`
+/// for documents. Memory state is never mutated.
+#[tauri::command]
+pub async fn advance_item(
+    item_id: String,
+    days: i32,
+    item_type: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<bool> {
+    let shift = Duration::days(-(days.max(0) as i64));
+    match item_type.as_deref() {
+        Some("document") => {
+            let mut doc = repo.get_document(&item_id).await?
+                .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Document {}", item_id)))?;
+            let new_date = doc.next_reading_date.unwrap_or_else(Utc::now) + shift;
+            // Never push a document into the past beyond today.
+            let new_date = new_date.max(Utc::now());
+            repo.update_document_scheduling(
+                &item_id,
+                Some(new_date),
+                doc.stability,
+                doc.difficulty,
+                None,
+                None,
+            ).await?;
+            Ok(true)
+        }
+        _ => {
+            let mut item = repo.get_all_learning_items().await?
+                .into_iter()
+                .find(|i| i.id == item_id)
+                .ok_or_else(|| crate::error::IncrementumError::NotFound(format!("Item {}", item_id)))?;
+            item.due_date = (item.due_date + shift).max(Utc::now());
+            item.date_modified = Utc::now();
+            repo.update_learning_item(&item).await?;
+            Ok(true)
+        }
+    }
+}
+
+/// Bulk-advance all items due within the next `days` onto today.
+/// Useful for "I have time now, let me get ahead" cramming.
+#[tauri::command]
+pub async fn advance_due_queue(
+    days: Option<i32>,
+    repo: State<'_, Repository>,
+) -> Result<LoadManagementResult> {
+    let horizon_days = days.unwrap_or(7).max(1) as i64;
+    let now = Utc::now();
+    let horizon = now + Duration::days(horizon_days);
+
+    let items = repo.get_all_learning_items().await?;
+    let mut affected: u64 = 0;
+    let mut skipped: u64 = 0;
+
+    for mut item in items {
+        if item.is_suspended {
+            skipped += 1;
+            continue;
+        }
+        // Only pull forward items that are due within the horizon but not yet due today.
+        if item.due_date > now && item.due_date <= horizon {
+            item.due_date = now;
+            item.date_modified = now;
+            repo.update_learning_item(&item).await?;
+            affected += 1;
+        } else {
+            skipped += 1;
+        }
+    }
+
+    Ok(LoadManagementResult { affected, skipped })
+}
+
+/// Redistribute the due pile across the next `window_days` so no single day
+/// exceeds `target_per_day`. When `target_per_day` is None, defaults to
+/// `ceil(total_due / window_days * 1.25)`. Memory state is preserved; only
+/// `due_date` shifts.
+#[tauri::command]
+pub async fn load_balance_queue(
+    window_days: Option<i32>,
+    target_per_day: Option<i32>,
+    repo: State<'_, Repository>,
+) -> Result<LoadManagementResult> {
+    use std::collections::BTreeMap;
+    let window = window_days.unwrap_or(14).clamp(1, 90) as i64;
+    let now = Utc::now();
+    let horizon = now + Duration::days(window);
+
+    let items = repo.get_all_learning_items().await?;
+    // Bucket items by due day (date string). Only consider items due within [now, horizon].
+    let mut buckets: BTreeMap<chrono::NaiveDate, Vec<LearningItem>> = BTreeMap::new();
+    for item in items {
+        if item.is_suspended { continue; }
+        if item.due_date >= now && item.due_date <= horizon {
+            buckets.entry(item.due_date.date_naive()).or_default().push(item);
+        } else if item.due_date < now {
+            // Overdue items are also in scope (they're the worst offenders).
+            buckets.entry(now.date_naive()).or_default().push(item);
+        }
+    }
+
+    let total_due: usize = buckets.values().map(|v| v.len()).sum();
+    if total_due == 0 {
+        return Ok(LoadManagementResult { affected: 0, skipped: 0 });
+    }
+
+    let target = target_per_day
+        .map(|t| t.max(1) as usize)
+        .unwrap_or_else(|| ((total_due as f64 / window as f64) * 1.25).ceil() as usize)
+        .max(1);
+
+    // Flatten all due items, then re-distribute `target` per day across the window.
+    let mut all_items: Vec<LearningItem> = buckets.into_values().flatten().collect();
+    // Sort by due_date so we redistribute in a stable order.
+    all_items.sort_by_key(|i| i.due_date);
+
+    let mut affected: u64 = 0;
+    let mut skipped: u64 = 0;
+    let mut item_idx = 0;
+    'outer: for day_offset in 0..window {
+        let day = now.date_naive() + Duration::days(day_offset);
+        let new_due = Utc.from_utc_datetime(&day.and_hms_opt(12, 0, 0).unwrap());
+        for _ in 0..target {
+            if item_idx >= all_items.len() { break 'outer; }
+            let mut item = all_items[item_idx].clone();
+            // Skip items already correctly on this day.
+            if (item.due_date.date_naive() - day).num_days().abs() == 0 {
+                skipped += 1;
+                item_idx += 1;
+                continue;
+            }
+            item.due_date = new_due;
+            item.date_modified = now;
+            repo.update_learning_item(&item).await?;
+            affected += 1;
+            item_idx += 1;
+        }
+    }
+
+    Ok(LoadManagementResult { affected, skipped })
+}
+
+/// Easy Days: shift any learning item whose `due_date` within the next
+/// `window_days` falls on an easy weekday (0=Sun..6=Sat) forward to the next
+/// non-easy day. Reads persisted `easy_days` settings when not provided.
+#[tauri::command]
+pub async fn apply_easy_days(
+    window_days: Option<i32>,
+    easy_days: Option<Vec<u8>>,
+    repo: State<'_, Repository>,
+) -> Result<LoadManagementResult> {
+    let window = window_days.unwrap_or(30).clamp(1, 365) as i64;
+    // Default to no easy days if none provided.
+    let easy: std::collections::HashSet<u8> = easy_days.unwrap_or_default().into_iter().collect();
+    if easy.is_empty() {
+        return Ok(LoadManagementResult { affected: 0, skipped: 0 });
+    }
+
+    let now = Utc::now();
+    let horizon = now + Duration::days(window);
+    let items = repo.get_all_learning_items().await?;
+
+    let mut affected: u64 = 0;
+    let mut skipped: u64 = 0;
+
+    for mut item in items {
+        if item.is_suspended { skipped += 1; continue; }
+        if item.due_date < now || item.due_date > horizon { skipped += 1; continue; }
+
+        // Walk forward from the due date until we land on a non-easy weekday.
+        let mut candidate = item.due_date;
+        // Cap the walk to one full week so we never loop forever.
+        for _ in 0..8 {
+            let weekday = candidate.weekday().num_days_from_sunday() as u8;
+            if !easy.contains(&weekday) { break; }
+            candidate += Duration::days(1);
+        }
+
+        if candidate != item.due_date {
+            item.due_date = candidate;
+            item.date_modified = now;
+            repo.update_learning_item(&item).await?;
+            affected += 1;
+        } else {
+            skipped += 1;
+        }
+    }
+
+    Ok(LoadManagementResult { affected, skipped })
 }

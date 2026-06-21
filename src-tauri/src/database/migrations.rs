@@ -1643,6 +1643,49 @@ pub const MIGRATIONS: &[Migration] = &[
         CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
         "#,
     ),
+    // Extract priority inheritance (SuperMemo-style IR priority chain).
+    Migration::new(
+        "049_add_extract_priority",
+        r#"
+        ALTER TABLE extracts ADD COLUMN priority_score REAL NOT NULL DEFAULT 0.0;
+        UPDATE extracts
+        SET priority_score = COALESCE(
+            (SELECT d.priority_score FROM documents d WHERE d.id = extracts.document_id),
+            0.0
+        );
+        "#,
+    ),
+    // Extract dismissed flag (Forget/Dismiss/Done lifecycle).
+    Migration::new(
+        "050_add_extract_dismissed",
+        r#"
+        ALTER TABLE extracts ADD COLUMN is_dismissed INTEGER NOT NULL DEFAULT 0;
+        "#,
+    ),
+    // Whole-library RAG chat: chunk-level document embeddings.
+    Migration::new(
+        "051_add_document_chunk_embeddings",
+        r#"
+        CREATE TABLE IF NOT EXISTS document_chunk_embeddings (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            chunk_text TEXT NOT NULL,
+            embedding BLOB NOT NULL,
+            content_hash TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            dimension INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_provider_model
+            ON document_chunk_embeddings(provider, model);
+        CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_document
+            ON document_chunk_embeddings(document_id);
+        CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_hash
+            ON document_chunk_embeddings(content_hash);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

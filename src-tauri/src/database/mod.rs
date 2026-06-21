@@ -20,3 +20,18 @@ pub struct QueueItemEmbedding {
     pub dimension: i32,
     pub created_at: i64,
 }
+
+/// Stored embedding for a document chunk (whole-library RAG).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DocumentChunkEmbedding {
+    pub id: String,
+    pub document_id: String,
+    pub chunk_index: i32,
+    pub chunk_text: String,
+    pub embedding: Vec<f32>,
+    pub content_hash: String,
+    pub provider: String,
+    pub model: String,
+    pub dimension: i32,
+    pub created_at: i64,
+}

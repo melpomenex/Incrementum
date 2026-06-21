@@ -482,6 +482,13 @@ impl DocumentRepository {
     ) -> Result<Document> {
         let now = Utc::now();
 
+        // Capture the previous score so we can cascade to inheriting extracts.
+        let previous_score: f64 = self
+            .get_document(id)
+            .await?
+            .map(|d| d.priority_score)
+            .unwrap_or(0.0);
+
         sqlx::query(
             r#"
             UPDATE documents SET
@@ -499,6 +506,26 @@ impl DocumentRepository {
         .bind(id)
         .execute(&self.pool)
         .await?;
+
+        // Cascade: propagate the new score to child extracts that still carry
+        // the document's previous score. Manually-overridden extracts (whose
+        // score differs from the previous document score) are left untouched.
+        if (previous_score - priority_score).abs() > 0.001 {
+            sqlx::query(
+                r#"
+                UPDATE extracts SET
+                    priority_score = ?1,
+                    date_modified = ?2
+                WHERE document_id = ?3 AND ABS(priority_score - ?4) < 0.001
+                "#,
+            )
+            .bind(priority_score.clamp(0.0, 100.0))
+            .bind(now)
+            .bind(id)
+            .bind(previous_score)
+            .execute(&self.pool)
+            .await?;
+        }
 
         self.get_document(id)
             .await?

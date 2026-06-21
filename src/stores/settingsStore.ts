@@ -82,6 +82,32 @@ export interface LearningSettings {
 }
 
 /**
+ * Hands-free audio read-aloud review mode settings.
+ */
+export interface AudioReviewModeSettings {
+  enabled: boolean;
+  autoFlip: boolean;
+  autoFlipDelayMs: number;
+  defaultRating: 1 | 2 | 3 | 4;
+}
+
+/**
+ * Embedding provider/model for whole-library RAG chat.
+ */
+export interface EmbeddingSettings {
+  provider: "openai" | "cohere" | "openrouter" | "ollama";
+  openaiModel?: string;
+  cohereModel?: string;
+  openrouterModel?: string;
+  ollamaBaseUrl: string;
+  ollamaModel?: string;
+  chunkSize: number;
+  chunkOverlap: number;
+  topK: number;
+  minSimilarity: number;
+}
+
+/**
  * PDF Settings
  */
 interface PDFSettings {
@@ -445,6 +471,8 @@ export interface Settings {
   rssSummary: RSSSummarySettings;
   youtube: YouTubeSettings;
   features: FeatureFlags;
+  audioReviewMode: AudioReviewModeSettings;
+  embedding: EmbeddingSettings;
 }
 
 /**
@@ -696,6 +724,24 @@ export const defaultSettings: Settings = {
     reviewUndoEnabled: true,
     cramModeEnabled: true,
   },
+  audioReviewMode: {
+    enabled: false,
+    autoFlip: true,
+    autoFlipDelayMs: 1500,
+    defaultRating: 3,
+  },
+  embedding: {
+    provider: "openai",
+    openaiModel: "text-embedding-3-small",
+    cohereModel: "embed-english-v3.0",
+    openrouterModel: "openai/text-embedding-3-small",
+    ollamaBaseUrl: "http://localhost:11434",
+    ollamaModel: "nomic-embed-text",
+    chunkSize: 200,
+    chunkOverlap: 20,
+    topK: 8,
+    minSimilarity: 0.25,
+  },
 };
 
 /**
@@ -827,6 +873,8 @@ export const useSettingsStore = create<SettingsState>()(
           rssSummary: { ...defaultSettings.rssSummary, ...persisted.rssSummary },
           youtube: { ...defaultSettings.youtube, ...persisted.youtube },
           features: { ...defaultSettings.features, ...persisted.features },
+          audioReviewMode: { ...defaultSettings.audioReviewMode, ...persisted.audioReviewMode },
+          embedding: { ...defaultSettings.embedding, ...persisted.embedding },
         };
 
         if (!Array.isArray(merged.learning.lapseSteps)) {

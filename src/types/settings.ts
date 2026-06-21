@@ -53,6 +53,12 @@ export interface LearningSettings {
   chunkSchedulingDefault: string;
   interleavedQueueMode: boolean;
   interleavedQueueRatio: number;
+  /** Whether to show collapsible source context on review cards. */
+  showSourceContext: boolean;
+  /** Weekdays (0=Sun..6=Sat) on which to suppress new reviews (Easy Days). */
+  easyDays: number[];
+  /** Whether to redistribute due reviews to smooth daily load (load balancing). */
+  loadBalancingEnabled: boolean;
 }
 
 // Algorithm Settings
@@ -67,6 +73,28 @@ export interface AlgorithmSettings {
   globalForgettingIndex: number;
   useCategoryForgettingIndex: boolean;
   categoryForgettingIndexes: Record<string, number>;
+}
+
+/** Configuration for the hands-free audio read-aloud review mode. */
+export interface AudioReviewModeSettings {
+  enabled: boolean;
+  autoFlip: boolean;
+  autoFlipDelayMs: number;
+  defaultRating: 1 | 2 | 3 | 4;
+}
+
+/** Embedding provider/model for whole-library RAG chat. */
+export interface EmbeddingSettings {
+  provider: "openai" | "cohere" | "openrouter" | "ollama";
+  openaiModel?: string;
+  cohereModel?: string;
+  openrouterModel?: string;
+  ollamaBaseUrl: string;
+  ollamaModel?: string;
+  chunkSize: number;
+  chunkOverlap: number;
+  topK: number;
+  minSimilarity: number;
 }
 
 // Automation Settings
@@ -349,6 +377,8 @@ export interface Settings {
   sponsorBlock: SponsorBlockSettings;
   smartQueue: SmartQueueSettings;
   keybindings: KeybindingSettings;
+  audioReviewMode: AudioReviewModeSettings;
+  embedding: EmbeddingSettings;
 }
 
 export type SettingsCategory = keyof Settings;

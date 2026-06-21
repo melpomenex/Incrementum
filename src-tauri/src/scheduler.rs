@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::time::interval;
 
 use crate::backup::BackupManager;
-use crate::cloud::{BackupOptions, CloudProvider};
+use crate::cloud::{BackupOptions, CloudProvider, CloudProviderType};
 use crate::database::Database;
 use crate::error::AppError;
 
@@ -24,6 +24,9 @@ pub struct SchedulerConfig {
     pub max_backups: usize,
     pub retry_on_failure: bool,
     pub max_retries: usize,
+    /// Which cloud provider to back up to. When None, the scheduler ticks but
+    /// performs no backup (mirrors the old behavior without the dangling TODO).
+    pub provider_type: Option<CloudProviderType>,
 }
 
 impl Default for SchedulerConfig {
@@ -35,6 +38,7 @@ impl Default for SchedulerConfig {
             max_backups: 10,
             retry_on_failure: true,
             max_retries: 3,
+            provider_type: None,
         }
     }
 }
@@ -159,6 +163,9 @@ pub struct BackupScheduler {
     config: SchedulerConfig,
     running: Arc<Mutex<bool>>,
     next_scheduled: Arc<Mutex<Option<DateTime<Utc>>>>,
+    /// Resolved cloud provider used by the scheduler tick. Populated from the
+    /// auth store at init time so the detached tick task can run backups.
+    provider: Arc<Mutex<Option<Arc<RwLock<Box<dyn CloudProvider>>>>>>,
 }
 
 impl BackupScheduler {
@@ -170,7 +177,17 @@ impl BackupScheduler {
             config,
             running: Arc::new(Mutex::new(false)),
             next_scheduled: Arc::new(Mutex::new(None)),
+            provider: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Attach a resolved cloud provider (cloned from the auth store) so the
+    /// scheduler tick can actually perform backups instead of just logging.
+    pub async fn set_provider(
+        &self,
+        provider: Option<Arc<RwLock<Box<dyn CloudProvider>>>>,
+    ) {
+        *self.provider.lock().await = provider;
     }
 
     /// Update the scheduler configuration
@@ -205,6 +222,7 @@ impl BackupScheduler {
         let config = self.config.clone();
         let running_flag = self.running.clone();
         let next_scheduled = self.next_scheduled.clone();
+        let provider_holder = self.provider.clone();
 
         tokio::spawn(async move {
             let mut interval = interval(config.schedule.next_duration());
@@ -227,10 +245,20 @@ impl BackupScheduler {
 
                 if config.enabled {
                     let manager = BackupManager::new(db.clone(), db_path.clone());
-                    if let Ok(_manager) = manager {
-                        // TODO: Get provider from somewhere
-                        // For now, just log
-                        tracing::info!("Scheduled backup triggered");
+                    if let Ok(manager) = manager {
+                        let provider_opt = provider_holder.lock().await.clone();
+                        match provider_opt {
+                            Some(provider) => {
+                                let guard = provider.read().await;
+                                match manager.create_backup(guard.as_ref(), config.backup_options.clone()).await {
+                                    Ok(info) => tracing::info!("Scheduled backup completed: {}", info.id),
+                                    Err(e) => tracing::warn!("Scheduled backup failed: {}", e),
+                                }
+                            }
+                            None => {
+                                tracing::info!("Scheduled backup skipped — no cloud provider attached");
+                            }
+                        }
 
                         let next = Utc::now() + chrono::Duration::seconds(
                             config.schedule.next_duration().as_secs() as i64

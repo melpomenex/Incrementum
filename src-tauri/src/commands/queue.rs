@@ -188,11 +188,12 @@ async fn get_queue_items_from_repo(
             .cloned()
             .unwrap_or_else(|| "Unknown Document".to_string());
 
-        let priority = if extract.review_count == 0 {
-            9.0
-        } else {
-            7.0
-        };
+        // Blend inherited priority with review state. New extracts still get
+        // a small boost over reviewed ones, but higher-priority documents
+        // surface their extracts earlier (SuperMemo-style IR priority chain).
+        const PRIORITY_SPAN: f64 = 2.0;
+        let base_weight = if extract.review_count == 0 { 9.0 } else { 7.0 };
+        let priority = base_weight + (extract.priority_score / 100.0) * PRIORITY_SPAN;
 
         let _content_preview = preview_text(&extract.content, 100);
 

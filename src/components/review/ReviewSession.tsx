@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Sparkle,
+  SpeakerHigh,
+  SpeakerSlash,
   Upload,
   WarningCircle,
 } from "@phosphor-icons/react";
@@ -19,6 +21,8 @@ import { ReviewCardSkeleton } from "../common/Skeleton";
 import { FSRSExplanationModal, useFSRSExplanation } from "../onboarding/FSRSExplanationModal";
 import { useSwipeGesture, getSwipeIndicatorStyle, SWIPE_RATINGS } from "../../hooks/useSwipeGesture";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
+import { useAudioReviewMode } from "../../hooks/useAudioReviewMode";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { BreakReminderModal, useBreakReminder } from "./BreakReminderModal";
 import { ZenReviewMode } from "./ZenReviewMode";
 import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
@@ -130,6 +134,27 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
     type: "streak" | "milestone" | "complete" | "mastered" | null;
     value?: number;
   }>({ type: null });
+
+  // Audio read-aloud review mode (hands-free TTS flow).
+  const audioCard = !isDocumentItem(currentCard) ? currentCard : null;
+  const audioQuestionText = audioCard
+    ? (audioCard.cloze_text || audioCard.question || "").replace(/<[^>]*>/g, " ")
+    : "";
+  const audioAnswerText = audioCard
+    ? (audioCard.answer || "").replace(/<[^>]*>/g, " ")
+    : "";
+  const audioReview = useAudioReviewMode({
+    cardId: audioCard?.id ?? null,
+    questionText: audioQuestionText,
+    answerText: audioAnswerText,
+    isAnswerShown,
+    onFlip: () => showAnswer(),
+    onAdvance: () => {
+      const cfg = useSettingsStore.getState().settings.audioReviewMode;
+      const rating = (cfg?.defaultRating ?? 3) as ReviewRating;
+      void handleRating(rating);
+    },
+  });
 
   const handleRating = async (rating: ReviewRating) => {
     haptic.click();
@@ -485,14 +510,28 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           <button
             onClick={() => setIsInspectorOpen(!isInspectorOpen)}
             className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              isInspectorOpen 
-                ? "bg-primary/10 text-primary border border-primary/30" 
+              isInspectorOpen
+                ? "bg-primary/10 text-primary border border-primary/30"
                 : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
             title={t("reviewSession.toggleInspector")}
           >
             <span className="font-mono text-[10px]">FSRS</span>
           </button>
+          {audioReview.isSupported && (
+            <button
+              onClick={audioReview.toggle}
+              className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                audioReview.isEnabled
+                  ? "bg-primary/10 text-primary border border-primary/30"
+                  : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+              title={audioReview.isEnabled ? "Disable audio review mode" : "Enable audio review mode (hands-free TTS)"}
+            >
+              {audioReview.isEnabled ? <SpeakerHigh className="w-3.5 h-3.5" /> : <SpeakerSlash className="w-3.5 h-3.5" />}
+              Audio
+            </button>
+          )}
           <button
             onClick={handleImportDeck}
             disabled={isAnkiImporting}
@@ -687,6 +726,22 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
         value={feedback.value}
         onClose={() => setFeedback({ type: null })}
       />
+
+      {/* Audio review mode status pill */}
+      {audioReview.isEnabled && audioReview.status !== "idle" && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-card border border-border shadow-lg flex items-center gap-2 text-sm">
+          <SpeakerHigh className="w-4 h-4 text-primary animate-pulse" />
+          <span className="text-foreground">
+            {audioReview.status === "speaking-question" && "Reading question…"}
+            {audioReview.status === "awaiting-flip" && "Tap to reveal answer"}
+            {audioReview.status === "speaking-answer" && "Reading answer…"}
+            {audioReview.status === "advancing" && "Next card…"}
+          </span>
+          {audioReview.lastError && (
+            <span className="text-xs text-destructive ml-2">{audioReview.lastError}</span>
+          )}
+        </div>
+      )}
 
       {/* FSRS Explanation Modal for first-time reviewers */}
       <FSRSExplanationModal
