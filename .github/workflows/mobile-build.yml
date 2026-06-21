@@ -195,6 +195,17 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build Android APK (arm64)
+        env:
+          # The Gradle daemon + Kotlin compile daemon, combined with the heavy
+          # Rust release build (LTO, codegen-units=1), exhaust the runner's RAM
+          # mid-build. The symptom is ":app:rustBuildArm64Release" failing with
+          # "A problem occurred starting process 'cargo'" / "daemon terminated
+          # unexpectedly". Disabling the Gradle daemon and capping the Kotlin
+          # daemon's heap keeps memory usage bounded.
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dkotlin.daemon.jvm.options=-Xmx1g"
+          # Cap cargo to a single parallel job so the linker/LTO pass doesn't
+          # compound memory pressure on top of Gradle's JVM.
+          CARGO_BUILD_JOBS: "1"
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
