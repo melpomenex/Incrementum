@@ -241,16 +241,19 @@ jobs:
           echo "--- cargo diagnostics ---"
           command -v cargo; ls -l "$(command -v cargo)"; readlink -f "$(command -v cargo)"
           "$(command -v cargo)" --version
+          echo "--- CARGO env (what BuildTask.kt resolveCargoExecutable reads) ---"
+          echo "CARGO=$CARGO"; ls -l "$CARGO"; readlink -f "$CARGO"
           echo "--- ndk tools ---"
           ls -l "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" 2>&1 | head
           ls -l "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" 2>&1 | head
           echo "--- df / mem ---"
           df -h . | tail -1; free -m 2>/dev/null | head -3 || true
-          # Pass --stacktrace --info to gradlew (via tauri's `--` passthrough)
-          # so the actual Java exception behind "A problem occurred starting
-          # process 'cargo'" is surfaced instead of the Rust Io(BeforeSpawn)
-          # wrapper the tauri CLI emits.
-          npm run tauri -- android build --ci --target aarch64 --apk -- --stacktrace --info 2>&1 | tee artifacts/mobile-logs/android-build.log
+          # Surface the real Gradle exception if rustBuildArm64Release fails
+          # again, WITHOUT breaking cargo: the tauri CLI's `--` passthrough
+          # injects trailing args into the cargo build it runs first, so we
+          # enable stacktrace via gradle.properties on the runner instead.
+          echo "org.gradle.logging.stacktrace=full" >> src-tauri/gen/android/gradle.properties
+          npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Sign Android APK (release)
         if: steps.android_mode.outputs.mode == 'provided-keystore' || steps.android_mode.outputs.mode == 'self-signed'
