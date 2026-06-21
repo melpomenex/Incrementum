@@ -65,9 +65,9 @@ jobs:
           # proxies to) sidesteps the shim entirely and makes the spawn reliable.
           SHIM="$(command -v cargo || true)"
           REAL_CARGO=""
-          # 1) `rustup which cargo` prints the exact binary rustup would proxy to.
-          if [ -n "$SHIM" ]; then
-            REAL_CARGO="$("$SHIM" which cargo 2>/dev/null | tail -1 || true)"
+          # 1) `rustup which cargo` prints the exact binary rustup proxies to.
+          if command -v rustup >/dev/null 2>&1; then
+            REAL_CARGO="$(rustup which cargo 2>/dev/null | tail -1 || true)"
           fi
           # 2) Fall back to globbing the rustup toolchains dir.
           if [ -z "$REAL_CARGO" ] || [ ! -x "$REAL_CARGO" ]; then
