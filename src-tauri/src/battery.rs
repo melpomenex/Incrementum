@@ -9,6 +9,12 @@ pub struct BatteryState {
     pub is_charging: bool,
 }
 
+// Desktop implementation: the `battery` crate has no Android/iOS backend
+// (it fails to compile there with "Support for this target OS is not
+// implemented yet!"), so it is a desktop-only dependency. On mobile we expose
+// the same Tauri command but return a harmless default — the frontend already
+// tolerates "no battery detected".
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 /// Tauri command: read current battery state via the `battery` crate.
 ///
 /// Returns a default "plugged in" state if the battery crate fails or if
@@ -44,5 +50,19 @@ pub fn get_battery_state() -> BatteryState {
             level: 1.0,
             is_charging: true, // Assume plugged-in when we can't detect
         },
+    }
+}
+
+// Mobile stub: the `battery` crate is unavailable on android/ios (see the
+// target-specific dependency in Cargo.toml). Mobile apps query battery via the
+// OS directly if needed; the frontend treats `is_present: false` as "plugged
+// in / unknown", which is the same fallback the desktop path uses on error.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub fn get_battery_state() -> BatteryState {
+    BatteryState {
+        is_present: false,
+        level: 1.0,
+        is_charging: true,
     }
 }

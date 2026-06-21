@@ -94,8 +94,6 @@ zip = "0.6"
 quick-xml = "0.37"
 rusqlite = { version = "0.31", features = ["bundled", "backup"] }
 image = "0.24"
-# Screenshot capture - optional feature
-xcap = { version = "0.8", optional = true }
 
 # RSS parsing
 roxmltree = "0.20"
@@ -111,9 +109,6 @@ fsrs = "5.2"
 # Environment variables
 dotenvy = "0.15"
 
-# Battery state for adaptive behavior
-battery = "0.7"
-
 # Config directories
 dirs = "5.0"
 
@@ -122,6 +117,20 @@ keyring = "3"
 
 # Encrypted fallback key derivation
 pbkdf2 = "0.12"
+
+# Desktop-only dependencies.
+# The crates below have no Android/iOS backend and fail to compile for those
+# targets, so they are scoped to desktop via a target-specific table:
+#   - `battery` 0.7: emits "Support for this target OS is not implemented yet!"
+#     on android/ios.
+#   - `xcap` 0.8: its `platform` module is empty on iOS/Android, so compiling it
+#     fails with "could not find `platform` in the crate root".
+# On mobile the corresponding Tauri commands are stubbed out (see src/battery.rs
+# and src/screenshot.rs), and the `screenshot` cargo feature is a no-op there
+# because `xcap` is absent from the dependency graph on those targets.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+battery = "0.7"
+xcap = { version = "0.8", optional = true }
 
 [features]
 # Disable custom-protocol to use http://localhost instead of tauri://
