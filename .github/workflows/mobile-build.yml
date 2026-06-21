@@ -51,21 +51,41 @@ jobs:
 
       - name: Ensure Cargo is on PATH
         run: |
-          CARGO_BIN="$(command -v cargo || true)"
+          set -euo pipefail
+          # Prefer the *real* toolchain cargo binary over the rustup shim.
+          # Gradle's BuildTask.kt reads $CARGO (via resolveCargoExecutable())
+          # and runs it via project.exec. The rustup shim at ~/.cargo/bin/cargo
+          # re-execs rustup, which has intermittently failed to start from
+          # inside Gradle on the hosted runner ("A problem occurred starting
+          # process 'cargo'"). Pointing $CARGO at the concrete binary the
+          # toolchain actually installed sidesteps the shim entirely.
+          CARGO_BIN=""
+          # 1) toolcache real binary (dtolnay/rust-toolchain installs here)
+          for cand in \
+            "/opt/hostedtoolcache/Rust/${RUST_TOOLCHAIN}/x64/bin/cargo" \
+            "$(find /opt/hostedtoolcache/Rust -type f -path '*/bin/cargo' 2>/dev/null | sort -V | tail -1)"; do
+            if [ -n "$cand" ] && [ -x "$cand" ]; then CARGO_BIN="$cand"; break; fi
+          done
+          # 2) rustup shim fallback
+          if [ -z "$CARGO_BIN" ]; then
+            CARGO_BIN="$(command -v cargo || true)"
+          fi
           if [ -z "$CARGO_BIN" ] && [ -x "$HOME/.cargo/bin/cargo" ]; then
             CARGO_BIN="$HOME/.cargo/bin/cargo"
-          fi
-          if [ -z "$CARGO_BIN" ]; then
-            CARGO_BIN="$(find /opt/hostedtoolcache -type f -path '*/bin/cargo' 2>/dev/null | head -1 || true)"
           fi
           if [ -z "$CARGO_BIN" ] || [ ! -x "$CARGO_BIN" ]; then
             echo "::error::cargo not found after rust-toolchain setup."
             exit 1
           fi
+
           CARGO_BIN_DIR="$(dirname "$CARGO_BIN")"
           echo "$CARGO_BIN_DIR" >> "$GITHUB_PATH"
           echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
+          # RUSTUP_HOME/toolchain so the rustup shim (if anything still calls it)
+          # resolves the same toolchain the real binary belongs to.
+          echo "RUSTUP_TOOLCHAIN=${RUST_TOOLCHAIN}" >> "$GITHUB_ENV"
           ls -l "$CARGO_BIN"
+          echo "resolved real cargo: $CARGO_BIN"
           "$CARGO_BIN" --version
 
       - name: Rust cache
@@ -213,7 +233,24 @@ jobs:
           # The Tauri android build runs cargo first, then Gradle which has its own rustBuild task
           # Gradle spawns a subprocess that needs PATH to include cargo
           export PATH="$HOME/.cargo/bin:$PATH"
-          npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
+          # Diagnostics: confirm cargo is resolvable + executable exactly as
+          # Gradle's BuildTask.kt will resolve it. The "A problem occurred
+          # starting process 'cargo'" Gradle error has been impossible to root-
+          # cause from the tauri CLI's Rust Io(BeforeSpawn) wrapper, so print
+          # the resolved path + perms + a test invocation right before gradle.
+          echo "--- cargo diagnostics ---"
+          command -v cargo; ls -l "$(command -v cargo)"; readlink -f "$(command -v cargo)"
+          "$(command -v cargo)" --version
+          echo "--- ndk tools ---"
+          ls -l "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" 2>&1 | head
+          ls -l "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" 2>&1 | head
+          echo "--- df / mem ---"
+          df -h . | tail -1; free -m 2>/dev/null | head -3 || true
+          # Pass --stacktrace --info to gradlew (via tauri's `--` passthrough)
+          # so the actual Java exception behind "A problem occurred starting
+          # process 'cargo'" is surfaced instead of the Rust Io(BeforeSpawn)
+          # wrapper the tauri CLI emits.
+          npm run tauri -- android build --ci --target aarch64 --apk -- --stacktrace --info 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Sign Android APK (release)
         if: steps.android_mode.outputs.mode == 'provided-keystore' || steps.android_mode.outputs.mode == 'self-signed'
