@@ -38,6 +38,12 @@ interface TranscriptSyncProps {
   onSelectionChange?: (text: string) => void;
   className?: string;
   /**
+   * Whether to render the built-in header (title, copy/export, search input).
+   * Defaults to true. Set to false when the parent supplies its own toolbar
+   * (e.g. a find bar with prev/next navigation) to avoid duplicate search boxes.
+   */
+  showHeader?: boolean;
+  /**
    * Highlights matching terms without filtering the transcript.
    * Intended for "jump to match" flows (e.g., command palette search).
    */
@@ -79,6 +85,7 @@ export function TranscriptSync({
   onExport,
   onSelectionChange,
   className = "flex-1 min-h-0",
+  showHeader = true,
   highlightQuery,
   searchQuery: controlledSearchQuery,
   onSearchQueryChange,
@@ -312,7 +319,8 @@ export function TranscriptSync({
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-card border border-border rounded-lg overflow-hidden">
-      {/* Header */}
+      {/* Header — omitted when the parent supplies its own toolbar (showHeader={false}) */}
+      {showHeader && (
       <div className="flex-shrink-0 p-4 border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -369,6 +377,7 @@ export function TranscriptSync({
           )}
         </div>
       </div>
+      )}
 
       {/* Transcript segments */}
       <div

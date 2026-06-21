@@ -3,6 +3,7 @@
  */
 
 import { invokeCommand, isTauri } from "../lib/tauri";
+import type { TranscriptSegment as SyncTranscriptSegment } from "../components/media/TranscriptSync";
 
 /**
  * Import a podcast episode as a document in the incremental reading system.
@@ -569,4 +570,39 @@ export function formatDuration(seconds: number): string {
     return `${hours}h ${minutes}m ${secs}s`;
   }
   return `${minutes}m ${secs}s`;
+}
+
+/**
+ * Split a single-blob podcast transcript into timestamped segments that
+ * `TranscriptSync` can render and search.
+ *
+ * The backend (`get_podcast_transcript`) stores the whole transcript as one
+ * string; real Whisper timestamps are a future enhancement. We sentence-split
+ * here (mirroring the previous overlay's split logic) and distribute start/end
+ * proportionally across the episode duration. When duration is unknown we fall
+ * back to evenly spaced points (timestamps are hidden in the viewer either way).
+ */
+export function splitTranscriptIntoSegments(
+  text: string,
+  durationSec?: number,
+): SyncTranscriptSegment[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const sentences = trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length === 0) return [];
+
+  const total = durationSec && durationSec > 0 ? durationSec : sentences.length;
+  const step = total / sentences.length;
+
+  return sentences.map((sentence, i) => ({
+    id: `podcast-seg-${i}`,
+    start: i * step,
+    end: (i + 1) * step,
+    text: sentence,
+  }));
 }

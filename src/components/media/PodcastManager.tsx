@@ -3,6 +3,8 @@ import { sanitizeHtml as _sanitizeHtml } from "../common/RichContentRenderer";
 import {
   ArrowsClockwise,
   ArrowSquareOut,
+  CaretLeft,
+  CaretRight,
   ChatCircle,
   Check,
   CheckCircle,
@@ -47,6 +49,7 @@ import {
   setFeedAutoTranscribe,
   importPodcastEpisodeAsDocument,
   savePodcastTranscript,
+  splitTranscriptIntoSegments,
 } from "../../api/podcast";
 import type {
   PodcastFeed,
@@ -65,6 +68,7 @@ import {
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
+import { TranscriptSync, type TranscriptSearchState } from "./TranscriptSync";
 import { cn } from "../../utils";
 import { podcastFeedSearch } from "../../utils/podcastSearch";
 import { ConfirmDialog, useConfirmDialog } from "../common/ConfirmDialog";
@@ -296,6 +300,9 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const [transcriptionProgress, setTranscriptionProgress] = useState<Map<string, { status: string; progress: number }>>(new Map());
   const [viewingTranscript, setViewingTranscript] = useState<{ episode: PodcastEpisode; transcript: PodcastTranscriptResponse } | null>(null);
   const [transcriptSearchQuery, setTranscriptSearchQuery] = useState("");
+  // Match state reported by TranscriptSync so the find bar can show N of M and drive prev/next.
+  const [transcriptActiveMatchIndex, setTranscriptActiveMatchIndex] = useState(0);
+  const [transcriptTotalMatches, setTranscriptTotalMatches] = useState(0);
   const [transcriptCopied, setTranscriptCopied] = useState(false);
   const [chattingTranscript, setChattingTranscript] = useState<{ episode: PodcastEpisode; text: string } | null>(null);
   const [downloadedEpisodes, setDownloadedEpisodes] = useState<Map<string, string>>(new Map());
@@ -832,10 +839,21 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       const transcript = await getPodcastTranscript(episode.id);
       setViewingTranscript({ episode, transcript });
       setTranscriptSearchQuery("");
+      setTranscriptActiveMatchIndex(0);
+      setTranscriptTotalMatches(0);
       setTranscriptCopied(false);
     } catch (error) {
       toast.error("Failed to load transcript", error instanceof Error ? error.message : "Unknown error");
     }
+  };
+
+  // Find-bar prev/next with wrap-around (mirrors DocumentViewer's handleSearch math).
+  const handleTranscriptMatchNav = (direction: "prev" | "next") => {
+    setTranscriptActiveMatchIndex((prev) => {
+      if (transcriptTotalMatches <= 0) return 0;
+      const delta = direction === "next" ? 1 : -1;
+      return ((prev + delta) % transcriptTotalMatches + transcriptTotalMatches) % transcriptTotalMatches;
+    });
   };
 
   const handleCopyTranscript = async (text: string) => {
@@ -1767,59 +1785,92 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                 <ChatCircle className="w-3 h-3" />
                 Chat About This
               </button>
-              {/* MagnifyingGlass */}
+              {/* Find bar */}
               <div className="flex-1" />
-              <div className="relative">
-                <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={transcriptSearchQuery}
-                  onChange={(e) => setTranscriptSearchQuery(e.target.value)}
-                  placeholder="Search transcript..."
-                  className="pl-7 pr-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-36"
-                />
+              <div className="flex items-center gap-1">
+                <div className="relative">
+                  <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={transcriptSearchQuery}
+                    onChange={(e) => {
+                      setTranscriptSearchQuery(e.target.value);
+                      setTranscriptActiveMatchIndex(0);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleTranscriptMatchNav(e.shiftKey ? "prev" : "next");
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setTranscriptSearchQuery("");
+                      }
+                    }}
+                    placeholder={t("viewer.searchTranscript")}
+                    className="pl-7 pr-2 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-44"
+                  />
+                </div>
+                {transcriptSearchQuery.trim() && (
+                  <>
+                    <span className="text-xs text-muted-foreground px-1 tabular-nums whitespace-nowrap">
+                      {transcriptTotalMatches > 0
+                        ? t("viewer.searchMatches", {
+                            current: transcriptActiveMatchIndex + 1,
+                            total: transcriptTotalMatches,
+                          })
+                        : t("viewer.searchNoMatches")}
+                    </span>
+                    <button
+                      onClick={() => handleTranscriptMatchNav("prev")}
+                      disabled={transcriptTotalMatches <= 0}
+                      className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-40 disabled:cursor-default"
+                      title="Previous match"
+                    >
+                      <CaretLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleTranscriptMatchNav("next")}
+                      disabled={transcriptTotalMatches <= 0}
+                      className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-40 disabled:cursor-default"
+                      title="Next match"
+                    >
+                      <CaretRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Transcript content */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {viewingTranscript.transcript.segments.length > 0 ? (
-                viewingTranscript.transcript.segments
-                  .filter((seg) =>
-                    !transcriptSearchQuery ||
-                    seg.text.toLowerCase().includes(transcriptSearchQuery.toLowerCase())
-                  )
-                  .map((seg, i) => {
-                    const startSec = seg.start / 1000;
-                    const mm = String(Math.floor(startSec / 60)).padStart(2, "0");
-                    const ss = String(Math.floor(startSec % 60)).padStart(2, "0");
-                    return (
-                      <div key={i} className="mb-3">
-                        <span className="text-[10px] text-muted-foreground font-mono mr-2">[{mm}:{ss}]</span>
-                        <span className="text-sm text-foreground leading-relaxed">{seg.text}</span>
-                      </div>
-                    );
-                  })
-              ) : (
-                // No segments — show full text with search filter
-                <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                  {transcriptSearchQuery
-                    ? viewingTranscript.transcript.text
-                        .split(/(?<=[.!?])\s+/)
-                        .filter((sentence) =>
-                          sentence.toLowerCase().includes(transcriptSearchQuery.toLowerCase())
-                        )
-                        .join(" ")
-                    : viewingTranscript.transcript.text}
-                  {transcriptSearchQuery &&
-                    viewingTranscript.transcript.text
-                      .split(/(?<=[.!?])\s+/)
-                      .filter((s) => s.toLowerCase().includes(transcriptSearchQuery.toLowerCase()))
-                      .length === 0 && (
-                      <p className="text-muted-foreground mt-2">No matches found.</p>
-                    )}
-                </div>
-              )}
+            {/* Transcript content — powered by the shared TranscriptSync component
+                (same one YouTube/local-video use), in controlled-search mode so the
+                find bar above owns the query + active match. */}
+            <div className="flex-1 min-h-0">
+              <TranscriptSync
+                segments={splitTranscriptIntoSegments(
+                  viewingTranscript.transcript.text,
+                  viewingTranscript.episode.duration ?? undefined,
+                )}
+                currentTime={-1}
+                showHeader={false}
+                showTimestamps={false}
+                showSpeakers={false}
+                autoScroll={false}
+                className="h-full border-0 rounded-none"
+                searchQuery={transcriptSearchQuery}
+                activeMatchIndex={transcriptActiveMatchIndex}
+                highlightQuery={transcriptSearchQuery}
+                onSearchStateChange={(state: TranscriptSearchState) => {
+                  setTranscriptTotalMatches(state.totalMatches);
+                  // Clamp our active index if the match set has shrunk below it
+                  // (e.g. the user kept typing). Otherwise leave prev/next clicks
+                  // in control.
+                  setTranscriptActiveMatchIndex((prev) =>
+                    state.totalMatches > 0
+                      ? Math.min(prev, state.totalMatches - 1)
+                      : 0,
+                  );
+                }}
+              />
             </div>
           </div>
         </div>
