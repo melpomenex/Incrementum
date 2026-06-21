@@ -1,18 +1,27 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
+  ArrowCounterClockwise,
   ChatCircle,
   CheckCircle,
   CircleNotch,
   Clock,
   Eye,
+  EyeSlash,
   PencilLine,
   Scissors,
   Sparkle,
   Star,
   TextT,
+  Trophy,
   WarningCircle,
 } from "@phosphor-icons/react";
-import { updateExtract, type Extract } from "../../api/extracts";
+import {
+  updateExtract,
+  forgetExtract,
+  dismissExtract,
+  graduateExtract,
+  type Extract,
+} from "../../api/extracts";
 import { generateProgressiveSummaries } from "../../api/ai";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
@@ -466,6 +475,44 @@ export function ExtractScrollItem({
                         placeholder={t("extractScrollItem.notesPlaceholder")}
                         className="w-full min-h-[90px] bg-transparent text-sm text-foreground outline-none resize-none"
                     />
+                </div>
+
+                {/* Lifecycle actions: Forget / Dismiss / Done (SuperMemo-style) */}
+                <div className="flex items-center justify-center gap-2 mt-3">
+                    <button
+                        onClick={() => {
+                            void forgetExtract(extract.id).then(() => onRate(1));
+                        }}
+                        className="px-3 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1.5"
+                        title="Reset memory state and return to new queue"
+                    >
+                        <ArrowCounterClockwise className="w-3.5 h-3.5" />
+                        Forget
+                    </button>
+                    <button
+                        onClick={() => {
+                            void dismissExtract(extract.id, !extract.is_dismissed).then(() => onRate(3));
+                        }}
+                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1.5 ${
+                            extract.is_dismissed
+                                ? "border-primary/40 text-primary bg-primary/10"
+                                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                        title={extract.is_dismissed ? "Restore to review queue" : "Remove from review queue (keep in library)"}
+                    >
+                        <EyeSlash className="w-3.5 h-3.5" />
+                        {extract.is_dismissed ? "Undismiss" : "Dismiss"}
+                    </button>
+                    <button
+                        onClick={() => {
+                            void graduateExtract(extract.id).then(() => onRate(4));
+                        }}
+                        className="px-3 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1.5"
+                        title="Mark mastered — schedule ~5 years out"
+                    >
+                        <Trophy className="w-3.5 h-3.5" />
+                        Done
+                    </button>
                 </div>
 
                 {/* Rating Buttons */}

@@ -1228,6 +1228,8 @@ async fn handle_extract_request(
         review_count: 0,
         reps: 0,
         source_hash: None,
+        priority_score: 0.0,
+        is_dismissed: false,
     };
 
     let created = state.repo.create_extract(&extract).await?;

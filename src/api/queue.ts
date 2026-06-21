@@ -166,6 +166,57 @@ export async function postponeItem(itemId: string, days: number, itemType?: stri
   await invokeCommand("postpone_item", { itemId, days, itemType: itemType ?? null });
 }
 
+/** Result of a bulk load-management operation (advance / load-balance / easy-days). */
+export interface LoadManagementResult {
+  affected: number;
+  skipped: number;
+}
+
+/**
+ * Advance an item by N days (inverse of postpone). Pulls a future-due item
+ * closer to today. Memory state is preserved.
+ */
+export async function advanceItem(itemId: string, days: number, itemType?: string): Promise<boolean> {
+  return await invokeCommand<boolean>("advance_item", { itemId, days, itemType: itemType ?? null });
+}
+
+/**
+ * Bulk-advance all items due within the next `days` (default 7) onto today.
+ * Useful for "I have time now, let me get ahead" cramming.
+ */
+export async function advanceDueQueue(days?: number): Promise<LoadManagementResult> {
+  return await invokeCommand<LoadManagementResult>("advance_due_queue", { days: days ?? null });
+}
+
+/**
+ * Redistribute the due pile across the next `windowDays` (default 14) so no
+ * single day exceeds `targetPerDay`. When targetPerDay is null, defaults to
+ * ceil(total / window * 1.25).
+ */
+export async function loadBalanceQueue(
+  windowDays?: number,
+  targetPerDay?: number
+): Promise<LoadManagementResult> {
+  return await invokeCommand<LoadManagementResult>("load_balance_queue", {
+    windowDays: windowDays ?? null,
+    targetPerDay: targetPerDay ?? null,
+  });
+}
+
+/**
+ * Easy Days: shift any item due within the next `windowDays` (default 30) that
+ * falls on an easy weekday (0=Sun..6=Sat) forward to the next non-easy day.
+ */
+export async function applyEasyDays(
+  windowDays?: number,
+  easyDays?: number[]
+): Promise<LoadManagementResult> {
+  return await invokeCommand<LoadManagementResult>("apply_easy_days", {
+    windowDays: windowDays ?? null,
+    easyDays: easyDays ?? null,
+  });
+}
+
 /**
  * Bulk suspend items
  */

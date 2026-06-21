@@ -53,6 +53,9 @@ export const defaultSettings: Settings = {
     chunkSchedulingDefault: 'normal',
     interleavedQueueMode: false,
     interleavedQueueRatio: 20,
+    showSourceContext: true,
+    easyDays: [],
+    loadBalancingEnabled: false,
   },
 
   algorithm: {
@@ -262,5 +265,24 @@ tags: [incrementum]
 
   keybindings: {
     customBindings: {},
+  },
+
+  audioReviewMode: {
+    enabled: false,
+    autoFlip: true,
+    autoFlipDelayMs: 1500,
+    defaultRating: 3,
+  },
+  embedding: {
+    provider: "openai",
+    openaiModel: "text-embedding-3-small",
+    cohereModel: "embed-english-v3.0",
+    openrouterModel: "openai/text-embedding-3-small",
+    ollamaBaseUrl: "http://localhost:11434",
+    ollamaModel: "nomic-embed-text",
+    chunkSize: 200,
+    chunkOverlap: 20,
+    topK: 8,
+    minSimilarity: 0.25,
   },
 };

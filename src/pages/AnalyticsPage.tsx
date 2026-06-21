@@ -11,6 +11,7 @@ import {
   TrendUp,
 } from "@phosphor-icons/react";
 import { useI18n } from "../lib/i18n";
+import { ForecastSimulator } from "../components/analytics/ForecastSimulator";
 
 export function AnalyticsPage() {
   const { dashboardStats, activityData, categoryStats, loadAll } =
@@ -170,6 +171,9 @@ export function AnalyticsPage() {
               ))}
             </div>
           </div>
+
+          {/* Forecast Simulator (what-if: new cards/day → projected load) */}
+          <ForecastSimulator />
 
           {/* Category Breakdown */}
           {categoryStats && categoryStats.length > 0 && (

@@ -16,7 +16,11 @@ static SCHEDULER: tokio::sync::Mutex<Option<BackupScheduler>> =
 
 /// Initialize the backup scheduler
 #[tauri::command]
-pub async fn scheduler_init(repo: State<'_, Repository>, app: AppHandle) -> Result<(), String> {
+pub async fn scheduler_init(
+    repo: State<'_, Repository>,
+    app: AppHandle,
+    auth_provider: State<'_, CloudAuthProvider>,
+) -> Result<(), String> {
     let db = Database::from_pool(repo.pool().clone());
 
     let app_dir = app
@@ -25,15 +29,36 @@ pub async fn scheduler_init(repo: State<'_, Repository>, app: AppHandle) -> Resu
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
     let db_path = app_dir.join("incrementum.db");
 
-    // TODO: Load config from settings
-    let config = SchedulerConfig::default();
+    // Load scheduler config from persisted settings; fall back to defaults.
+    let config = load_scheduler_config(&repo).await;
 
     let scheduler = BackupScheduler::new(db, db_path, config);
+
+    // Attach the first available authenticated provider so the tick can run
+    // real backups instead of just logging.
+    let provider = [CloudProviderType::Dropbox, CloudProviderType::GoogleDrive, CloudProviderType::OneDrive]
+        .iter()
+        .find_map(|pt| auth_provider.get_provider(*pt));
+    scheduler.set_provider(provider).await;
 
     let mut guard = SCHEDULER.lock().await;
     *guard = Some(scheduler);
 
     Ok(())
+}
+
+/// Read the scheduler config from the app settings JSON column.
+async fn load_scheduler_config(repo: &Repository) -> SchedulerConfig {
+    // Best-effort: any failure falls back to SchedulerConfig::default().
+    match sqlx::query_scalar::<_, Option<String>>(
+        "SELECT value FROM app_settings WHERE key = 'backup_scheduler'",
+    )
+    .fetch_optional(repo.pool())
+    .await
+    {
+        Ok(Some(Some(raw))) => serde_json::from_str::<SchedulerConfig>(&raw).unwrap_or_default(),
+        _ => SchedulerConfig::default(),
+    }
 }
 
 /// Start the scheduler

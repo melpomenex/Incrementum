@@ -22,6 +22,8 @@ export interface QueueItem {
   itemType: "document" | "extract" | "learning-item" | "playlist-video" | "rss-article";
   priorityRating?: number;
   prioritySlider?: number;
+  /** Inherited priority score (0–100) from the parent document; present on extract items. */
+  priorityScore?: number;
   priority: number;
   dueDate?: string;
   estimatedTime: number; // in minutes

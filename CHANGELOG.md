@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.55.0] - 2026-06-21
+
+### Added
+- **Whole-library RAG chat** — Ask questions across your entire collection and get answers grounded in your actual documents, with citations back to the sources. Index your library once (Settings → Embeddings & RAG → Index Collection), then switch the assistant to "Library" scope (globe icon) or select "🌐 Whole Library (RAG)" in Document Q&A to chat with everything at once. Answers cite the retrieved passages by `[1] [2] [3]` marker. Supports cloud embedding providers (OpenAI, Cohere, OpenRouter) or fully local via Ollama — your choice. Chunking, content-hash staleness (only re-embeds changed chunks), and token-aware splitting handle long/dense documents automatically.
+- **Source context on review cards** — Every flashcard now shows where it came from. A collapsible "From: *Document title*" panel appears on review cards; expand it to see the source extract snippet. Toggle it off in settings if you prefer the pure Anki-style view. Closes the "atomic card with no context" gap RemNote is known for.
+- **Audio read-aloud review mode** — Hands-free review via TTS. Enable the speaker toggle in the review header and the app reads the question, flips the card, reads the answer, and auto-advances — perfect for commute, cooking, or exercise. Configurable auto-flip delay and default rating; uses your existing TTS provider (fal/groq/pocket or Web Speech).
+- **Extract priority inheritance** — True SuperMemo-style incremental reading. Extracts now inherit their parent document's priority and surface in the reading queue in priority order, so a high-priority article's extracts rank ahead of a low-priority one's. Reprioritizing a document cascades to its extracts (unless you've manually overridden one).
+- **Extract Forget / Dismiss / Done lifecycle** — Complete the incremental-reading workflow. Forget resets an extract's memory state and returns it to the new queue; Dismiss removes it from review without deleting (restorable); Done graduates it ~5 years out as mastered. Available as buttons on each extract in scroll-mode review.
+- **Easy Days, Load Balancing, and Advance** — The FSRS Helper add-on's most-loved features, built in natively. Easy Days shifts reviews off chosen weekdays (weekend/vacation mode). Load Balancing redistributes your due pile across the next N days to flatten peaks. Advance pulls future-due items forward to today ("do now" cramming). All preserve FSRS memory state — they only shift due dates.
+- **Review forecast simulator** — A what-if planner on the Analytics page: drag the "new cards/day" slider and see your projected daily review load over the next 30–180 days, stacked against your real baseline. Spot pile-ups before they form and back off your add rate in advance.
+
+### Fixed & Improved
+- **Refreshed FEATURES_IMPLEMENTED.md** — The feature-status doc was badly out of date (still said "17 themes" and marked ~6 shipped features as "Planned"). Now reflects v1.55 reality: 170+ themes, cloud sync (Dropbox/Drive/OneDrive), Anki export, cross-device Yjs sync, heatmaps, OCR providers, MCP server, and all the new features above. Updated to June 2026.
+- **Removed dead mock-data analytics panel** — The legacy `LearningAnalytics` component shipped with hardcoded fake numbers ("45 cards reviewed today") and a `TODO: Implement actual API call`. Deleted; the real analytics live in `AnalyticsPage` + `analyticsStore`.
+- **Replaced placeholder retention estimate** — `compare_algorithms` returned a hardcoded `0.85` retention. Now computes a real state-weighted retention estimate from item states (Review/Learning/Relearning/New).
+- **Wired the backup scheduler to a real provider** — The automatic backup scheduler tick had a dangling `// TODO: Get provider from somewhere` and just logged instead of backing up. It now attaches the first authenticated cloud provider at init and performs real backups (or logs a clean skip when none is configured). Scheduler config is also loaded from settings instead of always-defaulted.
+- **Better embedding error messages** — OpenRouter/OpenAI embedding failures used to surface as an opaque "Missing data in response". They now include the actual response body (truncated) so you can see the real cause (e.g. token-limit rejections, model-not-found).
+- **Resilient RAG indexing** — A single oversized or un-embeddable chunk no longer aborts indexing for the whole document or collection. Oversized chunks are split on sentence boundaries; batches that fail fall back to one-by-one embedding with per-chunk skip-and-log. Collection indexing continues past per-document failures and reports how many documents lack extractable text content (e.g. scanned PDFs without OCR).
+
 ## [1.54.0] - 2026-06-20
 
 ### Added

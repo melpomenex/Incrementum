@@ -14,6 +14,7 @@ pub mod qa;
 pub mod summarizer;
 pub mod provider_wrapper;
 pub mod embeddings;
+pub mod embedding_config;
 
 // Re-exports - use the new enum-based provider
 pub use provider_wrapper::{

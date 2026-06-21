@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use crate::error::{Result, IncrementumError};
 use crate::models::{Document, DocumentMetadata, Extract, LearningItem, FileType, ItemType, ItemState, VideoExtract, ImageAsset, ImageAssetWithUsage, TranscriptionQueueEntry, TranscriptionJobStatus, TranscriptionQueueEntryWithDoc};
 use crate::models::collection::{Collection, DEFAULT_COLLECTION_ID};
-use crate::database::QueueItemEmbedding;
+use crate::database::{QueueItemEmbedding, DocumentChunkEmbedding};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DocumentQueueInfo {
@@ -936,8 +936,8 @@ impl Repository {
                 selection_context, highlight_color, notes, progressive_disclosure_level,
                 max_disclosure_level, progressive_summaries, date_created, date_modified,
                 tags, category, memory_state_stability, memory_state_difficulty,
-                next_review_date, last_review_date, review_count, reps, source_hash
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+                next_review_date, last_review_date, review_count, reps, source_hash, priority_score, is_dismissed
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
             "#,
         )
         .bind(&extract.id)
@@ -965,6 +965,8 @@ impl Repository {
         .bind(extract.review_count)
         .bind(extract.reps)
         .bind(&extract.source_hash)
+        .bind(extract.priority_score)
+        .bind(extract.is_dismissed)
         .execute(&self.pool)
         .await?;
 
@@ -1016,6 +1018,8 @@ impl Repository {
                     review_count: row.try_get("review_count").unwrap_or(0),
                     reps: row.try_get("reps").unwrap_or(0),
                     source_hash: row.try_get("source_hash").ok(),
+                    priority_score: row.try_get::<f64, _>("priority_score").unwrap_or(0.0),
+                    is_dismissed: row.try_get::<bool, _>("is_dismissed").unwrap_or(false),
                 }))
             }
             None => Ok(None),
@@ -1067,6 +1071,8 @@ impl Repository {
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
                     source_hash: row.try_get("source_hash").ok(),
+                    priority_score: row.try_get::<f64, _>("priority_score").unwrap_or(0.0),
+                    is_dismissed: row.try_get::<bool, _>("is_dismissed").unwrap_or(false),
             });
         }
 
@@ -1117,6 +1123,8 @@ impl Repository {
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
                     source_hash: row.try_get("source_hash").ok(),
+                    priority_score: row.try_get::<f64, _>("priority_score").unwrap_or(0.0),
+                    is_dismissed: row.try_get::<bool, _>("is_dismissed").unwrap_or(false),
             });
         }
 
@@ -1198,7 +1206,7 @@ impl Repository {
     }
 
     pub async fn get_due_extracts(&self, before: &chrono::DateTime<chrono::Utc>) -> Result<Vec<Extract>> {
-        let rows = sqlx::query("SELECT * FROM extracts WHERE next_review_date IS NOT NULL AND next_review_date <= ? ORDER BY next_review_date")
+        let rows = sqlx::query("SELECT * FROM extracts WHERE is_dismissed = 0 AND next_review_date IS NOT NULL AND next_review_date <= ? ORDER BY next_review_date")
             .bind(before)
             .fetch_all(&self.pool)
             .await?;
@@ -1242,6 +1250,8 @@ impl Repository {
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
                     source_hash: row.try_get("source_hash").ok(),
+                    priority_score: row.try_get::<f64, _>("priority_score").unwrap_or(0.0),
+                    is_dismissed: row.try_get::<bool, _>("is_dismissed").unwrap_or(false),
             });
         }
 
@@ -1250,7 +1260,7 @@ impl Repository {
 
     /// Get extracts that have never been reviewed (new extracts without next_review_date)
     pub async fn get_new_extracts(&self) -> Result<Vec<Extract>> {
-        let rows = sqlx::query("SELECT * FROM extracts WHERE next_review_date IS NULL ORDER BY date_created DESC")
+        let rows = sqlx::query("SELECT * FROM extracts WHERE is_dismissed = 0 AND next_review_date IS NULL ORDER BY date_created DESC")
             .fetch_all(&self.pool)
             .await?;
 
@@ -1293,6 +1303,8 @@ impl Repository {
                     .flatten()
                     .and_then(|s| serde_json::from_str(&s).ok()),
                     source_hash: row.try_get("source_hash").ok(),
+                    priority_score: row.try_get::<f64, _>("priority_score").unwrap_or(0.0),
+                    is_dismissed: row.try_get::<bool, _>("is_dismissed").unwrap_or(false),
             });
         }
 
@@ -1335,6 +1347,119 @@ impl Repository {
         .await?;
 
         Ok(())
+    }
+
+    /// Update an extract's inherited priority score (manual override).
+    pub async fn update_extract_priority(&self, id: &str, priority_score: f64) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE extracts SET
+                priority_score = ?1,
+                date_modified = ?2
+            WHERE id = ?3
+            "#,
+        )
+        .bind(priority_score.clamp(0.0, 100.0))
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Set an extract's dismissed flag (SuperMemo-style Dismiss lifecycle).
+    /// Dismissed extracts leave the review queue but remain in the library.
+    pub async fn update_extract_dismissed(&self, id: &str, is_dismissed: bool) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE extracts SET
+                is_dismissed = ?1,
+                date_modified = ?2
+            WHERE id = ?3
+            "#,
+        )
+        .bind(is_dismissed)
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Reset an extract's FSRS memory state to initial values and clear its
+    /// scheduling (SuperMemo-style Forget lifecycle). Returns it to the
+    /// new-extract queue.
+    pub async fn forget_extract(&self, id: &str) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE extracts SET
+                memory_state_stability = 0.5,
+                memory_state_difficulty = 5.0,
+                reps = 0,
+                review_count = 0,
+                next_review_date = NULL,
+                last_review_date = NULL,
+                date_modified = ?1
+            WHERE id = ?2
+            "#,
+        )
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Graduate an extract: schedule it far in the future and mark high
+    /// stability (SuperMemo-style Done lifecycle).
+    pub async fn graduate_extract(&self, id: &str, far_future: chrono::DateTime<Utc>) -> Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE extracts SET
+                next_review_date = ?1,
+                memory_state_stability = 1825.0,
+                date_modified = ?2
+            WHERE id = ?3
+            "#,
+        )
+        .bind(far_future)
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Cascade a document's new priority to child extracts that still carry
+    /// the document's *previous* score. Extracts whose priority has been
+    /// individually overridden (and therefore differs from the previous
+    /// document score) are left untouched.
+    pub async fn cascade_document_priority(
+        &self,
+        document_id: &str,
+        previous_score: f64,
+        new_score: f64,
+    ) -> Result<u64> {
+        let result = sqlx::query(
+            r#"
+            UPDATE extracts SET
+                priority_score = ?1,
+                date_modified = ?2
+            WHERE document_id = ?3 AND ABS(priority_score - ?4) < 0.001
+            "#,
+        )
+        .bind(new_score.clamp(0.0, 100.0))
+        .bind(Utc::now())
+        .bind(document_id)
+        .bind(previous_score)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 
     // Learning item operations
@@ -2405,6 +2530,174 @@ impl Repository {
             result.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
         }
         result
+    }
+
+    // -----------------------------------------------------------------------
+    // Document chunk embeddings (whole-library RAG)
+    // -----------------------------------------------------------------------
+
+    /// Upsert a document chunk embedding. The `id` is `{document_id}:{chunk_index}`.
+    pub async fn upsert_chunk_embedding(&self, emb: &DocumentChunkEmbedding) -> Result<()> {
+        let mut bytes = Vec::with_capacity(emb.embedding.len() * 4);
+        for &val in &emb.embedding {
+            bytes.extend_from_slice(&val.to_le_bytes());
+        }
+
+        sqlx::query(
+            r#"INSERT OR REPLACE INTO document_chunk_embeddings
+               (id, document_id, chunk_index, chunk_text, embedding, content_hash, provider, model, dimension, created_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"#,
+        )
+        .bind(&emb.id)
+        .bind(&emb.document_id)
+        .bind(emb.chunk_index)
+        .bind(&emb.chunk_text)
+        .bind(&bytes)
+        .bind(&emb.content_hash)
+        .bind(&emb.provider)
+        .bind(&emb.model)
+        .bind(emb.dimension)
+        .bind(emb.created_at)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Return chunk embeddings for a given provider+model, optionally filtered
+    /// to a set of document_ids. Used by rag_search for top-k cosine.
+    pub async fn get_chunk_embeddings(
+        &self,
+        document_ids: Option<&[String]>,
+        provider: &str,
+        model: &str,
+    ) -> Result<Vec<DocumentChunkEmbedding>> {
+        let rows = if let Some(ids) = document_ids {
+            if ids.is_empty() {
+                return Ok(Vec::new());
+            }
+            let placeholders: Vec<String> = (0..ids.len()).map(|i| format!("?{}", i + 3)).collect();
+            let sql = format!(
+                "SELECT id, document_id, chunk_index, chunk_text, embedding, content_hash, provider, model, dimension, created_at
+                 FROM document_chunk_embeddings
+                 WHERE provider = ?1 AND model = ?2 AND document_id IN ({})",
+                placeholders.join(", ")
+            );
+            let mut q = sqlx::query(&sql).bind(provider).bind(model);
+            for id in ids {
+                q = q.bind(id);
+            }
+            q.fetch_all(&self.pool).await?
+        } else {
+            sqlx::query(
+                "SELECT id, document_id, chunk_index, chunk_text, embedding, content_hash, provider, model, dimension, created_at
+                 FROM document_chunk_embeddings
+                 WHERE provider = ?1 AND model = ?2",
+            )
+            .bind(provider)
+            .bind(model)
+            .fetch_all(&self.pool)
+            .await?
+        };
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            let dim: i32 = row.try_get("dimension")?;
+            let bytes: Vec<u8> = row.try_get("embedding")?;
+            out.push(DocumentChunkEmbedding {
+                id: row.try_get("id")?,
+                document_id: row.try_get("document_id")?,
+                chunk_index: row.try_get("chunk_index")?,
+                chunk_text: row.try_get("chunk_text")?,
+                embedding: Self::bytes_to_embedding(&bytes, dim as usize),
+                content_hash: row.try_get("content_hash")?,
+                provider: row.try_get("provider")?,
+                model: row.try_get("model")?,
+                dimension: dim,
+                created_at: row.try_get("created_at")?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Compute the content hashes for a document's chunks that are already
+    /// stored for this provider+model, so we can skip re-embedding unchanged
+    /// chunks. Returns a set of stored hashes keyed by chunk_index.
+    pub async fn get_stored_chunk_hashes(
+        &self,
+        document_id: &str,
+        provider: &str,
+        model: &str,
+    ) -> Result<std::collections::HashMap<i32, String>> {
+        let rows = sqlx::query(
+            "SELECT chunk_index, content_hash FROM document_chunk_embeddings
+             WHERE document_id = ?1 AND provider = ?2 AND model = ?3",
+        )
+        .bind(document_id)
+        .bind(provider)
+        .bind(model)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut map = std::collections::HashMap::with_capacity(rows.len());
+        for row in rows {
+            let idx: i32 = row.try_get("chunk_index")?;
+            let hash: String = row.try_get("content_hash")?;
+            map.insert(idx, hash);
+        }
+        Ok(map)
+    }
+
+    /// Delete all chunk embeddings for a document (e.g. when chunks shrink).
+    pub async fn delete_document_chunk_embeddings(&self, document_id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM document_chunk_embeddings WHERE document_id = ?1")
+            .bind(document_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Delete chunk-embedding rows whose id matches `{document_id}:{chunk_index}`
+    /// or `{document_id}:{chunk_index}:N` (split sub-chunks). Used to clear
+    /// stale rows before re-inserting split pieces for a changed segment.
+    pub async fn delete_chunk_embeddings_for_index(
+        &self,
+        document_id: &str,
+        chunk_index: i32,
+    ) -> Result<()> {
+        // Match both "doc:idx" and "doc:idx:N" forms via a LIKE prefix.
+        let prefix = format!("{}:{}%", document_id, chunk_index);
+        sqlx::query("DELETE FROM document_chunk_embeddings WHERE id LIKE ?1")
+            .bind(&prefix)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Count distinct documents that have at least one chunk embedding for the
+    /// given provider+model.
+    pub async fn count_indexed_documents(&self, provider: &str, model: &str) -> Result<i64> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(DISTINCT document_id) FROM document_chunk_embeddings
+             WHERE provider = ?1 AND model = ?2",
+        )
+        .bind(provider)
+        .bind(model)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row.0)
+    }
+
+    /// Count total chunk embeddings for the given provider+model.
+    pub async fn count_chunk_embeddings(&self, provider: &str, model: &str) -> Result<i64> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM document_chunk_embeddings WHERE provider = ?1 AND model = ?2",
+        )
+        .bind(provider)
+        .bind(model)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row.0)
     }
 
     /// Get the count of unread articles for a specific RSS feed

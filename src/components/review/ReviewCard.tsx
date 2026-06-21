@@ -11,6 +11,7 @@ import {
 import { useTTS } from "../../hooks/useTTS";
 import { renderAnkiHtmlWithLatex, warmAnkiLatexNormalization } from "../../utils/ankiLatex";
 import { getImageAssetById } from "../../api/image-registry";
+import { CardSourceContext } from "./CardSourceContext";
 import { useI18n } from "../../lib/i18n";
 import type {
   ImageOcclusionRegion,
@@ -549,6 +550,8 @@ export const ReviewCard = React.memo(function ReviewCard({
               <audio controls preload="none" src={audioQuestionUrl} className="w-full" />
             </div>
           )}
+          {/* Source context (collapsible provenance) */}
+          <CardSourceContext itemId={card.id} />
         </div>
 
         {/* Answer (shown when revealed) with fade-in animation */}

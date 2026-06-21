@@ -44,7 +44,7 @@ pub async fn create_extract(
     max_disclosure_level: Option<i32>,
     repo: State<'_, Repository>,
 ) -> Result<Extract> {
-    let mut extract = Extract::new(document_id, content);
+    let mut extract = Extract::new(document_id.clone(), content);
     extract.html_content = html_content;
     extract.source_url = source_url;
     extract.notes = note;
@@ -56,9 +56,27 @@ pub async fn create_extract(
     if let Some(level) = max_disclosure_level {
         extract.max_disclosure_level = level;
     }
+    // Inherit the parent document's priority score (SuperMemo-style IR
+    // priority chain). Falls back to 0.0 when the document is unknown or
+    // has no priority set.
+    if let Ok(Some(doc)) = repo.get_document(&document_id).await {
+        extract.priority_score = doc.priority_score;
+    }
     let created = repo.create_extract(&extract).await?;
     append_daily_note_extract_link(&created, &repo).await?;
     Ok(created)
+}
+
+/// Manually override an extract's priority score. Once set, the extract
+/// will no longer inherit from document priority updates (its score will
+/// differ from the previous document score, so the cascade skips it).
+#[tauri::command]
+pub async fn set_extract_priority(
+    id: String,
+    priority_score: f64,
+    repo: State<'_, Repository>,
+) -> Result<()> {
+    repo.update_extract_priority(&id, priority_score).await
 }
 
 #[tauri::command]

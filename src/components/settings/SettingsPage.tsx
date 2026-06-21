@@ -40,6 +40,7 @@ import { HandbookSettings } from "./HandbookSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { AudioTranscriptionSettings } from "./AudioTranscriptionSettings";
 import { TTSSettings } from "./TTSSettings";
+import { EmbeddingSettings } from "./EmbeddingSettings";
 import { SmartQueuesSettings } from "./SmartQueuesSettings";
 import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
@@ -71,6 +72,7 @@ export enum SettingsTab {
   Notifications = "notifications",
   Privacy = "privacy",
   Handbook = "handbook",
+  Embeddings = "embeddings",
 }
 
 /**
@@ -227,6 +229,13 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
     icon: Shield,
     keywords: ["security", "password", "encryption", "private", "data protection", "gdpr"],
     description: "Privacy and security settings",
+  },
+  {
+    id: SettingsTab.Embeddings,
+    label: "Embeddings & RAG",
+    icon: Brain,
+    keywords: ["embedding", "vector", "rag", "semantic", "retrieval", "index", "whole library", "chat"],
+    description: "Embedding model and whole-library chat indexing",
   },
   {
     id: SettingsTab.Handbook,
@@ -527,6 +536,7 @@ export function SettingsPage() {
           {activeTab === SettingsTab.AI && <AISettings onChange={() => setHasChanges(true)} />}
           {activeTab === SettingsTab.AudioTranscription && <AudioTranscriptionSettings />}
           {activeTab === SettingsTab.TTS && <TTSSettings />}
+          {activeTab === SettingsTab.Embeddings && <EmbeddingSettings />}
           {activeTab === SettingsTab.Sync && <SyncSettings onChange={() => setHasChanges(true)} />}
           {activeTab === SettingsTab.Integrations && <IntegrationSettings />}
           {activeTab === SettingsTab.CloudStorage && (

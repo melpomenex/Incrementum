@@ -9,7 +9,7 @@
 //! - Document scheduler for incremental reading
 
 use serde::{Serialize, Deserialize};
-use crate::models::{LearningItem, ReviewRating};
+use crate::models::{LearningItem, ReviewRating, ItemState};
 use chrono::{Utc, Duration};
 
 pub mod optimizer;
@@ -310,8 +310,21 @@ pub fn compare_algorithms(items: &[LearningItem]) -> AlgorithmComparison {
         0.0
     };
 
-    // Simplified retention estimate (would need historical data for accurate calculation)
-    let avg_retention = 0.85; // Placeholder
+    // Retention estimate from item state distribution: items in Review or
+    // Mature states contribute full retention, Learning items contribute 0.5,
+    // and Relearning items contribute 0. This is a state-weighted proxy that
+    // replaces the previous hardcoded 0.85 placeholder.
+    let avg_retention = if items.is_empty() {
+        0.0
+    } else {
+        let sum: f64 = items.iter().map(|i| match i.state {
+            ItemState::Review => 1.0,
+            ItemState::Learning => 0.5,
+            ItemState::Relearning => 0.0,
+            ItemState::New => 0.7,
+        }).sum();
+        sum / items.len() as f64
+    };
 
     AlgorithmComparison {
         algorithm: "FSRS-6".to_string(),

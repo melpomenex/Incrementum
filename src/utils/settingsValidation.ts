@@ -56,6 +56,9 @@ export const LearningSettingsSchema = z.object({
   chunkSchedulingDefault: z.string().default('normal'),
   interleavedQueueMode: z.boolean().default(false),
   interleavedQueueRatio: z.number().min(0).max(100).default(20),
+  showSourceContext: z.boolean().default(true),
+  easyDays: z.array(z.number().min(0).max(6)).default([]),
+  loadBalancingEnabled: z.boolean().default(false),
 });
 
 // Algorithm Settings Schema
@@ -306,6 +309,26 @@ export const KeybindingSettingsSchema = z.object({
   customBindings: z.record(z.string(), z.string()).default({}),
 });
 
+export const AudioReviewModeSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  autoFlip: z.boolean().default(true),
+  autoFlipDelayMs: z.number().min(0).max(10000).default(1500),
+  defaultRating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).default(3),
+});
+
+export const EmbeddingSettingsSchema = z.object({
+  provider: z.enum(["openai", "cohere", "openrouter", "ollama"]).default("openai"),
+  openaiModel: z.string().optional().default("text-embedding-3-small"),
+  cohereModel: z.string().optional().default("embed-english-v3.0"),
+  openrouterModel: z.string().optional().default("openai/text-embedding-3-small"),
+  ollamaBaseUrl: z.string().default("http://localhost:11434"),
+  ollamaModel: z.string().optional().default("nomic-embed-text"),
+  chunkSize: z.number().min(50).max(2000).default(200),
+  chunkOverlap: z.number().min(0).max(500).default(20),
+  topK: z.number().min(1).max(50).default(8),
+  minSimilarity: z.number().min(0).max(1).default(0.25),
+});
+
 // Complete Settings Schema
 export const SettingsSchema = z.object({
   general: GeneralSettingsSchema,
@@ -326,6 +349,8 @@ export const SettingsSchema = z.object({
   sponsorBlock: SponsorBlockSettingsSchema,
   smartQueue: SmartQueueSettingsSchema,
   keybindings: KeybindingSettingsSchema,
+  audioReviewMode: AudioReviewModeSettingsSchema,
+  embedding: EmbeddingSettingsSchema,
 });
 
 // Export type

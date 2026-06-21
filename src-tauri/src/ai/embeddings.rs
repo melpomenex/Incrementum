@@ -9,6 +9,16 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+/// Truncate a string for inclusion in error messages.
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let head: String = s.chars().take(max).collect();
+        format!("{head}…")
+    }
+}
+
 /// Embedding provider type
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EmbeddingProviderType {
@@ -696,22 +706,28 @@ impl EmbeddingProvider for OpenRouterEmbeddingProvider {
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(format!("OpenRouter API error {}: {}", status, error_text));
+        let status = response.status();
+        let raw_body = response.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(format!("OpenRouter API error {}: {}", status, raw_body));
         }
 
-        let json: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse response: {}", e))?;
+        let json: serde_json::Value = serde_json::from_str(&raw_body)
+            .map_err(|e| format!("Failed to parse response: {} — body: {}", e, truncate(&raw_body, 500)))?;
 
         let tokens = json["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32;
 
         let data = json["data"]
             .as_array()
-            .ok_or("Missing data in response")?;
+            .ok_or_else(|| {
+                format!(
+                    "Missing 'data' array in OpenRouter response (model {}). \
+                    The model may not support the embeddings endpoint. Response: {}",
+                    self.model,
+                    truncate(&raw_body, 500)
+                )
+            })?;
 
         let mut responses = Vec::new();
         for item in data {
