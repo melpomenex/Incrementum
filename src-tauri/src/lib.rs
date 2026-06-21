@@ -35,7 +35,10 @@ mod utils;
 mod notebooklm;
 mod pocket_tts;
 mod battery;
-#[cfg(feature = "screenshot")]
+// `screenshot` requires the `xcap` crate, which only has a backend on desktop
+// (see the target-specific dependency in Cargo.toml). On android/ios the
+// `screenshot` cargo feature is a no-op and the module is excluded entirely.
+#[cfg(all(feature = "screenshot", not(any(target_os = "android", target_os = "ios"))))]
 mod screenshot;
 
 #[cfg(test)]
@@ -1126,13 +1129,13 @@ pub fn run() {
             commands::glm_start_ollama_runtime,
             commands::glm_stop_ollama_runtime,
             commands::glm_pull_ollama_model,
-            #[cfg(feature = "screenshot")]
+            #[cfg(all(feature = "screenshot", not(any(target_os = "android", target_os = "ios"))))]
             screenshot::capture_screenshot,
-            #[cfg(feature = "screenshot")]
+            #[cfg(all(feature = "screenshot", not(any(target_os = "android", target_os = "ios"))))]
             screenshot::capture_screen_by_index,
-            #[cfg(feature = "screenshot")]
+            #[cfg(all(feature = "screenshot", not(any(target_os = "android", target_os = "ios"))))]
             screenshot::capture_app_window,
-            #[cfg(feature = "screenshot")]
+            #[cfg(all(feature = "screenshot", not(any(target_os = "android", target_os = "ios"))))]
             screenshot::get_screen_info,
             transcription::get_transcription_profiles,
             transcription::download_transcription_model,
