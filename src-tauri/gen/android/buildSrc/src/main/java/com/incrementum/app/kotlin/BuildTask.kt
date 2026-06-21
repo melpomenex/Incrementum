@@ -53,36 +53,34 @@ open class BuildTask : DefaultTask() {
 
         val cargoExecutable = resolveCargoExecutable()
 
-        // Spawn cargo via ProcessBuilder with the inherited environment
-        // *minus* the redundant per-ABI variables the Tauri CLI injects for ALL
-        // four Android targets. Gradle's project.exec inherits the entire
-        // environment; on the GitHub runner that includes ~30
-        // CARGO_TARGET_*/WRY_*/TAURI_* vars (one set per ABI) plus a very long
-        // PATH. The combined argv+environ can exceed the kernel ARG_MAX when
-        // Gradle forks cargo, and execve returns E2BIG, which Gradle surfaces as
-        // the opaque "A problem occurred starting process 'command 'cargo''".
+        // Spawn cargo through /bin/sh -c. Gradle's project.exec (and a direct
+        // ProcessBuilder exec of the cargo ELF) has historically failed here
+        // with the opaque "A problem occurred starting process 'cargo'" and,
+        // when wrapped, "error=2, No such file or directory" on a cargo binary
+        // that demonstrably exists and runs from a shell. Routing through the
+        // shell (the same way the workflow's own diagnostics successfully invoke
+        // cargo) sidesteps Java's direct-exec path entirely and lets the shell
+        // resolve the dynamic linker / PATH the same way every other cargo
+        // invocation in this build does.
         //
-        // We can't just clear the env — cargo is a dynamically-linked ELF and
-        // its loader needs the inherited LD_*/PATH/etc. So we start from the
-        // full environment and delete only the cross-ABI CARGO_TARGET_* entries
-        // for the THREE targets we are NOT building, which is where the bulk of
-        // the bloat comes from. We keep the current target's RUSTFLAGS/linker
-        // and everything else (PATH, LD_*, locale, etc.).
+        // We still prune the redundant per-ABI CARGO_TARGET_* vars for the
+        // targets we are NOT building, because the inherited environment
+        // (one CARGO_TARGET_* set per ABI + a long runner PATH) is the bulk of
+        // the size and is what originally overflowed ARG_MAX.
         val otherAbiTargets = listOf("aarch64", "armv7", "i686", "x86_64") - target
-        val pb = ProcessBuilder(
-            listOfNotNull(
-                cargoExecutable,
-                "build", "--lib", "--target", cargoTarget,
-                if (release) "--release" else null
-            )
+        val workDir = File(project.projectDir, "$rootDirRel/src-tauri").absoluteFile
+        val argv = mutableListOf(
+            cargoExecutable,
+            "build", "--lib", "--target", cargoTarget
         )
-        pb.directory(File(project.projectDir, "$rootDirRel/src-tauri"))
+        if (release) argv += "--release"
+        // Quote each argv element for the shell.
+        val cmdLine = argv.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
+
+        val pb = ProcessBuilder(listOf("/bin/sh", "-c", cmdLine))
+        pb.directory(workDir)
         pb.redirectErrorStream(true)
         val env = pb.environment()
-        // Drop the per-ABI vars for every target except the one we're building.
-        // These are the bulk contributors to the environment size and are the
-        // only thing that differs per-ABI; keeping the rest of the env intact
-        // preserves PATH / dynamic-loader / locale / toolchain resolution.
         for (other in otherAbiTargets) {
             val otherCargoTarget = when (other) {
                 "aarch64" -> "aarch64-linux-android"
@@ -109,29 +107,8 @@ open class BuildTask : DefaultTask() {
         val process = try {
             pb.start()
         } catch (e: Throwable) {
-            // The spawn itself failed (e.g. ENOENT/E2BIG). Dump diagnostics so
-            // the opaque failure ("A problem occurred starting process 'cargo'")
-            // has a concrete cause: ARG_MAX, env size, the resolved cargo path,
-            // and its ELF interpreter from `file`.
-            try {
-                val argMax = Runtime.getRuntime().exec(arrayOf("getconf", "ARG_MAX"))
-                    .inputStream.bufferedReader().use { it.readText().trim() }
-                val envSize = env.entries.sumOf { (k, v) -> k.length + v.length + 2 }
-                val fileOut = Runtime.getRuntime().exec(arrayOf("file", cargoExecutable))
-                    .inputStream.bufferedReader().use { it.readText().trim() }
-                val lsOut = Runtime.getRuntime().exec(arrayOf("ls", "-l", cargoExecutable))
-                    .inputStream.bufferedReader().use { it.readText().trim() }
-                project.logger.lifecycle(
-                    "[rustBuild spawn-fail diag] ${e.javaClass.name}: ${e.message}"
-                )
-                project.logger.lifecycle(
-                    "[rustBuild spawn-fail diag] ARG_MAX=$argMax envBytes=$envSize envEntries=${env.size} " +
-                        "cargo=$cargoExecutable exists=${File(cargoExecutable).exists()} " +
-                        "canExecute=${File(cargoExecutable).canExecute()} ls=[$lsOut] file=[$fileOut]"
-                )
-            } catch (t: Throwable) {
-                project.logger.lifecycle("[rustBuild spawn-fail diag] diag collection failed: ${t.message}")
-            }
+            System.err.println("[rustBuild spawn-fail] ${e.javaClass.name}: ${e.message}")
+            System.err.println("[rustBuild spawn-fail] workDir=$workDir exists=${workDir.exists()} cargo=$cargoExecutable cargoExists=${File(cargoExecutable).exists()}")
             throw GradleException("cargo spawn failed: ${e.message}", e)
         }
         val output = process.inputStream.bufferedReader().use { it.readText() }
