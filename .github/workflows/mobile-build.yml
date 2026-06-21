@@ -248,11 +248,6 @@ jobs:
           ls -l "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" 2>&1 | head
           echo "--- df / mem ---"
           df -h . | tail -1; free -m 2>/dev/null | head -3 || true
-          # Surface the real Gradle exception if rustBuildArm64Release fails
-          # again, WITHOUT breaking cargo: the tauri CLI's `--` passthrough
-          # injects trailing args into the cargo build it runs first, so we
-          # enable stacktrace via gradle.properties on the runner instead.
-          echo "org.gradle.logging.stacktrace=full" >> src-tauri/gen/android/gradle.properties
           npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Sign Android APK (release)
