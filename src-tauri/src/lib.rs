@@ -210,6 +210,15 @@ fn apply_theme_vibrancy(window: tauri::WebviewWindow, theme_id: String) -> bool 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Install the rustls crypto provider as the very first thing. reqwest's
+    // `rustls-tls` feature compiles rustls 0.23 in `*-no-provider` mode, so no
+    // provider is auto-registered. On Android the first TLS Client build (which
+    // happens inside Wry's WebView request interception) panics with
+    // "No rustls crypto provider is configured" and SIGABRTs the app. Installing
+    // `ring` here (the backend reqwest selects) makes every later Client build
+    // resolve a provider. Must run before dotenvy/Tauri init/client creation.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     // EARLY LOG: Entry point
     let _ = (|| -> anyhow::Result<()> {
         let log_path = std::env::temp_dir().join("incrementum-startup.log");

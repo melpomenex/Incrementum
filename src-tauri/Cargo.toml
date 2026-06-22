@@ -60,6 +60,16 @@ tracing-subscriber = "0.3"
 futures = "0.3"
 async-trait = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "stream", "multipart", "rustls-tls"] }
+# rustls crypto provider. reqwest 0.12's `rustls-tls` resolves to the
+# `*-no-provider` variant, which means rustls 0.23 is compiled WITHOUT an
+# auto-installed crypto provider. On Android this panics at runtime:
+#   "No rustls crypto provider is configured. When using the
+#    `rustls-no-provider` feature you must install a crypto provider before
+#    building a Client..."
+# We pull in rustls with the `ring` provider (the backend reqwest selects via
+# `__rustls-ring`) and install it as the default at startup — see run() in
+# lib.rs. `aws_lc_rs` does not build for android/ios in this toolchain.
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 lazy_static = "1.4"
 url = "2.5"
 urlencoding = "2.1"
