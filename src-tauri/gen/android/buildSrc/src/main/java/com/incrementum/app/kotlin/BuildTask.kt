@@ -46,9 +46,19 @@ open class BuildTask : DefaultTask() {
         val ndkHome = System.getenv("ANDROID_NDK_HOME")
             ?: System.getenv("NDK_HOME")
             ?: throw GradleException("NDK_HOME/ANDROID_NDK_HOME must be set")
-        val linkerPath = "$ndkHome/toolchains/llvm/prebuilt/linux-x86_64/bin/${clangTriple}24-clang"
+        // The NDK lays out host-specific toolchain binaries under
+        //   $NDK/toolchains/llvm/prebuilt/<host-tag>/bin/
+        // where <host-tag> is e.g. "linux-x86_64" on Linux, "darwin-x86_64"
+        // on macOS, "windows-x86_64" on Windows. The upstream template
+        // hardcodes "linux-x86_64", which breaks local builds on macOS/Windows.
+        // Detect the actual host tag by listing the prebuilt dir.
+        val prebuiltDir = File("$ndkHome/toolchains/llvm/prebuilt")
+        val hostTag = prebuiltDir.listFiles()?.firstOrNull { it.isDirectory }?.name
+            ?: throw GradleException("NDK prebuilt dir not found: ${prebuiltDir.absolutePath}")
+        val ndkBinDir = "$ndkHome/toolchains/llvm/prebuilt/$hostTag/bin"
+        val linkerPath = "$ndkBinDir/${clangTriple}24-clang"
 
-        val arPath = "$ndkHome/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+        val arPath = "$ndkBinDir/llvm-ar"
         val cargoTargetEnv = cargoTarget.uppercase().replace('-', '_')
 
         val cargoExecutable = resolveCargoExecutable()
@@ -84,6 +94,18 @@ open class BuildTask : DefaultTask() {
             "build", "--lib", "--target", cargoTarget
         )
         if (release) argv += "--release"
+        // Forward cargo features so the Gradle-spawned rustBuild matches the
+        // build the Tauri CLI ran first. Without this, rustBuild recompiles
+        // WITHOUT --features, which drops `tauri/custom-protocol` and produces a
+        // .so with NO embedded frontend assets (blank screen on the device) that
+        // then overwrites the good .so the CLI built. Default to
+        // "custom-protocol" for mobile since the tauri:// protocol is how the
+        // bundled frontendDist is served on android/ios (tauri-plugin-localhost
+        // is desktop-only). Override via the RUST_BUILD_FEATURES env var.
+        val features = System.getenv("RUST_BUILD_FEATURES") ?: "custom-protocol"
+        if (features.isNotBlank()) {
+            argv += listOf("--features", features)
+        }
         // Quote each argv element for the shell.
         val cmdLine = argv.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
 

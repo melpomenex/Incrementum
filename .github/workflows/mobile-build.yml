@@ -241,7 +241,13 @@ jobs:
           export PATH="$HOME/.cargo/bin:$PATH"
           echo "Using cargo: $CARGO"
           "$CARGO" --version
-          npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
+          # --features custom-protocol: serve the bundled frontendDist via the
+          # tauri:// protocol instead of the localhost plugin. On mobile the
+          # WebView can't reach tauri-plugin-localhost's loopback server, so we
+          # must use the custom protocol + bundled assets. (tauri-plugin-localhost
+          # is a desktop-only dependency; see Cargo.toml.) The tauri CLI passes
+          # its --features through to the cargo build it runs.
+          npm run tauri -- android build --ci --target aarch64 --apk --features custom-protocol 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Sign Android APK (release)
         if: steps.android_mode.outputs.mode == 'provided-keystore' || steps.android_mode.outputs.mode == 'self-signed'

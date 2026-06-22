@@ -319,13 +319,13 @@ pub fn run() {
         //.plugin(tauri_plugin_notification::init())
         ;
 
-    // The localhost plugin serves the frontend over http://localhost:<port> in
-    // release builds. That works on desktop but NOT on android/ios: the mobile
-    // WebView can't reach the loopback server the plugin spins up, so the app
-    // shows "localhost:9527 could not be loaded" (blank screen). On mobile,
-    // Tauri serves the bundled frontendDist assets via the tauri:// protocol
-    // instead, which is what we want for a packaged app. Restrict the plugin to
-    // desktop release builds only.
+    // Desktop release builds serve the frontend over http://localhost via the
+    // tauri-plugin-localhost plugin (a desktop-only dependency). This sidesteps
+    // the `tauri://` custom-protocol being treated as a remote origin, which
+    // otherwise breaks YouTube iframe embeds (Error 153). On android/ios the
+    // plugin is absent from the dependency graph and the mobile build passes
+    // --features custom-protocol, so Tauri serves the bundled frontendDist via
+    // tauri:// instead — the mobile WebView can't reach the loopback server.
     #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
     {
         builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
@@ -680,12 +680,18 @@ pub fn run() {
                 });
 
                 if let Some(window) = app.get_webview_window("main") {
-                    if !cfg!(debug_assertions) {
-                        if let Ok(url) =
-                            Url::parse(&format!("http://localhost:{LOCALHOST_PORT}/"))
-                        {
-                            let _ = window.navigate(url);
-                        }
+                    // On desktop release builds the frontend is served over
+                    // http://localhost via tauri-plugin-localhost, so navigate
+                    // the main window there. On android/ios the localhost plugin
+                    // is absent and the frontend is served from the bundled
+                    // frontendDist via the tauri:// protocol — navigating to
+                    // localhost:9527 there leaves the screen blank ("could not
+                    // be loaded"), so skip the redirect on mobile.
+                    #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
+                    if let Ok(url) =
+                        Url::parse(&format!("http://localhost:{LOCALHOST_PORT}/"))
+                    {
+                        let _ = window.navigate(url);
                     }
                     #[cfg(all(feature = "devtools", not(any(target_os = "ios", target_os = "android"))))]
                     if std::env::var("INCREMENTUM_OPEN_DEVTOOLS").is_ok() {
