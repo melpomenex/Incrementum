@@ -130,17 +130,23 @@ open class BuildTask : DefaultTask() {
             throw GradleException("cargo build failed with exit code $exitCode for target $cargoTarget")
         }
 
-        val projectRoot = File(project.projectDir, rootDirRel)
+        // projectRoot resolves to the src-tauri dir (where Cargo.toml and
+        // target/ live) — see the workDir comment above for why rootDirRel
+        // already lands there. So the built .so is directly under target/,
+        // NOT under src-tauri/target/ (that would double the path).
+        val projectRoot = workDir
         val profile = if (release) "release" else "debug"
         val builtLib = File(
             projectRoot,
-            "src-tauri/target/$cargoTarget/$profile/libincrementum_tauri_lib.so"
+            "target/$cargoTarget/$profile/libincrementum_tauri_lib.so"
         )
         if (!builtLib.exists()) {
             throw GradleException("Built library not found: ${builtLib.absolutePath}")
         }
 
-        val jniOutDir = File(project.projectDir, "app/src/main/jniLibs/$abiDir")
+        // project.projectDir IS the :app module dir (.../gen/android/app), so
+        // the jniLibs output is directly under src/main/jniLibs/<abi>.
+        val jniOutDir = File(project.projectDir, "src/main/jniLibs/$abiDir")
         jniOutDir.mkdirs()
         builtLib.copyTo(File(jniOutDir, "libincrementum_tauri_lib.so"), overwrite = true)
 
