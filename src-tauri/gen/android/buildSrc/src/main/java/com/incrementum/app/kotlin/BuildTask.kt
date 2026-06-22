@@ -68,13 +68,14 @@ open class BuildTask : DefaultTask() {
         // (one CARGO_TARGET_* set per ABI + a long runner PATH) is the bulk of
         // the size and is what originally overflowed ARG_MAX.
         val otherAbiTargets = listOf("aarch64", "armv7", "i686", "x86_64") - target
-        // project.projectDir is the absolute path to the :app module
-        // (gen/android/app). rootDirRel is "../../../", so combining them and
-        // canonicalizing yields the absolute src-tauri dir. Use canonicalFile
-        // (NOT absoluteFile): absoluteFile just prepends the JVM working dir and
-        // leaves the "../.." segments unresolved, producing a nonexistent path
-        // that makes ProcessBuilder.start() fail with ENOENT.
-        val workDir = File(project.projectDir, "$rootDirRel/src-tauri").canonicalFile
+        // project.projectDir for :app is .../src-tauri/gen/android/app, and
+        // rootDirRel is "../../../", which already lands on .../src-tauri (the
+        // dir containing Cargo.toml). The upstream template appends an extra
+        // "/src-tauri" to rootDirRel, which produces .../src-tauri/src-tauri —
+        // a path that does not exist. Use canonicalFile (NOT absoluteFile):
+        // absoluteFile only prepends the JVM working dir and leaves the "../.."
+        // segments unresolved, so ProcessBuilder.start() would get a bogus CWD.
+        val workDir = File(project.projectDir, rootDirRel).canonicalFile
         if (!workDir.isDirectory) {
             throw GradleException("rustBuild workDir does not exist: ${workDir.absolutePath}")
         }
