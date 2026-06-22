@@ -117,8 +117,13 @@ open class BuildTask : DefaultTask() {
         val process = try {
             pb.start()
         } catch (e: Throwable) {
-            System.err.println("[rustBuild spawn-fail] ${e.javaClass.name}: ${e.message}")
-            System.err.println("[rustBuild spawn-fail] workDir=$workDir exists=${workDir.exists()} cargo=$cargoExecutable cargoExists=${File(cargoExecutable).exists()}")
+            // Surface the workDir + cargo path if the spawn fails, since
+            // ProcessBuilder's default error ("A problem occurred starting
+            // process") is opaque about which part is wrong.
+            System.err.println(
+                "[rustBuild] spawn failed: ${e.message} | workDir=${workDir.absolutePath} " +
+                    "workDirExists=${workDir.exists()} cargo=$cargoExecutable cargoExists=${File(cargoExecutable).exists()}"
+            )
             throw GradleException("cargo spawn failed: ${e.message}", e)
         }
         val output = process.inputStream.bufferedReader().use { it.readText() }
