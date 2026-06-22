@@ -210,6 +210,15 @@ fn apply_theme_vibrancy(window: tauri::WebviewWindow, theme_id: String) -> bool 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Install the rustls crypto provider as the very first thing. reqwest's
+    // `rustls-tls` feature compiles rustls 0.23 in `*-no-provider` mode, so no
+    // provider is auto-registered. On Android the first TLS Client build (which
+    // happens inside Wry's WebView request interception) panics with
+    // "No rustls crypto provider is configured" and SIGABRTs the app. Installing
+    // `ring` here (the backend reqwest selects) makes every later Client build
+    // resolve a provider. Must run before dotenvy/Tauri init/client creation.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     // EARLY LOG: Entry point
     let _ = (|| -> anyhow::Result<()> {
         let log_path = std::env::temp_dir().join("incrementum-startup.log");
@@ -310,7 +319,14 @@ pub fn run() {
         //.plugin(tauri_plugin_notification::init())
         ;
 
-    #[cfg(not(debug_assertions))]
+    // The localhost plugin serves the frontend over http://localhost:<port> in
+    // release builds. That works on desktop but NOT on android/ios: the mobile
+    // WebView can't reach the loopback server the plugin spins up, so the app
+    // shows "localhost:9527 could not be loaded" (blank screen). On mobile,
+    // Tauri serves the bundled frontendDist assets via the tauri:// protocol
+    // instead, which is what we want for a packaged app. Restrict the plugin to
+    // desktop release builds only.
+    #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
     {
         builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
     }
