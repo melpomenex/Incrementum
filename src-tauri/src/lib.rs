@@ -680,12 +680,18 @@ pub fn run() {
                 });
 
                 if let Some(window) = app.get_webview_window("main") {
-                    if !cfg!(debug_assertions) {
-                        if let Ok(url) =
-                            Url::parse(&format!("http://localhost:{LOCALHOST_PORT}/"))
-                        {
-                            let _ = window.navigate(url);
-                        }
+                    // On desktop release builds the frontend is served over
+                    // http://localhost via tauri-plugin-localhost, so navigate
+                    // the main window there. On android/ios the localhost plugin
+                    // is absent and the frontend is served from the bundled
+                    // frontendDist via the tauri:// protocol — navigating to
+                    // localhost:9527 there leaves the screen blank ("could not
+                    // be loaded"), so skip the redirect on mobile.
+                    #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
+                    if let Ok(url) =
+                        Url::parse(&format!("http://localhost:{LOCALHOST_PORT}/"))
+                    {
+                        let _ = window.navigate(url);
                     }
                     #[cfg(all(feature = "devtools", not(any(target_os = "ios", target_os = "android"))))]
                     if std::env::var("INCREMENTUM_OPEN_DEVTOOLS").is_ok() {
