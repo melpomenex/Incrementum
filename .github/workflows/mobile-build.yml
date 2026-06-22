@@ -23,7 +23,10 @@ jobs:
   android-build:
     name: Android build (Tauri)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The cold build is Rust (~26m) + Gradle APK assembly (Kotlin compile, R8
+    # minify, dex, package, sign) which together exceed 45m. The Rust half is
+    # cached on subsequent runs, but a cold run needs the headroom.
+    timeout-minutes: 75
     env:
       SKIP_NOTEBOOKLM_SIDECAR: "1"
     permissions:
@@ -51,22 +54,49 @@ jobs:
 
       - name: Ensure Cargo is on PATH
         run: |
-          CARGO_BIN="$(command -v cargo || true)"
-          if [ -z "$CARGO_BIN" ] && [ -x "$HOME/.cargo/bin/cargo" ]; then
-            CARGO_BIN="$HOME/.cargo/bin/cargo"
+          set -euo pipefail
+          # Resolve the *real* cargo binary, not the rustup shim.
+          #
+          # Gradle's BuildTask.kt reads $CARGO (resolveCargoExecutable) and runs
+          # it via project.exec. The default `cargo` on PATH is a rustup shim
+          # (~/.cargo/bin/cargo -> rustup) that re-execs rustup. On the GitHub
+          # hosted runner that shim intermittently fails to start from inside
+          # Gradle's project.exec with:
+          #   "A problem occurred starting process 'command '.../cargo''"
+          # even though running the shim by hand works. Pointing $CARGO at the
+          # concrete binary the toolchain actually installed (the one rustup
+          # proxies to) sidesteps the shim entirely and makes the spawn reliable.
+          SHIM="$(command -v cargo || true)"
+          REAL_CARGO=""
+          # 1) `rustup which cargo` prints the exact binary rustup proxies to.
+          if command -v rustup >/dev/null 2>&1; then
+            REAL_CARGO="$(rustup which cargo 2>/dev/null | tail -1 || true)"
           fi
-          if [ -z "$CARGO_BIN" ]; then
-            CARGO_BIN="$(find /opt/hostedtoolcache -type f -path '*/bin/cargo' 2>/dev/null | head -1 || true)"
+          # 2) Fall back to globbing the rustup toolchains dir.
+          if [ -z "$REAL_CARGO" ] || [ ! -x "$REAL_CARGO" ]; then
+            REAL_CARGO="$(find "$HOME/.rustup/toolchains" -path '*/bin/cargo' -type f 2>/dev/null | sort -V | tail -1 || true)"
           fi
-          if [ -z "$CARGO_BIN" ] || [ ! -x "$CARGO_BIN" ]; then
+          # 3) Fall back to the toolcache layout some setup actions use.
+          if { [ -z "$REAL_CARGO" ] || [ ! -x "$REAL_CARGO" ]; } && [ -d /opt/hostedtoolcache/Rust ]; then
+            REAL_CARGO="$(find /opt/hostedtoolcache/Rust -path '*/bin/cargo' -type f 2>/dev/null | sort -V | tail -1 || true)"
+          fi
+          # 4) Last resort: the shim itself.
+          if [ -z "$REAL_CARGO" ] || [ ! -x "$REAL_CARGO" ]; then
+            REAL_CARGO="$SHIM"
+          fi
+          if [ -z "$REAL_CARGO" ] || [ ! -x "$REAL_CARGO" ]; then
             echo "::error::cargo not found after rust-toolchain setup."
             exit 1
           fi
-          CARGO_BIN_DIR="$(dirname "$CARGO_BIN")"
+
+          CARGO_BIN_DIR="$(dirname "$REAL_CARGO")"
+          # Prepend the real bin dir so any PATH lookup also hits the concrete tools.
           echo "$CARGO_BIN_DIR" >> "$GITHUB_PATH"
-          echo "CARGO=$CARGO_BIN" >> "$GITHUB_ENV"
-          ls -l "$CARGO_BIN"
-          "$CARGO_BIN" --version
+          echo "CARGO=$REAL_CARGO" >> "$GITHUB_ENV"
+          echo "RUSTUP_TOOLCHAIN=${RUST_TOOLCHAIN}" >> "$GITHUB_ENV"
+          echo "Resolved real cargo: $REAL_CARGO"
+          ls -l "$REAL_CARGO"
+          "$REAL_CARGO" --version
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -195,13 +225,22 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build Android APK (arm64)
+        env:
+          # Bound memory: the heavy Rust release build (LTO, codegen-units=1)
+          # runs alongside Gradle's JVM. Disabling the Gradle daemon and capping
+          # the Kotlin daemon heap keeps memory usage bounded on the 7GB runner.
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dkotlin.daemon.jvm.options=-Xmx1g"
+          # Serialize cargo jobs so the linker/LTO pass doesn't compound memory
+          # pressure on top of Gradle's JVM.
+          CARGO_BUILD_JOBS: "1"
         run: |
           set -o pipefail
           mkdir -p artifacts/mobile-logs
-          # Ensure cargo is accessible for Gradle's rustBuild task
-          # The Tauri android build runs cargo first, then Gradle which has its own rustBuild task
-          # Gradle spawns a subprocess that needs PATH to include cargo
+          # Ensure cargo is accessible for Gradle's rustBuild task (BuildTask.kt
+          # resolves cargo via $CARGO, set above to the real toolchain binary).
           export PATH="$HOME/.cargo/bin:$PATH"
+          echo "Using cargo: $CARGO"
+          "$CARGO" --version
           npm run tauri -- android build --ci --target aarch64 --apk 2>&1 | tee artifacts/mobile-logs/android-build.log
 
       - name: Sign Android APK (release)

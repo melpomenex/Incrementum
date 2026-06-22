@@ -53,32 +53,105 @@ open class BuildTask : DefaultTask() {
 
         val cargoExecutable = resolveCargoExecutable()
 
-        project.exec {
-            workingDir(File(project.projectDir, "$rootDirRel/src-tauri"))
-            executable(cargoExecutable)
-            args("build", "--lib", "--target", cargoTarget)
-            if (release) {
-                args("--release")
-            }
-            environment("ANDROID_NDK_HOME", ndkHome)
-            environment("NDK_HOME", ndkHome)
-            environment("CARGO_TARGET_${cargoTargetEnv}_LINKER", linkerPath)
-            environment("CARGO_TARGET_${cargoTargetEnv}_AR", arPath)
-            environment("CC_${cargoTarget}", linkerPath)
-            environment("AR_${cargoTarget}", arPath)
-        }.assertNormalExitValue()
+        // Spawn cargo through /bin/sh -c. Gradle's project.exec (and a direct
+        // ProcessBuilder exec of the cargo ELF) has historically failed here
+        // with the opaque "A problem occurred starting process 'cargo'" and,
+        // when wrapped, "error=2, No such file or directory" on a cargo binary
+        // that demonstrably exists and runs from a shell. Routing through the
+        // shell (the same way the workflow's own diagnostics successfully invoke
+        // cargo) sidesteps Java's direct-exec path entirely and lets the shell
+        // resolve the dynamic linker / PATH the same way every other cargo
+        // invocation in this build does.
+        //
+        // We still prune the redundant per-ABI CARGO_TARGET_* vars for the
+        // targets we are NOT building, because the inherited environment
+        // (one CARGO_TARGET_* set per ABI + a long runner PATH) is the bulk of
+        // the size and is what originally overflowed ARG_MAX.
+        val otherAbiTargets = listOf("aarch64", "armv7", "i686", "x86_64") - target
+        // project.projectDir for :app is .../src-tauri/gen/android/app, and
+        // rootDirRel is "../../../", which already lands on .../src-tauri (the
+        // dir containing Cargo.toml). The upstream template appends an extra
+        // "/src-tauri" to rootDirRel, which produces .../src-tauri/src-tauri —
+        // a path that does not exist. Use canonicalFile (NOT absoluteFile):
+        // absoluteFile only prepends the JVM working dir and leaves the "../.."
+        // segments unresolved, so ProcessBuilder.start() would get a bogus CWD.
+        val workDir = File(project.projectDir, rootDirRel).canonicalFile
+        if (!workDir.isDirectory) {
+            throw GradleException("rustBuild workDir does not exist: ${workDir.absolutePath}")
+        }
+        val argv = mutableListOf(
+            cargoExecutable,
+            "build", "--lib", "--target", cargoTarget
+        )
+        if (release) argv += "--release"
+        // Quote each argv element for the shell.
+        val cmdLine = argv.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
 
-        val projectRoot = File(project.projectDir, rootDirRel)
+        val pb = ProcessBuilder(listOf("/bin/sh", "-c", cmdLine))
+        pb.directory(workDir)
+        pb.redirectErrorStream(true)
+        val env = pb.environment()
+        for (other in otherAbiTargets) {
+            val otherCargoTarget = when (other) {
+                "aarch64" -> "aarch64-linux-android"
+                "armv7" -> "armv7-linux-androideabi"
+                "i686" -> "i686-linux-android"
+                "x86_64" -> "x86_64-linux-android"
+                else -> null
+            } ?: continue
+            val otherEnv = otherCargoTarget.uppercase().replace('-', '_')
+            env.remove("CARGO_TARGET_${otherEnv}_LINKER")
+            env.remove("CARGO_TARGET_${otherEnv}_AR")
+            env.remove("CARGO_TARGET_${otherEnv}_RUSTFLAGS")
+            env.remove("CC_${otherCargoTarget}")
+            env.remove("AR_${otherCargoTarget}")
+        }
+        // (Re)assert this target's NDK + cross-compile config.
+        env["ANDROID_NDK_HOME"] = ndkHome
+        env["NDK_HOME"] = ndkHome
+        env["CARGO_TARGET_${cargoTargetEnv}_LINKER"] = linkerPath
+        env["CARGO_TARGET_${cargoTargetEnv}_AR"] = arPath
+        env["CC_${cargoTarget}"] = linkerPath
+        env["AR_${cargoTarget}"] = arPath
+
+        val process = try {
+            pb.start()
+        } catch (e: Throwable) {
+            // Surface the workDir + cargo path if the spawn fails, since
+            // ProcessBuilder's default error ("A problem occurred starting
+            // process") is opaque about which part is wrong.
+            System.err.println(
+                "[rustBuild] spawn failed: ${e.message} | workDir=${workDir.absolutePath} " +
+                    "workDirExists=${workDir.exists()} cargo=$cargoExecutable cargoExists=${File(cargoExecutable).exists()}"
+            )
+            throw GradleException("cargo spawn failed: ${e.message}", e)
+        }
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        val exitCode = process.waitFor()
+        if (output.isNotBlank()) {
+            project.logger.lifecycle(output)
+        }
+        if (exitCode != 0) {
+            throw GradleException("cargo build failed with exit code $exitCode for target $cargoTarget")
+        }
+
+        // projectRoot resolves to the src-tauri dir (where Cargo.toml and
+        // target/ live) — see the workDir comment above for why rootDirRel
+        // already lands there. So the built .so is directly under target/,
+        // NOT under src-tauri/target/ (that would double the path).
+        val projectRoot = workDir
         val profile = if (release) "release" else "debug"
         val builtLib = File(
             projectRoot,
-            "src-tauri/target/$cargoTarget/$profile/libincrementum_tauri_lib.so"
+            "target/$cargoTarget/$profile/libincrementum_tauri_lib.so"
         )
         if (!builtLib.exists()) {
             throw GradleException("Built library not found: ${builtLib.absolutePath}")
         }
 
-        val jniOutDir = File(project.projectDir, "app/src/main/jniLibs/$abiDir")
+        // project.projectDir IS the :app module dir (.../gen/android/app), so
+        // the jniLibs output is directly under src/main/jniLibs/<abi>.
+        val jniOutDir = File(project.projectDir, "src/main/jniLibs/$abiDir")
         jniOutDir.mkdirs()
         builtLib.copyTo(File(jniOutDir, "libincrementum_tauri_lib.so"), overwrite = true)
 
