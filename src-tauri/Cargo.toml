@@ -26,7 +26,6 @@ tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2.7"
 tauri-plugin-shell = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-localhost = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
@@ -141,6 +140,13 @@ pbkdf2 = "0.12"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 battery = "0.7"
 xcap = { version = "0.8", optional = true }
+# Desktop-only: tauri-plugin-localhost serves the frontend over
+# http://localhost:<port> so YouTube iframe embeds work (the `tauri://`
+# custom protocol is treated as a remote origin and blocks iframes). On
+# android/ios the mobile WebView cannot reach the loopback server, so the app
+# shows "localhost:9527 could not be loaded". Mobile uses the bundled
+# frontendDist via tauri:// instead (see the `custom-protocol-mobile` feature).
+tauri-plugin-localhost = "2"
 
 [features]
 # Disable custom-protocol to use http://localhost instead of tauri://
