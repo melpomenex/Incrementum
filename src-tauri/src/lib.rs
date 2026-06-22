@@ -319,7 +319,14 @@ pub fn run() {
         //.plugin(tauri_plugin_notification::init())
         ;
 
-    #[cfg(not(debug_assertions))]
+    // The localhost plugin serves the frontend over http://localhost:<port> in
+    // release builds. That works on desktop but NOT on android/ios: the mobile
+    // WebView can't reach the loopback server the plugin spins up, so the app
+    // shows "localhost:9527 could not be loaded" (blank screen). On mobile,
+    // Tauri serves the bundled frontendDist assets via the tauri:// protocol
+    // instead, which is what we want for a packaged app. Restrict the plugin to
+    // desktop release builds only.
+    #[cfg(all(not(debug_assertions), not(any(target_os = "android", target_os = "ios"))))]
     {
         builder = builder.plugin(tauri_plugin_localhost::Builder::new(LOCALHOST_PORT).build());
     }
