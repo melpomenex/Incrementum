@@ -23,7 +23,10 @@ jobs:
   android-build:
     name: Android build (Tauri)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The cold build is Rust (~26m) + Gradle APK assembly (Kotlin compile, R8
+    # minify, dex, package, sign) which together exceed 45m. The Rust half is
+    # cached on subsequent runs, but a cold run needs the headroom.
+    timeout-minutes: 75
     env:
       SKIP_NOTEBOOKLM_SIDECAR: "1"
     permissions:
