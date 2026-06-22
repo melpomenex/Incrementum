@@ -9,8 +9,9 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-informational)]()
 [![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)]()
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)]()
+[![Try Flashcard Studio Online](https://img.shields.io/badge/Flashcard_Studio-Try_Online-FF6B6B)](https://socialistic.ai/en/skill/incrementum-reading-srs-6b9e85?utm_source=github&utm_medium=readme&utm_campaign=20260618-intl-exam-flashcard-builders&utm_content=badge)
 
-[Features](#-features) • [Demo](https://readsync.org) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing)
+[Features](#-features) • [Demo](https://readsync.org) • [Try Flashcard Studio Online](https://socialistic.ai/en/skill/incrementum-reading-srs-6b9e85?utm_source=github&utm_medium=readme&utm_campaign=20260618-intl-exam-flashcard-builders&utm_content=nav_link) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
 </div>
 
@@ -82,7 +83,7 @@ Built with modern technologies—Tauri, React, and Rust—it offers a beautiful,
 
 - AI-assisted workflows: flashcard generation, summaries, Q&A helpers
 - AI assistant with multimodal image support (paste, drag & drop, or attach images)
-- Flashcard Studio with AI-powered card creation (Basic, Cloze, Q&A, Multiple Choice, Image Occlusion)
+- Flashcard Studio with AI-powered card creation (Basic, Cloze, Q&A, Multiple Choice, Image Occlusion) — [try it online without installing](https://socialistic.ai/en/skill/incrementum-reading-srs-6b9e85?utm_source=github&utm_medium=readme&utm_campaign=20260618-intl-exam-flashcard-builders&utm_content=feature_link)
 - OCR pipeline with local and cloud providers (including math OCR options)
 - Text-to-Speech (TTS) for reading documents and review cards aloud
 - Audio/video transcription with local Whisper.cpp or cloud providers (OpenAI, Groq)
