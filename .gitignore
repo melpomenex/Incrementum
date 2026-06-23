@@ -77,3 +77,7 @@ src-tauri/bin/notebooklm-runtime/**/*
 !src-tauri/bin/notebooklm-runtime/.gitkeep
 squashfs-root/
 incrementum-tauri
+
+# Android assets copied during build
+src-tauri/gen/android/app/src/main/assets/
+

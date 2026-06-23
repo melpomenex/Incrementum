@@ -142,7 +142,11 @@ try {
   execSync('git add -A', { stdio: 'inherit', cwd: rootDir });
 
   console.log('Creating commit...');
-  execSync(`git commit -m "chore: release v${newVersion}"`, { stdio: 'inherit', cwd: rootDir });
+  const commitMsg = `chore: release v${newVersion}\n\n${releaseNotes}`;
+  const commitMsgFile = path.join(rootDir, '.commit-msg.tmp');
+  fs.writeFileSync(commitMsgFile, commitMsg, 'utf8');
+  execSync(`git commit -F .commit-msg.tmp`, { stdio: 'inherit', cwd: rootDir });
+  fs.unlinkSync(commitMsgFile);
 
   console.log('Creating tag...');
   execSync(`git tag -a v${newVersion} -m "v${newVersion}"`, { stdio: 'inherit', cwd: rootDir });

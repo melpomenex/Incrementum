@@ -1,2 +1,8 @@
+### Added
+- Signed Android release APK build pipeline (`setup-android-toolchain.sh` and `build-android-apk.sh`).
+- Keystore and signing configuration for release builds.
+
 ### Fixed & Improved
-- **Full settings-menu localization (incl. Japanese Kanji)** — The settings menu had several screens with hardcoded English strings and missing translation keys. The **Embeddings & RAG** screen (provider picker, retrieval tuning, library index status, re-index actions, error messages) is now fully translated, as is the **Podcast Queue** section and the **Default View** startup selector. Several strings in the General and Data sections (app version, check-for-updates, auto-save interval, backup-on-exit, max backups, the auto-save footer) are now localized too. Added ~57 keys across all six locales (English, Chinese, Spanish, German, French, Japanese); the **Embeddings & RAG** tab label and the new podcast/embeddings strings were previously missing from every language, including Japanese, which now has full Kanji coverage.
+- Fixed bottom navigation bar overlapping the left vertical sidebar on mobile/tablet devices by conditionally hiding desktop toolbars when the mobile shell is active.
+- Reduced bottom navigation height on mobile and tablets from 72px to 56px to optimize vertical screen real estate.
+- Centered EPUB reader text inside the viewport on mobile and tablet devices.

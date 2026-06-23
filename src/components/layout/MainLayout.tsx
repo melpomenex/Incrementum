@@ -12,6 +12,7 @@ import { CommandCenter } from "../search/CommandCenter";
 import { captureAndSaveScreenshot } from "../../utils/screenshotCaptureFlow";
 import { useToast } from "../common/Toast";
 import { MobileLayoutWrapper } from "../mobile/MobileLayoutWrapper";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { ThemeBackdrop } from "../common/ThemeBackdrop";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import { ImageSaveOverlay } from "../viewer/ImageSaveOverlay";
@@ -54,6 +55,7 @@ function getActiveTabPane() {
 }
 
 export function MainLayout() {
+  const isMobile = useMobileShell();
   const tabs = useTabsStore((state) => state.tabs);
   const rawRootPane = useTabsStore((state) => state.rootPane);
   const rootPane = normalizePane(rawRootPane);
@@ -1005,9 +1007,11 @@ export function MainLayout() {
 
           <div className="relative z-10 flex w-full overflow-hidden">
             {/* Toolbar - Left side - Hidden on mobile */}
-            <div className="flex-shrink-0 hidden md:block h-full">
-              <Toolbar position="left" />
-            </div>
+            {!isMobile && (
+              <div className="flex-shrink-0 hidden md:block h-full">
+                <Toolbar position="left" />
+              </div>
+            )}
 
             {/* Tabbed Interface - takes remaining space */}
             <div className="flex-1 min-w-0 h-full" data-vimium-scroll>
@@ -1034,9 +1038,11 @@ export function MainLayout() {
             </div>
 
             {/* Toolbar - Right side - Hidden on mobile */}
-            <div className="flex-shrink-0 hidden md:block h-full">
-              <Toolbar position="right" />
-            </div>
+            {!isMobile && (
+              <div className="flex-shrink-0 hidden md:block h-full">
+                <Toolbar position="right" />
+              </div>
+            )}
 
             {/* Global Command Center */}
             <CommandCenter />
@@ -1052,9 +1058,11 @@ export function MainLayout() {
 
         <div className="relative z-10 flex flex-1 min-h-0 flex-col">
           {/* Toolbar - Fixed at top - Hidden on mobile */}
-          <div className="flex-shrink-0 hidden md:block">
-            <Toolbar position="top" />
-          </div>
+          {!isMobile && (
+            <div className="flex-shrink-0 hidden md:block">
+              <Toolbar position="top" />
+            </div>
+          )}
 
           {/* Tabbed Interface - Below toolbar - must grow to fill remaining height */}
           <div className="flex-1 min-h-0 h-full" data-vimium-scroll>

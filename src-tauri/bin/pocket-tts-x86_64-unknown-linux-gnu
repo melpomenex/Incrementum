@@ -1,13 +1,5 @@
 #!/bin/sh
-# Pocket TTS Wrapper Script for Linux
-#
-# This script wraps the system-installed pocket-tts CLI for use as a Tauri sidecar.
-
 set -eu
-
-# Strip AppImage environment variables that interfere with Python and readline.
-unset APPDIR APPIMAGE OWD LD_LIBRARY_PATH LD_PRELOAD PYTHONHOME PYTHONPATH
-
 # Check for --text-file and transform into --text by reading the file
 TEXT_FILE=""
 skip=false
@@ -34,62 +26,48 @@ while [ $i -lt $argc ]; do
       ;;
   esac
 done
-
 if [ -n "$TEXT_FILE" ] && [ -f "$TEXT_FILE" ]; then
   set -- "$@" "--text" "$(cat "$TEXT_FILE")"
   rm -f "$TEXT_FILE"
 fi
-
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 RUNTIME_BASE="$SCRIPT_DIR/pocket-tts-runtime/x86_64-unknown-linux-gnu"
 RUNTIME_PY="$RUNTIME_BASE/python/bin/python3"
 RUNTIME_SITE="$RUNTIME_BASE/site-packages"
-
-# Prepend common user-local directories to PATH so that pocket_tts
-# installed via `uv tool install` or `pip install --user` is found even
-# when the app inherits a minimal PATH (e.g. desktop entry / AppImage).
-enhance_path() {
-  _home_local="$HOME/.local/bin"
-  _uv_tool="$HOME/.local/share/uv/tools/pocket-tts/bin"
-  [ -d "$_home_local" ] && PATH="$_home_local:$PATH"
-  [ -d "$_uv_tool" ] && PATH="$_uv_tool:$PATH"
-  export PATH
-}
-
-find_python() {
-  if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then
-    echo "$RUNTIME_PY"
-    return
-  fi
-  for p in python3 python; do
-    if command -v "$p" >/dev/null 2>&1; then
-      echo "$p"
-      return
-    fi
-  done
-  echo ""
-}
-
-enhance_path
-
-PYTHON="$(find_python)"
-if [ -z "$PYTHON" ]; then
-  echo "error: Python not found" >&2
-  echo "To install: uv tool install pocket-tts" >&2
-  exit 1
+if [ -x "$RUNTIME_PY" ] && [ -d "$RUNTIME_SITE" ]; then
+  export PYTHONHOME="$RUNTIME_BASE/python"
+  export PYTHONPATH="$RUNTIME_SITE"
+  exec "$RUNTIME_PY" -m pocket_tts "$@"
 fi
-
-# Verify that the pocket_tts module is importable.
-if ! "$PYTHON" -c "import pocket_tts" 2>/dev/null; then
-  echo "error: pocket_tts is not installed for $PYTHON" >&2
+if [ -n "${HOME:-}" ] && [ -d "$HOME/.local/bin" ]; then
+  PATH="$PATH:$HOME/.local/bin"
+fi
+PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
+for CANDIDATE in "${HOME:-}/.local/bin/pocket-tts" /usr/local/bin/pocket-tts /usr/bin/pocket-tts /bin/pocket-tts; do
+  if [ -x "$CANDIDATE" ]; then
+    if [ "$(dirname -- "$CANDIDATE")" != "$SCRIPT_DIR" ]; then
+      exec "$CANDIDATE" "$@"
+    fi
+  fi
+done
+RESOLVED_PATH=""
+OLD_IFS="$IFS"
+IFS=":"
+for DIR in $PATH; do
+  if [ -x "$DIR/pocket-tts" ] && [ ! -d "$DIR/pocket-tts" ]; then
+    if [ "$DIR" != "$SCRIPT_DIR" ]; then
+      RESOLVED_PATH="$DIR/pocket-tts"
+      break
+    fi
+  fi
+done
+IFS="$OLD_IFS"
+if [ -n "$RESOLVED_PATH" ]; then
+  exec "$RESOLVED_PATH" "$@"
+else
+  echo "error: pocket_tts is not installed" >&2
   echo "Install it with:  uv tool install pocket-tts" >&2
   echo "Or with pip:      pip install pocket-tts" >&2
   exit 1
 fi
-
-if [ -d "$RUNTIME_SITE" ]; then
-  export PYTHONHOME="$RUNTIME_BASE/python"
-  export PYTHONPATH="$RUNTIME_SITE"
-fi
-
-exec "$PYTHON" -m pocket_tts "$@"

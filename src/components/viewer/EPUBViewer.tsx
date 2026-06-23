@@ -371,24 +371,32 @@ export function EPUBViewer({
         box-sizing: border-box !important;
         font-family: ${fontFamily} !important;
       }
-      html, body {
+      html {
         margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 100% !important;
+        background: ${bgColor} !important;
+        color: ${textColor} !important;
+        overflow-x: hidden !important;
+        overflow-y: visible !important;
+      }
+      body {
+        margin: ${contentMargin} !important;
         padding: ${contentPadding} !important;
         width: 100% !important;
+        max-width: ${contentMaxWidth} !important;
         height: auto !important;
         min-height: 100% !important;
         line-height: ${lineHeightRef.current} !important;
         color: ${textColor} !important;
         background: ${bgColor} !important;
-        max-width: ${contentMaxWidth} !important;
+        font-size: ${fontSizeRef.current}px !important;
+        padding-bottom: 80px !important;
         overflow-x: hidden !important;
         overflow-y: visible !important;
         -webkit-overflow-scrolling: touch !important;
-      }
-      body {
-        font-size: ${fontSizeRef.current}px !important;
-        padding-bottom: 80px !important;
-        margin: ${contentMargin} !important;
       }
       body *:not(.epub-persisted-highlight):not(.epub-search-highlight):not(.epub-search-highlight-active):not(.epub-sync-highlight) {
         color: ${textColor} !important;
