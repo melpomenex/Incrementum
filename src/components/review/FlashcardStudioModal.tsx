@@ -2784,6 +2784,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
   const notebookLmAvailable = notebookLmEnabled && isTauri();
 
   // State
+  const [mobileActivePanel, setMobileActivePanel] = useState<"generator" | "drafts">("generator");
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [selectedNotebookId, setSelectedNotebookId] = useState<string>("");
   const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
@@ -3943,26 +3944,34 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-primary to-primary-600 p-2.5 text-primary-foreground shadow-lg shadow-primary/25">
-              <Sparkle className="h-5 w-5" />
+        <div className="flex flex-col gap-3 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-4">
+          <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-primary to-primary-600 p-2.5 text-primary-foreground shadow-lg shadow-primary/25 flex-shrink-0">
+                <Sparkle className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground leading-snug">{t("flashcardStudio.title")}</h2>
+                <p className="text-xs text-muted-foreground line-clamp-1">
+                  {t("flashcardStudio.subtitle")}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">{t("flashcardStudio.title")}</h2>
-              <p className="text-xs text-muted-foreground">
-                {t("flashcardStudio.subtitle")}
-              </p>
-            </div>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors sm:hidden flex-shrink-0"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* View Mode Tabs */}
-            <div className="flex items-center rounded-lg border border-border bg-background p-1">
+            <div className="flex items-center rounded-lg border border-border bg-background p-1 overflow-x-auto max-w-full">
               <button
                 onClick={() => setViewMode("chat")}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                   viewMode === "chat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -3972,7 +3981,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               <button
                 onClick={() => setViewMode("templates")}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                   viewMode === "templates" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -3982,7 +3991,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               <button
                 onClick={() => setViewMode("history")}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                   viewMode === "history" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -3997,7 +4006,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               <button
                 onClick={() => setViewMode("extracts")}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                   viewMode === "extracts" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -4012,12 +4021,12 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
             </div>
 
             {/* Provider Selector */}
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 flex-shrink-0">
               <Gear className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={selectedProviderId ?? ""}
                 onChange={(e) => setSelectedProviderId(e.target.value || null)}
-                className="bg-transparent text-xs text-foreground outline-none min-w-[120px]"
+                className="bg-transparent text-xs text-foreground outline-none min-w-[100px] max-w-[150px]"
               >
                 {enabledProviders.length === 0 && <option value="">{t("flashcardStudio.noProvider")}</option>}
                 {notebookLmAvailable && <option value={NOTEBOOKLM_PROVIDER_ID}>NotebookLM</option>}
@@ -4029,7 +4038,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
               </select>
             </div>
             {isNotebookProviderSelected && (
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 flex-shrink-0">
                 {isNotebookLoading ? (
                   <CircleNotch className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
                 ) : (
@@ -4038,7 +4047,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                 <select
                   value={selectedNotebookId}
                   onChange={(e) => void handleNotebookSelect(e.target.value)}
-                  className="bg-transparent text-xs text-foreground outline-none min-w-[160px]"
+                  className="bg-transparent text-xs text-foreground outline-none min-w-[120px] max-w-[180px]"
                 >
                   <option value="">{t("flashcardStudio.selectNotebook")}</option>
                   {notebooks.map((notebook) => (
@@ -4052,7 +4061,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="hidden rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors sm:block flex-shrink-0"
             >
               <X className="h-5 w-5" />
             </button>
@@ -4160,10 +4169,48 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           </div>
         )}
 
+        {/* Mobile Panel Toggle */}
+        <div className="flex border-b border-border bg-background lg:hidden flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileActivePanel("generator")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-all",
+              mobileActivePanel === "generator"
+                ? "border-primary text-primary bg-primary/5"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ChatCircle className="w-4 h-4" />
+            {t("flashcardStudio.chat")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileActivePanel("drafts")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-all relative",
+              mobileActivePanel === "drafts"
+                ? "border-primary text-primary bg-primary/5"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Brain className="w-4 h-4" />
+            {t("flashcardStudio.draftCards")}
+            {stats.total > 0 && (
+              <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-primary text-primary-foreground font-semibold">
+                {stats.total}
+              </span>
+            )}
+          </button>
+        </div>
+
         {/* Main Content */}
         <div className="grid flex-1 min-h-0 gap-0 overflow-hidden lg:grid-cols-[1fr_400px]">
           {/* Left Panel */}
-          <div className="flex h-full min-h-0 flex-col border-r border-border">
+          <div className={cn(
+            "flex h-full min-h-0 flex-col border-r border-border",
+            mobileActivePanel === "generator" ? "flex" : "hidden lg:flex"
+          )}>
             {viewMode === "chat" && (
               <>
                 {/* Messages */}
@@ -4242,7 +4289,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
                 </div>
 
                 {/* Input */}
-                <div className="border-t border-border p-4 bg-card">
+                <div className="border-t border-border px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-card">
                   <div className="relative">
                     <textarea
                       ref={inputRef}
@@ -4389,7 +4436,10 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
           </div>
 
           {/* Right Panel - Draft Cards */}
-          <div className="flex h-full min-h-0 flex-col bg-muted/20">
+          <div className={cn(
+            "flex h-full min-h-0 flex-col bg-muted/20",
+            mobileActivePanel === "drafts" ? "flex" : "hidden lg:flex"
+          )}>
             {/* Draft Header */}
             <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
               <div>
@@ -4632,7 +4682,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
             {/* FloppyDisk Action */}
             {draftCards.length > 0 && (
-              <div className="border-t border-border bg-card p-4">
+              <div className="border-t border-border bg-card px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
                   onClick={handleSaveSelected}
                   disabled={isSaving || stats.selected === 0}
