@@ -56,7 +56,7 @@ import { RelevanceIndicator } from "../components/media/RelevanceIndicator";
 import { ItemDetailsPopover, type ItemDetailsTarget } from "../components/common/ItemDetailsPopover";
 import { AssistantPanel, type AssistantContext, type AssistantPosition } from "../components/assistant/AssistantPanel";
 import { useToast } from "../components/common/Toast";
-import { getDeviceInfo, isPWA } from "../lib/pwa";
+import { useMobileShell } from "../hooks/useMobileShell";
 import { RSSQueueSettingsModal } from "../components/settings/RSSQueueSettings";
 import { createDocument, updateDocumentContent, dismissDocument, getDocument, extractDocumentText } from "../api/documents";
 import { trimToTokenWindow } from "../utils/tokenizer";
@@ -238,8 +238,7 @@ export function QueueScrollPage() {
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scrollViewMode, setScrollViewMode] = useState<"document" | "extracts" | "cards">("document");
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
   const [rssSelectedText, setRssSelectedText] = useState("");
   const MAX_SELECTION_CHARS = 10000;
   // Persist provider selection
@@ -278,7 +277,9 @@ export function QueueScrollPage() {
     showButton: boolean;
   }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
   const mobileRssSelectionTimeoutRef = useRef<number | null>(null);
-  const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+  // `isMobile` (declared above via useMobileShell()) drives the touch selection
+  // UI. The old `isPWA()` gate made it unreachable in the native Android/iOS
+  // build; useMobileShell() covers native phones/tablets and narrow browsers.
 
   const buildQueueExtractSourceContext = useCallback((params: {
     documentId: string;
@@ -1056,7 +1057,7 @@ export function QueueScrollPage() {
 
   // Mobile PWA: Handle text selection for RSS content
   useEffect(() => {
-    if (!isMobilePWA) return;
+    if (!isMobile) return;
     if (renderedItem?.type !== "rss") return;
 
     let rafId: number | null = null;
@@ -1142,7 +1143,7 @@ export function QueueScrollPage() {
         cancelAnimationFrame(rafId);
       }
     };
-  }, [isMobilePWA, renderedItem?.type]);
+  }, [isMobile, renderedItem?.type]);
 
   const detailsTarget = useMemo<ItemDetailsTarget | null>(() => {
     if (!currentItem) return null;
@@ -2729,7 +2730,7 @@ export function QueueScrollPage() {
       )}
 
       {/* Mobile PWA: Lightbulb button for RSS text selection */}
-      {isMobilePWA && renderedItem?.type === "rss" && mobileRssSelection.showButton && (
+      {isMobile && renderedItem?.type === "rss" && mobileRssSelection.showButton && (
         <div
           className="fixed z-[80] pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
           style={{

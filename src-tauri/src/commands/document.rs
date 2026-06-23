@@ -141,6 +141,21 @@ pub async fn import_document(
     let canonical = std::fs::canonicalize(&path)
         .map_err(|e| IncrementumError::Internal(format!("Invalid path: {}", e)))?;
 
+    import_from_path(canonical.to_string_lossy().to_string(), &file_path, collection_id, &repo).await
+}
+
+/// Shared import pipeline used by both `import_document` (path-based, desktop)
+/// and `import_document_from_bytes` (bytes-based, mobile). Given a readable
+/// file on disk at `disk_path` plus the original `file_name` (for type/title
+/// detection), extract content and persist the document.
+async fn import_from_path(
+    disk_path: String,
+    file_name: &str,
+    collection_id: Option<String>,
+    repo: &Repository,
+) -> Result<Document> {
+    let path = Path::new(&disk_path);
+
     // Determine file type from extension
     let file_type = match path.extension()
         .and_then(|ext| ext.to_str())
@@ -149,18 +164,24 @@ pub async fn import_document(
         Some("pdf") => FileType::Pdf,
         Some("epub") => FileType::Epub,
         Some("md") | Some("markdown") => FileType::Markdown,
+        Some("txt") | Some("text") => FileType::Markdown,
         Some("html") | Some("htm") => FileType::Html,
         Some("mp3") | Some("wav") | Some("m4a") | Some("aac") | Some("ogg") | Some("flac") | Some("opus") | Some("m4b") | Some("wma") => FileType::Audio,
         Some("mp4") | Some("webm") | Some("mov") | Some("avi") => FileType::Video,
         _ => FileType::Other,
     };
 
-    let extracted = processor::extract_content(canonical.to_str().unwrap_or(&file_path), file_type.clone()).await?;
+    let extracted = processor::extract_content(&disk_path, file_type.clone()).await?;
 
-    // For media files, copy to app-managed storage to avoid macOS sandbox issues
+    // Persist the readable file location so viewers can re-open it later.
+    // Audio is copied to a dedicated media dir (for macOS sandbox safety); all
+    // other types keep the on-disk path they were extracted from. On mobile
+    // (import_document_from_bytes) that's the staged temp file under the app's
+    // private data dir, which remains readable. Storing the bare filename
+    // (as the old code did) left the document unable to be re-opened.
     let stored_path = match file_type {
-        FileType::Audio => copy_media_to_app_storage(&file_path, "audio")?.to_string_lossy().to_string(),
-        _ => file_path.clone(),
+        FileType::Audio => copy_media_to_app_storage(&disk_path, "audio")?.to_string_lossy().to_string(),
+        _ => disk_path.clone(),
     };
 
     // Generate content hash for duplicate detection
@@ -182,7 +203,7 @@ pub async fn import_document(
 
     // Use extracted title or fall back to filename
     let title = extracted.title.clone().unwrap_or_else(|| {
-        path
+        Path::new(file_name)
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("Untitled")
@@ -208,6 +229,58 @@ pub async fn import_document(
     let created = repo.create_document(&doc).await?;
 
     Ok(created)
+}
+
+/// Import a document from raw bytes (mobile path). On Android/iOS the WebView's
+/// file picker yields content:// URIs that aren't readable as filesystem paths,
+/// so the frontend reads the File's bytes and sends them here. We stage the
+/// bytes to a temp file in the app's private data dir and reuse the normal
+/// extraction pipeline so the document lands in the same SQLite store as
+/// desktop imports.
+#[tauri::command]
+pub async fn import_document_from_bytes(
+    app_handle: tauri::AppHandle,
+    file_name: String,
+    file_bytes: Vec<u8>,
+    collection_id: Option<String>,
+    repo: State<'_, Repository>,
+) -> Result<Document> {
+    use tauri::Manager;
+    eprintln!("[mobile-import] received '{}', {} bytes, collection={:?}", file_name, file_bytes.len(), collection_id);
+
+    // Stage the bytes under the app's private data dir (writable on Android/iOS,
+    // unlike the system data dir returned by dirs::data_dir()).
+    let dest_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("imports"))
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve app data dir: {}", e)))?;
+    std::fs::create_dir_all(&dest_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create imports directory {}: {}", dest_dir.display(), e)))?;
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let safe_name = std::path::Path::new(&file_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("import")
+        .replace(['/', '\\', ':'], "_");
+    let staged_name = format!("{}-{}", timestamp, safe_name);
+    let staged_path = dest_dir.join(&staged_name);
+
+    std::fs::write(&staged_path, &file_bytes)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to stage import file {}: {}", staged_path.display(), e)))?;
+    eprintln!("[mobile-import] staged to {}", staged_path.display());
+
+    match import_from_path(staged_path.to_string_lossy().to_string(), &file_name, collection_id, &repo).await {
+        Ok(doc) => {
+            eprintln!("[mobile-import] success: id={}, title={}", doc.id, doc.title);
+            Ok(doc)
+        }
+        Err(e) => {
+            eprintln!("[mobile-import] FAILED: {:?}", e);
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]

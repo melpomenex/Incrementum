@@ -17,7 +17,7 @@ import {
   DotsThreeVertical,
   X,
 } from "@phosphor-icons/react";
-import { getDeviceInfo, type DeviceInfo } from "../../lib/pwa";
+import { useMobileShell } from "../../hooks/useMobileShell";
 
 interface MobileReadingWrapperProps {
   documentId: string;
@@ -38,23 +38,14 @@ export function MobileReadingWrapper({
   onPageChange,
   onClose,
 }: MobileReadingWrapperProps) {
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>(getDeviceInfo());
+  const isMobile = useMobileShell();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setDeviceInfo(getDeviceInfo());
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   // Auto-hide controls on mobile
   useEffect(() => {
-    if (!deviceInfo.isMobile) return;
+    if (!isMobile) return;
 
     let hideTimeout: NodeJS.Timeout;
 
@@ -83,7 +74,7 @@ export function MobileReadingWrapper({
       document.removeEventListener('click', handleTap);
       document.removeEventListener('touchstart', handleTap);
     };
-  }, [isFullscreen, deviceInfo.isMobile]);
+  }, [isFullscreen, isMobile]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(() => {
@@ -110,7 +101,7 @@ export function MobileReadingWrapper({
   }, [currentPage, totalPages, onPageChange]);
 
   // Don't show mobile wrapper on desktop
-  if (!deviceInfo.isMobile && !deviceInfo.isTablet) {
+  if (!isMobile) {
     return <>{children}</>;
   }
 

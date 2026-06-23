@@ -10,9 +10,8 @@
 import { useEffect, useState } from "react";
 import { PWAInstallPrompt, OfflineIndicator } from "./PWAComponents";
 import { MobileNavigation } from "./MobileNavigation";
-import { getDeviceInfo } from "../../lib/pwa";
 import { useQueueStore } from "../../stores";
-import { isTauri } from "../../lib/tauri";
+import { useMobileShell } from "../../hooks/useMobileShell";
 
 interface MobileLayoutWrapperProps {
   children: React.ReactNode;
@@ -21,9 +20,7 @@ interface MobileLayoutWrapperProps {
 export function MobileLayoutWrapper({ children }: MobileLayoutWrapperProps) {
   const { items: queueItems } = useQueueStore();
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
 
   // Calculate badge counts
   const dueCount = queueItems.filter(item => {
@@ -51,8 +48,11 @@ export function MobileLayoutWrapper({ children }: MobileLayoutWrapperProps) {
     };
   }, []);
 
-  // Only show mobile navigation on mobile devices
-  if (!isMobile || isTauri()) {
+  // Desktop (and wide tablets in landscape) render the full tabbed interface.
+  // useMobileShell() returns true for native phones/tablets-in-portrait and for
+  // narrow browser/PWA windows — including inside the actual native Android/iOS
+  // build, where the old `isTauri()` gate used to suppress the mobile shell.
+  if (!isMobile) {
     return <>{children}</>;
   }
 

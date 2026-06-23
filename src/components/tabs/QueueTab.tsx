@@ -5,15 +5,13 @@ import type { QueueItem } from "../../types/queue";
 import { ReviewTab, DocumentViewer } from "./TabRegistry";
 import { QueueScrollPage } from "../../pages/QueueScrollPage";
 import { usePaneId } from "../common/Tabs";
-import { getDeviceInfo } from "../../lib/pwa";
-import { isTauri } from "../../lib/tauri";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { Brain, Stack, TextT } from "@phosphor-icons/react";
 
 export function QueueTab() {
   const { addTab } = useTabsStore();
   const paneId = usePaneId();
-  const deviceInfo = getDeviceInfo();
-  const isMobile = !isTauri() && (deviceInfo.isMobile || deviceInfo.isTablet);
+  const isMobile = useMobileShell();
 
   const handleStartReview = (itemId?: string) => {
     if (itemId) {

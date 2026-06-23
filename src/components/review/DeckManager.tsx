@@ -40,6 +40,7 @@ import { deleteLearningItem } from "../../lib/database";
 import { CardPreviewPanel } from "./CardPreviewPanel";
 import { useResizablePanels } from "./useResizablePanels";
 import { DeckStatsPanel } from "./DeckStatsPanel";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import type { StudyDeck } from "../../types/study-decks";
 
 type SortField = "due_date" | "state" | "difficulty" | "interval" | "review_count" | "lapses";
@@ -75,16 +76,9 @@ export function DeckManager({ onBack, onStartReview, onEditInStudio }: DeckManag
   const [renameValue, setRenameValue] = useState("");
   const [previewCardId, setPreviewCardId] = useState<string | null>(null);
   const [rightPanelView, setRightPanelView] = useState<"preview" | "stats">("preview");
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const isMobile = useMobileShell();
   const [mobileCardOpen, setMobileCardOpen] = useState(false);
   const { widths, containerRef, handlePointerDown } = useResizablePanels();
-
-  // Re-check on resize
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
 
   // Load all learning items (extracted for reuse after card creation)
   const loadAllItems = useCallback(async () => {

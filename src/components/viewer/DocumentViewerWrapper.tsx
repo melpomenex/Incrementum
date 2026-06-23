@@ -8,7 +8,8 @@ import { PwaAssistantButton } from "../assistant/PwaAssistantButton";
 import { useDocumentStore, useSettingsStore } from "../../stores";
 import * as documentsApi from "../../api/documents";
 import { trimToTokenWindow } from "../../utils/tokenizer";
-import { getDeviceInfo } from "../../lib/pwa";
+import { useFormFactor } from "../../hooks/useFormFactor";
+import { isPWA } from "../../lib/pwa";
 import {
   getAssistantContextErrorMessage,
   resolveGenericAssistantContext,
@@ -72,9 +73,9 @@ export function DocumentViewer({
     const saved = localStorage.getItem(ASSISTANT_POSITION_KEY);
     return saved === "left" ? "left" : "right";
   });
-  const deviceInfo = getDeviceInfo();
-  // Only hide assistant on mobile devices (< 768px), not on tablets or small screens
-  const isMobile = deviceInfo.isMobile;
+  const formFactor = useFormFactor();
+  // Only hide assistant on phones, not on tablets or small screens.
+  const isMobile = formFactor === "phone";
   const documents = useDocumentStore((state) => state.documents);
   const currentDoc = documents.find((doc) => doc.id === documentId) ?? currentDocument ?? null;
   const selectionRef = useRef(selection);
@@ -352,7 +353,7 @@ export function DocumentViewer({
       {isMobile ? (
         <>
           {documentViewer}
-          {deviceInfo.isPWA && (
+          {isPWA() && (
             <PwaAssistantButton
               context={assistantContext}
               enabled={pwaAssistantEnabled}

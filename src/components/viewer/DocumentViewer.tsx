@@ -29,7 +29,8 @@ import {
 } from "@phosphor-icons/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
-import { isTauri, isPWA } from "../../lib/tauri";
+import { isTauri } from "../../lib/tauri";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { ContextMenu, ContextMenuItemType, type ContextMenuItem } from "../common/ContextMenu";
 import { PDFViewer } from "./PDFViewer";
@@ -834,7 +835,10 @@ export function DocumentViewer({
     showButton: boolean;
   }>({ text: "", position: { x: 0, y: 0 }, showButton: false });
   const mobileSelectionTimeoutRef = useRef<number | null>(null);
-  const isMobilePWA = isPWA() && (window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window);
+  // Touch selection UI shows on any mobile shell (native phone/tablet or narrow
+  // browser/PWA) — not just PWA. The old `isPWA()` gate made it unreachable in
+  // the native Android/iOS build.
+  const isMobileTouch = useMobileShell();
   const activeExtractSelection = docType === "epub" || (docType === "pdf" && pdfViewMode === "ocr-html")
     ? (selectedText || lastSelectionRef.current)
     : selectedText;
@@ -2826,7 +2830,7 @@ export function DocumentViewer({
 
   // Mobile PWA: Handle text selection via selectionchange event
   useEffect(() => {
-    if (!isMobilePWA) return;
+    if (!isMobileTouch) return;
 
     let rafId: number | null = null;
 
@@ -2917,7 +2921,7 @@ export function DocumentViewer({
         cancelAnimationFrame(rafId);
       }
     };
-  }, [docType, isMobilePWA, setSelectedText]);
+  }, [docType, isMobileTouch, setSelectedText]);
 
   // Clear text selection when clicking outside the document content
   useEffect(() => {
@@ -5982,7 +5986,7 @@ export function DocumentViewer({
       )}
 
       {/* Mobile PWA: Lightbulb button that appears near text selection */}
-      {isMobilePWA && mobileSelection.showButton && viewMode === "document" && (
+      {isMobileTouch && mobileSelection.showButton && viewMode === "document" && (
         <div
           className="fixed z-[80] pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
           style={{

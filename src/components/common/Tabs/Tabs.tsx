@@ -1,6 +1,23 @@
 import { useEffect, useState, useCallback } from "react";
-import { useTabsStore, normalizePane } from "../../../stores";
+import { useTabsStore, normalizePane, type TabPane } from "../../../stores";
 import { SplitPaneContainer } from "./SplitPaneContainer";
+import { TabContent } from "./TabContent";
+import { useMobileShell } from "../../../hooks/useMobileShell";
+
+/**
+ * Walk a pane tree (which may contain splits) and return the first tab pane,
+ * flattening any split structure. Used on mobile where we render only a single
+ * pane's active content — no splits, no drag handles.
+ */
+function findFirstTabPane(pane: ReturnType<typeof normalizePane>): TabPane | null {
+  if (!pane) return null;
+  if (pane.type === "tabs") return pane;
+  for (const child of pane.children) {
+    const found = findFirstTabPane(child);
+    if (found) return found;
+  }
+  return null;
+}
 
 /**
  * Main Tabs container component with split pane support
@@ -19,6 +36,7 @@ export function Tabs() {
   const spawnTabInSplit = useTabsStore((state) => state.spawnTabInSplit);
   const resizeSplit = useTabsStore((state) => state.resizeSplit);
   const collapseSplit = useTabsStore((state) => state.collapseSplit);
+  const isMobileShell = useMobileShell();
 
   // Drag state
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
@@ -128,6 +146,35 @@ export function Tabs() {
     return (
       <div className="flex flex-col h-full w-full bg-background">
         <EmptyState />
+      </div>
+    );
+  }
+
+  // Mobile shell: render a single pane only. The split-pane/drag/tab-bar chrome
+  // is desktop-oriented and meaningless on a phone; the bottom-nav
+  // (MobileNavigation) is the sole navigation surface on mobile. We flatten any
+  // split structure to the first tab pane and render its active content
+  // full-screen, keeping inactive tabs mounted (via TabContent) so their state
+  // survives navigation.
+  if (isMobileShell) {
+    const firstPane = findFirstTabPane(rootPane);
+    if (!firstPane) {
+      return (
+        <div className="flex flex-col h-full w-full bg-background">
+          <EmptyState />
+        </div>
+      );
+    }
+    const paneTabs = tabs.filter((t) => firstPane.tabIds.includes(t.id));
+    return (
+      <div className="flex flex-col h-full w-full bg-background overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <TabContent
+            tabs={paneTabs}
+            activeTabId={firstPane.activeTabId}
+            paneId={firstPane.id}
+          />
+        </div>
       </div>
     );
   }
