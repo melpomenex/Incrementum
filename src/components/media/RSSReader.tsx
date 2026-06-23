@@ -64,7 +64,7 @@ import { MagazineLayout, GridLayout } from "./ArticleLayouts";
 import { useI18n } from "../../lib/i18n";
 import { isTauri, openExternal } from "../../lib/tauri";
 import { sanitizeHtml } from "../common/RichContentRenderer";
-import { getDeviceInfo } from "../../lib/pwa";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { IntelligenceIndicator } from "./IntelligenceIndicator";
 import { TrainingMenu } from "./TrainingMenu";
 import { KeyboardShortcutProvider } from "./KeyboardShortcutProvider";
@@ -195,8 +195,7 @@ export function RSSReader() {
     }
   }, [rssStudy.activeArticleToView, feeds]);
 
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
 
   // Reference to the auto-refresh interval
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);

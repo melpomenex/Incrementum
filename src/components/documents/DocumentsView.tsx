@@ -65,7 +65,7 @@ import {
   updateDocument as updateDocumentApi,
 } from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
-import { getDeviceInfo } from "../../lib/pwa";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { invokeCommand, isTauri } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
@@ -199,8 +199,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
   const confirmDialog = useConfirmDialog();
   const toast = useToast();
 
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
   const [isInspectorOpen, setInspectorOpen] = useState(() => !isMobile);
   const [_collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 

@@ -69,6 +69,107 @@ export function isMac(): boolean {
   return getPlatform() === 'mac';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Native mobile detection (Android / iOS Tauri builds)
+//
+// tauri-plugin-os injects `window.__TAURI_OS_PLUGIN_INTERNALS__` synchronously
+// at compile time with `platform` and `os_type` pre-populated. This lets us
+// detect native mobile builds WITHOUT an async IPC call, so the mobile UI
+// shell decision is race-free and available before React mounts.
+//
+// This replaces the old broken gate (`!isTauri() && isMobile`) which made the
+// mobile UI unreachable inside the actual native Android/iOS webview (where
+// isTauri() is true). See MobileLayoutWrapper.tsx and QueueTab.tsx.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type OsPluginInternals = {
+  platform?: string; // 'android' | 'ios' | 'macos' | 'windows' | 'linux' | ...
+  os_type?: string; // 'android' | 'ios' | 'macos' | 'windows' | 'linux'
+};
+
+type WindowWithOsInternals = Window & {
+  __TAURI_OS_PLUGIN_INTERNALS__?: OsPluginInternals;
+};
+
+/** Exact native platform from tauri-plugin-os, or null if not a Tauri build. */
+export function nativePlatform(): string | null {
+  if (!isTauri()) return null;
+  const internals = (window as WindowWithOsInternals).__TAURI_OS_PLUGIN_INTERNALS__;
+  return internals?.platform ?? internals?.os_type ?? null;
+}
+
+/**
+ * True inside the native Android or iOS Tauri webview (not desktop, not browser).
+ * Synchronous — safe to call during module evaluation or first render.
+ */
+export function isNativeMobile(): boolean {
+  const p = nativePlatform();
+  return p === 'android' || p === 'ios';
+}
+
+/** Visual form factor, derived from the native platform + viewport. */
+export type FormFactor = 'phone' | 'tablet' | 'desktop';
+
+let _cachedFormFactor: FormFactor | null = null;
+let _cachedNativePhone: boolean | null = null;
+
+/**
+ * On a native mobile build, true if the device is a phone (shorter physical
+ * screen edge < 600px) rather than a tablet. Phones always get the mobile
+ * shell, even rotated to a wide landscape viewport; tablets use the viewport
+ * rule (mobile shell only when narrow).
+ *
+ * Returns false outside native mobile builds. Memoized; reset via
+ * {@link resetFormFactorCache}.
+ */
+export function isNativePhone(): boolean {
+  if (_cachedNativePhone !== null) return _cachedNativePhone;
+  _cachedNativePhone =
+    isNativeMobile() &&
+    Math.min(window.screen.width, window.screen.height) < 600;
+  return _cachedNativePhone;
+}
+
+/**
+ * Classify the current device as phone / tablet / desktop.
+ *
+ * - Native mobile build (android/ios): phone if the shorter screen edge is
+ *   < 600px (Material phone/tablet breakpoint), else tablet. This is what
+ *   triggers the mobile shell on phones AND small tablets in portrait.
+ * - Browser/PWA: phone/tablet if viewport < 1024px (by the same 600 rule),
+ *   desktop otherwise. Large tablets in landscape keep desktop chrome.
+ *
+ * Synchronous and memoized; call {@link resetFormFactorCache} on orientation
+ * change (the {@link useFormFactor} hook handles this reactively).
+ */
+export function getFormFactor(): FormFactor {
+  if (_cachedFormFactor) return _cachedFormFactor;
+
+  if (isNativeMobile()) {
+    // On a phone or small tablet the shorter screen edge is < 600 CSS px.
+    const minEdge = Math.min(window.screen.width, window.screen.height);
+    _cachedFormFactor = minEdge < 600 ? 'phone' : 'tablet';
+    return _cachedFormFactor;
+  }
+
+  // Browser / PWA / desktop-native: viewport-driven.
+  const minViewport = Math.min(window.innerWidth, window.innerHeight);
+  if (window.innerWidth >= 1024 && minViewport >= 600) {
+    _cachedFormFactor = 'desktop';
+  } else if (minViewport < 600) {
+    _cachedFormFactor = 'phone';
+  } else {
+    _cachedFormFactor = 'tablet';
+  }
+  return _cachedFormFactor;
+}
+
+/** Drop the memoized form factor so the next read recomputes (orientation change). */
+export function resetFormFactorCache(): void {
+  _cachedFormFactor = null;
+  _cachedNativePhone = null;
+}
+
 /**
  * Check if running in PWA mode
  */
@@ -175,7 +276,13 @@ export async function openFilePicker(options?: {
   multiple?: boolean;
   filters?: Array<{ name: string; extensions: string[] }>;
 }): Promise<string[] | null> {
-  if (isTauri()) {
+  // Native Android/iOS: the Tauri dialog plugin returns content:// URIs that
+  // the Rust import backend can't read (it expects filesystem paths and calls
+  // std::fs::canonicalize). The WebView's <input type=file> is wired to the
+  // native SAF file chooser by wry and returns real File objects, which we
+  // store as browser-file:// virtual paths. The import path then routes those
+  // through the in-browser backend (see api/documents.ts importDocument).
+  if (isTauri() && !isNativeMobile()) {
     const dialogOptions = {
       title: options?.title ?? "Select Files",
       multiple: options?.multiple ?? false,

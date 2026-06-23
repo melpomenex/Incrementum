@@ -6,7 +6,7 @@ import { cn } from "../../utils";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useVimModeStore } from "../../stores/vimModeStore";
-import { getDeviceInfo } from "../../lib/pwa";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import {
@@ -230,8 +230,7 @@ export function EPUBViewer({
   const themeRef = useRef(theme);
   const { t } = useI18n();
   const { settings, updateSettings } = useSettingsStore();
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
   const epubSettings = settings.documents.epubSettings;
   const fontSizeRef = useRef(epubSettings.fontSize);
   const fontFamilyRef = useRef(epubSettings.fontFamily);

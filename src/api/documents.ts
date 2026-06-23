@@ -141,6 +141,27 @@ export async function importPdfHighlightsAsExtracts(documentId: string): Promise
   });
 }
 
+/**
+ * Import a document from raw file bytes (mobile path). On Android/iOS the
+ * WebView file picker yields content:// URIs unreadable as filesystem paths,
+ * so the frontend reads the File's bytes and sends them here. The Rust command
+ * stages the bytes to disk and reuses the normal extraction pipeline, so the
+ * document lands in the same SQLite store as desktop imports.
+ */
+export async function importDocumentFromBytes(
+  fileName: string,
+  fileBytes: Uint8Array,
+  collectionId?: string
+): Promise<Document> {
+  // Tauri IPC deserializes Vec<u8> from a JSON array of numbers. Pass a plain
+  // array (not a Uint8Array/Buffer) so it round-trips cleanly.
+  return await invokeCommand<Document>("import_document_from_bytes", {
+    fileName,
+    fileBytes: Array.from(fileBytes),
+    collectionId: collectionId ?? null,
+  });
+}
+
 export interface PodcastImportResult {
   document: Document;
   transcript_segments: number;

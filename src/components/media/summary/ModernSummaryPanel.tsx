@@ -9,6 +9,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import { cn } from "../../../utils";
 import type { SummaryLength, SummaryFocus, SummaryMode } from "../../../types/rssSummary";
+import { useMobileShell } from "../../../hooks/useMobileShell";
 
 interface ModernSummaryPanelProps {
   /** Whether the panel is currently open */
@@ -76,6 +77,7 @@ export function ModernSummaryPanel({
   footerActions,
   showControls = true,
 }: ModernSummaryPanelProps) {
+  const isMobile = useMobileShell();
   const [showSettings, setShowSettings] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -157,15 +159,13 @@ export function ModernSummaryPanel({
         )}
         style={{
           width: "100%",
-          maxWidth:
-            typeof window !== "undefined" && window.innerWidth < 768 ? "100%" : `${width}px`,
-          [position]: typeof window !== "undefined" && window.innerWidth < 768 ? "auto" : "1rem",
-          transform:
-            typeof window !== "undefined" && window.innerWidth < 768
-              ? isOpen
-                ? "translateY(0)"
-                : "translateY(100%)"
-              : panelTransform,
+          maxWidth: isMobile ? "100%" : `${width}px`,
+          [position]: isMobile ? "auto" : "1rem",
+          transform: isMobile
+            ? isOpen
+              ? "translateY(0)"
+              : "translateY(100%)"
+            : panelTransform,
           transitionDuration: isOpen ? "300ms" : "200ms",
           transitionTimingFunction: isOpen ? "ease-out" : "ease-in",
         }}

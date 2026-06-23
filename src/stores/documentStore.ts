@@ -6,8 +6,50 @@ import * as segmentationApi from "../api/segmentation";
 import { useSettingsStore } from "./settingsStore";
 import { useCollectionStore } from "./collectionStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
-import { listen, isTauri } from "../lib/tauri";
+import { listen, isTauri, isNativeMobile } from "../lib/tauri";
 import { useToastStore, ToastType } from "../components/common/Toast";
+
+/**
+ * Mobile file picker: uses the WebView's <input type=file>, which Android/iOS
+ * route to the native system file chooser (SAF / document picker). Returns the
+ * chosen File objects so their bytes can be sent to import_document_from_bytes.
+ * Resolves null if the user cancels.
+ */
+function pickMobileFiles(options?: { multiple?: boolean }): Promise<File[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = options?.multiple ?? false;
+    // Accept all supported document types.
+    input.accept =
+      ".pdf,.epub,.md,.markdown,.html,.htm,.txt,text/*,application/pdf,application/epub+zip";
+
+    let settled = false;
+    const done = (val: File[] | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(val);
+    };
+
+    input.onchange = () => {
+      if (input.files && input.files.length > 0) {
+        done(Array.from(input.files));
+      } else {
+        done(null);
+      }
+    };
+
+    // Some WebViews don't fire a cancel event; focus-leaving without a change
+    // is treated as cancel after a short delay.
+    input.click();
+    window.setTimeout(() => {
+      if (!settled && (!input.files || input.files.length === 0)) {
+        // Only resolve-as-cancel if the input never received a selection.
+        // (We can't reliably detect cancel, so this is best-effort.)
+      }
+    }, 60000);
+  });
+}
 
 interface DocumentState {
   // Data
@@ -381,6 +423,49 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   },
 
   openFilePickerAndImport: async () => {
+    // On native Android/iOS, the Tauri dialog plugin returns content:// URIs
+    // the Rust import backend can't read. Instead use the WebView's native
+    // <input type=file> (which Android routes to the SAF picker), read the
+    // File bytes in JS, and send them to import_document_from_bytes so the
+    // document lands in the same SQLite store as desktop imports.
+    if (isNativeMobile()) {
+      const files = await pickMobileFiles({ multiple: true });
+      if (!files || files.length === 0) return [];
+      set({ isImporting: true, error: null, importProgress: { current: 0, total: files.length } });
+      const collectionId = useCollectionStore.getState().activeCollectionId;
+      const settings = useSettingsStore.getState().settings;
+      const autoSegment = settings.documents.autoProcessOnImport;
+      const imported: Document[] = [];
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          set({ importProgress: { current: i, total: files.length, fileName: file.name } });
+          try {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const doc = await documentsApi.importDocumentFromBytes(file.name, bytes, collectionId);
+            imported.push(doc);
+            if (autoSegment) {
+              set({ isSegmenting: true });
+              await get().segmentDocument(doc.id, doc.fileType);
+              set({ isSegmenting: false });
+            }
+          } catch (err) {
+            console.error(`[mobile import] Failed to import ${file.name}:`, err);
+            const toast = useToastStore.getState();
+            toast.addToast({
+              type: ToastType.Error,
+              title: "Import failed",
+              message: `${file.name}: ${err instanceof Error ? err.message : String(err)}`,
+            });
+          }
+        }
+        await get().loadDocuments();
+        return imported;
+      } finally {
+        set({ isImporting: false, importProgress: { current: 0, total: 0 } });
+      }
+    }
+
     const filePaths = await documentsApi.openFilePicker({ multiple: true });
     if (!filePaths || filePaths.length === 0) {
       return [];

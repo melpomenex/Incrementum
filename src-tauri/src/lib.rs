@@ -299,7 +299,11 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        // OS info — available on all targets (desktop + android + ios).
+        // The frontend uses platform() to detect native mobile builds so it
+        // can render the mobile UI shell instead of the desktop tabbed view.
+        .plugin(tauri_plugin_os::init());
 
     // Global shortcuts are desktop-only (not available on iOS/Android)
     #[cfg(not(any(target_os = "ios", target_os = "android")))]
@@ -754,6 +758,7 @@ pub fn run() {
             commands::get_daily_reading_stats,
             commands::import_document,
             commands::import_documents,
+            commands::import_document_from_bytes,
             commands::import_pdf_highlights_as_extracts,
             commands::read_document_file,
             commands::fetch_url_content,

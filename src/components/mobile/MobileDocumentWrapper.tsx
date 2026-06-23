@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from "react";
 import { PullToRefresh } from "./PullToRefresh";
-import { getDeviceInfo } from "../../lib/pwa";
+import { useMobileShell } from "../../hooks/useMobileShell";
 
 interface MobileDocumentWrapperProps {
   documentId: string;
@@ -26,8 +26,7 @@ export function MobileDocumentWrapper({
 }: MobileDocumentWrapperProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
 
   // Default refresh handler - reloads the document data
   const handleRefresh = useCallback(async () => {

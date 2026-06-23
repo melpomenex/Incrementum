@@ -44,7 +44,7 @@ import { EmbeddingSettings } from "./EmbeddingSettings";
 import { SmartQueuesSettings } from "./SmartQueuesSettings";
 import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
-import { getDeviceInfo } from "../../lib/pwa";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { isTauri } from "../../lib/tauri";
 import { checkForUpdates, type UpdateInfo } from "../../utils/updateChecker";
 import { useSettingsStore } from "../../stores";
@@ -309,8 +309,7 @@ export function SettingsPage() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(true);
 
-  const deviceInfo = getDeviceInfo();
-  const isMobile = deviceInfo.isMobile || deviceInfo.isTablet;
+  const isMobile = useMobileShell();
   const initialTabKey = "incrementum_settings_initial_tab";
   const { t } = useI18n();
 
