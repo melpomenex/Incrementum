@@ -232,7 +232,7 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
   },
   {
     id: SettingsTab.Embeddings,
-    label: "Embeddings & RAG",
+    label: "settings.embeddings",
     icon: Brain,
     keywords: ["embedding", "vector", "rag", "semantic", "retrieval", "index", "whole library", "chat"],
     description: "Embedding model and whole-library chat indexing",
@@ -559,9 +559,9 @@ export function SettingsPage() {
             onClick={handleReset}
             className="text-sm text-muted-foreground hover:text-destructive transition-colors"
           >
-            Reset to defaults
+            {t("settings.resetToDefault")}
           </button>
-          <p className="text-xs text-muted-foreground">Changes are saved automatically</p>
+          <p className="text-xs text-muted-foreground">{t("settings.autoSaved")}</p>
         </div>
       </div>
     </div>
@@ -718,10 +718,10 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
             onChange={onChange}
             defaultValue="queue"
           >
-            <option value="queue">Queue</option>
-            <option value="review">Review</option>
-            <option value="documents">Documents</option>
-            <option value="analytics">Analytics</option>
+            <option value="queue">{t("settings.viewQueue")}</option>
+            <option value="review">{t("settings.viewReview")}</option>
+            <option value="documents">{t("settings.viewDocuments")}</option>
+            <option value="analytics">{t("settings.viewAnalytics")}</option>
           </select>
         </SettingsRow>
 
@@ -734,11 +734,11 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
             onChange={onChange}
             defaultValue="30"
           >
-            <option value="5">5 seconds</option>
-            <option value="15">15 seconds</option>
-            <option value="30">30 seconds</option>
-            <option value="60">1 minute</option>
-            <option value="300">5 minutes</option>
+            <option value="5">{t("settings.autoSaveIntervalSeconds", { count: 5 })}</option>
+            <option value="15">{t("settings.autoSaveIntervalSeconds", { count: 15 })}</option>
+            <option value="30">{t("settings.autoSaveIntervalSeconds", { count: 30 })}</option>
+            <option value="60">{t("settings.autoSaveIntervalMinutes", { count: 1 })}</option>
+            <option value="300">{t("settings.autoSaveIntervalMinutes", { count: 5 })}</option>
           </select>
         </SettingsRow>
 
@@ -761,9 +761,9 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
         </SettingsRow>
 
         {isDesktop && (
-          <SettingsRow label="App Version" description="Version of the desktop application">
+          <SettingsRow label={t("settings.appVersion")} description={t("settings.appVersionDesc")}>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{appVersion ?? "Loading..."}</span>
+              <span className="text-sm text-muted-foreground">{appVersion ?? t("common.loading")}</span>
               <button
                 type="button"
                 onClick={handleCheckForUpdates}
@@ -775,7 +775,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
                 )}
               >
                 <ArrowsClockwise className={cn("w-3.5 h-3.5", isCheckingUpdates && "animate-spin")} />
-                {isCheckingUpdates ? "Checking..." : "Check for Updates"}
+                {isCheckingUpdates ? t("settings.checking") : t("settings.checkForUpdates")}
               </button>
             </div>
           </SettingsRow>
@@ -794,7 +794,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
               disabled={isOpeningDataFolder}
               className="w-full sm:w-auto px-4 py-2.5 bg-background border border-border rounded-lg hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed text-sm font-medium min-h-[44px]"
             >
-              {isOpeningDataFolder ? "Opening..." : t("settings.openFolder")}
+              {isOpeningDataFolder ? t("settings.opening") : t("settings.openFolder")}
             </button>
             {dataLocation && (
               <span className="hidden lg:block text-xs text-muted-foreground truncate max-w-[28rem]" title={dataLocation}>
@@ -805,8 +805,8 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
         </SettingsRow>
 
         <SettingsRow
-          label="Backup on Exit"
-          description="Create automatic backup when closing the app"
+          label={t("settings.backupOnExit")}
+          description={t("settings.backupOnExitDesc")}
         >
           <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" onChange={onChange} defaultChecked />
@@ -814,7 +814,7 @@ function GeneralSettings({ onChange }: { onChange: () => void }) {
           </label>
         </SettingsRow>
 
-        <SettingsRow label="Max Backups" description="Maximum number of backups to keep">
+        <SettingsRow label={t("settings.maxBackups")} description={t("settings.maxBackupsDesc")}>
           <input
             type="number"
             min="1"

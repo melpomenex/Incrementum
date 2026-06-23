@@ -433,9 +433,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                 <Headphones className="w-5 h-5 text-purple-500" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Podcast Queue</h2>
+                <h2 className="text-lg font-semibold">{t("podcastQueue.title")}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Include podcast episodes in the scroll queue
+                  {t("podcastQueue.desc")}
                 </p>
               </div>
             </div>
@@ -449,9 +449,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                   <EyeSlash className="w-5 h-5 text-muted-foreground" />
                 )}
                 <div>
-                  <h3 className="font-medium">Include podcasts in queue</h3>
+                  <h3 className="font-medium">{t("podcastQueue.includeInQueue")}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Show unplayed podcast episodes while scrolling
+                    {t("podcastQueue.includeInQueueDesc")}
                   </p>
                 </div>
               </div>
@@ -478,10 +478,10 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Funnel className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">Max episodes per session</span>
+                      <span className="font-medium">{t("podcastQueue.maxEpisodes")}</span>
                     </div>
                     <span className="text-sm font-medium">
-                      {podcastMaxItems === 0 ? "Unlimited" : podcastMaxItems}
+                      {podcastMaxItems === 0 ? t("settings.rssUnlimited") : podcastMaxItems}
                     </span>
                   </div>
                   <input
@@ -503,9 +503,9 @@ export function RSSQueueSettingsModal({ isOpen, onClose }: RSSQueueSettingsProps
                     className="w-4 h-4 rounded border-border"
                   />
                   <div>
-                    <span className="font-medium">Unplayed only</span>
+                    <span className="font-medium">{t("podcastQueue.unreadOnly")}</span>
                     <p className="text-sm text-muted-foreground">
-                      Only include episodes you haven't listened to yet
+                      {t("podcastQueue.unreadOnlyDesc")}
                     </p>
                   </div>
                 </label>

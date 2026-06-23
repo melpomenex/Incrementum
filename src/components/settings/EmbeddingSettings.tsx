@@ -3,6 +3,7 @@ import { Brain, Database, Lightning, Sparkle, Warning } from "@phosphor-icons/re
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useRagStore } from "../../stores/ragStore";
 import { useShallow } from "zustand/react/shallow";
+import { useI18n } from "../../lib/i18n";
 
 /**
  * Embeddings & RAG settings: choose a cloud or local embedding provider,
@@ -10,6 +11,7 @@ import { useShallow } from "zustand/react/shallow";
  * retrieval-augmented chat.
  */
 export function EmbeddingSettings() {
+  const { t } = useI18n();
   const { settings, updateSettingsCategory } = useSettingsStore(
     useShallow((s) => ({
       settings: s.settings.embedding,
@@ -38,10 +40,10 @@ export function EmbeddingSettings() {
   const update = (patch: Partial<typeof settings>) => updateSettingsCategory("embedding", patch);
 
   const providerOptions = [
-    { value: "openai", label: "OpenAI (cloud)", modelKey: "openaiModel" as const, models: ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"] },
-    { value: "cohere", label: "Cohere (cloud)", modelKey: "cohereModel" as const, models: ["embed-english-v3.0", "embed-multilingual-v3.0"] },
-    { value: "openrouter", label: "OpenRouter (cloud)", modelKey: "openrouterModel" as const, models: ["openai/text-embedding-3-small"] },
-    { value: "ollama", label: "Ollama (local)", modelKey: "ollamaModel" as const, models: ["nomic-embed-text", "mxbai-embed-large", "all-minilm"] },
+    { value: "openai", label: t("embeddings.providerOpenai"), modelKey: "openaiModel" as const, models: ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"] },
+    { value: "cohere", label: t("embeddings.providerCohere"), modelKey: "cohereModel" as const, models: ["embed-english-v3.0", "embed-multilingual-v3.0"] },
+    { value: "openrouter", label: t("embeddings.providerOpenrouter"), modelKey: "openrouterModel" as const, models: ["openai/text-embedding-3-small"] },
+    { value: "ollama", label: t("embeddings.providerOllama"), modelKey: "ollamaModel" as const, models: ["nomic-embed-text", "mxbai-embed-large", "all-minilm"] },
   ];
   const activeProvider = providerOptions.find((p) => p.value === settings.provider)!;
 
@@ -50,23 +52,26 @@ export function EmbeddingSettings() {
     await indexCollection();
   };
 
+  const indexButtonLabel = isIndexing
+    ? t("embeddings.indexing")
+    : status && status.indexedDocuments > 0
+      ? t("embeddings.reindex")
+      : t("embeddings.indexCollection");
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
         <h2 className="text-xl font-semibold flex items-center gap-2">
           <Brain className="w-5 h-5 text-primary" />
-          Embeddings & RAG
+          {t("embeddings.title")}
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure the embedding model used for whole-library chat. Documents are chunked, embedded,
-          and stored locally; retrieval-augmented answers cite your sources.
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{t("embeddings.desc")}</p>
       </div>
 
       {/* Provider selection */}
       <div className="bg-card border border-border rounded-lg p-5 space-y-4">
         <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Database className="w-4 h-4" /> Embedding Provider
+          <Database className="w-4 h-4" /> {t("embeddings.provider")}
         </h3>
         <div className="grid grid-cols-2 gap-2">
           {providerOptions.map((p) => (
@@ -86,7 +91,7 @@ export function EmbeddingSettings() {
 
         {/* Model picker for the active provider */}
         <label className="block text-sm">
-          <span className="text-muted-foreground">Model</span>
+          <span className="text-muted-foreground">{t("embeddings.model")}</span>
           <select
             value={settings[activeProvider.modelKey] ?? activeProvider.models[0]}
             onChange={(e) => update({ [activeProvider.modelKey]: e.target.value } as Partial<typeof settings>)}
@@ -102,7 +107,7 @@ export function EmbeddingSettings() {
 
         {settings.provider === "ollama" && (
           <label className="block text-sm">
-            <span className="text-muted-foreground">Ollama base URL</span>
+            <span className="text-muted-foreground">{t("embeddings.ollamaBaseUrl")}</span>
             <input
               type="text"
               value={settings.ollamaBaseUrl}
@@ -114,21 +119,18 @@ export function EmbeddingSettings() {
         )}
 
         {settings.provider !== "ollama" && (
-          <p className="text-xs text-muted-foreground">
-            API keys are read from your configured AI providers (Settings → AI). Local Ollama needs
-            no key — only the base URL above.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("embeddings.apiKeyNote")}</p>
         )}
       </div>
 
       {/* Retrieval tuning */}
       <div className="bg-card border border-border rounded-lg p-5 space-y-4">
         <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Lightning className="w-4 h-4" /> Retrieval Tuning
+          <Lightning className="w-4 h-4" /> {t("embeddings.retrievalTuning")}
         </h3>
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm">
-            <span className="text-muted-foreground">Chunk size (words)</span>
+            <span className="text-muted-foreground">{t("embeddings.chunkSize")}</span>
             <input
               type="number"
               min={50}
@@ -139,7 +141,7 @@ export function EmbeddingSettings() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-muted-foreground">Chunk overlap (words)</span>
+            <span className="text-muted-foreground">{t("embeddings.chunkOverlap")}</span>
             <input
               type="number"
               min={0}
@@ -150,7 +152,7 @@ export function EmbeddingSettings() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-muted-foreground">Top-K results</span>
+            <span className="text-muted-foreground">{t("embeddings.topK")}</span>
             <input
               type="number"
               min={1}
@@ -161,7 +163,7 @@ export function EmbeddingSettings() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-muted-foreground">Min similarity (0–1)</span>
+            <span className="text-muted-foreground">{t("embeddings.minSimilarity")}</span>
             <input
               type="number"
               step="0.05"
@@ -178,39 +180,42 @@ export function EmbeddingSettings() {
       {/* Index status + action */}
       <div className="bg-card border border-border rounded-lg p-5 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Sparkle className="w-4 h-4" /> Library Index
+          <Sparkle className="w-4 h-4" /> {t("embeddings.libraryIndex")}
         </h3>
         {isLoadingStatus ? (
-          <p className="text-sm text-muted-foreground">Loading index status…</p>
+          <p className="text-sm text-muted-foreground">{t("embeddings.loadingStatus")}</p>
         ) : status ? (
           <>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <Stat label="Documents indexed" value={status.indexedDocuments} sub={`/ ${status.totalDocuments}`} />
-              <Stat label="Total chunks" value={status.totalChunks} />
-              <Stat label="Provider" value={status.provider} sub={status.model} small />
+              <Stat label={t("embeddings.docsIndexed")} value={status.indexedDocuments} sub={`/ ${status.totalDocuments}`} />
+              <Stat label={t("embeddings.totalChunks")} value={status.totalChunks} />
+              <Stat label={t("embeddings.providerLabel")} value={status.provider} sub={status.model} small />
             </div>
             {status.documentsWithoutContent > 0 && (
               <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
                 <Warning className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                {status.documentsWithoutContent} document{status.documentsWithoutContent === 1 ? "" : "s"} have no
-                extractable text content and can't be indexed (e.g. scanned PDFs without OCR, or video/audio files
-                without transcripts). Index these via their source viewer first.
+                {t("embeddings.docsWithoutContent", { count: status.documentsWithoutContent })}
               </p>
             )}
             {status.indexedDocuments < status.totalDocuments - status.documentsWithoutContent && (
               <p className="text-xs text-muted-foreground">
-                {status.totalDocuments - status.documentsWithoutContent - status.indexedDocuments} document(s)
-                with content haven't been indexed yet — click the button below.
+                {t("embeddings.docsNotIndexed", {
+                  count: status.totalDocuments - status.documentsWithoutContent - status.indexedDocuments,
+                })}
               </p>
             )}
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">Not indexed yet.</p>
+          <p className="text-sm text-muted-foreground">{t("embeddings.notIndexed")}</p>
         )}
 
         {isIndexing && indexProgress && (
           <div className="text-xs text-muted-foreground">
-            Indexing {indexProgress.current}/{indexProgress.total}: {indexProgress.documentTitle}…
+            {t("embeddings.indexingProgress", {
+              current: indexProgress.current,
+              total: indexProgress.total,
+              title: indexProgress.documentTitle,
+            })}
           </div>
         )}
 
@@ -219,14 +224,11 @@ export function EmbeddingSettings() {
           disabled={isIndexing}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isIndexing ? "Indexing…" : status && status.indexedDocuments > 0 ? "Re-index Collection" : "Index Collection"}
+          {indexButtonLabel}
         </button>
 
         {hasIndexed && status && status.indexedDocuments === 0 && (
-          <p className="text-xs text-muted-foreground">
-            Indexed 0 documents. Make sure your documents have extracted text content (PDFs/EPUBs may
-            need OCR first).
-          </p>
+          <p className="text-xs text-muted-foreground">{t("embeddings.indexedZero")}</p>
         )}
 
         {lastError && (
@@ -237,10 +239,7 @@ export function EmbeddingSettings() {
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Tip: switch the assistant to <strong>Library</strong> scope (globe icon in the chat header) to
-        ask questions across your whole collection. Answers cite the retrieved passages.
-      </p>
+      <p className="text-xs text-muted-foreground">{t("embeddings.libraryScopeTip")}</p>
     </div>
   );
 }

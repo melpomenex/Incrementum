@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.55.1] - 2026-06-23
+
+### Fixed & Improved
+- **Full settings-menu localization (incl. Japanese Kanji)** — The settings menu had several screens with hardcoded English strings and missing translation keys. The **Embeddings & RAG** screen (provider picker, retrieval tuning, library index status, re-index actions, error messages) is now fully translated, as is the **Podcast Queue** section and the **Default View** startup selector. Several strings in the General and Data sections (app version, check-for-updates, auto-save interval, backup-on-exit, max backups, the auto-save footer) are now localized too. Added ~57 keys across all six locales (English, Chinese, Spanish, German, French, Japanese); the **Embeddings & RAG** tab label and the new podcast/embeddings strings were previously missing from every language, including Japanese, which now has full Kanji coverage.
+
 ## [1.55.0] - 2026-06-21
 
 ### Added
