@@ -109,6 +109,10 @@ export function RSSReader() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showUrlImport, setShowUrlImport] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
+  // More-options dropdown (the cog). Hover-only previously, now also click/tap-toggle
+  // so the menu is reachable on touch devices and by keyboard.
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const optionsMenuRef = useRef<HTMLDivElement | null>(null);
   const [showNewsletterDirectory, setShowNewsletterDirectory] = useState(false);
   const [newFeedUrl, setNewFeedUrl] = useState("");
   const [isAdding, setIsAdding] = useState(false);
@@ -196,6 +200,22 @@ export function RSSReader() {
   }, [rssStudy.activeArticleToView, feeds]);
 
   const isMobile = useMobileShell();
+
+  // Close the options (cog) dropdown when clicking outside of it.
+  useEffect(() => {
+    if (!showOptionsMenu) return;
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(e.target as Node)) {
+        setShowOptionsMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [showOptionsMenu]);
 
   // Reference to the auto-refresh interval
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -883,7 +903,13 @@ export function RSSReader() {
   const handleImportOPML = () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".opml,.xml";
+    // Accept both the OPML/XML MIME types and extensions. Android's document
+    // picker (SAF) matches on MIME type, not extension, and .opml files in
+    // Downloads often carry application/octet-stream (OPML has no registered
+    // MIME type) — without those MIME types here the files appear greyed out /
+    // unselectable. application/octet-stream is included so such files remain
+    // pickable.
+    input.accept = ".opml,.xml,text/xml,application/xml,text/x-opml,application/octet-stream";
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -1366,6 +1392,13 @@ export function RSSReader() {
                 >
                   <Scroll className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => setShowCustomization(true)}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg mobile-density-tap"
+                  title={t("rssReader.customize")}
+                >
+                  <Gear className="w-4 h-4" />
+                </button>
               </div>
             </div>
             <div className="px-4 pb-3">
@@ -1474,23 +1507,43 @@ export function RSSReader() {
                       <ArrowsClockwise className="w-4 h-4" />
                     )}
                   </button>
-                  <div className="relative group">
+                  <div className="relative group" ref={optionsMenuRef}>
                     <button
-                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded transition-colors"
+                      onClick={() => setShowOptionsMenu((v) => !v)}
+                      aria-haspopup="menu"
+                      aria-expanded={showOptionsMenu}
+                      className={`p-2 rounded transition-colors ${
+                        showOptionsMenu
+                          ? "bg-muted/60 text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      }`}
                       title={t("rssReader.moreOptions")}
                     >
                       <Gear className="w-4 h-4" />
                     </button>
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                    <div
+                      role="menu"
+                      className={`absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg transition-all z-20 ${
+                        showOptionsMenu
+                          ? "opacity-100 visible"
+                          : "opacity-0 invisible group-hover:opacity-100 group-hover:visible"
+                      }`}
+                    >
                       <button
-                        onClick={handleImportOPML}
+                        onClick={() => {
+                          handleImportOPML();
+                          setShowOptionsMenu(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 first:rounded-t-lg flex items-center gap-2"
                       >
                         <ArrowSquareIn className="w-4 h-4" />
                         {t("rssReader.importOpml")}
                       </button>
                       <button
-                        onClick={handleExportOPML}
+                        onClick={() => {
+                          handleExportOPML();
+                          setShowOptionsMenu(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
                       >
                         <Download className="w-4 h-4" />
@@ -1498,21 +1551,30 @@ export function RSSReader() {
                       </button>
                       <div className="border-t border-border my-1" />
                       <button
-                        onClick={() => setShowManageTraining(true)}
+                        onClick={() => {
+                          setShowManageTraining(true);
+                          setShowOptionsMenu(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
                       >
                         <GraduationCap className="w-4 h-4" />
                         Manage Training
                       </button>
                       <button
-                        onClick={() => setShowDiscoverSites(true)}
+                        onClick={() => {
+                          setShowDiscoverSites(true);
+                          setShowOptionsMenu(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
                       >
                         <Globe className="w-4 h-4" />
                         Discover Sites
                       </button>
                       <button
-                        onClick={() => setShowKeyboardHelp(true)}
+                        onClick={() => {
+                          setShowKeyboardHelp(true);
+                          setShowOptionsMenu(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center gap-2"
                       >
                         <Keyboard className="w-4 h-4" />
@@ -1520,7 +1582,10 @@ export function RSSReader() {
                       </button>
                       <div className="border-t border-border my-1" />
                       <button
-                        onClick={() => setShowCustomization(true)}
+                        onClick={() => {
+                          setShowCustomization(true);
+                          setShowOptionsMenu(false);
+                        }}
                         className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 last:rounded-b-lg flex items-center gap-2"
                       >
                         <Gear className="w-4 h-4" />

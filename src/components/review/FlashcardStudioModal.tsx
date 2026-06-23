@@ -3927,7 +3927,7 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex items-stretch justify-center bg-black/60 backdrop-blur-sm p-0 sm:items-center sm:p-4 animate-in fade-in duration-200"
       onClick={onClose}
       onPasteCapture={(event) => {
         if (isImageRegistryOpen) return;
@@ -3939,11 +3939,11 @@ export function FlashcardStudioModal({ isOpen, onClose, seed }: FlashcardStudioM
       }}
     >
       <div
-        className="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+        className="flex h-[100dvh] w-full max-w-7xl flex-col overflow-hidden rounded-none border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200 sm:h-[90vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-6 py-4">
+        <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-muted/50 to-muted/30 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-4">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-gradient-to-br from-primary to-primary-600 p-2.5 text-primary-foreground shadow-lg shadow-primary/25">
               <Sparkle className="h-5 w-5" />

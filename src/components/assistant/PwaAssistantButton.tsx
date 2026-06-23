@@ -15,6 +15,7 @@ import type { AssistantContext } from "./AssistantPanel";
 import * as documentsApi from "../../api/documents";
 import { getAssistantContextErrorMessage } from "../../utils/assistantContext";
 import { providerRequiresApiKey } from "../../utils/llmProviderUtils";
+import { isNativeMobile } from "../../lib/tauri";
 
 type Side = "left" | "right";
 
@@ -82,7 +83,9 @@ function requestMicPermissionInGesture(setError: (msg: string) => void) {
       const name = (e as any)?.name;
       if (name === "NotAllowedError" || name === "SecurityError") {
         setError(
-          "Microphone permission is blocked. Allow microphone access for this site in your browser settings, then try again."
+          isNativeMobile()
+            ? "Microphone permission was denied. Allow microphone access for this app in Android Settings → Apps → Incrementum → Permissions, then try again."
+            : "Microphone permission is blocked. Allow microphone access for this site in your browser settings, then try again."
         );
       } else if (name === "NotFoundError" || name === "OverconstrainedError") {
         setError("No microphone was found (or it is unavailable). Connect a mic and try again.");
@@ -222,7 +225,9 @@ export function PwaAssistantButton({
       const msg = typeof e?.error === "string" ? e.error : "Voice capture failed";
       if (msg === "not-allowed" || msg === "service-not-allowed") {
         setError(
-          "Voice permission is blocked (not-allowed). Enable microphone permission for this site in your browser settings, then try again. You can still type your question below."
+          isNativeMobile()
+            ? "Voice permission was denied. Allow microphone access for this app in Android Settings → Apps → Incrementum → Permissions, then try again. You can still type your question below."
+            : "Voice permission is blocked (not-allowed). Enable microphone permission for this site in your browser settings, then try again. You can still type your question below."
         );
       } else if (msg === "no-speech") {
         setError(

@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Microphone access for the Document Assistant voice feature (Web Speech API / getUserMedia).
+         Without RECORD_AUDIO + MODIFY_AUDIO_SETTINGS declared here, the webview's audio-capture
+         permission request (handled in RustWebChromeClient.onPermissionRequest) silently fails and
+         getUserMedia rejects with NotAllowedError, so the user can never grant mic access. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />

@@ -605,7 +605,7 @@ export const defaultSettings: Settings = {
     model: "gpt-4o-mini",
     temperature: 0.7,
     maxTokens: 4096,
-    pwaAssistantButtonEnabled: true,
+    pwaAssistantButtonEnabled: false,
     pwaAssistantButtonSide: "right",
     aiControls: {
       autoGenerate: false,
@@ -791,8 +791,17 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "incrementum-settings",
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
+        // v2 -> v3: the floating Document Assistant mic orb used to default to ON.
+        // It eats screen space and most users never used it, so it now defaults to
+        // OFF and is opt-in via Settings → AI. Reset any previously persisted value
+        // so existing users also get the new default.
+        const p = (persisted ?? {}) as Partial<Settings> & { settings?: Partial<Settings> };
+        const root = p.settings ?? p;
+        if (root?.ai && version < 3) {
+          root.ai.pwaAssistantButtonEnabled = false;
+        }
         return persisted as SettingsState;
       },
       onRehydrateStorage: () => (state, error) => {

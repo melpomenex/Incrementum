@@ -11,6 +11,7 @@ import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents
 import { saveDocumentPosition, cfiPosition } from "../../api/position";
 import {
   CaretDown,
+  CaretLeft,
   CaretUp,
   Gear,
   List,
@@ -166,6 +167,7 @@ interface EPUBViewerProps {
   syncJumpSignal?: number;
   metadata?: DocumentMetadata;
   onIframeWindowReady?: (iframeWindow: Window) => void;
+  onBack?: () => void;
 }
 
 export function EPUBViewer({
@@ -193,6 +195,7 @@ export function EPUBViewer({
   syncJumpSignal,
   metadata,
   onIframeWindowReady,
+  onBack,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -2013,13 +2016,26 @@ export function EPUBViewer({
           >
             <div className="mx-3 mt-3 rounded-2xl bg-background/95 backdrop-blur border border-border shadow-lg">
               <div className="flex items-center justify-between px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-foreground truncate">{fileName}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {currentChapter || t("viewer.reading")}
+                <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                  {onBack && (
+                    <button
+                      type="button"
+                      data-chrome-control="true"
+                      onClick={onBack}
+                      className="p-1.5 rounded-full border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all min-w-[32px] min-h-[32px] flex items-center justify-center"
+                      aria-label="Back"
+                    >
+                      <CaretLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-foreground truncate">{fileName}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {currentChapter || t("viewer.reading")}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     type="button"
                     data-chrome-control="true"

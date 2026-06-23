@@ -436,6 +436,7 @@ export function DocumentViewer({
       : undefined;
   const jumpHighlightQuery = jumpTextQuote ?? (highlightQuery?.trim() ? highlightQuery.trim() : undefined);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [minimapPosition, setMinimapPosition] = useState(0); // 0-1
   const [ocrContextText, setOcrContextText] = useState<string | null>(null);
   const [readerContextText, setReaderContextText] = useState<string>("");
@@ -446,6 +447,10 @@ export function DocumentViewer({
   const [ttsChunkText, setTtsChunkText] = useState("");
   const [wordHighlightEnabled, setWordHighlightEnabled] = useState(false);
   const [epubIframeWindow, setEpubIframeWindow] = useState<Window | null>(null);
+  // Mirror epubIframeWindow into a ref so imperative handlers (e.g.
+  // clearTextSelection) can always read the latest value without re-subscribing.
+  const epubIframeWindowRef = useRef<Window | null>(null);
+  epubIframeWindowRef.current = epubIframeWindow;
   const [pdfTextLayerRoots, setPdfTextLayerRoots] = useState<(HTMLDivElement | null)[]>([]);
   const [pdfScrollContainer, setPdfScrollContainer] = useState<HTMLElement | null>(null);
   const highlightContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1008,9 +1013,16 @@ export function DocumentViewer({
     setContextMenuState(null);
     // Clear the browser's text selection
     window.getSelection()?.removeAllRanges();
-    // Also clear selection inside the HTML iframe if present
+    // Also clear selection inside the HTML/Markdown iframe if present
     try {
       iframeRef.current?.contentWindow?.getSelection()?.removeAllRanges();
+    } catch { /* cross-origin guard */ }
+    // Also clear selection inside the EPUB iframe. iframeRef only points at the
+    // HTML/Markdown iframes, not the EPUB one, so without this the EPUB selection
+    // survives and its selectionchange callback re-populates selectedText — which
+    // keeps the floating extract button visible after extracting.
+    try {
+      epubIframeWindowRef.current?.getSelection()?.removeAllRanges();
     } catch { /* cross-origin guard */ }
   }, []);
 
@@ -4720,8 +4732,333 @@ export function DocumentViewer({
   return (
     <div ref={containerRef} className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Toolbar */}
-      {!embedded && !isFullscreen && (
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:flex-nowrap sm:p-4 bg-card border-b border-border">
+      {/* Toolbar */}
+      {!embedded && !isFullscreen && !(isMobileTouch && docType === "epub" && viewMode === "document") && (
+        isMobileTouch ? (
+          /* Mobile Compact Toolbar */
+          <div className="flex items-center justify-between gap-2 p-2 bg-card border-b border-border min-h-[56px] relative animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* Left: Back button and Title */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <button
+                onClick={handleBack}
+                className="p-2 rounded-md hover:bg-muted transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                title={t("viewer.backToDocuments")}
+              >
+                <CaretLeft className="w-5 h-5 text-foreground" />
+              </button>
+              <h2 className="min-w-0 flex-1 font-semibold text-foreground line-clamp-1 text-sm">
+                {currentDocument.title}
+              </h2>
+              {currentDocument.progressPercent !== undefined && currentDocument.progressPercent > 0 && (
+                <span className="text-[10px] text-muted-foreground bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                  {Math.round(currentDocument.progressPercent)}%
+                </span>
+              )}
+            </div>
+
+            {/* Right: Search, Extract, and More menu */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {showSearch ? (
+                <div className="absolute inset-x-0 inset-y-0 bg-card z-50 flex items-center gap-2 p-2">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder={t("viewer.searchInDocument")}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSearch(e.shiftKey ? "prev" : "next");
+                      } else if (e.key === "Escape") {
+                        closeViewerSearch();
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[36px]"
+                    autoFocus
+                  />
+                  {normalizedViewerSearchQuery && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSearch("prev")}
+                        disabled={!viewerSearchState.available || viewerSearchState.totalMatches <= 0}
+                        className="p-2 hover:bg-muted rounded-md transition-colors disabled:opacity-40 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      >
+                        <CaretLeft className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => handleSearch("next")}
+                        disabled={!viewerSearchState.available || viewerSearchState.totalMatches <= 0}
+                        className="p-2 hover:bg-muted rounded-md transition-colors disabled:opacity-40 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      >
+                        <CaretRight className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={closeViewerSearch}
+                    className="p-2 hover:bg-muted rounded-md transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+              ) : (
+                viewerSearchSupported && (
+                  <button
+                    onClick={() => {
+                      setShowSearch(true);
+                      requestAnimationFrame(() => {
+                        searchInputRef.current?.focus();
+                      });
+                    }}
+                    className="p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
+                    title={t("viewer.searchInDocumentShortcut")}
+                  >
+                    <MagnifyingGlass className="w-4 h-4" />
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={openExtractDialog}
+                className="p-2 rounded-md hover:bg-muted transition-colors text-primary"
+                title={t("viewer.createExtract")}
+                data-extract-button="true"
+              >
+                <Lightbulb className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className={cn(
+                  "p-2 rounded-md transition-colors",
+                  isMobileMenuOpen ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+                )}
+                title="More actions"
+              >
+                <Gear className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Mobile More Actions Popover */}
+            {isMobileMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/20 backdrop-blur-xs animate-in fade-in duration-200"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+                <div className="absolute top-full right-2 mt-2 w-72 bg-popover border border-border rounded-xl shadow-xl z-50 p-4 space-y-4 animate-in fade-in zoom-in-95 duration-100 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                    <span className="font-semibold text-sm text-foreground">Actions</span>
+                    <button
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground font-medium">Document Priority</span>
+                    <PriorityControl
+                      documentId={currentDocument.id}
+                      prioritySlider={currentDocument.prioritySlider}
+                      priorityRating={currentDocument.priorityRating}
+                      variant="compact"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-xs text-muted-foreground font-medium">View Mode</span>
+                    <div className="flex items-center w-full bg-muted rounded-md p-1">
+                      <button
+                        onClick={() => {
+                          setViewMode("document");
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                          viewMode === "document"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <TextT className="w-3.5 h-3.5" />
+                        <span>Document</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setViewMode("extracts");
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                          viewMode === "extracts"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        <span>Extracts</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setViewMode("cards");
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                          viewMode === "cards"
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Brain className="w-3.5 h-3.5" />
+                        <span>Cards</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5 border-t border-border/40">
+                    <span className="text-xs text-muted-foreground font-medium">Share document</span>
+                    <button
+                      onClick={() => {
+                        handleShare();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs text-foreground px-3 py-1.5 bg-muted rounded-md border border-border"
+                    >
+                      <ShareNetwork className="w-3.5 h-3.5" />
+                      <span>Share Link</span>
+                    </button>
+                  </div>
+
+                  {docType === "pdf" && (
+                    <div className="space-y-2 pt-2 border-t border-border/40">
+                      <span className="text-xs text-muted-foreground font-medium block">PDF Controls</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-foreground">Extract text layer (OCR)</span>
+                        <button
+                          onClick={() => {
+                            handleConvertToHtml();
+                            setIsMobileMenuOpen(false);
+                          }}
+                          disabled={isOcrConverting}
+                          className="p-1.5 rounded-md bg-muted border border-border text-foreground hover:bg-muted/80 disabled:opacity-50"
+                        >
+                          {isOcrConverting ? (
+                            <CircleNotch className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileCode className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      {ocrResult && viewMode === "document" && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-foreground">View Mode</span>
+                          <div className="flex items-center bg-muted rounded-md p-0.5">
+                            <button
+                              onClick={() => {
+                                if (pdfViewMode === "ocr-html") {
+                                  setRestoreState({
+                                    docId: documentId,
+                                    pageNumber,
+                                    scale,
+                                    zoomMode,
+                                    updatedAt: Date.now(),
+                                  });
+                                  setRestoreRequestId((prev) => prev + 1);
+                                }
+                                setPdfViewMode("pdf");
+                              }}
+                              className={cn(
+                                "px-2 py-1 text-[10px] rounded transition-colors",
+                                pdfViewMode === "pdf" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
+                              )}
+                            >
+                              PDF
+                            </button>
+                            <button
+                              onClick={() => setPdfViewMode("ocr-html")}
+                              className={cn(
+                                "px-2 py-1 text-[10px] rounded transition-colors",
+                                pdfViewMode === "ocr-html" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
+                              )}
+                            >
+                              HTML
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {canUseEditPalette && (
+                    <div className="flex items-center justify-between py-1.5 border-t border-border/40">
+                      <span className="text-xs text-muted-foreground font-medium">Edit Mode</span>
+                      <button
+                        onClick={() => {
+                          setIsPaletteMode((prev) => !prev);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs text-foreground px-3 py-1.5 bg-muted rounded-md border border-border"
+                      >
+                        <SidebarSimple className="w-3.5 h-3.5" />
+                        <span>{isPaletteMode ? "Reader" : "Palette"}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {((docType === "pdf" && pdfViewMode === "pdf") || docType === "markdown") && viewMode === "document" && (
+                    <div className="space-y-2 pt-2 border-t border-border/40">
+                      <span className="text-xs text-muted-foreground font-medium block">Zoom / Width</span>
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={handleZoomOut}
+                          className="p-1.5 rounded bg-muted hover:bg-muted/80 text-foreground"
+                        >
+                          <MagnifyingGlassMinus className="w-4 h-4" />
+                        </button>
+                        <span className="text-xs font-semibold min-w-[40px] text-center">
+                          {docType === "pdf" ? `${Math.round(scale * 100)}%` : `${markdownWidthCh}ch`}
+                        </span>
+                        <button
+                          onClick={handleZoomIn}
+                          className="p-1.5 rounded bg-muted hover:bg-muted/80 text-foreground"
+                        >
+                          <MagnifyingGlassPlus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleResetZoom}
+                          className="p-1.5 rounded bg-muted hover:bg-muted/80 text-foreground"
+                        >
+                          <ArrowClockwise className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between py-1.5 border-t border-border/40">
+                    <span className="text-xs text-muted-foreground font-medium">Fullscreen</span>
+                    <button
+                      onClick={() => {
+                        toggleFullscreen();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs text-foreground px-3 py-1.5 bg-muted rounded-md border border-border"
+                    >
+                      <CornersOut className="w-3.5 h-3.5" />
+                      <span>Focus Mode</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:flex-nowrap sm:p-4 bg-card border-b border-border">
         <div className="flex min-w-0 w-full flex-1 items-center gap-2 sm:w-auto">
           <button
             onClick={handleBack}
@@ -4801,7 +5138,7 @@ export function DocumentViewer({
           </div>
         </div>
 
-        <div className="flex w-full max-w-full flex-shrink-0 items-center justify-end gap-1 overflow-x-auto overscroll-x-contain pr-1 sm:w-auto sm:max-w-none sm:gap-2 sm:overflow-visible sm:pr-0">
+        <div className="flex w-full max-w-full flex-shrink-0 flex-wrap items-center justify-end gap-1 pr-1 sm:w-auto sm:max-w-none sm:flex-nowrap sm:gap-2 sm:overflow-visible sm:pr-0">
           {/* MagnifyingGlass */}
           {showSearch ? (
             <div className="flex items-center gap-2 bg-muted rounded-md p-1">
@@ -5129,8 +5466,9 @@ export function DocumentViewer({
               </button>
             </>
           )}
+          </div>
         </div>
-      </div>
+        )
       )}
 
       {/* Content Area */}
@@ -5359,6 +5697,7 @@ export function DocumentViewer({
             fileUrl={epubUrl}
             fileName={currentDocument.title}
             documentId={currentDocument.id}
+            onBack={handleBack}
             onLoad={(toc) => handleDocumentLoad(0, toc)}
             onSelectionChange={updateSelection}
             onContextMenu={({ x, y, selectedText: text, selectionContext: ctx }) => setContextMenuState({ visible: true, x, y, selectedText: text, selectionContext: ctx })}
