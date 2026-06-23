@@ -4821,11 +4821,37 @@ export function DocumentViewer({
 
               <button
                 onClick={openExtractDialog}
-                className="p-2 rounded-md hover:bg-muted transition-colors text-primary"
+                className="p-2 rounded-md hover:bg-muted transition-colors text-primary flex-shrink-0"
                 title={t("viewer.createExtract")}
                 data-extract-button="true"
               >
                 <Lightbulb className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setViewMode(viewMode === "extracts" ? "document" : "extracts")}
+                className={cn(
+                  "p-2 rounded-md transition-colors flex-shrink-0",
+                  viewMode === "extracts" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                )}
+                title={t("viewer.viewExtracts")}
+              >
+                <List className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() =>
+                  setFlashcardStudioSeed({
+                    key: `manual-${Date.now()}`,
+                    documentId: currentDocument.id,
+                    resetDraftCards: false,
+                    autoEditDraft: false,
+                  })
+                }
+                className="p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground flex-shrink-0"
+                title={t("flashcardStudio.title")}
+              >
+                <Brain className="w-4 h-4" />
               </button>
 
               <button
@@ -5221,6 +5247,34 @@ export function DocumentViewer({
             data-extract-button="true"
           >
             <Lightbulb className="w-4 h-4" />
+          </button>
+
+          {/* Extracts View Mode Toggle (desktop) */}
+          <button
+            onClick={() => setViewMode(viewMode === "extracts" ? "document" : "extracts")}
+            className={cn(
+              "flex-shrink-0 p-2 rounded-md transition-colors",
+              viewMode === "extracts" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+            )}
+            title={t("viewer.viewExtracts")}
+          >
+            <List className="w-4 h-4" />
+          </button>
+
+          {/* Flashcard Studio Button */}
+          <button
+            onClick={() =>
+              setFlashcardStudioSeed({
+                key: `manual-${Date.now()}`,
+                documentId: currentDocument.id,
+                resetDraftCards: false,
+                autoEditDraft: false,
+              })
+            }
+            className="flex-shrink-0 p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title={t("flashcardStudio.title")}
+          >
+            <Brain className="w-4 h-4" />
           </button>
 
           {/* Share Button */}
