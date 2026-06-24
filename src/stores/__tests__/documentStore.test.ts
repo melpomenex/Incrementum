@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the api layer so bulkDelete hits our fake implementation.
+// Mock the api layer so the store hits our fake implementations.
 const bulkDeleteDocumentsMock = vi.fn();
+const pickFolderDocumentsMock = vi.fn();
+const importDocumentMock = vi.fn();
+const loadDocumentsMock = vi.fn();
 vi.mock("../../api/documents", () => ({
   bulkDeleteDocuments: (...args: unknown[]) => bulkDeleteDocumentsMock(...args),
-  // Other helpers referenced at module load aren't needed for these tests.
+  pickFolderDocuments: (...args: unknown[]) => pickFolderDocumentsMock(...args),
+  importDocument: (...args: unknown[]) => importDocumentMock(...args),
+  // loadDocuments is destructured as documentsApi.loadDocuments in the store.
+  loadDocuments: (...args: unknown[]) => loadDocumentsMock(...args),
 }));
 
 vi.mock("../../api/segmentation", () => ({ segmentDocument: vi.fn() }));
-vi.mock("../settingsStore", () => ({ useSettingsStore: { getState: () => ({}) } }));
+vi.mock("../settingsStore", () => ({
+  useSettingsStore: { getState: () => ({ settings: { documents: {} } }) },
+}));
 vi.mock("../collectionStore", () => ({
   useCollectionStore: { getState: () => ({ activeCollectionId: null }) },
 }));
@@ -19,7 +27,7 @@ vi.mock("../../utils/documentImport", () => ({
 vi.mock("../../lib/tauri", () => ({ listen: vi.fn(), isTauri: () => false }));
 vi.mock("../../components/common/Toast", () => ({
   useToastStore: { getState: () => ({ addToast: vi.fn() }) },
-  ToastType: {},
+  ToastType: { Success: "success", Error: "error", Info: "info" },
 }));
 
 import { useDocumentStore } from "../documentStore";
@@ -102,5 +110,44 @@ describe("documentStore.bulkDelete", () => {
     expect(bulkDeleteDocumentsMock).not.toHaveBeenCalled();
     expect(result.succeeded).toEqual([]);
     expect(useDocumentStore.getState().documents).toHaveLength(3);
+  });
+});
+
+describe("documentStore.importFromFolder", () => {
+  beforeEach(() => {
+    pickFolderDocumentsMock.mockReset();
+    importDocumentMock.mockReset();
+    loadDocumentsMock.mockReset();
+    useDocumentStore.setState({ documents: [] });
+  });
+
+  it("imports all staged files returned by the folder picker", async () => {
+    pickFolderDocumentsMock.mockResolvedValue([
+      { path: "/imports/Sci-Fi/Dune.epub", relativePath: "Sci-Fi/Dune.epub", fileName: "Dune.epub" },
+      { path: "/imports/guide.pdf", relativePath: "guide.pdf", fileName: "guide.pdf" },
+    ]);
+    importDocumentMock.mockImplementation(async (filePath: string) =>
+      makeDoc(filePath.split("/").pop() || filePath)
+    );
+    loadDocumentsMock.mockResolvedValue(undefined);
+
+    const result = await useDocumentStore.getState().importFromFolder();
+
+    expect(pickFolderDocumentsMock).toHaveBeenCalledWith();
+    expect(importDocumentMock).toHaveBeenCalledTimes(2);
+    expect(importDocumentMock).toHaveBeenCalledWith("/imports/Sci-Fi/Dune.epub", null);
+    expect(importDocumentMock).toHaveBeenCalledWith("/imports/guide.pdf", null);
+    expect(result).toHaveLength(2);
+  });
+
+  it("returns an empty list and toasts when the folder has no supported files", async () => {
+    pickFolderDocumentsMock.mockResolvedValue([]);
+
+    const result = await useDocumentStore.getState().importFromFolder();
+
+    expect(pickFolderDocumentsMock).toHaveBeenCalled();
+    expect(importDocumentMock).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
+    expect(useDocumentStore.getState().isImporting).toBe(false);
   });
 });

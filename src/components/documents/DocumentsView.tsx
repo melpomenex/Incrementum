@@ -11,6 +11,7 @@ import {
   DotsThree,
   Download,
   TextT as FileTextIcon,
+  FolderOpen,
   Funnel,
   Globe,
   GridFour,
@@ -169,6 +170,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
     loadDocuments,
     openFilePickerAndImport,
     importFromFiles,
+    importFromFolder,
     updateDocument,
     deleteDocument,
     bulkDelete,
@@ -379,6 +381,17 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
       console.error("Failed to import documents:", err);
     }
   }, [openFilePickerAndImport, onOpenDocument]);
+
+  const handleImportFolder = useCallback(async () => {
+    try {
+      const importedDocs = await importFromFolder();
+      if (onOpenDocument && importedDocs.length > 0) {
+        onOpenDocument(importedDocs[0]);
+      }
+    } catch (err) {
+      console.error("Failed to import folder:", err);
+    }
+  }, [importFromFolder, onOpenDocument]);
 
   useEffect(() => {
     const handleImportShortcut = () => {
@@ -889,6 +902,15 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
               >
                 {isImporting ? t("documentsView.importing") : t("documentsView.importDocument")}
               </button>
+              <button
+                onClick={handleImportFolder}
+                disabled={isImporting}
+                title={t("documentsView.importFolderDesc")}
+                className="px-3 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap flex items-center gap-1.5"
+              >
+                <FolderOpen className="w-4 h-4" />
+                {t("documentsView.importFolder")}
+              </button>
             </div>
 
             {/* Mobile Import Actions - Top Right */}
@@ -910,6 +932,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                 onWebArticleClick={() => setShowWebArticleImport(true)}
                 onAudiobookClick={() => setShowAudiobookImport(true)}
                 onAnnaArchiveClick={() => setShowAnnaArchiveSearch(true)}
+                onFolderClick={handleImportFolder}
               />
             </div>
           </div>
@@ -1196,7 +1219,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
               debouncedSearch ? (
                 <EmptySearch query={debouncedSearch} onClear={() => setSearchInput("")} />
               ) : (
-                <EmptyDocuments onImport={handleImport} />
+                <EmptyDocuments onImport={handleImport} onImportFolder={handleImportFolder} />
               )
             ) : mode === "list" ? (
               <div className="space-y-2">
@@ -2534,6 +2557,7 @@ interface MobileImportMenuProps {
   onWebArticleClick: () => void;
   onAudiobookClick: () => void;
   onAnnaArchiveClick: () => void;
+  onFolderClick?: () => void;
 }
 
 function MobileImportMenu({
@@ -2543,6 +2567,7 @@ function MobileImportMenu({
   onWebArticleClick,
   onAudiobookClick,
   onAnnaArchiveClick,
+  onFolderClick,
 }: MobileImportMenuProps) {
   const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -2623,6 +2648,18 @@ function MobileImportMenu({
             </div>
             <span>{t("documentsView.audiobook")}</span>
           </button>
+
+          {onFolderClick && isTauri() && (
+            <button
+              onClick={() => handleAction(onFolderClick)}
+              className="w-full px-3 py-2.5 flex items-center gap-3 text-sm text-foreground hover:bg-muted/60 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <FolderOpen className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span>{t("documentsView.importFolderMobile")}</span>
+            </button>
+          )}
 
           {(false as boolean) && isTauri() && (
             <>

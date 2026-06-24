@@ -1,0 +1,8 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = """
+Allows the folder-import plugin's folder picker command to be invoked
+from the frontend.
+"""
+permissions = ["allow-pick-folder-documents"]

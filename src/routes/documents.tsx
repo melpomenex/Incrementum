@@ -17,7 +17,7 @@ import { useCollectionStore } from "../stores/collectionStore";
 export function Documents() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { documents, isLoading, isImporting, importProgress, error, loadDocuments, openFilePickerAndImport, importFromFiles, importFromUrl, importFromArxiv, addDocument, setError, setImporting, setImportProgress } = useDocumentStore(useShallow(state => ({
+  const { documents, isLoading, isImporting, importProgress, error, loadDocuments, openFilePickerAndImport, importFromFiles, importFromFolder, importFromUrl, importFromArxiv, addDocument, setError, setImporting, setImportProgress } = useDocumentStore(useShallow(state => ({
     documents: state.documents,
     isLoading: state.isLoading,
     isImporting: state.isImporting,
@@ -26,6 +26,7 @@ export function Documents() {
     loadDocuments: state.loadDocuments,
     openFilePickerAndImport: state.openFilePickerAndImport,
     importFromFiles: state.importFromFiles,
+    importFromFolder: state.importFromFolder,
     importFromUrl: state.importFromUrl,
     importFromArxiv: state.importFromArxiv,
     addDocument: state.addDocument,
@@ -97,6 +98,11 @@ export function Documents() {
           if (imported.length > 0) {
             importedDoc = imported[0];
           }
+        }
+      } else if (source === 'folder') {
+        const imported = await importFromFolder();
+        if (imported.length > 0) {
+          importedDoc = imported[0];
         }
       } else if (source === 'supermemo') {
         setImporting(true);

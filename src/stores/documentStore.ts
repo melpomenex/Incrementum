@@ -92,6 +92,7 @@ interface DocumentState {
   bulkDelete: (ids: string[]) => Promise<{ succeeded: string[]; failed: string[]; errors: string[] }>;
   importFromFile: (filePath: string) => Promise<Document>;
   importFromFiles: (filePaths: string[]) => Promise<Document[]>;
+  importFromFolder: () => Promise<Document[]>;
   importFromUrl: (url: string) => Promise<Document>;
   importFromArxiv: (arxivIdOrUrl: string, format?: 'pdf' | 'html') => Promise<Document>;
   openFilePickerAndImport: () => Promise<Document[]>;
@@ -417,6 +418,37 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         isImporting: false,
         isSegmenting: false,
         importProgress: { current: 0, total: 0 }
+      });
+      throw error;
+    }
+  },
+
+  importFromFolder: async () => {
+    // Let the user pick a folder; the plugin returns every supported file
+    // inside it (recursively, incl. subdirectories). On mobile the files are
+    // staged into app-private storage so their paths are readable by the
+    // path-based import pipeline below.
+    set({ isImporting: true, error: null, importProgress: { current: 0, total: 0 } });
+    try {
+      const staged = await documentsApi.pickFolderDocuments();
+      if (staged.length === 0) {
+        set({ isImporting: false, importProgress: { current: 0, total: 0 } });
+        useToastStore.getState().addToast({
+          type: ToastType.Info,
+          title: "No files found",
+          message: "The selected folder has no supported documents, or the import was cancelled.",
+        });
+        return [];
+      }
+      // Reuse the existing multi-file import loop (handles per-file progress,
+      // auto-segmentation, and the final toast summary).
+      const paths = staged.map((f) => f.path);
+      return await get().importFromFiles(paths);
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to import folder",
+        isImporting: false,
+        importProgress: { current: 0, total: 0 },
       });
       throw error;
     }

@@ -144,7 +144,13 @@ function FormatIconsGrid({ onImport }: { onImport?: () => void }) {
 
 // Pre-configured empty states for common scenarios
 
-export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
+export function EmptyDocuments({
+  onImport,
+  onImportFolder,
+}: {
+  onImport?: () => void;
+  onImportFolder?: () => void;
+}) {
   const { t } = useI18n();
 
   return (
@@ -167,6 +173,14 @@ export function EmptyDocuments({ onImport }: { onImport?: () => void }) {
               label: t("emptyState.browseFiles"),
               onClick: onImport,
               icon: <Plus className="w-4 h-4" />,
+            }
+          : undefined
+      }
+      secondaryAction={
+        onImportFolder
+          ? {
+              label: t("emptyState.importFolder"),
+              onClick: onImportFolder,
             }
           : undefined
       }

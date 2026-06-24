@@ -303,7 +303,12 @@ pub fn run() {
         // OS info — available on all targets (desktop + android + ios).
         // The frontend uses platform() to detect native mobile builds so it
         // can render the mobile UI shell instead of the desktop tabbed view.
-        .plugin(tauri_plugin_os::init());
+        .plugin(tauri_plugin_os::init())
+        // Folder import: recursive document import from a user-picked folder.
+        // Desktop uses a native folder dialog + walkdir; Android uses SAF
+        // (ACTION_OPEN_DOCUMENT_TREE) and iOS uses UIDocumentPickerViewController
+        // in folder mode, staging files into app-private storage.
+        .plugin(incrementum_folder_import::init());
 
     // Global shortcuts are desktop-only (not available on iOS/Android)
     #[cfg(not(any(target_os = "ios", target_os = "android")))]
@@ -578,6 +583,16 @@ pub fn run() {
 
                 let repo = database::Repository::new(pool.clone());
 
+                // Register the repository in managed state as early as possible.
+                // The rest of setup (cloud auth loading, AI keys, transcription
+                // queues, demo import, browser sync) runs async work that can
+                // take a noticeable amount of time — especially on mobile, where
+                // the WebView loads quickly. If we deferred this to the end of
+                // setup, the frontend could mount and invoke a command taking
+                // `State<'_, Repository>` (e.g. `get_due_items`) before this runs,
+                // producing "state not managed for field `repo`" errors.
+                app.manage(repo.clone());
+
                 // Initialize cloud auth provider (managed immediately so commands can access it)
                 let auth_store = cloud::auth_store::AuthStore::new(app_dir.clone());
                 let cloud_auth_provider = cloud::auth_store::CloudAuthProvider::new();
@@ -672,7 +687,8 @@ pub fn run() {
                     }
                 });
 
-                app.manage(repo);
+                // Repository state was managed earlier in setup (right after it
+                // was created), so there is nothing to manage here.
 
                 // Initialize browser sync server in the background if auto-start is enabled.
                 let bg_app_handle = app_handle.clone();

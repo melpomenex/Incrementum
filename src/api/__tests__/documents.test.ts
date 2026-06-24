@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { convertDocumentPdfToHtml, convertPdfToHtml } from "../documents";
+import { convertDocumentPdfToHtml, convertPdfToHtml, pickFolderDocuments } from "../documents";
 
 const mocks = vi.hoisted(() => ({
   invokeCommand: vi.fn(),
@@ -72,6 +72,51 @@ describe("document PDF conversion API", () => {
       save_to_file: false,
       output_path: undefined,
     });
+    expect(mocks.invokeCommand).not.toHaveBeenCalled();
+  });
+});
+
+describe("folder import API", () => {
+  beforeEach(() => {
+    mocks.invokeCommand.mockReset();
+    mocks.browserInvoke.mockReset();
+    mocks.isTauri = true;
+  });
+
+  it("invokes the folder-import plugin command with staged-file response", async () => {
+    const staged = [
+      { path: "/imports/Sci-Fi/Dune.epub", relativePath: "Sci-Fi/Dune.epub", fileName: "Dune.epub" },
+      { path: "/imports/guide.pdf", relativePath: "guide.pdf", fileName: "guide.pdf" },
+    ];
+    mocks.invokeCommand.mockResolvedValue(staged);
+
+    const result = await pickFolderDocuments();
+
+    expect(mocks.invokeCommand).toHaveBeenCalledWith(
+      "plugin:folder-import|pick_folder_documents",
+      { extensions: null }
+    );
+    expect(result).toEqual(staged);
+    expect(result[0].relativePath).toBe("Sci-Fi/Dune.epub");
+  });
+
+  it("forwards a custom extension allow-list to the plugin", async () => {
+    mocks.invokeCommand.mockResolvedValue([]);
+
+    await pickFolderDocuments(["pdf", "epub"]);
+
+    expect(mocks.invokeCommand).toHaveBeenCalledWith(
+      "plugin:folder-import|pick_folder_documents",
+      { extensions: ["pdf", "epub"] }
+    );
+  });
+
+  it("resolves to an empty array in web mode (no native plugin)", async () => {
+    mocks.isTauri = false;
+
+    const result = await pickFolderDocuments();
+
+    expect(result).toEqual([]);
     expect(mocks.invokeCommand).not.toHaveBeenCalled();
   });
 });

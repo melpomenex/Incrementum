@@ -1,0 +1,22 @@
+[package]
+name = "incrementum-folder-import"
+version = "0.1.0"
+description = "Tauri plugin for recursively importing documents from a folder (Android/iOS SAF + desktop walkdir)"
+authors = ["Incrementum Team"]
+edition = "2021"
+links = "incrementum-folder-import"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+tauri = { version = "=2.11.0", features = ["unstable"] }
+serde = "1"
+serde_json = "1"
+thiserror = "1"
+walkdir = "2"
+
+# Desktop-only deps that have no mobile backend
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-dialog = "2.7"
+tauri-plugin-fs = "2"

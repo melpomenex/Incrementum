@@ -188,6 +188,7 @@ Documents → Import Document → Choose source
 | Source | Description |
 |--------|-------------|
 | 📁 **Local Files** | Select PDF, EPUB, or text files from your computer |
+| 📂 **Local Folder** | Import every supported file in a folder recursively, including subdirectories (entire Books libraries). Uses the native folder picker on desktop, Android Storage Access Framework, and iOS document picker |
 | 🎧 **Audiobook / Audio** | Import audiobooks or audio files (MP3, M4A, M4B, FLAC, etc.) with auto-transcription |
 | 🎬 **Video** | Import video files (MP4, WebM, MOV, MKV, etc.) with local playback and transcription |
 | 🌐 **URL** | Enter any web URL to fetch and process content |

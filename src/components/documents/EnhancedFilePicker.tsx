@@ -11,6 +11,7 @@ import {
   Database,
   Download,
   File,
+  FolderOpen,
   Link,
   TextT,
   Upload,
@@ -19,7 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { validateUrl, validateArxivInput } from "../../utils/documentImport";
 
-export type ImportSource = "local" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo" | "json";
+export type ImportSource = "local" | "folder" | "url" | "arxiv" | "screenshot" | "anki" | "supermemo" | "json";
 
 interface ImportOption {
   id: ImportSource;
@@ -36,6 +37,13 @@ const importOptions: ImportOption[] = [
     icon: Upload,
     description: "Import PDF, EPUB, Markdown, or text files from your computer",
     supportedFormats: ["pdf", "epub", "md", "txt", "html", "json"],
+  },
+  {
+    id: "folder",
+    label: "Local Folder",
+    icon: FolderOpen,
+    description: "Import every supported file in a folder, including subdirectories",
+    supportedFormats: ["pdf", "epub", "md", "txt", "html", "mp3", "mp4"],
   },
   {
     id: "url",
@@ -141,6 +149,10 @@ export function EnhancedFilePicker({
         if (selected && Array.isArray(selected)) {
           await onImport("local", { filePaths: selected });
         }
+      } else if (selectedSource === "folder") {
+        // Recursive folder import handled by the folder-import Tauri plugin
+        // (desktop folder dialog + walkdir; SAF / document picker on mobile).
+        await onImport("folder", {});
       } else if (selectedSource === "url") {
         if (!urlInput.trim()) {
           setError("Please enter a URL");
@@ -202,6 +214,33 @@ export function EnhancedFilePicker({
             </p>
             <div className="flex flex-wrap gap-2">
               {importOptions[0].supportedFormats.map((format) => (
+                <span
+                  key={format}
+                  className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md"
+                >
+                  {format.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "folder":
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Pick a folder to import every supported file inside it, including
+              files in nested subdirectories (e.g. an entire Books library).
+            </p>
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+              <FolderOpen className="w-5 h-5 text-primary" />
+              <span className="text-sm">
+                Recursively scans the chosen folder and imports all supported
+                documents, audio, and video files.
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {importOptions[1].supportedFormats.map((format) => (
                 <span
                   key={format}
                   className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md"

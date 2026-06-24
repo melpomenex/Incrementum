@@ -1,6 +1,8 @@
 import java.io.File
+import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 
@@ -14,209 +16,53 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun assemble() {
-        buildRustLibrary()
+        val executable = """npm""";
+        try {
+            runTauriCli(executable)
+        } catch (e: Exception) {
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                // Try different Windows-specific extensions
+                val fallbacks = listOf(
+                    "$executable.exe",
+                    "$executable.cmd",
+                    "$executable.bat",
+                )
+                
+                var lastException: Exception = e
+                for (fallback in fallbacks) {
+                    try {
+                        runTauriCli(fallback)
+                        return
+                    } catch (fallbackException: Exception) {
+                        lastException = fallbackException
+                    }
+                }
+                throw lastException
+            } else {
+                throw e;
+            }
+        }
     }
 
-    fun buildRustLibrary() {
+    fun runTauriCli(executable: String) {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
+        val args = listOf("run", "--", "tauri", "android", "android-studio-script");
 
-        val cargoTarget = when (target) {
-            "aarch64" -> "aarch64-linux-android"
-            "armv7" -> "armv7-linux-androideabi"
-            "i686" -> "i686-linux-android"
-            "x86_64" -> "x86_64-linux-android"
-            else -> throw GradleException("Unsupported target: $target")
-        }
-        val abiDir = when (target) {
-            "aarch64" -> "arm64-v8a"
-            "armv7" -> "armeabi-v7a"
-            "i686" -> "x86"
-            "x86_64" -> "x86_64"
-            else -> throw GradleException("Unsupported target: $target")
-        }
-        val clangTriple = when (target) {
-            "aarch64" -> "aarch64-linux-android"
-            "armv7" -> "armv7a-linux-androideabi"
-            "i686" -> "i686-linux-android"
-            "x86_64" -> "x86_64-linux-android"
-            else -> throw GradleException("Unsupported target: $target")
-        }
-        val ndkHome = System.getenv("ANDROID_NDK_HOME")
-            ?: System.getenv("NDK_HOME")
-            ?: throw GradleException("NDK_HOME/ANDROID_NDK_HOME must be set")
-        // The NDK lays out host-specific toolchain binaries under
-        //   $NDK/toolchains/llvm/prebuilt/<host-tag>/bin/
-        // where <host-tag> is e.g. "linux-x86_64" on Linux, "darwin-x86_64"
-        // on macOS, "windows-x86_64" on Windows. The upstream template
-        // hardcodes "linux-x86_64", which breaks local builds on macOS/Windows.
-        // Detect the actual host tag by listing the prebuilt dir.
-        val prebuiltDir = File("$ndkHome/toolchains/llvm/prebuilt")
-        val hostTag = prebuiltDir.listFiles()?.firstOrNull { it.isDirectory }?.name
-            ?: throw GradleException("NDK prebuilt dir not found: ${prebuiltDir.absolutePath}")
-        val ndkBinDir = "$ndkHome/toolchains/llvm/prebuilt/$hostTag/bin"
-        val linkerPath = "$ndkBinDir/${clangTriple}24-clang"
-
-        val arPath = "$ndkBinDir/llvm-ar"
-        val cargoTargetEnv = cargoTarget.uppercase().replace('-', '_')
-
-        val cargoExecutable = resolveCargoExecutable()
-
-        // Spawn cargo through /bin/sh -c. Gradle's project.exec (and a direct
-        // ProcessBuilder exec of the cargo ELF) has historically failed here
-        // with the opaque "A problem occurred starting process 'cargo'" and,
-        // when wrapped, "error=2, No such file or directory" on a cargo binary
-        // that demonstrably exists and runs from a shell. Routing through the
-        // shell (the same way the workflow's own diagnostics successfully invoke
-        // cargo) sidesteps Java's direct-exec path entirely and lets the shell
-        // resolve the dynamic linker / PATH the same way every other cargo
-        // invocation in this build does.
-        //
-        // We still prune the redundant per-ABI CARGO_TARGET_* vars for the
-        // targets we are NOT building, because the inherited environment
-        // (one CARGO_TARGET_* set per ABI + a long runner PATH) is the bulk of
-        // the size and is what originally overflowed ARG_MAX.
-        val otherAbiTargets = listOf("aarch64", "armv7", "i686", "x86_64") - target
-        // project.projectDir for :app is .../src-tauri/gen/android/app, and
-        // rootDirRel is "../../../", which already lands on .../src-tauri (the
-        // dir containing Cargo.toml). The upstream template appends an extra
-        // "/src-tauri" to rootDirRel, which produces .../src-tauri/src-tauri —
-        // a path that does not exist. Use canonicalFile (NOT absoluteFile):
-        // absoluteFile only prepends the JVM working dir and leaves the "../.."
-        // segments unresolved, so ProcessBuilder.start() would get a bogus CWD.
-        val workDir = File(project.projectDir, rootDirRel).canonicalFile
-        if (!workDir.isDirectory) {
-            throw GradleException("rustBuild workDir does not exist: ${workDir.absolutePath}")
-        }
-        val argv = mutableListOf(
-            cargoExecutable,
-            "build", "--lib", "--target", cargoTarget
-        )
-        if (release) argv += "--release"
-        // Forward cargo features so the Gradle-spawned rustBuild matches the
-        // build the Tauri CLI ran first. Without this, rustBuild recompiles
-        // WITHOUT --features, which drops `tauri/custom-protocol` and produces a
-        // .so with NO embedded frontend assets (blank screen on the device) that
-        // then overwrites the good .so the CLI built. Default to
-        // "custom-protocol" for mobile since the tauri:// protocol is how the
-        // bundled frontendDist is served on android/ios (tauri-plugin-localhost
-        // is desktop-only). Override via the RUST_BUILD_FEATURES env var.
-        val features = System.getenv("RUST_BUILD_FEATURES") ?: "custom-protocol"
-        if (features.isNotBlank()) {
-            argv += listOf("--features", features)
-        }
-        // Quote each argv element for the shell.
-        val cmdLine = argv.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
-
-        val pb = ProcessBuilder(listOf("/bin/sh", "-c", cmdLine))
-        pb.directory(workDir)
-        pb.redirectErrorStream(true)
-        val env = pb.environment()
-        for (other in otherAbiTargets) {
-            val otherCargoTarget = when (other) {
-                "aarch64" -> "aarch64-linux-android"
-                "armv7" -> "armv7-linux-androideabi"
-                "i686" -> "i686-linux-android"
-                "x86_64" -> "x86_64-linux-android"
-                else -> null
-            } ?: continue
-            val otherEnv = otherCargoTarget.uppercase().replace('-', '_')
-            env.remove("CARGO_TARGET_${otherEnv}_LINKER")
-            env.remove("CARGO_TARGET_${otherEnv}_AR")
-            env.remove("CARGO_TARGET_${otherEnv}_RUSTFLAGS")
-            env.remove("CC_${otherCargoTarget}")
-            env.remove("AR_${otherCargoTarget}")
-        }
-        // (Re)assert this target's NDK + cross-compile config.
-        env["ANDROID_NDK_HOME"] = ndkHome
-        env["NDK_HOME"] = ndkHome
-        env["CARGO_TARGET_${cargoTargetEnv}_LINKER"] = linkerPath
-        env["CARGO_TARGET_${cargoTargetEnv}_AR"] = arPath
-        env["CC_${cargoTarget}"] = linkerPath
-        env["AR_${cargoTarget}"] = arPath
-
-        val process = try {
-            pb.start()
-        } catch (e: Throwable) {
-            // Surface the workDir + cargo path if the spawn fails, since
-            // ProcessBuilder's default error ("A problem occurred starting
-            // process") is opaque about which part is wrong.
-            System.err.println(
-                "[rustBuild] spawn failed: ${e.message} | workDir=${workDir.absolutePath} " +
-                    "workDirExists=${workDir.exists()} cargo=$cargoExecutable cargoExists=${File(cargoExecutable).exists()}"
-            )
-            throw GradleException("cargo spawn failed: ${e.message}", e)
-        }
-        val output = process.inputStream.bufferedReader().use { it.readText() }
-        val exitCode = process.waitFor()
-        if (output.isNotBlank()) {
-            project.logger.lifecycle(output)
-        }
-        if (exitCode != 0) {
-            throw GradleException("cargo build failed with exit code $exitCode for target $cargoTarget")
-        }
-
-        // projectRoot resolves to the src-tauri dir (where Cargo.toml and
-        // target/ live) — see the workDir comment above for why rootDirRel
-        // already lands there. So the built .so is directly under target/,
-        // NOT under src-tauri/target/ (that would double the path).
-        val projectRoot = workDir
-        val profile = if (release) "release" else "debug"
-        val builtLib = File(
-            projectRoot,
-            "target/$cargoTarget/$profile/libincrementum_tauri_lib.so"
-        )
-        if (!builtLib.exists()) {
-            throw GradleException("Built library not found: ${builtLib.absolutePath}")
-        }
-
-        // project.projectDir IS the :app module dir (.../gen/android/app), so
-        // the jniLibs output is directly under src/main/jniLibs/<abi>.
-        val jniOutDir = File(project.projectDir, "src/main/jniLibs/$abiDir")
-        jniOutDir.mkdirs()
-        builtLib.copyTo(File(jniOutDir, "libincrementum_tauri_lib.so"), overwrite = true)
-
-        project.logger.lifecycle("Copied ${builtLib.absolutePath} -> ${jniOutDir.absolutePath}")
-    }
-
-    private fun resolveCargoExecutable(): String {
-        val envCargo = System.getenv("CARGO")
-        if (!envCargo.isNullOrBlank() && File(envCargo).canExecute()) {
-            return envCargo
-        }
-
-        val rustToolchain = System.getenv("RUST_TOOLCHAIN")
-        if (!rustToolchain.isNullOrBlank()) {
-            val toolcacheCargo = File("/opt/hostedtoolcache/Rust/$rustToolchain/x64/bin/cargo")
-            if (toolcacheCargo.canExecute()) {
-                return toolcacheCargo.absolutePath
+        project.exec {
+            workingDir(File(project.projectDir, rootDirRel))
+            executable(executable)
+            args(args)
+            if (project.logger.isEnabled(LogLevel.DEBUG)) {
+                args("-vv")
+            } else if (project.logger.isEnabled(LogLevel.INFO)) {
+                args("-v")
             }
-        }
-
-        val hostedRustRoot = File("/opt/hostedtoolcache/Rust")
-        if (hostedRustRoot.isDirectory) {
-            val candidates = hostedRustRoot.listFiles()?.sortedByDescending { it.name } ?: emptyList()
-            for (dir in candidates) {
-                val toolcacheCargo = File(dir, "x64/bin/cargo")
-                if (toolcacheCargo.canExecute()) {
-                    return toolcacheCargo.absolutePath
-                }
+            if (release) {
+                args("--release")
             }
-        }
-
-        val home = System.getProperty("user.home") ?: ""
-        val candidates = listOf(
-            "$home/.cargo/bin/cargo",
-            "/usr/local/bin/cargo",
-            "/usr/bin/cargo"
-        )
-        for (candidate in candidates) {
-            if (File(candidate).canExecute()) {
-                return candidate
-            }
-        }
-
-        return "cargo"
+            args(listOf("--target", target))
+        }.assertNormalExitValue()
     }
 }

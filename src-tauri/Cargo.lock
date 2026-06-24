@@ -3821,6 +3821,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "incrementum-folder-import"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "thiserror 1.0.69",
+ "walkdir",
+]
+
+[[package]]
 name = "incrementum-tauri"
 version = "1.55.3"
 dependencies = [
@@ -3842,6 +3856,7 @@ dependencies = [
  "hostname",
  "html2text",
  "image 0.24.9",
+ "incrementum-folder-import",
  "keyring",
  "lazy_static",
  "libsqlite3-sys",

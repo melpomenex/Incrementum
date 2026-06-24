@@ -270,6 +270,49 @@ export async function openFolderPicker(options?: {
 }
 
 /**
+ * A file staged by the folder-import plugin: a readable copy (real path on
+ * desktop, staged into app-private storage on mobile) plus its path relative
+ * to the picked folder root.
+ */
+export interface StagedFolderFile {
+  /** Absolute filesystem path to a readable copy of the file. */
+  path: string;
+  /** Path relative to the picked folder root (e.g. "Sci-Fi/Dune.epub"). */
+  relativePath: string;
+  /** Bare file name (e.g. "Dune.epub"). */
+  fileName: string;
+}
+
+/**
+ * Pick a folder and return every supported file inside it (recursively,
+ * including subdirectories).
+ *
+ * On desktop this opens a native folder dialog and walks the tree; on Android
+ * it uses the Storage Access Framework (ACTION_OPEN_DOCUMENT_TREE) and on iOS a
+ * UIDocumentPickerViewController in folder mode. On mobile the chosen files are
+ * staged into app-private storage first, so the returned paths are readable by
+ * the path-based `importDocument` pipeline.
+ *
+ * Returns an empty array if the user cancels or the folder has no supported files.
+ *
+ * Uses the in-repo `incrementum-folder-import` Tauri plugin. In browser/PWA
+ * mode (no Tauri backend) this is unavailable and resolves to an empty array.
+ */
+export async function pickFolderDocuments(
+  extensions?: string[]
+): Promise<StagedFolderFile[]> {
+  if (isWebMode()) {
+    // Folder import requires the native plugin (SAF / document picker / dialog),
+    // which is absent in pure browser/PWA mode.
+    return [];
+  }
+  return await invokeCommand<StagedFolderFile[]>(
+    "plugin:folder-import|pick_folder_documents",
+    { extensions: extensions ?? null }
+  );
+}
+
+/**
  * Result from fetching URL content
  */
 export interface FetchedUrlContent {
