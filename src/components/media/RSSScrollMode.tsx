@@ -1944,50 +1944,50 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               isTransitioning ? "opacity-50 scale-[0.98]" : "opacity-100 scale-100"
             )}
           >
-            <div className="h-full flex flex-col pt-12 pb-20 px-6">
+            <div className="h-full flex flex-col pt-14 pb-16 px-4 md:pt-16 md:pb-20 md:px-6">
               {/* Article header */}
-              <header className="flex-shrink-0 mb-6">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+              <header className="flex-shrink-0 mb-3 md:mb-6">
+                <div className="flex flex-row items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     {/* Feed source indicator */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full">
+                    <div className="flex flex-wrap items-center gap-2 mb-2 md:mb-4 text-xs md:text-sm">
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-muted rounded-full">
                         {getFeedIcon(renderedItem.feed) ? (
                           <img
                             src={getFeedIcon(renderedItem.feed)}
                             alt=""
-                            className="w-4 h-4 rounded object-cover"
+                            className="w-3.5 h-3.5 md:w-4 md:h-4 rounded object-cover"
                           />
                         ) : (
-                          <Rss className="w-4 h-4 text-orange-500" />
+                          <Rss className="w-3.5 h-3.5 md:w-4 md:h-4 text-orange-500" />
                         )}
-                        <span className="text-sm font-medium text-foreground">
+                        <span className="font-medium text-foreground">
                           {renderedItem.feed.title}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         {formatFeedDate(renderedItem.item.pubDate)}
                       </div>
                       {renderedItem.item.author && (
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground hidden sm:inline">
                           by {renderedItem.item.author}
                         </span>
                       )}
                     </div>
 
                     {/* Title */}
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                    <h1 className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-foreground leading-snug md:leading-tight">
                       {renderedItem.item.title}
                     </h1>
 
-                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                    <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-4">
                       {renderedItem.item.thumbnail && (
                         <button
                           onClick={() => setIsImageExpanded(!isImageExpanded)}
-                          className="flex items-center gap-1 px-2 py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-lg text-xs transition-colors mobile-density-tap font-medium"
+                          className="flex items-center gap-1 px-2 py-0.5 md:py-1 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/40 rounded-md md:rounded-lg text-[10px] md:text-xs transition-colors mobile-density-tap font-medium"
                         >
-                          {isImageExpanded ? <EyeSlash className="w-3.5 h-3.5 mr-0.5" /> : <Eye className="w-3.5 h-3.5 mr-0.5" />}
+                          {isImageExpanded ? <EyeSlash className="w-3 h-3 mr-0.5" /> : <Eye className="w-3 h-3 mr-0.5" />}
                           {isImageExpanded ? "Hide cover image" : "Show cover image"}
                         </button>
                       )}
@@ -1995,7 +1995,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                       <button
                         onClick={() => setShowFullContent(!showFullContent)}
                         className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs transition-all duration-300 font-bold shadow-md cursor-pointer mobile-density-tap",
+                          "flex items-center gap-1 px-2 py-0.5 md:px-3 md:py-1 border rounded-md md:rounded-lg text-[10px] md:text-xs transition-all duration-300 font-bold shadow-sm md:shadow-md cursor-pointer mobile-density-tap",
                           showFullContent
                             ? "bg-blue-600 border-blue-500 text-white shadow-blue-500/20 hover:bg-blue-700"
                             : "bg-blue-500/10 border-blue-500/40 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-400"
@@ -2011,7 +2011,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                   {!isImageExpanded && renderedItem.item.thumbnail && (
                     <div
                       onClick={() => setIsImageExpanded(true)}
-                      className="w-20 h-20 md:w-28 md:h-28 rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm"
+                      className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-lg md:rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm"
                       title="Click to expand cover image"
                     >
                       <img
@@ -2069,11 +2069,11 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
 
                 {/* Categories */}
                 {renderedItem.item.categories.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4">
+                  <div className="flex flex-wrap gap-1.5 mt-2 md:mt-4">
                     {renderedItem.item.categories.map((cat, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full"
+                        className="px-1.5 py-0.5 text-[10px] md:text-xs bg-primary/10 text-primary rounded-full"
                       >
                         {cat}
                       </span>
@@ -2149,23 +2149,23 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
               )}
 
               {/* Article footer */}
-              <footer className="flex-shrink-0 mt-6 pt-4 border-t border-border flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <footer className="flex-shrink-0 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-border flex items-center justify-between">
+                <div className="flex flex-wrap items-center gap-2 md:gap-4">
                   <button
                     onClick={() => handleToggleFavorite(renderedItem.feed.id, renderedItem.item.id)}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
+                      "flex items-center gap-1.5 px-2.5 py-1.5 md:px-4 md:py-2 rounded-md md:rounded-lg transition-colors",
                       renderedItem.item.favorite
                         ? "bg-yellow-500/10 text-yellow-600"
                         : "bg-muted hover:bg-muted/80 text-muted-foreground"
                     )}
                   >
                     {renderedItem.item.favorite ? (
-                      <Star className="w-4 h-4 fill-yellow-500" />
+                      <Star className="w-3.5 h-3.5 md:w-4 md:h-4 fill-yellow-500" />
                     ) : (
-                      <Star className="w-4 h-4" />
+                      <Star className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     )}
-                    <span className="text-sm font-medium">
+                    <span className="text-xs md:text-sm font-medium">
                       {renderedItem.item.favorite ? "Favorited" : "Favorite"}
                     </span>
                   </button>
@@ -2176,19 +2176,19 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
                       e.preventDefault();
                       void handleOpenOriginal(renderedItem.item.link);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground rounded-md md:rounded-lg transition-colors text-xs md:text-sm font-medium"
                   >
-                    <ArrowSquareOut className="w-4 h-4" />
-                    <span className="text-sm font-medium">Read Original</span>
+                    <ArrowSquareOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span>Read Original</span>
                   </a>
 
                   <button
                     onClick={() => void handleCopyLink(renderedItem.item.link || renderedItem.item.guid)}
                     title={t("rss.copyLink")}
-                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground rounded-md md:rounded-lg transition-colors text-xs md:text-sm font-medium"
                   >
-                    <LinkSimple className="w-4 h-4" />
-                    <span className="text-sm font-medium">{t("rss.copyLink")}</span>
+                    <LinkSimple className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    <span>{t("rss.copyLink")}</span>
                   </button>
 
                   {/* Training controls */}
