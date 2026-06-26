@@ -437,7 +437,9 @@ class handler(BaseHTTPRequestHandler):
             # than masked by the local fallback (which fails anyway from the Vercel
             # datacenter IP and just adds latency).
             vps_result = fetch_from_vps_service(video_id)
-            if vps_result and vps_result.get("success"):
+            # Treat the VPS call as successful if it explicitly says so OR if it
+            # returned segments (some relay/cache shapes omit `success`).
+            if vps_result and (vps_result.get("success") or vps_result.get("segments")):
                 self.send_json(
                     200,
                     {
