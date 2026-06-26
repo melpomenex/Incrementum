@@ -4,7 +4,7 @@
  * Falls back to CORS proxy methods for local development
  */
 
-import { isTauri } from "../lib/tauri";
+import { isTauri, isNativeMobile } from "../lib/tauri";
 
 export interface TranscriptSegment {
   text: string;
@@ -17,6 +17,32 @@ interface TranscriptResponse {
   videoId: string;
   language: string;
 }
+
+/**
+ * Base origin for the hosted YouTube transcript API.
+ *
+ * In the PWA/web build this is served same-origin, so requests use the relative
+ * `/api/youtube/transcript` path and resolve against the deployment origin.
+ *
+ * In native mobile Tauri builds (Android/iOS) the WebView has no web origin, so
+ * a relative path resolves against an empty/`tauri://` base and fails. We pin an
+ * absolute origin (the readsync.org deployment that already serves this endpoint
+ * to the PWA) via VITE_API_URL, matching the cloud-API pattern in
+ * lib/offline-queue.ts. yt-dlp can't run on mobile, so the hosted API is the
+ * only reliable transcript source.
+ */
+const TRANSCRIPT_API_BASE: string = (() => {
+  const raw = import.meta.env.VITE_API_URL as string | undefined;
+  if (raw) {
+    // Normalize: callers append '/api/youtube/transcript'. If the configured base
+    // already ends with '/api', strip it so we don't produce '/api/api/...'.
+    return raw.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  }
+  // PWA/web build: same-origin (relative path resolves against the deployment).
+  // Native mobile (Android/iOS): the WebView has no web origin, so a relative
+  // path can't resolve — pin the hosted readsync.org deployment instead.
+  return isNativeMobile() ? 'https://readsync.org' : '';
+})();
 
 // CORS proxies to try (in order)
 // Note: These are public CORS proxies that may have rate limits or reliability issues
@@ -194,7 +220,7 @@ async function fetchFromApi(videoId: string, language?: string): Promise<Transcr
     const { getCookiesForApi } = await import('./youtubeCookies');
     const cookies = getCookiesForApi();
 
-    const response = await fetch(`/api/youtube/transcript?${params.toString()}`, {
+    const response = await fetch(`${TRANSCRIPT_API_BASE}/api/youtube/transcript?${params.toString()}`, {
       method: cookies.length > 0 ? 'POST' : 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -268,7 +294,10 @@ export async function fetchYouTubeTranscript(
     throw new Error('Invalid YouTube video ID or URL');
   }
 
-  if (isTauri()) {
+  if (isTauri() && !isNativeMobile()) {
+    // Desktop Tauri build: use the backend yt-dlp transcript fetcher.
+    // (Native mobile builds fall through to the hosted API below — yt-dlp
+    // can't run on Android/iOS, so the Rust command would fail.)
     const { invokeCommand } = await import("../lib/tauri");
     const result = await invokeCommand<Array<{ text: string; start: number; duration: number }> | null>(
       "get_youtube_transcript_by_id",

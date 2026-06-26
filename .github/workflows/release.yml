@@ -554,7 +554,17 @@ jobs:
           test "${{ needs.release-arch.result }}" = "success"
 
   create-update-manifest:
-    needs: [release-readiness]
+    # Intentionally decoupled from release-readiness. The manifest only
+    # references the macOS .app.tar.gz, the Linux AppImage, and the Windows
+    # setup exe — not the deb or the Arch pacman package. release-readiness
+    # hard-fails whenever ANY required build fails, so chaining the manifest
+    # off it meant a transient flake in the deb/arch build (which the updater
+    # never consumes) silently skipped latest.json and broke auto-update for
+    # every platform. Instead we run whenever the workflow isn't cancelled and
+    # let the manifest script itself enforce that the artifacts it references
+    # are present and signed (see the required-signature guard below).
+    needs: [release, release-appimage]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -592,10 +602,14 @@ jobs:
             //    point at a nonexistent artifact.
             //  - The AppImage is re-signed after its repack (see release-appimage
             //    job), so its .sig matches the final uploaded bytes.
+            //
+            // `required` marks platforms we refuse to ship the manifest without.
+            // Optional platforms (windows) are dropped from the manifest if
+            // their artifacts are missing, rather than blocking the whole thing.
             const platforms = {
-              'darwin-aarch64':  { asset: `Incrementum.app.tar.gz` },
-              'linux-x86_64':    { asset: `Incrementum_${version}_amd64.AppImage` },
-              'windows-x86_64':  { asset: `Incrementum_${version}_x64-setup.exe` },
+              'darwin-aarch64':  { asset: `Incrementum.app.tar.gz`,            required: true },
+              'linux-x86_64':    { asset: `Incrementum_${version}_amd64.AppImage`, required: true },
+              'windows-x86_64':  { asset: `Incrementum_${version}_x64-setup.exe`,  required: false },
             };
 
             // Locate the release and its assets so we can pull the .sig file
@@ -606,7 +620,14 @@ jobs:
 
             const platformsOut = {};
             const missing = [];
-            for (const [key, { asset }] of Object.entries(platforms)) {
+            const dropped = [];
+            for (const [key, { asset, required }] of Object.entries(platforms)) {
+              // The bundle itself must exist, or the manifest would point at a
+              // 404 download URL.
+              if (!assetByName.has(asset)) {
+                (required ? missing : dropped).push(`${key}: ${asset} not found in release assets`);
+                continue;
+              }
               const sigName = `${asset}.sig`;
               const sigAsset = assetByName.get(sigName);
               let signature = '';
@@ -615,9 +636,10 @@ jobs:
                 // using the browser_download_url to avoid rate limits.
                 const res = await fetch(sigAsset.browser_download_url);
                 signature = (await res.text()).trim();
-                if (!signature) missing.push(`${key}: ${sigName} was empty`);
-              } else {
-                missing.push(`${key}: ${sigName} not found in release assets`);
+              }
+              if (!signature) {
+                (required ? missing : dropped).push(`${key}: ${sigName} ${sigAsset ? 'was empty' : 'not found in release assets'}`);
+                continue;
               }
               platformsOut[key] = {
                 signature,
@@ -625,11 +647,17 @@ jobs:
               };
             }
 
-            // Warn (but don't hard-fail) about missing signatures so a single
-            // optional arch (e.g. windows) doesn't block the manifest. The
-            // updater simply skips platforms whose signature is empty.
+            // A required platform missing its bundle or signature means the
+            // manifest would break auto-update on that platform, so hard-fail
+            // rather than publish a broken manifest.
             if (missing.length) {
-              core.warning(`Signature gaps:\n${missing.join('\n')}`);
+              core.setFailed(`Missing required updater artifacts, refusing to publish latest.json:\n${missing.join('\n')}`);
+              return;
+            }
+            // Optional platforms (windows) that didn't build are simply omitted;
+            // the updater falls back to its current platform entry.
+            if (dropped.length) {
+              core.warning(`Omitting optional platforms from manifest:\n${dropped.join('\n')}`);
             }
 
             const manifest = {

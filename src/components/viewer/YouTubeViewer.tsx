@@ -28,7 +28,7 @@ import {
   VideoExtractsList,
 } from '../video/VideoExtracts';
 import { TranscriptSearchState, TranscriptSync, TranscriptSegment } from "../media/TranscriptSync";
-import { invokeCommand as invoke, isTauri, getPlatform } from "../../lib/tauri";
+import { invokeCommand as invoke, isTauri, isNativeMobile, getPlatform } from "../../lib/tauri";
 import { getYouTubeWatchURL, formatDuration } from "../../api/youtube";
 import { fetchYouTubeTranscript } from "../../utils/youtubeTranscriptBrowser";
 import { getDocumentAuto, updateDocument, updateDocumentProgressAuto } from "../../api/documents";
@@ -443,7 +443,7 @@ export function YouTubeViewer({
       let segments: TranscriptSegment[] = [];
       let fetchedDuration = 0;
 
-      if (isTauri()) {
+      if (isTauri() && !isNativeMobile()) {
         // Use Tauri backend for desktop app
         const transcriptData = await invoke<Array<{ text: string; start: number; duration: number }> | null>(
           "get_youtube_transcript_by_id",

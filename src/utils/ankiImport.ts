@@ -5,7 +5,8 @@
  * and converting them to Incrementum format
  */
 
-import { invokeCommand, openFilePicker } from "../lib/tauri";
+import { invokeCommand, openFilePicker, isNativeMobile } from "../lib/tauri";
+import { getBrowserFile } from "../lib/browser-file-store";
 
 export interface AnkiField {
   name: string;
@@ -205,6 +206,43 @@ export async function convertAnkiCardsToLearningItems(
   }
 
   return items;
+}
+
+/**
+ * Import an Anki `.apkg` package selected via {@link openFilePicker}.
+ *
+ * On desktop, `openFilePicker` returns a real filesystem path that the Rust
+ * command `import_anki_package_to_learning_items` can open directly.
+ *
+ * On native mobile (Android/iOS), `openFilePicker` returns a `browser-file://`
+ * virtual handle (the WebView's SAF picker yields a File object, not a readable
+ * filesystem path). The Rust `apkgPath` command can't open it, so we read the
+ * bytes in JS and send them to `import_anki_package_bytes_to_learning_items`,
+ * which mirrors the mobile document-import pattern (importDocumentFromBytes).
+ *
+ * @returns The created learning items (same shape as the desktop command).
+ */
+export async function importAnkiPackageFromPicker(
+  filePath: string
+): Promise<unknown[]> {
+  if (isNativeMobile()) {
+    const file = getBrowserFile(filePath);
+    if (!file) {
+      throw new Error("Anki file not found. Please select the file again.");
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    // Tauri IPC deserializes Vec<u8> from a JSON array of numbers, so pass a
+    // plain array (not a Uint8Array/Buffer) to round-trip cleanly.
+    return await invokeCommand<unknown[]>(
+      "import_anki_package_bytes_to_learning_items",
+      { apkgBytes: Array.from(bytes) }
+    );
+  }
+
+  return await invokeCommand<unknown[]>(
+    "import_anki_package_to_learning_items",
+    { apkgPath: filePath }
+  );
 }
 
 /**

@@ -329,7 +329,31 @@ function browserOpenFilePicker(options?: {
 
     if (options?.filters?.length) {
       const extensions = options.filters.flatMap(f => f.extensions.map(ext => `.${ext}`));
-      input.accept = extensions.join(',');
+      // Build a MIME allow-list alongside the extension hints.
+      //
+      // On Android's Storage Access Framework (used by the WebView <input type=file>),
+      // `accept` is matched against MIME types rather than file extensions. Many file
+      // types used here have no registered MIME on most devices (e.g. Anki's `.apkg`
+      // is a SQLite+ZIP package), so a strict extension-only filter makes those files
+      // appear greyed out / unselectable in the native picker. Augmenting the filter
+      // with broad archive/document MIMEs keeps them selectable on Android while the
+      // extension hints still narrow selection on iOS/desktop.
+      const mimeTypes = new Set<string>();
+      for (const filter of options.filters) {
+        for (const ext of filter.extensions) {
+          const lower = ext.toLowerCase();
+          if (lower === 'apkg' || lower === 'colpkg') {
+            // .apkg/.colpkg are ZIP archives containing a SQLite db + media.
+            mimeTypes.add('application/octet-stream');
+            mimeTypes.add('application/zip');
+          } else if (lower === 'json') {
+            mimeTypes.add('application/json');
+          } else if (lower === 'txt') {
+            mimeTypes.add('text/plain');
+          }
+        }
+      }
+      input.accept = [...extensions, ...Array.from(mimeTypes)].join(',');
     }
 
     input.onchange = () => {

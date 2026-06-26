@@ -5,6 +5,8 @@
  * to bypass YouTube bot detection.
  */
 
+import { isNativeMobile } from "../lib/tauri";
+
 export interface YouTubeCookie {
   name: string;
   value: string;
@@ -166,6 +168,22 @@ export function validateYouTubeCookies(cookies: YouTubeCookie[]): {
 }
 
 /**
+ * Base origin for the hosted YouTube transcript API.
+ *
+ * On native mobile the WebView has no web origin, so a relative `/api/...`
+ * path can't resolve. Mirror the TRANSCRIPT_API_BASE logic from
+ * youtubeTranscriptBrowser.ts so the cookie-test endpoint works on mobile too.
+ */
+const TRANSCRIPT_API_BASE: string = (() => {
+  const raw = import.meta.env.VITE_API_URL as string | undefined;
+  if (raw) {
+    return raw.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  }
+  // Native mobile has no web origin; pin the hosted deployment.
+  return isNativeMobile() ? 'https://readsync.org' : '';
+})();
+
+/**
  * Test cookies by calling the transcript API status endpoint
  */
 export async function testYouTubeCookies(cookies: YouTubeCookie[]): Promise<{
@@ -174,7 +192,7 @@ export async function testYouTubeCookies(cookies: YouTubeCookie[]): Promise<{
   details?: any;
 }> {
   try {
-    const response = await fetch('/api/youtube/transcript?status=true', {
+    const response = await fetch(`${TRANSCRIPT_API_BASE}/api/youtube/transcript?status=true`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

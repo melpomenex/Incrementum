@@ -32,36 +32,56 @@ def fetch_from_vps_service(video_id):
         return None
 
     from urllib.request import Request, urlopen
+    from urllib.error import HTTPError, URLError
 
     # Strip trailing slash from base URL to avoid double slashes
     base_url = VPS_SERVICE_URL.rstrip("/")
     service_url = f"{base_url}/transcript/{video_id}"
     logger.info("[VPS] Fetching from: %s", service_url)
 
+    # The VPS relays to the Mac mini over Tailscale, which runs yt-dlp for a
+    # *cold* fetch. Cold fetches routinely take 10-30s (yt-dlp metadata + subtitle
+    # download + the Tailscale hop), and the result is cached for 24h afterwards.
+    # The previous 15s timeout killed cold fetches before they completed, causing
+    # a fall-through to the local Vercel fetch methods (which fail from the
+    # datacenter IP). Give the relay enough headroom for a cold fetch.
+    VPS_TIMEOUT = int(os.environ.get("VPS_TRANSCRIPT_TIMEOUT", "45"))
+
     try:
         req = Request(service_url)
         req.add_header("X-API-Key", VPS_API_KEY)
         req.add_header("User-Agent", "Incrementum/1.0")
 
-        response = urlopen(req, timeout=15)
+        response = urlopen(req, timeout=VPS_TIMEOUT)
 
         if response.status == 200:
             data = json.loads(response.read().decode("utf-8"))
             logger.info(
                 "[VPS] Success: cached=%s, segments=%s",
                 data.get("cached"),
-                data.get("segment_count"),
+                len(data.get("segments", [])),
             )
             return data
         else:
-            logger.warning(
-                "[VPS] HTTP %s: %s",
-                response.status,
-                response.read().decode("utf-8")[:200],
-            )
-            return None
+            body = response.read().decode("utf-8", errors="replace")[:200]
+            logger.warning("[VPS] HTTP %s: %s", response.status, body)
+            return {"success": False, "status": response.status, "error": body}
 
-    except OSError as e:
+    except HTTPError as e:
+        # The relay returns structured JSON errors (404 no-captions, 503 rate-limit).
+        # Capture them so the handler can surface them instead of falling through.
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")[:200]
+        except Exception:
+            pass
+        logger.error("[VPS] HTTPError %s: %s", e.code, body)
+        try:
+            parsed = json.loads(body)
+            return {"success": False, "status": e.code, "error": parsed.get("error", body)}
+        except Exception:
+            return {"success": False, "status": e.code, "error": body}
+    except (URLError, OSError) as e:
         logger.error("[VPS] Network error fetching transcript: %s", e)
         return None
 
@@ -411,7 +431,11 @@ class handler(BaseHTTPRequestHandler):
         try:
             cookies_header = _format_cookie_header(cookies)
 
-            # TRY VPS SERVICE FIRST (via Tailscale)
+            # TRY VPS SERVICE FIRST (via Tailscale). When configured, the VPS/Mac-mini
+            # is the authoritative source — its 404 (no captions / unavailable) and
+            # 503 (YouTube rate-limit) responses should be surfaced directly rather
+            # than masked by the local fallback (which fails anyway from the Vercel
+            # datacenter IP and just adds latency).
             vps_result = fetch_from_vps_service(video_id)
             if vps_result and vps_result.get("success"):
                 self.send_json(
@@ -427,7 +451,20 @@ class handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            # FALLBACK: Local fetch methods
+            # If the VPS gave us an authoritative error, surface it instead of
+            # falling through to the (broken from datacenter) local methods.
+            vps_error = vps_result.get("error") if vps_result else None
+            vps_status = vps_result.get("status") if vps_result else None
+            if vps_error and VPS_SERVICE_URL and VPS_API_KEY:
+                code_map = {400: 400, 404: 404, 503: 503}
+                self.send_json(
+                    code_map.get(vps_status, 502),
+                    {"success": False, "error": vps_error, "videoId": video_id},
+                )
+                return
+
+            # FALLBACK: Local fetch methods (only if VPS is unconfigured, or
+            # returned nothing useful without an explicit error).
             logger.info("[VPS] Failed or not configured, trying local methods...")
             result = fetch_transcript(video_id, cookies_header=cookies_header)
             if not result.get("segments"):

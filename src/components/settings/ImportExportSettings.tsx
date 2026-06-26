@@ -647,7 +647,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             <div className="flex items-center gap-3">
               <input
                 type="file"
-                accept=".json,.csv,.incrementum,.apkg,.zip,.7z"
+                accept=".json,.csv,.incrementum,.apkg,.zip,.7z,application/json,application/octet-stream,application/zip,application/x-7z-compressed,text/csv,text/plain"
                 onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                 className="flex-1 text-sm text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
               />

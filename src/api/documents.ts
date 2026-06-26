@@ -2,7 +2,7 @@
  * Tauri API wrapper for document commands
  */
 
-import { invokeCommand, isTauri, openFilePicker as tauriOpenFilePicker, openFolderPicker as tauriOpenFolderPicker } from "../lib/tauri";
+import { invokeCommand, isTauri, isNativeMobile, openFilePicker as tauriOpenFilePicker, openFolderPicker as tauriOpenFolderPicker } from "../lib/tauri";
 import { browserInvoke } from "../lib/browser-backend";
 import { serializeViewState } from "../lib/readerPosition";
 import { Document } from "../types/document";
@@ -339,9 +339,40 @@ export async function fetchUrlContent(url: string): Promise<FetchedUrlContent> {
 }
 
 /**
- * Import a YouTube video as a document
+ * Import a YouTube video as a document.
+ *
+ * Desktop: uses the Rust `import_youtube_video` command, which fetches metadata
+ * and the transcript via yt-dlp.
+ *
+ * Native mobile (Android/iOS): yt-dlp can't run, and the app's documents are
+ * persisted in the Rust SQLite store (not IndexedDB), so we must NOT route
+ * through the browser backend (that would write to IndexedDB and the doc would
+ * never appear). Instead create the document directly via the Rust
+ * `create_document` command with fileType "youtube"; the viewer fetches the
+ * transcript on demand from the hosted readsync.org API.
  */
 export async function importYouTubeVideo(url: string, collectionId?: string): Promise<Document> {
+  if (isNativeMobile()) {
+    // Resolve a title via oEmbed (best-effort; thumbnail comes from the viewer).
+    let title = `YouTube: ${url}`;
+    try {
+      const resp = await fetch(
+        `https://noembed.com/embed?url=${encodeURIComponent(url)}`
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data?.title) title = data.title;
+      }
+    } catch {
+      // noembed is best-effort; keep the URL-based fallback title.
+    }
+    return await invokeCommand<Document>("create_document", {
+      title,
+      filePath: url,
+      fileType: "youtube",
+      collectionId: collectionId ?? null,
+    });
+  }
   if (isWebMode()) {
     return await browserInvoke<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
   }

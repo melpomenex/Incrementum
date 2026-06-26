@@ -29,6 +29,7 @@ import { FSRSInspector, useFSRSInspector } from "./FSRSInspector";
 import { useToast } from "../common/Toast";
 import { bulkDeleteItems, bulkSuspendItems } from "../../api/queue";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
+import { importAnkiPackageFromPicker } from "../../utils/ankiImport";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useStudyDeckStore } from "../../stores/studyDeckStore";
 import { renderAnkiHtmlWithLatex } from "../../utils/ankiLatex";
@@ -247,9 +248,7 @@ export function ReviewSession({ onExit }: ReviewSessionProps) {
           t("reviewSession.deckImportSummary", { cards: result.cards_imported, decks: 1 })
         );
       } else {
-        const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
-          apkgPath: filePath,
-        });
+        const imported = await importAnkiPackageFromPicker(filePath);
         const deckNames = inferAnkiDeckNames(imported);
         const deckIds = ensureAnkiStudyDecks(deckNames);
         if (deckIds.length > 0) {

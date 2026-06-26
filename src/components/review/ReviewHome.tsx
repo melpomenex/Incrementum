@@ -21,6 +21,7 @@ import { FlashcardStudioModal } from "./FlashcardStudioModal";
 import { ReviewDecksModal } from "./ReviewDecksModal";
 import { ReviewPreviewModal } from "./ReviewPreviewModal";
 import { invokeCommand, openFilePicker } from "../../lib/tauri";
+import { importAnkiPackageFromPicker } from "../../utils/ankiImport";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useToast } from "../common/Toast";
 import { useI18n } from "../../lib/i18n";
@@ -210,9 +211,7 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
           t("reviewSession.deckImportSummary", { cards: result.cards_imported, decks: 1 })
         );
       } else {
-        const imported = await invokeCommand<unknown[]>("import_anki_package_to_learning_items", {
-          apkgPath: filePath,
-        });
+        const imported = await importAnkiPackageFromPicker(filePath);
         const deckNames = inferAnkiDeckNames(imported);
         const deckIds = useStudyDeckStore.getState().ensureDecksExist(deckNames);
         if (deckIds.length > 0) {

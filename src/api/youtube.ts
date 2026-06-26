@@ -4,7 +4,7 @@
  * For full YouTube API features, API key would be required
  */
 
-import { isTauri } from "../lib/tauri";
+import { isTauri, isNativeMobile } from "../lib/tauri";
 
 /**
  * YouTube video metadata
@@ -276,26 +276,16 @@ export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVid
   };
 }
 
-// Cache the API instance for reuse
-let transcriptApi: any = null;
-
-async function getTranscriptApi(): Promise<any> {
-  if (!transcriptApi) {
-    const { YouTubeTranscriptApi } = await import('youtube-transcript-ts');
-    transcriptApi = new YouTubeTranscriptApi();
-  }
-  return transcriptApi;
-}
-
 /**
  * Fetch YouTube transcript
- * 
- * In Tauri: Uses the backend yt-dlp
- * In Browser/PWA: Uses youtube-transcript-ts library
+ *
+ * Desktop: Uses the backend yt-dlp via the `get_youtube_transcript_by_id` command.
+ * Web / native mobile: Uses the hosted readsync.org transcript API via
+ * youtubeTranscriptBrowser (yt-dlp can't run on Android/iOS).
  */
 export async function fetchYouTubeTranscript(videoId: string): Promise<YouTubeTranscriptSegment[]> {
-  if (isTauri()) {
-    // In Tauri, the backend handles this via invokeCommand
+  if (isTauri() && !isNativeMobile()) {
+    // Desktop: backend yt-dlp fetches the transcript.
     const { invokeCommand } = await import("../lib/tauri");
     const result = await invokeCommand<Array<{ text: string; start: number; duration: number }> | null>(
       "get_youtube_transcript_by_id",
@@ -304,22 +294,19 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<YouTubeTr
     return result || [];
   }
 
-  // In browser/PWA, use youtube-transcript-ts
+  // Web / native mobile: yt-dlp can't run on Android/iOS, so fetch the
+  // transcript from the hosted readsync.org API (same endpoint the PWA uses).
   try {
-    const api = await getTranscriptApi();
-    const response = await api.fetchTranscript(videoId);
-    
-    // The library returns a TranscriptResponse with a transcript array
-    const transcript = response.transcript || [];
-    
-    return transcript.map((item: any) => ({
-      text: item.text,
-      start: item.offset / 1000, // Convert ms to seconds
-      duration: item.duration / 1000, // Convert ms to seconds
+    const { fetchYouTubeTranscript: fetchFromApi } = await import("../utils/youtubeTranscriptBrowser");
+    const response = await fetchFromApi(videoId);
+    return response.segments.map((seg) => ({
+      text: seg.text,
+      start: seg.start,
+      duration: seg.duration,
     }));
   } catch (error: any) {
     console.error("[YouTube] Failed to fetch transcript:", error);
-    
+
     const errorMsg = error?.message || '';
     if (errorMsg.includes('disabled') || errorMsg.includes('not available')) {
       throw new Error('This video does not have captions enabled.');
@@ -327,11 +314,10 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<YouTubeTr
     if (errorMsg.includes('unavailable') || errorMsg.includes('private')) {
       throw new Error('This video is unavailable or private.');
     }
-    
-    // Generic error with original message
+
     throw new Error(
-      error instanceof Error 
-        ? error.message 
+      error instanceof Error
+        ? error.message
         : "Failed to fetch transcript. YouTube may be blocking the request."
     );
   }
@@ -341,14 +327,14 @@ export async function fetchYouTubeTranscript(videoId: string): Promise<YouTubeTr
  * Check if YouTube transcript is available for a video
  */
 export async function isTranscriptAvailable(videoId: string): Promise<boolean> {
-  if (isTauri()) {
-    // In Tauri, assume transcripts might be available
+  if (isTauri() && !isNativeMobile()) {
+    // Desktop: assume transcripts might be available (the backend will fetch them).
     return true;
   }
 
   try {
-    const api = await getTranscriptApi();
-    await api.fetchTranscript(videoId);
+    const { fetchYouTubeTranscript: fetchFromApi } = await import("../utils/youtubeTranscriptBrowser");
+    await fetchFromApi(videoId);
     return true;
   } catch {
     return false;

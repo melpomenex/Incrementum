@@ -67,7 +67,7 @@ import {
 } from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { useMobileShell } from "../../hooks/useMobileShell";
-import { invokeCommand, isTauri } from "../../lib/tauri";
+import { invokeCommand, isTauri, isNativeMobile } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
 import { findCompanionDoc } from "../../utils/documentPairing";
@@ -262,7 +262,11 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
   useEffect(() => {
     if (!showYouTubeImport) return;
     setYtdlpInstallMessage(null);
-    if (!isTauri()) {
+    if (!isTauri() || isNativeMobile()) {
+      // yt-dlp can't be installed on native mobile (Android/iOS). Treat mobile
+      // like the PWA: don't gate the import on a yt-dlp check — the browser
+      // backend creates the document without it, and transcripts are fetched
+      // via the hosted readsync.org API.
       setYtdlpAvailable(null);
       return;
     }
@@ -481,7 +485,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
       setYoutubeError(t("documentsView.pleaseEnterYoutubeUrl"));
       return;
     }
-    if (isTauri() && ytdlpAvailable === false) {
+    if (isTauri() && !isNativeMobile() && ytdlpAvailable === false) {
       setYoutubeError(t("documentsView.ytdlpNotInstalled"));
       return;
     }

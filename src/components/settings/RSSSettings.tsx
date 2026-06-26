@@ -82,10 +82,10 @@ export function RSSSettings() {
       <div className="flex flex-col gap-1.5 pb-4 border-b border-border/60">
         <h3 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
           <Rss className="w-5 h-5 text-primary" />
-          {t("settings.rss") || "RSS Feeds Settings"}
+          {t("settings.rss")}
         </h3>
         <p className="text-sm text-muted-foreground">
-          Configure how RSS articles are managed, how long they are stored, and how they integrate with your Smart Queues.
+          {t("settings.rss.description")}
         </p>
       </div>
 
@@ -96,18 +96,22 @@ export function RSSSettings() {
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="font-semibold text-foreground">Article Retention</h4>
+            <h4 className="font-semibold text-foreground">{t("settings.rss.articleRetention")}</h4>
             <p className="text-xs text-muted-foreground">
-              Define how many days of article history you want to keep.
+              {t("settings.rss.articleRetentionDesc")}
             </p>
           </div>
         </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">Keep Articles For</span>
+            <span className="text-sm font-medium text-foreground">{t("settings.rss.keepArticlesFor")}</span>
             <span className="text-sm font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-md border border-primary/20">
-              {rssSettings.maxItemAgeDays === 0 ? "Keep Forever" : `${rssSettings.maxItemAgeDays} Days`}
+              {rssSettings.maxItemAgeDays === 0
+                ? t("settings.rss.keepForever")
+                : rssSettings.maxItemAgeDays === 1
+                ? t("settings.rss.daysCountSingle", { count: rssSettings.maxItemAgeDays })
+                : t("settings.rss.daysCountPlural", { count: rssSettings.maxItemAgeDays })}
             </span>
           </div>
 
@@ -123,8 +127,10 @@ export function RSSSettings() {
 
           <p className="text-xs text-muted-foreground leading-relaxed">
             {rssSettings.maxItemAgeDays === 0
-              ? "All fetched articles will be kept indefinitely in the database."
-              : `Articles older than ${rssSettings.maxItemAgeDays} day${rssSettings.maxItemAgeDays === 1 ? "" : "s"} will be automatically hidden from views and cleaned up from the local database in the background when loading your feed reader.`}
+              ? t("settings.rss.keepIndefinitely")
+              : rssSettings.maxItemAgeDays === 1
+              ? t("settings.rss.cleanupDescriptionSingle", { days: rssSettings.maxItemAgeDays })
+              : t("settings.rss.cleanupDescriptionPlural", { days: rssSettings.maxItemAgeDays })}
           </p>
         </div>
       </div>
@@ -138,8 +144,8 @@ export function RSSSettings() {
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground">Queue Session Rules</h4>
-              <p className="text-xs text-muted-foreground">Adjust limits for your smart queues.</p>
+              <h4 className="font-semibold text-foreground">{t("settings.rss.queueRules")}</h4>
+              <p className="text-xs text-muted-foreground">{t("settings.rss.queueRulesDesc")}</p>
             </div>
           </div>
 
@@ -147,9 +153,9 @@ export function RSSSettings() {
             {/* Max Items per Session */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="font-medium text-foreground/80">Max Articles per Session</span>
+                <span className="font-medium text-foreground/80">{t("settings.rss.maxArticlesPerSession")}</span>
                 <span className="font-semibold text-primary">
-                  {rssSettings.maxItemsPerSession === 0 ? "Unlimited" : rssSettings.maxItemsPerSession}
+                  {rssSettings.maxItemsPerSession === 0 ? t("settings.rssUnlimited") : rssSettings.maxItemsPerSession}
                 </span>
               </div>
               <input
@@ -166,7 +172,7 @@ export function RSSSettings() {
             {/* Percentage weight */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="font-medium text-foreground/80">Session Percentage Weight</span>
+                <span className="font-medium text-foreground/80">{t("settings.rss.sessionWeight")}</span>
                 <span className="font-semibold text-primary">{rssSettings.percentage ?? 30}%</span>
               </div>
               <input
@@ -179,7 +185,7 @@ export function RSSSettings() {
                 className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
               />
               <p className="text-[11px] text-muted-foreground">
-                Sets the target percentage of RSS articles in interleaved smart queues.
+                {t("settings.rss.sessionWeightDesc")}
               </p>
             </div>
           </div>
@@ -192,8 +198,8 @@ export function RSSSettings() {
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground">Interactive Preferences</h4>
-              <p className="text-xs text-muted-foreground">Customize delivery preferences.</p>
+              <h4 className="font-semibold text-foreground">{t("settings.rss.interactivePreferences")}</h4>
+              <p className="text-xs text-muted-foreground">{t("settings.rss.interactivePreferencesDesc")}</p>
             </div>
           </div>
 
@@ -201,8 +207,8 @@ export function RSSSettings() {
             {/* Include in Queue */}
             <label className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground">Include in Smart Queue</span>
-                <span className="text-xs text-muted-foreground">Add feed items to your Daily Queue.</span>
+                <span className="text-sm font-medium text-foreground">{t("settings.rss.includeInSmartQueue")}</span>
+                <span className="text-xs text-muted-foreground">{t("settings.rss.includeInSmartQueueDesc")}</span>
               </div>
               <input
                 type="checkbox"
@@ -215,8 +221,8 @@ export function RSSSettings() {
             {/* Unread Only */}
             <label className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground">Only Show Unread</span>
-                <span className="text-xs text-muted-foreground">Exclude already read articles.</span>
+                <span className="text-sm font-medium text-foreground">{t("settings.rss.onlyShowUnread")}</span>
+                <span className="text-xs text-muted-foreground">{t("settings.rss.onlyShowUnreadDesc")}</span>
               </div>
               <input
                 type="checkbox"
@@ -229,8 +235,8 @@ export function RSSSettings() {
             {/* Prefer Recent */}
             <label className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground">Prefer Recent Articles</span>
-                <span className="text-xs text-muted-foreground">Prioritize newest publications.</span>
+                <span className="text-sm font-medium text-foreground">{t("settings.rss.preferRecentArticles")}</span>
+                <span className="text-xs text-muted-foreground">{t("settings.rss.preferRecentArticlesDesc")}</span>
               </div>
               <input
                 type="checkbox"
@@ -251,34 +257,36 @@ export function RSSSettings() {
               <Tray className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground">Feed Queue Inclusions</h4>
+              <h4 className="font-semibold text-foreground">{t("settings.rss.feedQueueInclusions")}</h4>
               <p className="text-xs text-muted-foreground">
-                Control which individual feeds feed into your Smart Session queues.
+                {t("settings.rss.feedQueueInclusionsDesc")}
               </p>
             </div>
           </div>
           <span className="text-xs font-semibold bg-muted px-2.5 py-1 rounded-full text-muted-foreground border border-border/50">
-            {feeds.length} Feed{feeds.length === 1 ? "" : "s"} Subscribed
+            {feeds.length === 1
+              ? t("settings.rss.feedsSubscribedSingle", { count: feeds.length })
+              : t("settings.rss.feedsSubscribedPlural", { count: feeds.length })}
           </span>
         </div>
 
         {loading ? (
           <div className="py-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            Loading subscribed feeds...
+            {t("settings.rss.loadingFeeds")}
           </div>
         ) : feeds.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground border border-dashed border-border/50 rounded-lg">
-            No active feed subscriptions found. Add feeds in the RSS view first.
+            {t("settings.rss.noSubscriptions")}
           </div>
         ) : (
           <div className="border border-border/50 rounded-lg overflow-hidden bg-background/50 max-h-80 overflow-y-auto custom-scrollbar">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/20 text-muted-foreground font-medium">
-                  <th className="p-3 pl-4">Feed Details</th>
-                  <th className="p-3 text-center w-36">Explicit Inclusion</th>
-                  <th className="p-3 text-center w-36">Explicit Exclusion</th>
+                  <th className="p-3 pl-4">{t("settings.rss.feedDetails")}</th>
+                  <th className="p-3 text-center w-36">{t("settings.rss.explicitInclusion")}</th>
+                  <th className="p-3 text-center w-36">{t("settings.rss.explicitExclusion")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
@@ -315,7 +323,7 @@ export function RSSSettings() {
                               ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
                               : "hover:bg-muted text-muted-foreground border-border/40"
                           }`}
-                          title={isIncluded ? "Currently included explicitly" : "Click to include explicitly"}
+                          title={isIncluded ? t("settings.rss.currentlyIncluded") : t("settings.rss.clickToInclude")}
                         >
                           {isIncluded ? <Eye className="w-4 h-4" /> : <EyeSlash className="w-4 h-4" />}
                         </button>
@@ -328,7 +336,7 @@ export function RSSSettings() {
                               ? "bg-destructive/10 text-destructive border-destructive/30"
                               : "hover:bg-muted text-muted-foreground border-border/40"
                           }`}
-                          title={isExcluded ? "Currently excluded explicitly" : "Click to exclude explicitly"}
+                          title={isExcluded ? t("settings.rss.currentlyExcluded") : t("settings.rss.clickToExclude")}
                         >
                           {isExcluded ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
