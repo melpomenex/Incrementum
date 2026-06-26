@@ -282,8 +282,8 @@ export function ItemDetailsPopover({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 mt-2 w-96 rounded-xl border border-border bg-background text-popover-foreground shadow-xl",
-            align === "right" ? "right-0" : "left-0"
+            "fixed inset-x-4 bottom-4 max-w-lg mx-auto md:absolute md:inset-x-auto md:bottom-auto md:top-full md:mt-2 md:w-96 md:max-w-none md:mx-0 z-50 rounded-xl border border-border bg-background text-popover-foreground shadow-xl",
+            align === "right" ? "md:right-0 md:left-auto" : "md:left-0 md:right-auto"
           )}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">

@@ -5778,6 +5778,7 @@ export function DocumentViewer({
             fileName={currentDocument.title}
             documentId={currentDocument.id}
             onBack={handleBack}
+            embedded={embedded}
             onLoad={(toc) => handleDocumentLoad(0, toc)}
             onSelectionChange={updateSelection}
             onContextMenu={({ x, y, selectedText: text, selectionContext: ctx }) => setContextMenuState({ visible: true, x, y, selectedText: text, selectionContext: ctx })}

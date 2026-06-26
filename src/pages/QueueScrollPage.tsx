@@ -2773,7 +2773,13 @@ export function QueueScrollPage() {
       {/* Overlay Controls */}
       <ScrollOverlayControls
         showControls={showControls}
-        isMobile={false}
+        isMobile={isMobile}
+        isEpub={(() => {
+          if (currentItem?.type !== "document") return false;
+          const doc = documents.find(d => d.id === currentItem.documentId);
+          const fileType = (doc?.fileType || doc?.filePath?.split('.').pop())?.toLowerCase();
+          return fileType === "epub";
+        })()}
         currentIndex={currentIndex}
         totalItems={scrollItems.length}
         sessionOffset={itemsReviewedThisSession}

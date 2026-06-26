@@ -29,6 +29,7 @@ interface ScrollOverlayControlsProps {
   isRating: boolean;
   scrollViewMode: string;
   helpText?: string;
+  isEpub?: boolean;
   /** When true (mobile), render a persistent thumb-reachable bottom action bar
    *  instead of the desktop side-orb + bottom-arrow chrome. */
   isMobile?: boolean;
@@ -86,6 +87,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   isRating,
   scrollViewMode,
   helpText,
+  isEpub = false,
   isMobile = false,
   onExit,
   onShowSettings,
@@ -132,9 +134,9 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         action bar below is rendered independently so it's always usable. */}
     <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", (showControls || isMobile || isTouchDevice) ? "opacity-100" : "opacity-0")}>
       {/* Top Bar */}
-      <div className="absolute top-0 left-0 right-0 pt-[calc(16px+env(safe-area-inset-top,0px))] px-4 pb-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-auto">
+      <div className="absolute top-0 left-0 right-0 pt-[calc(16px+env(safe-area-inset-top,0px))] px-4 pb-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pointer-events-auto">
             <button onClick={onExit} className="p-2 rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors" title={labels?.exit ?? "Exit scroll mode"}>
               <X className="w-5 h-5 text-white" />
             </button>
@@ -143,16 +145,38 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pointer-events-auto">
             {detailsButton}
-            <button onClick={onShowSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.settings ?? "Queue Settings"}>
-              <Sliders className="w-4 h-4" />
-              {labels?.settings ?? "Settings"}
-            </button>
-            <button onClick={onShowRssSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.rss ?? "RSS Settings"}>
-              <Rss className="w-4 h-4" />
-              {labels?.rss ?? "RSS"}
-            </button>
+            {isMobile && isEpub && (
+              <>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-epub-toc"))}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
+                  title="Table of Contents"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-epub-settings"))}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
+                  title="Reading Settings"
+                >
+                  <TextT className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            {!isMobile && (
+              <>
+                <button onClick={onShowSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.settings ?? "Queue Settings"}>
+                  <Sliders className="w-4 h-4" />
+                  {labels?.settings ?? "Settings"}
+                </button>
+                <button onClick={onShowRssSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.rss ?? "RSS Settings"}>
+                  <Rss className="w-4 h-4" />
+                  {labels?.rss ?? "RSS"}
+                </button>
+              </>
+            )}
             <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
               <span className="flex items-center gap-2 truncate">
                 <span className={cn("px-1.5 py-0.5 rounded text-xs shrink-0", typeColor)}>{typeLabel}</span>

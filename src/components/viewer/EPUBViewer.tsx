@@ -168,6 +168,7 @@ interface EPUBViewerProps {
   metadata?: DocumentMetadata;
   onIframeWindowReady?: (iframeWindow: Window) => void;
   onBack?: () => void;
+  embedded?: boolean;
 }
 
 export function EPUBViewer({
@@ -196,6 +197,7 @@ export function EPUBViewer({
   metadata,
   onIframeWindowReady,
   onBack,
+  embedded = false,
 }: EPUBViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -209,6 +211,23 @@ export function EPUBViewer({
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
   const [showTocDrawer, setShowTocDrawer] = useState(false);
   const [showDesktopToc, setShowDesktopToc] = useState(true);
+
+  useEffect(() => {
+    const handleOpenToc = () => {
+      setShowTocDrawer(true);
+    };
+    const handleOpenSettings = () => {
+      setShowSettingsSheet(true);
+    };
+
+    window.addEventListener("open-epub-toc", handleOpenToc);
+    window.addEventListener("open-epub-settings", handleOpenSettings);
+
+    return () => {
+      window.removeEventListener("open-epub-toc", handleOpenToc);
+      window.removeEventListener("open-epub-settings", handleOpenSettings);
+    };
+  }, []);
   const [progressPercent, setProgressPercent] = useState(0);
   const [currentChapter, setCurrentChapter] = useState("");
   const selectionActiveRef = useRef(false);
@@ -795,6 +814,23 @@ export function EPUBViewer({
                   selectionContext: lastEpubSelectionContextRef.current,
                 });
               }
+            });
+
+            // Forward click events from EPUB iframe to parent window for overlay toggle
+            contents.document.addEventListener("click", (e: MouseEvent) => {
+              if ((e.target as HTMLElement).closest('a, button, input, select, textarea, .interactive')) {
+                return;
+              }
+              const parentEvent = new MouseEvent("click", {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: e.clientX,
+                clientY: e.clientY,
+                screenX: e.screenX,
+                screenY: e.screenY,
+              });
+              viewerRef.current?.dispatchEvent(parentEvent);
             });
 
             // Key events inside the EPUB iframe don't reliably reach the parent window.
@@ -2008,63 +2044,65 @@ export function EPUBViewer({
           )}
 
           {/* Mobile chrome - Top Bar */}
-          <div
-            className={cn(
-              "absolute left-0 right-0 top-0 z-40 transition-all duration-300",
-              chromeVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"
-            )}
-          >
-            <div className="mx-3 mt-3 rounded-2xl bg-background/95 backdrop-blur border border-border shadow-lg">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                  {onBack && (
+          {!(embedded && isMobile) && (
+            <div
+              className={cn(
+                "absolute left-0 right-0 top-0 z-40 transition-all duration-300",
+                chromeVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"
+              )}
+            >
+              <div className="mx-3 mt-3 rounded-2xl bg-background/95 backdrop-blur border border-border shadow-lg">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                    {onBack && (
+                      <button
+                        type="button"
+                        data-chrome-control="true"
+                        onClick={onBack}
+                        className="p-1.5 rounded-full border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all min-w-[32px] min-h-[32px] flex items-center justify-center"
+                        aria-label="Back"
+                      >
+                        <CaretLeft className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-foreground truncate">{fileName}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {currentChapter || t("viewer.reading")}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       type="button"
                       data-chrome-control="true"
-                      onClick={onBack}
-                      className="p-1.5 rounded-full border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all min-w-[32px] min-h-[32px] flex items-center justify-center"
-                      aria-label="Back"
+                      onClick={() => setShowTocDrawer(true)}
+                      className="px-3 py-1.5 text-xs rounded-full border border-border bg-card text-foreground"
                     >
-                      <CaretLeft className="w-4 h-4" />
+                      TOC
                     </button>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-foreground truncate">{fileName}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {currentChapter || t("viewer.reading")}
-                    </div>
+                    <button
+                      type="button"
+                      data-chrome-control="true"
+                      onClick={() => setShowSettingsSheet(true)}
+                      className="px-3 py-1.5 text-xs rounded-full border border-border bg-card text-foreground"
+                    >
+                      Aa
+                    </button>
+                    <button
+                      type="button"
+                      data-chrome-control="true"
+                      onClick={() => setChromeVisible(false)}
+                      className="p-1.5 rounded-full border border-border bg-card text-foreground"
+                      aria-label={t("viewer.hideToolbar")}
+                    >
+                      <CaretUp className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    type="button"
-                    data-chrome-control="true"
-                    onClick={() => setShowTocDrawer(true)}
-                    className="px-3 py-1.5 text-xs rounded-full border border-border bg-card text-foreground"
-                  >
-                    TOC
-                  </button>
-                  <button
-                    type="button"
-                    data-chrome-control="true"
-                    onClick={() => setShowSettingsSheet(true)}
-                    className="px-3 py-1.5 text-xs rounded-full border border-border bg-card text-foreground"
-                  >
-                    Aa
-                  </button>
-                  <button
-                    type="button"
-                    data-chrome-control="true"
-                    onClick={() => setChromeVisible(false)}
-                    className="p-1.5 rounded-full border border-border bg-card text-foreground"
-                    aria-label={t("viewer.hideToolbar")}
-                  >
-                    <CaretUp className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Mobile chrome - Bottom Bar */}
           <div
@@ -2116,7 +2154,7 @@ export function EPUBViewer({
           </div>
 
           {/* Floating Expand Buttons (when chrome is hidden) */}
-          {!chromeVisible && (
+          {!chromeVisible && !(embedded && isMobile) && (
             <>
               {/* Top-left: Show toolbar button */}
               <button
@@ -2163,7 +2201,7 @@ export function EPUBViewer({
 
           {/* Mobile TOC drawer */}
           {showTocDrawer && (
-            <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-sm" onClick={() => setShowTocDrawer(false)}>
+            <div className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-sm" onClick={() => setShowTocDrawer(false)}>
               <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-border bg-card max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
                   <div className="text-sm font-semibold text-foreground">{t("viewer.tableOfContents")}</div>
@@ -2197,7 +2235,7 @@ export function EPUBViewer({
 
           {/* Mobile settings sheet */}
           {showSettingsSheet && (
-            <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-sm" onClick={() => setShowSettingsSheet(false)}>
+            <div className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-sm" onClick={() => setShowSettingsSheet(false)}>
               <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-border bg-card p-4 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold text-foreground">{t("viewer.readingSettings")}</div>
