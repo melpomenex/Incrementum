@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.56.2] - 2026-06-26
+
+### Fixed & Improved
+- **In-app auto-update did nothing on Android** — When the in-app updater downloaded the new `.apk` and triggered the system installer, the install silently failed on Android 10+ and many device variants: the system package installer is blocked from reading another app's private internal storage (`/data/user/0/...`) even through a FileProvider URI, so the install intent had nothing it could open. The updater now copies the downloaded `.apk` into the app's external cache directory first and serves the FileProvider URI from there — a location the system installer can read — so the "Install unknown apps" flow actually launches and completes. Added the external-cache path to the FileProvider `file_paths.xml` config so the URI is granted.
+- **EPUB Table of Contents and reading-settings buttons were unreachable on mobile** — The TOC and "Aa" (font/settings) buttons lived in the scroll overlay top bar, where they were easy to miss and stacked awkwardly alongside the item title. They now live directly inside the EPUB viewer's own chrome bar, marked as chrome controls so they stay tappable, with extra bottom clearance so they clear the mobile rating/navigation bar.
+- **Details popover position and TOC drawer overlay blocking (mobile)** — The queue item details popover could render in the wrong position, and the EPUB TOC drawer's overlay intercepted taps meant for the controls beneath it. Both are corrected so touch targets and layering behave on mobile.
+- **Mobile scroll-mode top bar simplified** — The item-title pill is now shown on desktop only, giving the mobile top bar a cleaner layout; the EPUB-specific overlay buttons were removed in favor of the in-viewer controls above.
+
 ## [1.56.1] - 2026-06-26
 
 ### Fixed & Improved
