@@ -99,7 +99,28 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
 
       val context = activity.applicationContext
 
-      // 1. Check and request install permissions on Android 8.0 (Oreo) and above
+      // 1. Copy the APK to the external cache directory to make it readable by the system package installer.
+      // System package installers on many Android variants (and OS versions 10+) are blocked from accessing
+      // another app's private internal storage (/data/user/0/...) even when using FileProvider.
+      val externalCacheDir = context.externalCacheDir
+      val targetApkFile = if (externalCacheDir != null) {
+        val destFile = File(externalCacheDir, "update.apk")
+        try {
+          apkFile.inputStream().use { input ->
+            destFile.outputStream().use { output ->
+              input.copyTo(output)
+            }
+          }
+          destFile
+        } catch (ex: Exception) {
+          Logger.error("Failed to copy APK to external cache, using original: ${ex.message}")
+          apkFile
+        }
+      } else {
+        apkFile
+      }
+
+      // 2. Check and request install permissions on Android 8.0 (Oreo) and above
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         if (!activity.packageManager.canRequestPackageInstalls()) {
           // Open settings to let the user enable 'Install unknown apps' for this app
@@ -112,14 +133,14 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
         }
       }
 
-      // 2. Generate secure FileProvider content URI
+      // 3. Generate secure FileProvider content URI
       val apkUri = FileProvider.getUriForFile(
         context,
         "${context.packageName}.fileprovider",
-        apkFile
+        targetApkFile
       )
 
-      // 3. Fire package installer intent
+      // 4. Fire package installer intent
       val intent = Intent(Intent.ACTION_VIEW).apply {
         setDataAndType(apkUri, "application/vnd.android.package-archive")
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
