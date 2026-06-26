@@ -2111,10 +2111,33 @@ export function EPUBViewer({
               chromeVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-full pointer-events-none"
             )}
           >
-            <div className="mx-3 mb-16 rounded-2xl bg-background/95 backdrop-blur border border-border shadow-lg">
+            <div
+              className={cn(
+                "mx-3 rounded-2xl bg-background/95 backdrop-blur border border-border shadow-lg",
+                embedded ? "mb-36" : "mb-16"
+              )}
+            >
               <div className="px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{progressPercent}%</span>
+                  <div className="flex items-center gap-3">
+                    <span>{progressPercent}%</span>
+                    <button
+                      type="button"
+                      data-chrome-control="true"
+                      onClick={() => setShowTocDrawer(true)}
+                      className="px-2.5 py-1 text-xs rounded-full border border-border bg-card text-foreground"
+                    >
+                      TOC
+                    </button>
+                    <button
+                      type="button"
+                      data-chrome-control="true"
+                      onClick={() => setShowSettingsSheet(true)}
+                      className="px-2.5 py-1 text-xs rounded-full border border-border bg-card text-foreground"
+                    >
+                      Aa
+                    </button>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"

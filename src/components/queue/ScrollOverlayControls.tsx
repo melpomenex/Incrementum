@@ -147,24 +147,6 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
 
           <div className="flex items-center gap-3 pointer-events-auto">
             {detailsButton}
-            {isMobile && isEpub && (
-              <>
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent("open-epub-toc"))}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
-                  title="Table of Contents"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => window.dispatchEvent(new CustomEvent("open-epub-settings"))}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60"
-                  title="Reading Settings"
-                >
-                  <TextT className="w-4 h-4" />
-                </button>
-              </>
-            )}
             {!isMobile && (
               <>
                 <button onClick={onShowSettings} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 backdrop-blur-sm text-white text-sm transition-colors hover:bg-black/60" title={labels?.settings ?? "Queue Settings"}>
@@ -175,14 +157,14 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
                   <Rss className="w-4 h-4" />
                   {labels?.rss ?? "RSS"}
                 </button>
+                <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
+                  <span className="flex items-center gap-2 truncate">
+                    <span className={cn("px-1.5 py-0.5 rounded text-xs shrink-0", typeColor)}>{typeLabel}</span>
+                    <span className="truncate">{itemTitle}</span>
+                  </span>
+                </div>
               </>
             )}
-            <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
-              <span className="flex items-center gap-2 truncate">
-                <span className={cn("px-1.5 py-0.5 rounded text-xs shrink-0", typeColor)}>{typeLabel}</span>
-                <span className="truncate">{itemTitle}</span>
-              </span>
-            </div>
           </div>
         </div>
       </div>
