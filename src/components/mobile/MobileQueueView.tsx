@@ -143,10 +143,20 @@ export function MobileQueueView({
 
   const handleStartSession = () => {
     const firstDue = filteredItems[0];
-    if (firstDue) {
-      onOpenDocument?.(firstDue);
-    } else {
+    if (!firstDue) {
       toast.info(t("mobileQueue.noItemsReady"), t("mobileQueue.noItemsReadyDesc"));
+      return;
+    }
+    // On mobile, "Start Reading" opens Scroll Mode — the same immersive flow the
+    // Scroll Mode button uses — so the experience matches (bottom action bar,
+    // swipe navigation, draggable video/transcript split). The standalone
+    // DocumentViewer tab path lacks queue chrome for YouTube and uses a
+    // per-document tab model. Fall back to opening the document directly only
+    // if scroll mode isn't wired up.
+    if (onOpenScrollMode) {
+      onOpenScrollMode();
+    } else {
+      onOpenDocument?.(firstDue);
     }
   };
 

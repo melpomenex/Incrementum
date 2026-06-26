@@ -207,7 +207,7 @@ export interface TTSPreset {
 
 export interface TTSVoiceProfile {
   id: string;
-  provider: "fal" | "groq" | "pocket";
+  provider: "fal" | "groq" | "pocket" | "system";
   name: string;
   kind: "builtin" | "cloned";
   voice?: string;
@@ -219,7 +219,7 @@ export interface TTSVoiceProfile {
 export interface TTSSettings {
   schemaVersion: number;
   enabled: boolean;
-  provider: "fal" | "groq" | "pocket";
+  provider: "fal" | "groq" | "pocket" | "system";
   requestMode: TTSRequestMode;
   apiKey: string;
   proxyUrl: string;

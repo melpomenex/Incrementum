@@ -173,7 +173,29 @@ mod commands {
             Ok(result)
         }
     }
+
+    #[tauri::command]
+    pub async fn install_apk(
+        state: State<'_, FolderImport>,
+        file_path: String,
+    ) -> Result<(), Error> {
+        #[cfg(target_os = "android")]
+        {
+            let payload = serde_json::json!({ "filePath": file_path });
+            state
+                .handle
+                .run_mobile_plugin::<()>("installApk", payload)
+                .map_err(|e| Error::Message(e.to_string()))?;
+            Ok(())
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = (state, file_path);
+            Err(Error::Message("install_apk is only supported on Android".to_string()))
+        }
+    }
 }
+
 
 // ──────────────────────────────────────────────────────────────────────────
 // Default supported extensions. Mirrors the document/media types the rest of
@@ -328,11 +350,20 @@ struct MobilePickResponse {
 /// Pick a folder and return all supported files inside it (recursively).
 /// See `commands::pick_folder_documents` for the implementation.
 pub use commands::pick_folder_documents;
+pub use commands::install_apk;
 
 /// Initializes the plugin.
 pub fn init() -> TauriPlugin<Wry> {
-    tauri::plugin::Builder::<Wry>::new("folder-import")
-        .invoke_handler(tauri::generate_handler![commands::pick_folder_documents])
+    // NOTE: the builder name MUST match the crate name (`incrementum-folder-import`),
+    // because tauri-plugin's ACL manifest codegen keys the plugin's permissions
+    // under the crate name. The runtime ACL lookup on `plugin:<name>|<cmd>` uses
+    // this builder name, so a mismatch (e.g. "folder-import") makes every
+    // command fail with "not allowed by ACL" even when the capability grants it.
+    tauri::plugin::Builder::<Wry>::new("incrementum-folder-import")
+        .invoke_handler(tauri::generate_handler![
+            commands::pick_folder_documents,
+            commands::install_apk
+        ])
         .setup(|app, api| {
             let folder_import = init_mobile(app.app_handle(), api)?;
             app.manage(folder_import);

@@ -93,7 +93,7 @@ describe("folder import API", () => {
     const result = await pickFolderDocuments();
 
     expect(mocks.invokeCommand).toHaveBeenCalledWith(
-      "plugin:folder-import|pick_folder_documents",
+      "plugin:incrementum-folder-import|pick_folder_documents",
       { extensions: null }
     );
     expect(result).toEqual(staged);
@@ -106,7 +106,7 @@ describe("folder import API", () => {
     await pickFolderDocuments(["pdf", "epub"]);
 
     expect(mocks.invokeCommand).toHaveBeenCalledWith(
-      "plugin:folder-import|pick_folder_documents",
+      "plugin:incrementum-folder-import|pick_folder_documents",
       { extensions: ["pdf", "epub"] }
     );
   });

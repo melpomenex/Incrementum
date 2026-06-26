@@ -29,6 +29,9 @@ interface ScrollOverlayControlsProps {
   isRating: boolean;
   scrollViewMode: string;
   helpText?: string;
+  /** When true (mobile), render a persistent thumb-reachable bottom action bar
+   *  instead of the desktop side-orb + bottom-arrow chrome. */
+  isMobile?: boolean;
   onExit: () => void;
   onShowSettings: () => void;
   onShowRssSettings: () => void;
@@ -83,6 +86,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   isRating,
   scrollViewMode,
   helpText,
+  isMobile = false,
   onExit,
   onShowSettings,
   onShowRssSettings,
@@ -119,7 +123,13 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
           : "bg-yellow-500/30";
 
   return (
-    <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", showControls ? "opacity-100" : "opacity-0")}>
+    <>
+    {/* The desktop chrome (top bar, side orbs, bottom arrows) fades with
+        showControls. On mobile we keep the overlay visible — the auto-hide is
+        mouse-move driven (a phone has no mouse-move), and hiding controls while
+        watching a video makes rating/navigation unreachable. The mobile bottom
+        action bar below is rendered independently so it's always usable. */}
+    <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", (showControls || isMobile) ? "opacity-100" : "opacity-0")}>
       {/* Top Bar */}
       <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-auto">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -178,8 +188,8 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         </div>
       )}
 
-      {/* Side Rating Controls */}
-      {(showRatingButtons || itemType === "flashcard" || itemType === "extract") && (
+      {/* Side Rating Controls (desktop only — mobile uses the bottom action bar) */}
+      {!isMobile && (showRatingButtons || itemType === "flashcard" || itemType === "extract") && (
         <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
           {itemType === "flashcard" || itemType === "extract" ? (
             <button type="button" onClick={onDismiss} disabled={isRating} className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.dismissTitle ?? "Dismiss"}>
@@ -228,27 +238,134 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto">
-        <button onClick={onGoToPrevious} disabled={currentIndex === 0} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === 0 && "opacity-30 cursor-not-allowed")} title={labels?.previousDocument ?? "Previous"}>
-          <CaretUp className="w-6 h-6 text-white" />
-        </button>
-        <button onClick={onGoToNext} disabled={currentIndex === totalItems - 1} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === totalItems - 1 && "opacity-30 cursor-not-allowed")} title={labels?.nextDocument ?? "Next"}>
-          <CaretDown className="w-6 h-6 text-white" />
-        </button>
-      </div>
+      {/* Bottom Navigation (desktop only — mobile uses the bottom action bar) */}
+      {!isMobile && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto">
+          <button onClick={onGoToPrevious} disabled={currentIndex === 0} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === 0 && "opacity-30 cursor-not-allowed")} title={labels?.previousDocument ?? "Previous"}>
+            <CaretUp className="w-6 h-6 text-white" />
+          </button>
+          <button onClick={onGoToNext} disabled={currentIndex === totalItems - 1} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === totalItems - 1 && "opacity-30 cursor-not-allowed")} title={labels?.nextDocument ?? "Next"}>
+            <CaretDown className="w-6 h-6 text-white" />
+          </button>
+        </div>
+      )}
 
-      {/* Progress Bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 pointer-events-none">
+      {/* Mobile Bottom Action Bar — persistent, thumb-reachable, touch-sized.
+          Renders above the progress bar. Stays visible regardless of the
+          showControls auto-hide so it's always usable while watching a video. */}
+      {isMobile && (
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-auto">
+          <div className="flex items-center gap-2 px-3 pb-3 pt-2 bg-gradient-to-t from-black/80 via-black/60 to-transparent">
+            {/* Previous */}
+            <button
+              onClick={onGoToPrevious}
+              disabled={currentIndex === 0}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 min-w-[48px] py-1.5 px-2 rounded-lg text-white text-[10px] font-medium transition-colors",
+                currentIndex === 0 ? "opacity-30" : "active:bg-white/10"
+              )}
+              title={labels?.previousDocument ?? "Previous"}
+            >
+              <CaretUp className="w-6 h-6" weight="bold" />
+            </button>
+
+            {/* Rating cluster — mirrors the side-orb logic, horizontal + touch-sized */}
+            {showRatingButtons && (
+              <div className="flex-1 flex items-center justify-center gap-1.5">
+                {itemType === "document" && !isNewDocument ? (
+                  <>
+                    {/* Reviewed document: full FSRS Again/Hard/Good/Easy */}
+                    <MobileRateButton label={labels?.again ?? "Again"} title={labels?.againTitle ?? "Again"} color="bg-red-500/90 active:bg-red-600" disabled={isRating} onClick={() => onRate(1)} />
+                    <MobileRateButton label={labels?.hard ?? "Hard"} title={labels?.hardTitle ?? "Hard"} color="bg-orange-500/90 active:bg-orange-600" disabled={isRating} onClick={() => onRate(2)} />
+                    <MobileRateButton label={labels?.good ?? "Good"} title={labels?.goodTitle ?? "Good"} color="bg-blue-500/90 active:bg-blue-600" disabled={isRating} onClick={() => onRate(3)} />
+                    <MobileRateButton label={labels?.easy ?? "Easy"} title={labels?.easyTitle ?? "Easy"} color="bg-green-500/90 active:bg-green-600" disabled={isRating} onClick={() => onRate(4)} />
+                  </>
+                ) : (
+                  /* New/unreviewed document: single prominent Mark-as-read (rating 3) */
+                  <button
+                    onClick={() => onRate(3)}
+                    disabled={isRating}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-500/90 active:bg-orange-600 text-white text-sm font-semibold shadow-lg disabled:opacity-50 transition-colors"
+                    title={itemType === "document" ? (labels?.markAsReadGood ?? "Mark as read (Good)") : (labels?.markAsRead ?? "Mark as read")}
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    {itemType === "document" ? (labels?.markAsReadGood ?? "Mark as Read") : (labels?.markAsRead ?? "Mark as Read")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Dismiss (documents only) */}
+            {showRatingButtons && itemType === "document" && (
+              <button
+                onClick={onDismiss}
+                disabled={isRating}
+                className="flex flex-col items-center justify-center gap-0.5 min-w-[48px] py-1.5 px-2 rounded-lg text-white/80 text-[10px] font-medium active:bg-white/10 transition-colors disabled:opacity-50"
+                title={labels?.dismissTitle ?? "Dismiss"}
+              >
+                <EyeSlash className="w-6 h-6" />
+              </button>
+            )}
+
+            {/* Next */}
+            <button
+              onClick={onGoToNext}
+              disabled={currentIndex === totalItems - 1}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 min-w-[48px] py-1.5 px-2 rounded-lg text-white text-[10px] font-medium transition-colors",
+                currentIndex === totalItems - 1 ? "opacity-30" : "active:bg-white/10"
+              )}
+              title={labels?.nextDocument ?? "Next"}
+            >
+              <CaretDown className="w-6 h-6" weight="bold" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Progress Bar (sits at the very bottom on desktop; raised just above
+          the mobile action bar on mobile so it stays visible) */}
+      <div className={cn("absolute left-0 right-0 h-1 bg-black/20 pointer-events-none", isMobile ? "bottom-[64px]" : "bottom-0")}>
         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((currentIndex + 1 + sessionOffset) / (totalItems + sessionOffset)) * 100}%` }} />
       </div>
 
       {/* Help Text */}
       {helpText && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none">
+        <div className={cn("absolute left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none", isMobile ? "bottom-[80px]" : "bottom-20")}>
           {helpText}
         </div>
       )}
     </div>
+    </>
   );
 });
+
+/** Compact touch-friendly rating button for the mobile bottom action bar. */
+function MobileRateButton({
+  label,
+  title,
+  color,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  color: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={cn(
+        "flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-white text-[11px] font-medium shadow transition-colors disabled:opacity-50",
+        color
+      )}
+    >
+      <span className="leading-tight">{label.split(" ")[0]}</span>
+    </button>
+  );
+}

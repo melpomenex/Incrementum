@@ -63,6 +63,15 @@ interface YouTubeViewerProps {
   initialTranscriptHighlightQuery?: string;
   initialTranscriptSegmentId?: string;
   onEnded?: () => void;
+  /**
+   * When true (embedded in the reading queue on mobile), constrain the video to
+   * a fixed ~60% viewport height so there's a transcript/empty zone below it.
+   * The YouTube <iframe> swallows touch events, so swiping on the video itself
+   * can't reach the queue's swipe-navigate handler — keeping a non-iframe zone
+   * visible lets the user swipe there to advance the queue (matching other
+   * item types). No effect on desktop or non-mobile.
+   */
+  compactOnMobile?: boolean;
 }
 
 export function YouTubeViewer({
@@ -83,6 +92,7 @@ export function YouTubeViewer({
   initialTranscriptHighlightQuery,
   initialTranscriptSegmentId,
   onEnded,
+  compactOnMobile = false,
 }: YouTubeViewerProps) {
   const toast = useToast();
   const { t } = useI18n();
@@ -110,6 +120,18 @@ export function YouTubeViewer({
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
+
+  // Mobile-only: draggable vertical split between the video and transcript.
+  // Expressed as the video height as a percentage of the viewport height, so it
+  // survives rotation and different devices. Persisted like transcript-panel-width.
+  const [mobileVideoHeightPct, setMobileVideoHeightPct] = useState(() => {
+    const saved = localStorage.getItem('yt-mobile-video-height-pct');
+    const parsed = saved ? parseInt(saved, 10) : NaN;
+    return Number.isFinite(parsed) ? Math.max(25, Math.min(80, parsed)) : 58;
+  });
+  const [isResizingMobileSplit, setIsResizingMobileSplit] = useState(false);
+  const mobileSplitStartYRef = useRef(0);
+  const mobileSplitStartPctRef = useRef(mobileVideoHeightPct);
   const [transcript, setTranscript] = useState<TranscriptSegment[]>([]);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
@@ -344,15 +366,28 @@ export function YouTubeViewer({
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     setIsResizing(true);
-    
+
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     resizeStartXRef.current = clientX;
     resizeStartWidthRef.current = transcriptWidth;
-    
+
     // Add resize cursor to body
     document.body.style.cursor = 'ew-resize';
     document.body.style.userSelect = 'none';
   }, [transcriptWidth]);
+
+  // Mobile vertical split drag: dragging the grip DOWN grows the video,
+  // dragging UP grows the transcript. Computed against viewport height (vh).
+  const handleMobileSplitResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizingMobileSplit(true);
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    mobileSplitStartYRef.current = clientY;
+    mobileSplitStartPctRef.current = mobileVideoHeightPct;
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  }, [mobileVideoHeightPct]);
 
   const handleVideoFeaturesResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -394,6 +429,40 @@ export function YouTubeViewer({
       window.removeEventListener('touchend', handleMouseUp);
     };
   }, [isResizing]);
+
+  // Mobile vertical split drag effect. Uses { passive: false } on touchmove so
+  // we can preventDefault and stop the page / transcript from scrolling while
+  // the user drags the divider.
+  useEffect(() => {
+    if (!isResizingMobileSplit) return;
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const deltaPct = ((clientY - mobileSplitStartYRef.current) / window.innerHeight) * 100;
+      const next = Math.max(25, Math.min(80, mobileSplitStartPctRef.current + deltaPct));
+      setMobileVideoHeightPct(next);
+    };
+
+    const handleEnd = () => {
+      setIsResizingMobileSplit(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('yt-mobile-video-height-pct', String(mobileVideoHeightPct));
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isResizingMobileSplit, mobileVideoHeightPct]);
 
   useEffect(() => {
     if (!isResizingVideoFeatures) return;
@@ -1015,6 +1084,15 @@ export function YouTubeViewer({
 
   // Calculate video container style based on layout
   const getVideoContainerStyle = () => {
+    // Mobile queue mode: cap the video height so a non-iframe zone (transcript /
+    // letterbox) stays visible below it. The YouTube <iframe> swallows touch
+    // events, so the queue's swipe-to-navigate handler only works outside the
+    // iframe — keeping part of the screen iframe-free lets the user swipe there
+    // to advance, matching every other item type. The split is draggable
+    // (mobileVideoHeightPct); no effect on desktop.
+    if (compactOnMobile && isNativeMobile()) {
+      return { height: `${mobileVideoHeightPct}vh`, maxHeight: `${mobileVideoHeightPct}vh`, flex: "none" };
+    }
     if (transcriptLayout === 'side' && showTranscript) {
       return {
         // In side mode, use flex to fill available height
@@ -1273,6 +1351,21 @@ export function YouTubeViewer({
           </div>
         )}
       </div>
+
+      {/* Mobile vertical split handle — drag up to grow the transcript,
+          down to grow the video. Only in compact (queue) mobile mode. */}
+      {compactOnMobile && isNativeMobile() && showTranscript && (
+        <div
+          className={`w-full h-2.5 flex-shrink-0 relative z-10 ${isResizingMobileSplit ? 'bg-primary' : 'bg-border'} cursor-ns-resize transition-colors`}
+          onMouseDown={handleMobileSplitResizeStart}
+          onTouchStart={handleMobileSplitResizeStart}
+          title={t("viewer.dragToResize")}
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-1 rounded bg-background/90 shadow-sm">
+            <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
+          </div>
+        </div>
+      )}
 
       {/* Resize handle - only in side mode with transcript visible */}
       {transcriptLayout === 'side' && showTranscript && (

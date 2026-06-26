@@ -81,3 +81,11 @@ incrementum-tauri
 # Android assets copied during build
 src-tauri/gen/android/app/src/main/assets/
 
+# Local plugin build outputs (Gradle/Kotlin compile artifacts). These are
+# regenerated on every build; tracking them causes perpetual binary churn in
+# release commits. Matches the build/ dirs under src-tauri/gen/android (already
+# ignored) and keeps in-repo Tauri plugins clean.
+src-tauri/plugins/*/android/build/
+src-tauri/plugins/*/android/.gradle/
+src-tauri/plugins/*/ios/build/
+

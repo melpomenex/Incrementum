@@ -307,7 +307,7 @@ export async function pickFolderDocuments(
     return [];
   }
   return await invokeCommand<StagedFolderFile[]>(
-    "plugin:folder-import|pick_folder_documents",
+    "plugin:incrementum-folder-import|pick_folder_documents",
     { extensions: extensions ?? null }
   );
 }

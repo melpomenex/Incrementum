@@ -6,6 +6,7 @@ from the frontend.
 #### This default permission set includes the following:
 
 - `allow-pick-folder-documents`
+- `allow-install-apk`
 
 ## Permission Table
 
@@ -15,6 +16,32 @@ from the frontend.
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`incrementum-folder-import:allow-install-apk`
+
+</td>
+<td>
+
+Enables the install_apk command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`incrementum-folder-import:deny-install-apk`
+
+</td>
+<td>
+
+Denies the install_apk command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>

@@ -19,9 +19,13 @@ package com.incrementum.folderimport
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
+import android.provider.Settings
+import androidx.core.content.FileProvider
 import androidx.documentfile.provider.DocumentFile
 import app.tauri.Logger
+import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -35,6 +39,11 @@ import java.io.FileOutputStream
 @InvokeArg
 class PickFolderOptions {
   var extensions: Array<String>? = null
+}
+
+@InvokeArg
+class InstallApkOptions {
+  var filePath: String? = null
 }
 
 /**
@@ -77,8 +86,56 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
     }
   }
 
-  @Suppress("unused") // invoked by Tauri when the SAF activity returns
-  fun folderPickerResult(invoke: Invoke, @Suppress("UNUSED_PARAMETER") result: androidx.activity.result.ActivityResult) {
+  @Command
+  fun installApk(invoke: Invoke) {
+    try {
+      val args = invoke.parseArgs(InstallApkOptions::class.java)
+      val filePath = args.filePath
+        ?: return invoke.reject("filePath is required")
+      val apkFile = File(filePath)
+      if (!apkFile.exists()) {
+        return invoke.reject("APK file does not exist at: $filePath")
+      }
+
+      val context = activity.applicationContext
+
+      // 1. Check and request install permissions on Android 8.0 (Oreo) and above
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (!activity.packageManager.canRequestPackageInstalls()) {
+          // Open settings to let the user enable 'Install unknown apps' for this app
+          val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            data = Uri.parse("package:${activity.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          }
+          activity.startActivity(intent)
+          return invoke.reject("INSTALL_PERMISSION_REQUIRED")
+        }
+      }
+
+      // 2. Generate secure FileProvider content URI
+      val apkUri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        apkFile
+      )
+
+      // 3. Fire package installer intent
+      val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(apkUri, "application/vnd.android.package-archive")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+
+      activity.startActivity(intent)
+      invoke.resolve()
+    } catch (e: Exception) {
+      invoke.reject("Failed to trigger installation: ${e.message}")
+    }
+  }
+
+
+  @ActivityCallback
+  fun folderPickerResult(invoke: Invoke, result: androidx.activity.result.ActivityResult) {
     try {
       val data = result.data
       val treeUri: Uri = data?.data

@@ -2766,6 +2766,7 @@ export function QueueScrollPage() {
       {/* Overlay Controls */}
       <ScrollOverlayControls
         showControls={showControls}
+        isMobile={isMobile}
         currentIndex={currentIndex}
         totalItems={scrollItems.length}
         sessionOffset={itemsReviewedThisSession}

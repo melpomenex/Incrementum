@@ -828,6 +828,14 @@ export function DocumentViewer({
     selectionContext?: SelectionContext | null;
   } | null>(null);
   const lastSelectionRef = useRef("");
+  // Guard that suppresses selection re-population for a short window after an
+  // extract is created. On mobile (esp. EPUB/OCR-HTML), creating an extract
+  // applies a highlight whose DOM mutation re-fires the viewer's selection
+  // callback and resurrects `selectedText`/`lastSelectionRef` — which keeps the
+  // floating "Create Extract" button on screen (tapping it again makes a
+  // duplicate). While this is set, `updateSelection` ignores incoming non-empty
+  // selections so the button stays dismissed after creation.
+  const suppressSelectionUntilRef = useRef(0);
   const lastDocumentIdRef = useRef<string | null>(null);
   const lastLoadedDocumentIdRef = useRef<string | null>(null); // Track successfully loaded documents
   const documentsRef = useRef(documents);
@@ -971,6 +979,13 @@ export function DocumentViewer({
     const text = rawText?.trim() ?? "";
     const hasText = text.length > 0 && text.length <= MAX_SELECTION_CHARS;
 
+    // Suppress selection resurrection right after an extract is created (see
+    // suppressSelectionUntilRef). Only block *non-empty* re-fires; empty
+    // selections are still applied so the floating button can be dismissed.
+    if (hasText && Date.now() < suppressSelectionUntilRef.current) {
+      return;
+    }
+
     if (docType === "pdf" && pdfViewMode !== "ocr-html") {
       if (hasText && isPdfSelectionContext(context) && isValidPdfSelection(text, context)) {
         setSelectedText(text);
@@ -1025,6 +1040,17 @@ export function DocumentViewer({
       epubIframeWindowRef.current?.getSelection()?.removeAllRanges();
     } catch { /* cross-origin guard */ }
   }, []);
+
+  // Dismiss the selection UI after creating an extract. Clears the current
+  // selection AND arms a short-lived guard (see suppressSelectionUntilRef) so
+  // that selection callbacks re-fired by the highlight's DOM mutation don't
+  // resurrect the floating "Create Extract" button (which would let a second
+  // tap create a duplicate extract). 800ms covers the post-save re-render /
+  // EPUB annotation application window on mobile.
+  const dismissSelectionAfterExtract = useCallback(() => {
+    suppressSelectionUntilRef.current = Date.now() + 800;
+    clearTextSelection();
+  }, [clearTextSelection]);
 
   const persistScrollState = useCallback(
     (
@@ -1496,7 +1522,7 @@ export function DocumentViewer({
           deckTag: deckTag ?? undefined,
         });
       }
-      clearTextSelection();
+      dismissSelectionAfterExtract();
     };
 
     const onHighlight = (e: Event) => {
@@ -1524,7 +1550,7 @@ export function DocumentViewer({
         }),
         selectionContext: selectionContext ?? undefined,
       });
-      clearTextSelection();
+      dismissSelectionAfterExtract();
     };
 
     window.addEventListener("vimium:extract", onExtract);
@@ -1539,7 +1565,7 @@ export function DocumentViewer({
       window.removeEventListener("vimium:extract2card", onExtract2Card);
       window.removeEventListener("vimium:highlight", onHighlight);
     };
-  }, [currentDocument, docType, selectionContext, createInstantExtract, clearTextSelection]);
+  }, [currentDocument, docType, selectionContext, createInstantExtract, dismissSelectionAfterExtract]);
 
   // Vim reading mode
   const { engineRef: vimEngineRef } = useVimReading({
@@ -1632,7 +1658,7 @@ export function DocumentViewer({
           }),
           selectionContext: effectiveContext ?? undefined,
         });
-        clearTextSelection();
+        dismissSelectionAfterExtract();
       },
     });
 
@@ -1669,7 +1695,7 @@ export function DocumentViewer({
             }),
             selectionContext: effectiveContext ?? undefined,
           });
-          clearTextSelection();
+          dismissSelectionAfterExtract();
         },
       })),
     });
@@ -1722,7 +1748,7 @@ export function DocumentViewer({
     });
 
     return items;
-  }, [documentId, selectionContext, docType, currentDocument, createInstantExtract, clearTextSelection, toast, t]);
+  }, [documentId, selectionContext, docType, currentDocument, createInstantExtract, dismissSelectionAfterExtract, toast, t]);
 
   const loadDocumentData = useCallback(async (doc: typeof currentDocument) => {
     if (!doc) return;
@@ -3389,8 +3415,8 @@ export function DocumentViewer({
       pageNumber: context.pages[0]?.pageNumber,
       selectionContext: context,
     });
-    clearTextSelection();
-  }, [documentId, createInstantExtract, clearTextSelection]);
+    dismissSelectionAfterExtract();
+  }, [documentId, createInstantExtract, dismissSelectionAfterExtract]);
 
   // Mobile PWA: Create extract from mobile selection (instant, no dialog)
   const handleMobileExtract = () => {
@@ -3414,7 +3440,7 @@ export function DocumentViewer({
       }),
       selectionContext: selectionContext ?? undefined,
     });
-    clearTextSelection();
+    dismissSelectionAfterExtract();
   };
 
   const handleSearch = useCallback((direction: ViewerSearchDirection = "next") => {
@@ -6093,6 +6119,7 @@ export function DocumentViewer({
               initialTranscriptHighlightQuery={jumpHighlightQuery}
               initialTranscriptSegmentId={initialJump?.kind === "youtube" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "youtube"}
+              compactOnMobile={embedded}
               onEnded={onEnded}
               onArchive={() => {
                 onArchive?.();
@@ -6304,7 +6331,7 @@ export function DocumentViewer({
                     }),
                     selectionContext: selectionContext ?? undefined,
                   });
-                  clearTextSelection();
+                  dismissSelectionAfterExtract();
                 }
               }}
               className="group flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground shadow-lg ring-1 ring-primary/20 transition-all min-h-[52px] text-sm font-semibold hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:translate-y-0"
@@ -6418,7 +6445,7 @@ export function DocumentViewer({
         isOpen={isExtractDialogOpen}
         onClose={() => {
           setIsExtractDialogOpen(false);
-          clearTextSelection();
+          dismissSelectionAfterExtract();
         }}
         onCreate={handleExtractCreated}
       />

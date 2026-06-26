@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.56.0] - 2026-06-26
+
+### Added
+- **System TTS — free, local, on-device text-to-speech** — A new first-class TTS provider alongside fal.ai, Groq, and Pocket. System TTS uses your device's built-in speech engine (Android Speech, macOS `say`, Windows SAPI, browser Web Speech) — no API key, no network, no cost — with live word-by-word highlighting and auto-scroll synced to the spoken word. Perfect for hands-free reading on mobile where Pocket TTS isn't available. Select it in Settings → TTS → Provider. The device's installed voices are enumerated automatically; if none are available the option explains why.
+- **Mobile folder import** — You can now import a whole folder of documents (recursively, including subfolders) on Android. Picks a folder via the native system folder picker (Storage Access Framework), walks the tree, and stages every supported file (PDF, EPUB, Markdown, HTML, audio, video) into the same library as desktop imports. Previously folder import was desktop-only.
+- **In-app APK self-update (Android)** — The Android app can now update itself. When a new release ships an `.apk` asset, the updater downloads it in-app (with a progress bar) and triggers the system installer — no need to sideload from GitHub. Uses a new native `install_apk` plugin command and the `REQUEST_INSTALL_PACKAGES` permission.
+- **Mobile queue controls for YouTube & documents** — Rating buttons, Previous/Next navigation, and a Dismiss action are now available when viewing a queue item (e.g. a YouTube video) on mobile, via a bottom action bar. The desktop side-orb and arrow controls remain desktop-only.
+- **Draggable video/transcript split on mobile YouTube** — In the mobile YouTube viewer, drag the handle between the video and transcript to resize the split (persisted per device), so you can give the transcript more room when reading along.
+
+### Fixed & Improved
+- **Mobile folder import did nothing after picking a folder** — The native folder-picker result callback was missing the `@ActivityCallback` annotation Tauri requires, so the picker closed silently and the import never ran. Now annotated correctly; the staged-file walk and import execute as intended.
+- **Mobile folder import crashed with "lateinit property startActivityForResultLauncher has not been initialized"** — The generated `TauriActivity` wires every plugin lifecycle hook except `onActivityCreate`, which is what registers the activity-result launchers. `MainActivity` now calls `PluginManager.onActivityCreate(this)` before `super.onCreate()`, so plugins that use the folder/file pickers initialize their launchers correctly.
+- **Audiobooks / audio files were unselectable in the mobile file picker** — The picker's `accept` filter listed only document MIME types, and Android's Storage Access Framework matches against MIME (not extensions), so `.m4b`/`.mp3`/`.m4a` audiobook files were greyed out. The filter now includes all audio and video types the backend supports.
+- **Floating "Create Extract" button stayed on screen after creating an extract (mobile)** — After creating a highlight (especially in EPUB/OCR-HTML), the annotation's DOM mutation re-fired the viewer's selection callback and resurrected the selection, leaving the extract button visible — and a second tap created a duplicate extract. A short post-creation guard now suppresses selection re-population so the button dismisses immediately.
+- **Anki `.apkg` decks were greyed out in the mobile file picker** — Same MIME-matching issue: `.apkg`/`.colpkg` (ZIP+SQLite packages) had no MIME in the filter. Added archive MIME types so Anki decks are selectable and import correctly on mobile.
+- **YouTube imports hung on "Loading Document..." on mobile** — Mobile YouTube import was routing to the IndexedDB browser backend while the app reads from the Rust/SQLite store, so the document never appeared. Now creates the document directly via the Rust backend on mobile.
+- **YouTube transcripts failed on mobile (relative-URL + relay errors)** — Transcript requests defaulted to a relative base URL that's invalid under the `tauri://` origin on mobile, and the `readsync.org` relay was serving stale/empty cached responses. The mobile base now defaults to the hosted API, and the relay always sets a success flag.
+- **Transient `npm ci` network failures broke the Linux x86_64 `.deb` release** — The release workflow's `npm ci` step died on intermittent IPv6 `ENETUNREACH`/`ETIMEDOUT` errors to the npm registry (a GitHub-runner network flake, not a code bug), failing the `.deb` build while every other platform succeeded. `npm ci` now retries up to 3 times with backoff to ride out transient registry connectivity failures.
+- **Plugin build artifacts removed from version control** — The in-repo folder-import plugin's Gradle/Kotlin build outputs (`android/build/`) were accidentally tracked, causing perpetual binary churn in every release commit. They are now gitignored and untracked; the `gen/android` build outputs were already ignored.
+
 ## [1.55.3] - 2026-06-24
 
 ### Added

@@ -28,7 +28,8 @@ import {
   type TTSProvider,
 } from "../../utils/ttsSettings";
 import { cn } from "../../utils";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, isNativeMobile } from "../../lib/tauri";
+import { useSystemVoices, resolveSystemVoice } from "../../hooks/useSystemVoices";
 import { useI18n } from "../../lib/i18n";
 
 const MAX_SAMPLE_FILE_SIZE_MB = 12;
@@ -139,9 +140,22 @@ export function TTSSettings() {
     setGroqModelIdInput(tts.groqModelId);
   }, [tts.apiKey, tts.proxyUrl, tts.modelId, tts.cloneModelId, tts.groqModelId]);
 
+  // Device speech-synthesis voices (System TTS provider). Declared early so the
+  // providerVoices memo (below) and the system test path can reference it.
+  const { available: systemTtsAvailable, profiles: systemVoices, voices: systemSynthVoices } = useSystemVoices();
+
   const providerVoices = useMemo(
-    () => getVoicesForProvider(tts),
-    [tts]
+    () => {
+      const persisted = getVoicesForProvider(tts);
+      // System provider: device voices aren't persisted, so merge in the live
+      // list from the WebView's speech engine.
+      if (tts.provider === "system") {
+        return systemVoices.length > 0 ? systemVoices : persisted;
+      }
+      return persisted;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tts, systemVoices]
   );
   const isGroqProvider = tts.provider === "groq";
 
@@ -281,6 +295,42 @@ export function TTSSettings() {
       return;
     }
 
+    // System TTS has no audio URL — synthesize directly via the device engine.
+    if (isSystemProvider) {
+      if (!("speechSynthesis" in window)) {
+        setOperationState("error");
+        setOperationMessage(t("settings.ttsSystemNoVoices"));
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voiceId =
+          overrideVoiceId && overrideVoiceId !== "default" ? overrideVoiceId : "system-default";
+        const voice = resolveSystemVoice(voiceId, systemSynthVoices);
+        if (voice) {
+          utterance.voice = voice;
+          utterance.lang = voice.lang;
+        }
+        utterance.onend = () => {
+          setOperationState("success");
+          setOperationMessage(t("settings.ttsGenerationSucceeded"));
+        };
+        utterance.onerror = () => {
+          setOperationState("error");
+          setOperationMessage(getErrorMessage(new Error("System TTS playback failed")));
+        };
+        setOperationState("generating");
+        setOperationMessage(t("settings.ttsGeneratingSpeech"));
+        setGeneratedAudioUrl(null);
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        setOperationState("error");
+        setOperationMessage(getErrorMessage(error));
+      }
+      return;
+    }
+
     setOperationState("generating");
     setOperationMessage(t("settings.ttsGeneratingSpeech"));
 
@@ -374,9 +424,11 @@ export function TTSSettings() {
   const setProvider = (provider: TTSProvider) => {
     const latestTts = useSettingsStore.getState().settings.tts ?? createDefaultTTSSettings();
     const voices = getVoicesForProvider(latestTts, provider);
+    // System TTS has no request mode / API key — always "direct" and keyless.
+    const isLocal = provider === "groq" || provider === "pocket" || provider === "system";
     updateTTS({
       provider,
-      requestMode: provider === "groq" || provider === "pocket" ? "direct" : latestTts.requestMode,
+      requestMode: isLocal ? "direct" : latestTts.requestMode,
       defaultVoiceId: voices[0]?.id || latestTts.defaultVoiceId,
     });
   };
@@ -438,7 +490,16 @@ export function TTSSettings() {
   };
 
   const isPocketProvider = tts.provider === "pocket";
-  const showPocketOption = isTauri();
+  // Pocket TTS bundles a desktop sidecar (no Android/iOS binary), so only offer
+  // it on non-mobile Tauri builds. On mobile, show a note explaining why it's
+  // unavailable and point users to System TTS instead.
+  const showPocketOption = isTauri() && !isNativeMobile();
+  // System TTS uses the WebView's speechSynthesis (device speech engine). Offer
+  // it whenever the API is present — that covers mobile (Android native TTS,
+  // free/offline) and desktop browsers. (systemTtsAvailable/systemVoices are
+  // declared above, near the providerVoices memo.)
+  const showSystemOption = systemTtsAvailable;
+  const isSystemProvider = tts.provider === "system";
 
   return (
     <div className="space-y-8">
@@ -478,8 +539,15 @@ export function TTSSettings() {
               <option value="fal">{t("settings.ttsProviderFalCloud")}</option>
               <option value="groq">{t("settings.ttsProviderGroqCloud")}</option>
               {showPocketOption && <option value="pocket">{t("settings.ttsProviderPocketLocal")}</option>}
+              {showSystemOption && <option value="system">{t("settings.ttsProviderSystem")}</option>}
             </select>
-            {!showPocketOption && (
+            {isSystemProvider && (
+              <span className="text-xs text-muted-foreground">{t("settings.ttsSystemDescription")}</span>
+            )}
+            {isSystemProvider && systemVoices.length === 0 && (
+              <span className="text-xs text-yellow-600">{t("settings.ttsSystemNoVoices")}</span>
+            )}
+            {!showPocketOption && isNativeMobile() && (
               <span className="text-xs text-muted-foreground">{t("settings.ttsPocketRequiresDesktop")}</span>
             )}
           </label>
@@ -512,7 +580,7 @@ export function TTSSettings() {
             </label>
           )}
 
-          {!isGroqProvider && !isPocketProvider && (
+          {!isGroqProvider && !isPocketProvider && !isSystemProvider && (
             <label className="space-y-1 text-sm">
               <span className="font-medium text-foreground">{t("settings.ttsLanguage")}</span>
               <select
@@ -608,7 +676,7 @@ export function TTSSettings() {
         )}
 
         {/* API Key section - not needed for Pocket TTS */}
-        {!isPocketProvider && (
+        {!isPocketProvider && !isSystemProvider && (
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="font-medium text-foreground">{tts.provider === "groq" ? t("settings.ttsGroqApiKey") : t("settings.ttsFalApiKey")}</span>
@@ -824,7 +892,7 @@ export function TTSSettings() {
         )}
       </section>
 
-      {!isGroqProvider && (
+      {!isGroqProvider && !isSystemProvider && (
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <h4 className="text-base font-semibold text-foreground">{t("settings.ttsPresets")}</h4>
         <p className="text-sm text-muted-foreground">

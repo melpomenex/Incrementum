@@ -62,7 +62,7 @@ export const FAL_LANGUAGES = [
 
 export type FalLanguage = (typeof FAL_LANGUAGES)[number];
 
-export type TTSProvider = "fal" | "groq" | "pocket";
+export type TTSProvider = "fal" | "groq" | "pocket" | "system";
 export type TTSRequestMode = "direct" | "proxy";
 
 export interface TTSPreset {
@@ -186,6 +186,8 @@ function defaultVoiceIdForProvider(provider: TTSProvider): string {
       return "groq-builtin-fiora";
     case "pocket":
       return "pocket-builtin-alba";
+    case "system":
+      return "system-default";
     default:
       return "fal-builtin-Vivian";
   }
@@ -249,7 +251,8 @@ function normalizeVoiceProfiles(
 
     const provider: TTSProvider =
       item.provider === "groq" ? "groq" :
-      item.provider === "pocket" ? "pocket" : "fal";
+      item.provider === "pocket" ? "pocket" :
+      item.provider === "system" ? "system" : "fal";
     const id = asNonEmptyString(item.id, "");
     const name = asNonEmptyString(item.name, "");
     if (!id || !name) continue;
@@ -339,6 +342,8 @@ export function sanitizeTTSSettings(input: unknown): TTSSettings {
     provider = "groq";
   } else if (input.provider === "pocket") {
     provider = "pocket";
+  } else if (input.provider === "system") {
+    provider = "system";
   }
 
   const defaultVoiceIdRaw = asString(input.defaultVoiceId, defaultVoiceIdForProvider(provider));
@@ -401,6 +406,11 @@ export function validateTTSConfiguration(settings: TTSSettings): { valid: boolea
   // Pocket TTS requires no API key - it's local
   if (settings.provider === "pocket") {
     // Pocket TTS is always valid when enabled (sidecar check happens at runtime)
+    return { valid: true };
+  }
+
+  // System TTS uses the device's built-in speech engine - no API key, no network
+  if (settings.provider === "system") {
     return { valid: true };
   }
 

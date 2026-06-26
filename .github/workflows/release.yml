@@ -90,7 +90,22 @@ jobs:
           cache: 'npm'
 
       - name: Install frontend dependencies
-        run: npm ci
+        # Retry npm ci to ride out transient npm-registry connectivity failures
+        # (e.g. IPv6 ENETUNREACH / ETIMEDOUT / ECONNRESET seen intermittently on
+        # GitHub-hosted Linux runners — these are network flakes, not code bugs).
+        run: |
+          for attempt in 1 2 3; do
+            echo "npm ci attempt $attempt/3"
+            if npm ci; then
+              echo "npm ci succeeded on attempt $attempt"
+              exit 0
+            fi
+            rc=$?
+            echo "npm ci failed (exit $rc) on attempt $attempt; retrying in 15s..."
+            sleep 15
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Verify command palette shortcut contract
         run: npm run test:run -- src/utils/__tests__/commandPaletteShortcut.test.ts src/utils/__tests__/commandPaletteEvents.test.ts
@@ -317,7 +332,22 @@ jobs:
           cache: 'npm'
 
       - name: Install frontend dependencies
-        run: npm ci
+        # Retry npm ci to ride out transient npm-registry connectivity failures
+        # (e.g. IPv6 ENETUNREACH / ETIMEDOUT / ECONNRESET seen intermittently on
+        # GitHub-hosted Linux runners — these are network flakes, not code bugs).
+        run: |
+          for attempt in 1 2 3; do
+            echo "npm ci attempt $attempt/3"
+            if npm ci; then
+              echo "npm ci succeeded on attempt $attempt"
+              exit 0
+            fi
+            rc=$?
+            echo "npm ci failed (exit $rc) on attempt $attempt; retrying in 15s..."
+            sleep 15
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Verify command palette shortcut contract
         run: npm run test:run -- src/utils/__tests__/commandPaletteShortcut.test.ts src/utils/__tests__/commandPaletteEvents.test.ts
@@ -416,7 +446,22 @@ jobs:
           pacman -S --noconfirm base-devel webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf npm nodejs rust cargo clang lld sqlite pipewire
 
       - name: Install frontend dependencies
-        run: npm ci
+        # Retry npm ci to ride out transient npm-registry connectivity failures
+        # (e.g. IPv6 ENETUNREACH / ETIMEDOUT / ECONNRESET seen intermittently on
+        # GitHub-hosted Linux runners — these are network flakes, not code bugs).
+        run: |
+          for attempt in 1 2 3; do
+            echo "npm ci attempt $attempt/3"
+            if npm ci; then
+              echo "npm ci succeeded on attempt $attempt"
+              exit 0
+            fi
+            rc=$?
+            echo "npm ci failed (exit $rc) on attempt $attempt; retrying in 15s..."
+            sleep 15
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Verify command palette shortcut contract
         run: npm run test:run -- src/utils/__tests__/commandPaletteShortcut.test.ts src/utils/__tests__/commandPaletteEvents.test.ts

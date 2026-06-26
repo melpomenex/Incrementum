@@ -12,6 +12,7 @@ import {
 import { useSettingsStore } from "../../stores/settingsStore";
 import { getVoicesForProvider } from "../../utils/ttsSettings";
 import { generateSpeech } from "../../api/tts";
+import { useSystemVoices, resolveSystemVoice } from "../../hooks/useSystemVoices";
 import { useI18n } from "../../lib/i18n";
 import { cn } from "../../utils";
 import { TextPositionIndex } from "../../utils/ttsTextExtraction";
@@ -175,6 +176,21 @@ function buildChunks(text: string): BuildChunksResult {
 interface BufferedAudio {
   audioUrl: string;
   durationSec?: number;
+  /** Set when using System TTS — no audio URL, synthesized via speechSynthesis. */
+  system?: boolean;
+}
+
+/**
+ * Convert a speechSynthesis boundary charIndex into a word offset (matching the
+ * time-based getWordOffsetAtTime contract). The engine fires `onboundary`
+ * events with the char position of the word currently being spoken; we count
+ * whitespace-separated words that start at or before that position.
+ */
+function charIndexToWordOffset(text: string, charIndex: number): number {
+  if (charIndex <= 0) return 0;
+  const upTo = text.slice(0, charIndex);
+  const words = upTo.split(/\s+/).filter(Boolean);
+  return Math.max(0, words.length - 1);
 }
 
 export function ReaderTTSControls({
@@ -198,10 +214,21 @@ export function ReaderTTSControls({
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
   const ttsEnabled = tts?.enabled;
+  const isSystemProvider = tts?.provider === "system";
+  const { voices: systemSynthVoices, profiles: systemVoiceProfiles } = useSystemVoices();
   const providerVoices = useMemo(
-    () => (tts ? getVoicesForProvider(tts) : []),
-    [tts]
+    () => {
+      if (!tts) return [];
+      // System provider: device voices aren't persisted — merge in live list.
+      if (tts.provider === "system") {
+        return systemVoiceProfiles.length > 0 ? systemVoiceProfiles : getVoicesForProvider(tts);
+      }
+      return getVoicesForProvider(tts);
+    },
+    [tts, systemVoiceProfiles]
   );
+  // Currently-active SpeechSynthesisUtterance (system provider only).
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [chunkIndex, setChunkIndex] = useState(0);
   const [selectedVoiceId, setSelectedVoiceId] = useState(tts?.defaultVoiceId ?? "");
@@ -492,10 +519,20 @@ export function ReaderTTSControls({
       audioRef.current.currentTime = 0;
       audioRef.current = null;
     }
+    // System TTS: cancel any in-flight synthesis.
+    if (utteranceRef.current) {
+      utteranceRef.current.onend = null;
+      utteranceRef.current.onerror = null;
+      utteranceRef.current.onboundary = null;
+      utteranceRef.current = null;
+    }
+    if (isSystemProvider && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     setIsPlaying(false);
     setIsPaused(false);
     stopWordTracking();
-  }, [stopWordTracking]);
+  }, [stopWordTracking, isSystemProvider]);
 
   // Generate audio for a chunk
   const generateChunkAudio = useCallback(async (index: number): Promise<BufferedAudio | null> => {
@@ -503,6 +540,14 @@ export function ReaderTTSControls({
 
     const chunk = chunks[index];
     if (!chunk) return null;
+
+    // System TTS synthesizes directly at playback time — nothing to fetch/buffer.
+    if (isSystemProvider) {
+      const buffered: BufferedAudio = { audioUrl: "", system: true };
+      audioBufferRef.current.set(index, buffered);
+      setBufferStatus(prev => new Map(prev).set(index, "ready"));
+      return buffered;
+    }
 
     try {
       setBufferStatus(prev => new Map(prev).set(index, "loading"));
@@ -602,6 +647,58 @@ export function ReaderTTSControls({
 
     stopAudio();
 
+    // ── System TTS: synthesize directly via the device speech engine ──────
+    // No audio element/URL; word highlighting comes from onboundary events
+    // (more accurate than the time-fraction heuristic used for cloud audio).
+    if (isSystemProvider && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.rate = playbackRate;
+      const sysVoice = resolveSystemVoice(voiceId, systemSynthVoices);
+      if (sysVoice) {
+        utterance.voice = sysVoice;
+        utterance.lang = sysVoice.lang;
+      }
+      utterance.onstart = () => {
+        if (!mountedRef.current || playbackIdRef.current !== playId) return;
+        setIsPlaying(true);
+        setIsPaused(false);
+        setWordOffset(0);
+      };
+      utterance.onboundary = (event) => {
+        if (!mountedRef.current || playbackIdRef.current !== playId) return;
+        if (typeof event.charIndex === "number") {
+          setWordOffset(charIndexToWordOffset(chunk, event.charIndex));
+        }
+      };
+      utterance.onend = () => {
+        if (!mountedRef.current || playbackIdRef.current !== playId) return;
+        setIsPlaying(false);
+        setIsPaused(false);
+        setWordOffset(0);
+        if (isAutoPlayingRef.current && autoAdvance && !intentionalStopRef.current) {
+          const nextIndex = index + 1;
+          if (nextIndex < chunksLenRef.current) {
+            playChunkAtIndexRef.current(nextIndex);
+          } else {
+            advancingRef.current = true;
+            setIsAutoPlaying(false);
+            onComplete?.();
+          }
+        }
+      };
+      utterance.onerror = () => {
+        if (!mountedRef.current || playbackIdRef.current !== playId) return;
+        setIsPlaying(false);
+        setIsPaused(false);
+        setWordOffset(0);
+      };
+      utteranceRef.current = utterance;
+      onChunkStart?.(index, chunk);
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
     const audio = new Audio(buffered.audioUrl);
     audio.playbackRate = playbackRate;
     audioRef.current = audio;
@@ -653,7 +750,7 @@ export function ReaderTTSControls({
       setIsPlaying(false);
       stopWordTracking();
     }
-  }, [chunks, playbackRate, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart, startWordTracking, stopWordTracking]);
+  }, [chunks, playbackRate, autoAdvance, stopAudio, generateChunkAudio, preBufferChunks, onComplete, onChunkStart, startWordTracking, stopWordTracking, isSystemProvider, systemSynthVoices, voiceId]);
   playChunkAtIndexRef.current = playChunkAtIndex;
 
   useEffect(() => {
@@ -676,11 +773,31 @@ export function ReaderTTSControls({
         }
         audioRef.current = null;
       }
+      // Stop any in-flight system TTS synthesis on unmount.
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
   // Controls
   const handlePlayPause = async () => {
+    // ── System TTS pause/resume via speechSynthesis ──
+    if (isSystemProvider && "speechSynthesis" in window) {
+      if (isPlaying && !isPaused) {
+        window.speechSynthesis.pause();
+        setIsPaused(true);
+        setIsPlaying(false);
+        return;
+      }
+      if (isPaused) {
+        window.speechSynthesis.resume();
+        setIsPaused(false);
+        setIsPlaying(true);
+        return;
+      }
+    }
+
     if (isPlaying && !isPaused) {
       playbackIdRef.current++;
       audioRef.current?.pause();

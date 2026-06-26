@@ -66,6 +66,8 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
 
   // Pocket TTS is always "configured" when enabled since it doesn't need API keys
   const isPocketProvider = ttsSettings?.provider === "pocket";
+  // System TTS uses the device speech engine — always "configured", no key/URL.
+  const isSystemProvider = ttsSettings?.provider === "system";
   const directKey =
     ttsSettings?.provider === "groq"
       ? (ttsSettings.apiKey?.trim() || settings.audioTranscription?.groq?.apiKey?.trim() || "")
@@ -73,8 +75,8 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
 
   const providerConfigured =
     ttsSettings?.enabled &&
-    (isPocketProvider
-      ? true // Pocket TTS doesn't need API keys
+    (isPocketProvider || isSystemProvider
+      ? true // Pocket & System TTS don't need API keys
       : ttsSettings.requestMode === "proxy"
         ? Boolean(ttsSettings.proxyUrl?.trim())
         : Boolean(directKey));
@@ -203,6 +205,12 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
     if (!normalizedText) return;
 
     try {
+      // System TTS synthesizes directly via the device engine (no audio URL).
+      if (isSystemProvider && hasSpeechSynthesis) {
+        speakWithWebSpeech(normalizedText);
+        return;
+      }
+
       if (providerConfigured) {
         await speakWithFal(normalizedText, overrides);
         return;
@@ -219,7 +227,7 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
         speakWithWebSpeech(normalizedText);
       }
     }
-  }, [isSupported, stop, providerConfigured, speakWithFal, speakWithWebSpeech, hasSpeechSynthesis]);
+  }, [isSupported, stop, providerConfigured, isSystemProvider, hasSpeechSynthesis, speakWithFal, speakWithWebSpeech]);
 
   const pause = useCallback(() => {
     if (audioRef.current && !audioRef.current.paused) {

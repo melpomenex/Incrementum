@@ -20,9 +20,23 @@ function pickMobileFiles(options?: { multiple?: boolean }): Promise<File[] | nul
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = options?.multiple ?? false;
-    // Accept all supported document types.
-    input.accept =
-      ".pdf,.epub,.md,.markdown,.html,.htm,.txt,text/*,application/pdf,application/epub+zip";
+    // Accept all supported document/audio/video types. Android's Storage Access
+    // Framework (the WebView <input type=file> backend) matches `accept` against
+    // MIME types, not just extensions, so omitting audio/video MIMEs here makes
+    // audiobook (.m4b/.mp3/...) files appear greyed out / unselectable. Keep this
+    // list in sync with DEFAULT_EXTENSIONS in
+    // src-tauri/plugins/folder-import/src/lib.rs and FileType in document.rs.
+    input.accept = [
+      // documents
+      ".pdf", ".epub", ".md", ".markdown", ".html", ".htm", ".txt", ".json",
+      "application/pdf", "application/epub+zip", "text/plain", "text/markdown", "text/html", "application/json",
+      // audio (incl. audiobooks)
+      ".mp3", ".wav", ".m4a", ".m4b", ".aac", ".ogg", ".flac", ".opus", ".wma",
+      "audio/*",
+      // video
+      ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v",
+      "video/*",
+    ].join(",");
 
     let settled = false;
     const done = (val: File[] | null) => {

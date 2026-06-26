@@ -160,6 +160,53 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+async fn download_update_apk(
+    app: tauri::AppHandle,
+    url: String,
+    on_progress: tauri::ipc::Channel<f64>,
+) -> Result<String, String> {
+    use futures::StreamExt;
+    use std::fs::File;
+    use std::io::Write;
+
+    let client = reqwest::Client::builder()
+        .user_agent("incrementum-updater")
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
+
+    let res = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to connect to update URL: {e}"))?;
+
+    let total_size = res.content_length().unwrap_or(0);
+
+    let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    let apk_path = cache_dir.join("latest_update.apk");
+
+    let mut file = File::create(&apk_path)
+        .map_err(|e| format!("Failed to create local update file: {e}"))?;
+
+    let mut downloaded: u64 = 0;
+    let mut stream = res.bytes_stream();
+
+    while let Some(item) = stream.next().await {
+        let chunk = item.map_err(|e| format!("Error downloading update chunk: {e}"))?;
+        file.write_all(&chunk)
+            .map_err(|e| format!("Error writing update to disk: {e}"))?;
+        downloaded += chunk.len() as u64;
+        if total_size > 0 {
+            let progress = downloaded as f64 / total_size as f64;
+            let _ = on_progress.send(progress);
+        }
+    }
+
+    Ok(apk_path.to_string_lossy().to_string())
+}
+
+
 /// Consume and return any pending one-shot startup notice (e.g. "your database
 /// was reset due to corruption"). Returns `null` when nothing is pending. The
 /// frontend should call this once on boot; the notice is cleared on read so it
@@ -740,6 +787,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            download_update_apk,
             consume_startup_notice,
             apply_theme_vibrancy,
             commands::get_documents,

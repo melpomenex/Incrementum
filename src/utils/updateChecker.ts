@@ -9,7 +9,7 @@
  *   release URL (the user downloads the installer manually).
  */
 
-import { isTauri } from "../lib/tauri";
+import { isTauri, isNativeMobile, nativePlatform } from "../lib/tauri";
 
 const GITHUB_LATEST_RELEASE_URL =
   "https://api.github.com/repos/melpomenex/incrementum-tauri/releases/latest";
@@ -187,12 +187,51 @@ async function checkViaGitHub(
     return null;
   }
 
+  // Construct a custom in-app updater for Android if an APK asset is available
+  let updater: UpdaterHandle | null = null;
+  const isAndroid = isTauri() && nativePlatform() === "android";
+  
+  if (isAndroid && Array.isArray(data.assets)) {
+    const apkAsset = data.assets.find(
+      (asset: any) =>
+        asset.name?.endsWith(".apk") ||
+        asset.content_type === "application/vnd.android.package-archive"
+    );
+    const apkUrl = apkAsset?.browser_download_url;
+
+    if (apkUrl) {
+      updater = {
+        downloadAndInstall: async (onProgress?: (fraction: number) => void) => {
+          const { Channel, invoke } = await import("@tauri-apps/api/core");
+          const channel = new Channel<number>();
+          channel.onmessage = (progress) => {
+            if (onProgress) {
+              onProgress(progress);
+            }
+          };
+
+          // 1. Download the APK file via Rust command
+          const filePath = await invoke<string>("download_update_apk", {
+            url: apkUrl,
+            onProgress: channel,
+          });
+
+          // 2. Install the APK file via our custom Android plugin command
+          const { invokeCommand } = await import("../lib/tauri");
+          await invokeCommand("plugin:incrementum-folder-import|install_apk", {
+            filePath,
+          });
+        },
+      };
+    }
+  }
+
   return {
     latestVersion,
     releaseNotes: body,
     downloadUrl: htmlUrl,
     releaseDate: publishedAt,
-    updater: null,
+    updater,
   };
 }
 
@@ -212,7 +251,7 @@ export async function checkForUpdates(
   force = false
 ): Promise<UpdateInfo | null> {
   try {
-    if (isTauri()) {
+    if (isTauri() && !isNativeMobile()) {
       return await checkViaTauriUpdater(force);
     }
     return await checkViaGitHub(force);

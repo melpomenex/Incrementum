@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Microphone access for the Document Assistant voice feature (Web Speech API / getUserMedia).
          Without RECORD_AUDIO + MODIFY_AUDIO_SETTINGS declared here, the webview's audio-capture
