@@ -99,6 +99,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   detailsButton,
   labels,
 }: ScrollOverlayControlsProps) {
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
   const isDocOrRss = itemType === "document" || itemType === "rss";
   const showRatingButtons = itemType !== "flashcard" && itemType !== "extract";
 
@@ -129,9 +130,9 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         mouse-move driven (a phone has no mouse-move), and hiding controls while
         watching a video makes rating/navigation unreachable. The mobile bottom
         action bar below is rendered independently so it's always usable. */}
-    <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", (showControls || isMobile) ? "opacity-100" : "opacity-0")}>
+    <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", (showControls || isMobile || isTouchDevice) ? "opacity-100" : "opacity-0")}>
       {/* Top Bar */}
-      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-auto">
+      <div className="absolute top-0 left-0 right-0 pt-[calc(16px+env(safe-area-inset-top,0px))] px-4 pb-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-auto">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
             <button onClick={onExit} className="p-2 rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors" title={labels?.exit ?? "Exit scroll mode"}>
@@ -238,9 +239,9 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         </div>
       )}
 
-      {/* Bottom Navigation (desktop only — mobile uses the bottom action bar) */}
+      {/* Bottom Navigation (desktop/PWA layout — vertical carets) */}
       {!isMobile && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto">
+        <div className={cn("absolute left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto", isTouchDevice ? "bottom-[calc(24px+env(safe-area-inset-bottom,0px))]" : "bottom-6")}>
           <button onClick={onGoToPrevious} disabled={currentIndex === 0} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === 0 && "opacity-30 cursor-not-allowed")} title={labels?.previousDocument ?? "Previous"}>
             <CaretUp className="w-6 h-6 text-white" />
           </button>
@@ -254,7 +255,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
           Renders above the progress bar. Stays visible regardless of the
           showControls auto-hide so it's always usable while watching a video. */}
       {isMobile && (
-        <div className="absolute bottom-0 left-0 right-0 pointer-events-auto">
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-auto pb-[max(16px,env(safe-area-inset-bottom,0px))] bg-black/80">
           <div className="flex items-center gap-2 px-3 pb-3 pt-2 bg-gradient-to-t from-black/80 via-black/60 to-transparent">
             {/* Previous */}
             <button
@@ -323,15 +324,14 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         </div>
       )}
 
-      {/* Progress Bar (sits at the very bottom on desktop; raised just above
-          the mobile action bar on mobile so it stays visible) */}
-      <div className={cn("absolute left-0 right-0 h-1 bg-black/20 pointer-events-none", isMobile ? "bottom-[64px]" : "bottom-0")}>
+      {/* Progress Bar (sits at the very bottom on desktop; raised just above the safe area on touch devices) */}
+      <div className={cn("absolute left-0 right-0 h-1 bg-black/20 pointer-events-none", isTouchDevice ? "bottom-[env(safe-area-inset-bottom,0px)]" : "bottom-0")}>
         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((currentIndex + 1 + sessionOffset) / (totalItems + sessionOffset)) * 100}%` }} />
       </div>
 
       {/* Help Text */}
       {helpText && (
-        <div className={cn("absolute left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none", isMobile ? "bottom-[80px]" : "bottom-20")}>
+        <div className={cn("absolute left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none", isTouchDevice ? "bottom-[calc(80px+env(safe-area-inset-bottom,0px))]" : "bottom-20")}>
           {helpText}
         </div>
       )}

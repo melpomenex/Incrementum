@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.1] - 2026-06-26
+
+### Fixed & Improved
+- **Rating buttons unreachable on Android / mobile scroll mode** — On some Android devices the mobile platform flag wasn't detected reliably, causing the bottom action bar (with the Again/Hard/Good/Easy rating buttons, Previous/Next, and Dismiss) to render in the wrong layout — or not at all — so you couldn't rate or advance a queue item. Scroll-mode controls now detect touch capability at runtime and render the correct thumb-reachable bar, regardless of how the platform is reported.
+- **Scroll-mode controls auto-hid on touch devices** — The mouse-idle auto-hide logic was suppressing the controls overlay on touch devices (which never emit mouse-move events), leaving rating/navigation hidden. Auto-hide is now disabled on mobile and touch devices so controls stay visible.
+- **Controls clipped by notches / system gesture bars on mobile** — Rating buttons, navigation carets, the progress bar, and the top exit bar were getting clipped or pushed under the device's status bar, notch, and home-indicator/gesture areas. All overlay controls now respect `safe-area-inset` so they stay clear of system UI on edge-to-edge screens.
+
 ## [1.56.0] - 2026-06-26
 
 ### Added

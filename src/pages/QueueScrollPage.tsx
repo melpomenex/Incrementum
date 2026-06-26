@@ -1796,8 +1796,14 @@ export function QueueScrollPage() {
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [currentItem?.type, goToNext, goToPrevious, isFullscreen, toggleFullscreen, activeTabId, closeTab]);
 
-  // Auto-hide controls on mouse idle
+  // Auto-hide controls on mouse idle (disabled on mobile/touch devices)
   useEffect(() => {
+    const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    if (isMobile || isTouchDevice) {
+      setShowControls(true);
+      return;
+    }
+
     let hideTimeout: ReturnType<typeof setTimeout>;
 
     const handleMouseMove = () => {
@@ -1811,7 +1817,7 @@ export function QueueScrollPage() {
       window.removeEventListener("mousemove", handleMouseMove);
       clearTimeout(hideTimeout);
     };
-  }, []);
+  }, [isMobile]);
 
   // Handle rating (for documents, flashcards, or mark as read for RSS)
   const handleRating = async (rating: number) => {
@@ -2261,7 +2267,8 @@ export function QueueScrollPage() {
         className="flex h-full min-h-0 w-full overflow-hidden"
         onClick={(e) => {
           // Toggle controls on click/tap if not clicking interactive elements
-          if (isMobile && !(e.target as HTMLElement).closest('button, input, textarea, a, .interactive')) {
+          const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+          if ((isMobile || isTouchDevice) && !(e.target as HTMLElement).closest('button, input, textarea, a, .interactive')) {
             setShowControls(prev => !prev);
           }
         }}
@@ -2766,7 +2773,7 @@ export function QueueScrollPage() {
       {/* Overlay Controls */}
       <ScrollOverlayControls
         showControls={showControls}
-        isMobile={isMobile}
+        isMobile={false}
         currentIndex={currentIndex}
         totalItems={scrollItems.length}
         sessionOffset={itemsReviewedThisSession}
