@@ -213,8 +213,8 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         </div>
       )}
 
-      {/* Side Rating Controls (desktop only — mobile uses the bottom action bar) */}
-      {!isMobile && (showRatingButtons || itemType === "flashcard" || itemType === "extract") && (
+      {/* Side Rating Controls */}
+      {(showRatingButtons || itemType === "flashcard" || itemType === "extract") && (
         <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 pointer-events-auto">
           {itemType === "flashcard" || itemType === "extract" ? (
             <button type="button" onClick={onDismiss} disabled={isRating} className="group p-3 rounded-full bg-slate-500/80 backdrop-blur-sm hover:bg-slate-500 hover:scale-110 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" title={labels?.dismissTitle ?? "Dismiss"}>
@@ -264,7 +264,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
       )}
 
       {/* Bottom Navigation (desktop/PWA layout — vertical carets) */}
-      {!isMobile && (
+      {true && (
         <div className={cn("absolute left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-auto", isTouchDevice ? "bottom-[calc(24px+env(safe-area-inset-bottom,0px))]" : "bottom-6")}>
           <button onClick={onGoToPrevious} disabled={currentIndex === 0} className={cn("p-3 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all shadow-lg", currentIndex === 0 && "opacity-30 cursor-not-allowed")} title={labels?.previousDocument ?? "Previous"}>
             <CaretUp className="w-6 h-6 text-white" />
@@ -275,10 +275,8 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         </div>
       )}
 
-      {/* Mobile Bottom Action Bar — persistent, thumb-reachable, touch-sized.
-          Renders above the progress bar. Stays visible regardless of the
-          showControls auto-hide so it's always usable while watching a video. */}
-      {isMobile && (
+      {/* Mobile Bottom Action Bar — disabled in favor of desktop/PWA layout */}
+      {false && isMobile && (
         <div className="absolute bottom-0 left-0 right-0 pointer-events-auto pb-[max(16px,env(safe-area-inset-bottom,0px))] bg-black/80">
           <div className="flex items-center gap-2 px-3 pb-3 pt-2 bg-gradient-to-t from-black/80 via-black/60 to-transparent">
             {/* Previous */}
