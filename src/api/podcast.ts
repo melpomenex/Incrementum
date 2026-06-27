@@ -406,10 +406,18 @@ export async function probeAudioDuration(localPath: string): Promise<number | nu
   }
 }
 
+export interface WordTiming {
+  word: string;
+  start_ms: number;
+  end_ms: number;
+}
+
 export interface TranscriptSegment {
   start: number;
   end: number;
   text: string;
+  /** Per-word timings for karaoke-style highlighting (Groq word-level transcription). */
+  wordTimings?: WordTiming[];
 }
 
 export interface PodcastTranscriptResponse {
@@ -453,6 +461,145 @@ export async function transcribePodcastEpisode(
 }
 
 /**
+ * Map a Groq verbose_json transcription response (segments + words in SECONDS)
+ * into our per-segment DB shape (start_ms/end_ms in ms) with per-word timings
+ * attached to each segment. Each Groq word is assigned to the segment whose
+ * [start, end] span contains the word's midpoint, using a single forward pass
+ * (both lists are sorted by time). Exported so the timing assignment logic can
+ * be unit-tested in isolation.
+ */
+export function mapGroqResponseToSegments(
+  response: GroqResponseLike,
+): SaveSegmentInput[] {
+  const words = response.words ?? [];
+  let wordCursor = 0;
+  return (response.segments ?? []).map((seg) => {
+    const startMs = Math.round(seg.start * 1000);
+    const endMs = Math.round(seg.end * 1000);
+    // Collect words whose midpoint falls within [start, end] of this segment.
+    const segWords: { word: string; start_ms: number; end_ms: number }[] = [];
+    while (wordCursor < words.length) {
+      const w = words[wordCursor];
+      const wMid = (w.start + w.end) / 2;
+      if (wMid < seg.start) { wordCursor++; continue; }
+      if (wMid >= seg.end) { break; }
+      segWords.push({ word: w.word, start_ms: Math.round(w.start * 1000), end_ms: Math.round(w.end * 1000) });
+      wordCursor++;
+    }
+    return {
+      start_ms: startMs,
+      end_ms: endMs,
+      text: seg.text.trim(),
+      word_timings_json: segWords.length > 0 ? JSON.stringify(segWords) : null,
+    };
+  });
+}
+
+/** Minimal shape of a Groq verbose_json response (for the mapping logic). */
+export interface GroqResponseLike {
+  segments?: Array<{ start: number; end: number; text: string }>;
+  words?: Array<{ word: string; start: number; end: number }>;
+}
+
+/**
+ * Transcribe a podcast episode via Groq cloud transcription (word-level
+ * timestamps). This is the mobile/Android path: Groq fetches the remote audio
+ * URL directly, so no FFmpeg/sidecar is needed (the local Whisper/sherpa sidecar
+ * approach does not work on Android). Produces real per-segment AND per-word
+ * timings, persists them via save_podcast_transcript_segments, and resolves when
+ * the transcript is stored. Emits the same progress events the local path uses
+ * (podcast://transcription-progress / -complete / -error) so the UI is shared.
+ */
+export async function transcribePodcastEpisodeWithGroq(
+  episodeId: string,
+  audioUrl: string,
+  language?: string,
+): Promise<void> {
+  // Dynamic import to avoid pulling groq deps into non-podcast bundles eagerly.
+  const { transcribeWithGroq } = await import("./groqTranscription");
+  const { emit } = await import("@tauri-apps/api/event");
+  await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 10, message: "Transcribing via Groq…" });
+
+  try {
+    // Resolve the redirect chain to the final media URL first. Many podcast
+    // audio URLs are wrapped in tracking-redirect chains (podtrac → ... → CDN)
+    // that Groq does NOT follow (it fails with "received status code: 302").
+    let resolvedUrl = audioUrl;
+    try {
+      resolvedUrl = await resolvePodcastAudioUrl(audioUrl);
+    } catch (e) {
+      // Non-fatal: try the original URL; some feeds already point at the CDN.
+      console.warn("[podcast] resolvePodcastAudioUrl failed, using original URL:", e);
+    }
+
+    const response = await transcribeWithGroq({
+      url: resolvedUrl,
+      responseFormat: "verbose_json",
+      timestampGranularities: ["segment", "word"],
+      language,
+    });
+
+    if (!response.segments || response.segments.length === 0) {
+      throw new Error("Groq returned no transcript segments");
+    }
+
+    const segments = mapGroqResponseToSegments(response);
+
+    await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 80, message: "Saving transcript…" });
+
+    // Persist the real per-segment + per-word timings to the DB.
+    await savePodcastTranscriptSegments(episodeId, segments);
+
+    await emit("podcast://transcription-complete", {
+      episodeId,
+      segmentCount: segments.length,
+      duration: response.duration ? Math.round(response.duration) : null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await emit("podcast://transcription-error", { episodeId, error: message });
+    throw err;
+  }
+}
+
+/** Segment payload for the save_podcast_transcript_segments command. */
+export interface SaveSegmentInput {
+  start_ms: number;
+  end_ms: number;
+  text: string;
+  word_timings_json: string | null;
+}
+
+/**
+ * Resolve a podcast audio URL through its redirect chain to the final media URL.
+ * Many podcast feeds wrap the real audio in tracking-redirect chains (podtrac →
+ * pdst → chrt → mgln → megaphone, etc.) that Groq's transcription API does not
+ * follow. Done in Rust (reqwest follows up to 10 redirects).
+ */
+export async function resolvePodcastAudioUrl(url: string): Promise<string> {
+  if (isTauri()) {
+    return invokeCommand<string>("resolve_podcast_audio_url", { url });
+  }
+  return url;
+}
+
+/**
+ * Persist per-segment (and optional per-word) podcast transcript timings to the
+ * DB. Also stores the concatenated full text on the episode row (back-compat /
+ * search). Used by the Groq transcription path (transcribePodcastEpisodeWithGroq)
+ * and available for any other frontend-driven transcription source.
+ */
+export async function savePodcastTranscriptSegments(
+  episodeId: string,
+  segments: SaveSegmentInput[],
+): Promise<void> {
+  if (isTauri()) {
+    return invokeCommand<void>("save_podcast_transcript_segments", { episodeId, segments });
+  }
+  console.warn("[Browser] savePodcastTranscriptSegments: no-op in browser fallback mode");
+}
+
+/**
  * Save a podcast transcript from the frontend.
  */
 export async function savePodcastTranscript(
@@ -492,7 +639,35 @@ export async function getPodcastTranscript(
   episodeId: string,
 ): Promise<PodcastTranscriptResponse> {
   if (isTauri()) {
-    return invokeCommand<PodcastTranscriptResponse>("get_podcast_transcript", { episodeId });
+    const raw = await invokeCommand<RawPodcastTranscriptResponse>("get_podcast_transcript", { episodeId });
+    // Normalize the backend shape (start_ms/end_ms/word_timings_json) into the
+    // frontend shape (start/end in seconds + parsed wordTimings). Tauri's serde
+    // serialization leaves snake_case field names as-is, so map explicitly here.
+    return {
+      text: raw.text,
+      status: raw.status,
+      segments: (raw.segments ?? []).map((s) => {
+        let wordTimings: WordTiming[] | undefined;
+        if (s.word_timings_json) {
+          try {
+            const parsed = JSON.parse(s.word_timings_json) as Array<{ word: string; start_ms: number; end_ms: number }>;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              wordTimings = parsed.map((w) => ({
+                word: w.word,
+                start_ms: w.start_ms,
+                end_ms: w.end_ms,
+              }));
+            }
+          } catch { /* malformed JSON — ignore, fall back to segment-level */ }
+        }
+        return {
+          start: s.start_ms / 1000,
+          end: s.end_ms / 1000,
+          text: s.text,
+          wordTimings,
+        };
+      }),
+    };
   }
   if (shouldUseHttp()) {
     const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/transcript`);
@@ -500,6 +675,18 @@ export async function getPodcastTranscript(
     return res.json();
   }
   throw new Error("Transcripts not available in browser fallback mode");
+}
+
+/** Raw backend shape (ms + snake_case) before normalization. */
+interface RawPodcastTranscriptResponse {
+  text: string;
+  status: string;
+  segments: Array<{
+    start_ms: number;
+    end_ms: number;
+    text: string;
+    word_timings_json?: string | null;
+  }>;
 }
 
 /**

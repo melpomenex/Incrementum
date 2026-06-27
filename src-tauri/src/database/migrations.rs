@@ -1686,6 +1686,34 @@ pub const MIGRATIONS: &[Migration] = &[
             ON document_chunk_embeddings(content_hash);
         "#,
     ),
+    // Migration 052: Per-segment + word-level timings for podcast transcripts.
+    // Previously podcast transcription (run_transcription_job) concatenated all
+    // Whisper segments into one text blob and DISCARDED the start_ms/end_ms,
+    // so get_podcast_transcript returned a single fake segment spanning the whole
+    // episode and the frontend fake-split it proportionally — there were no real
+    // timings to sync audio playback highlighting against. This table stores the
+    // real per-segment timings (and, when available from Groq word-level
+    // transcription, the per-word timings as JSON) so the mobile podcast viewer
+    // can highlight words in sync with playback. Mirrors the transcript_segments
+    // table (migration 032) but keyed by podcast episode rather than book/chapter.
+    Migration::new(
+        "052_add_podcast_transcript_segments",
+        r#"
+        CREATE TABLE IF NOT EXISTS podcast_transcript_segments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            episode_id TEXT NOT NULL,
+            segment_index INTEGER NOT NULL,
+            start_ms INTEGER NOT NULL,
+            end_ms INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            word_timings_json TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_podcast_transcript_segments_episode_time
+            ON podcast_transcript_segments(episode_id, start_ms);
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

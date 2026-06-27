@@ -1276,6 +1276,8 @@ pub fn run() {
             // Podcast transcription commands
             commands::podcast::transcribe_podcast_episode,
             commands::podcast::get_podcast_transcript,
+            commands::podcast::save_podcast_transcript_segments,
+            commands::podcast::resolve_podcast_audio_url,
             commands::podcast::cancel_podcast_transcription,
             commands::podcast::set_feed_auto_transcribe,
             commands::podcast::download_podcast_episode,

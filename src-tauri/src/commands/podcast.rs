@@ -298,6 +298,11 @@ pub struct TranscriptSegmentInfo {
     pub start_ms: i64,
     pub end_ms: i64,
     pub text: String,
+    /// Optional per-word timings as JSON: `[{"word":"...", "start_ms":..., "end_ms":...}, ...]`
+    /// Present when the transcript was produced via Groq word-level transcription.
+    /// Enables word-by-word (karaoke) highlighting synced to audio playback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub word_timings_json: Option<String>,
 }
 
 /// Transcribe a podcast episode using Whisper
@@ -632,9 +637,22 @@ async fn run_transcription_job(
         .collect::<Vec<&str>>()
         .join(" ");
 
-    // 9. Store transcript in DB
+    // 9. Store transcript in DB (the text blob for backward-compat search)
     repo.update_episode_transcript_status(&episode_id, "done", None, Some(&full_text))
         .await?;
+
+    // 9b. Persist the real per-segment start_ms/end_ms timings so the viewer can
+    //     sync highlighting to playback. (Local Whisper is segment-level only;
+    //     word_timings_by_segment is all None here. Groq word-level timings are
+    //     persisted via the separate save_podcast_transcript_segments path.)
+    let word_timings_none: Vec<Option<String>> = segments_vec.iter().map(|_| None).collect();
+    if let Err(e) = repo
+        .save_podcast_transcript_segments(&episode_id, &segments_vec, &word_timings_none)
+        .await
+    {
+        eprintln!("[transcription] Failed to persist podcast segment timings for {}: {}", episode_id, e);
+        // Non-fatal — the transcript blob is already stored.
+    }
 
     // 10. Create Document + Extract records from transcript
     if let Err(e) = create_transcript_extracts(&repo, &episode, &full_text, auto_segment.unwrap_or(false)).await {
@@ -751,13 +769,27 @@ pub async fn get_podcast_transcript(
         });
     }
 
-    // The Whisper engine produces segments during transcription but they are
-    // concatenated into the stored transcript. Individual segment timestamps
-    // could be added in a future enhancement.
+    // Prefer real per-segment timings (with optional per-word timings) persisted
+    // by transcription. These enable audio-synced highlighting and, when Groq
+    // word-level transcription was used, word-by-word (karaoke) highlighting.
+    // Fall back to the single-blob segment (old behavior) only when no real
+    // segments are stored, so existing transcripts keep working.
+    match repo.get_podcast_transcript_segments_with_words(&episode_id).await {
+        Ok(stored) if !stored.is_empty() => {
+            return Ok(PodcastTranscriptResponse {
+                text,
+                segments: stored,
+                status,
+            });
+        }
+        _ => {}
+    }
+
     let segments = vec![TranscriptSegmentInfo {
         start_ms: 0,
         end_ms: episode.duration.unwrap_or(0) * 1000,
         text: text.clone(),
+        word_timings_json: None,
     }];
 
     Ok(PodcastTranscriptResponse {
@@ -767,7 +799,87 @@ pub async fn get_podcast_transcript(
     })
 }
 
-/// Cancel an in-progress podcast transcription
+/// Payload for a single segment when persisting Groq transcription results.
+/// `word_timings_json` is optional (present for Groq word-level transcription,
+/// enabling karaoke highlighting; absent for segment-only).
+#[derive(Debug, Deserialize)]
+pub struct SaveSegmentInput {
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub text: String,
+    pub word_timings_json: Option<String>,
+}
+
+/// Resolve a podcast audio URL through its redirect chain to the final media
+/// URL. Many podcast feeds wrap the real audio in tracking-redirect chains
+/// (podtrac → pdst → chrt → mgln → megaphone, etc., often 5-8 hops). Groq's
+/// transcription API does NOT follow redirects on its `url` parameter — it
+/// fetches exactly one hop and fails with "received status code: 302". So the
+/// mobile Groq transcription path resolves the chain here (reqwest follows up
+/// to 10 redirects) and passes the final 200-OK URL to Groq.
+#[tauri::command]
+pub async fn resolve_podcast_audio_url(url: String) -> Result<String> {
+    let client = reqwest::Client::builder()
+        // Mirror a browser-ish UA so CDN edge nodes don't block the HEAD.
+        .user_agent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Incrementum")
+        .build()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+    // Use GET (not HEAD): some podcast CDNs respond 405/404 to HEAD but 200 to
+    // a range GET. We request 0 bytes via Range so we don't download the file —
+    // we only need the final URL after redirects.
+    let resp = client
+        .get(&url)
+        .header("Range", "bytes=0-0")
+        .send()
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve audio URL: {}", e)))?;
+    Ok(resp.url().to_string())
+}
+
+
+/// Persist per-segment (and optional per-word) timings produced by Groq cloud
+/// transcription. Used by the mobile/Groq transcription path, which runs the
+/// transcription in the frontend (plain HTTP) and sends the results here for
+/// storage — Groq fetches the audio URL directly, so no FFmpeg/sidecar needed.
+/// Also stores the concatenated full text on the episode row for search/back-compat.
+#[tauri::command]
+pub async fn save_podcast_transcript_segments(
+    episode_id: String,
+    segments: Vec<SaveSegmentInput>,
+    repo: State<'_, Repository>,
+) -> Result<()> {
+    if segments.is_empty() {
+        return Ok(());
+    }
+    let full_text = segments
+        .iter()
+        .map(|s| s.text.trim())
+        .collect::<Vec<&str>>()
+        .join(" ");
+
+    // Store the text blob (back-compat / search) + mark status done.
+    repo.update_episode_transcript_status(&episode_id, "done", None, Some(&full_text))
+        .await?;
+
+    // Persist real per-segment timings + per-word timings.
+    let seg_models: Vec<TranscriptSegment> = segments
+        .iter()
+        .map(|s| TranscriptSegment {
+            start_ms: s.start_ms,
+            end_ms: s.end_ms,
+            text: s.text.clone(),
+            confidence: 1.0,
+        })
+        .collect();
+    let word_timings: Vec<Option<String>> = segments
+        .iter()
+        .map(|s| s.word_timings_json.clone())
+        .collect();
+    repo.save_podcast_transcript_segments(&episode_id, &seg_models, &word_timings)
+        .await?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn cancel_podcast_transcription(
     episode_id: String,
@@ -790,6 +902,7 @@ pub async fn cancel_podcast_transcription(
 pub async fn import_podcast_episode_as_document(
     episode_id: String,
     collection_id: Option<String>,
+    app_handle: AppHandle,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
     // 1. Get episode
@@ -799,7 +912,7 @@ pub async fn import_podcast_episode_as_document(
         .ok_or_else(|| IncrementumError::NotFound(format!("Podcast episode {}", episode_id)))?;
 
     // 2. Check if already imported
-    let local_path_str = find_existing_download(&episode_id)
+    let local_path_str = find_existing_download(&app_handle, &episode_id)
         .map(|p| p.to_string_lossy().to_string());
 
     if let Some(existing) = repo.find_document_by_url(&episode.audio_url).await? {
@@ -842,19 +955,24 @@ pub async fn set_feed_auto_transcribe(
     repo.set_feed_auto_transcribe(&feed_id, enabled, language.as_deref()).await
 }
 
-fn podcast_audio_dir() -> std::result::Result<PathBuf, IncrementumError> {
-    let dir = dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("incrementum")
-        .join("podcast-audio");
+fn podcast_audio_dir(app_handle: &AppHandle) -> std::result::Result<PathBuf, IncrementumError> {
+    // Use the Tauri-resolved app data dir, which is the app's private writable
+    // storage on every platform (on Android this is /data/data/<pkg>/files via
+    // app_data_dir; dirs::data_dir() instead resolves to a READ-ONLY system path
+    // on Android and fails with "Read-only file system" when creating the dir).
+    let base = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve app_data_dir: {}", e)))?;
+    let dir = base.join("podcast-audio");
     std::fs::create_dir_all(&dir)
         .map_err(|e| IncrementumError::Internal(format!("Failed to create podcast-audio dir: {}", e)))?;
     Ok(dir)
 }
 
 /// Find existing downloaded file for an episode (checks common extensions)
-fn find_existing_download(episode_id: &str) -> Option<PathBuf> {
-    let dir = podcast_audio_dir().ok()?;
+fn find_existing_download(app_handle: &AppHandle, episode_id: &str) -> Option<PathBuf> {
+    let dir = podcast_audio_dir(app_handle).ok()?;
     for entry in std::fs::read_dir(&dir).ok()? {
         let entry = entry.ok()?;
         let name = entry.file_name();
@@ -874,11 +992,11 @@ pub async fn download_podcast_episode(
     audio_type: Option<String>,
     app_handle: AppHandle,
 ) -> Result<String> {
-    if let Some(existing) = find_existing_download(&episode_id) {
+    if let Some(existing) = find_existing_download(&app_handle, &episode_id) {
         return Ok(existing.to_string_lossy().to_string());
     }
 
-    let audio_dir = podcast_audio_dir()?;
+    let audio_dir = podcast_audio_dir(&app_handle)?;
     let ext = audio_type
         .as_deref()
         .and_then(|t| t.split('/').last())
@@ -995,15 +1113,21 @@ pub async fn download_podcast_episode(
 
 /// Get the local file path for a downloaded episode (null if not downloaded)
 #[tauri::command]
-pub async fn get_downloaded_episode_path(episode_id: String) -> Result<Option<String>> {
-    Ok(find_existing_download(&episode_id)
+pub async fn get_downloaded_episode_path(
+    episode_id: String,
+    app_handle: AppHandle,
+) -> Result<Option<String>> {
+    Ok(find_existing_download(&app_handle, &episode_id)
         .map(|p| p.to_string_lossy().to_string()))
 }
 
 /// Delete a downloaded episode audio file
 #[tauri::command]
-pub async fn delete_downloaded_episode(episode_id: String) -> Result<()> {
-    if let Some(path) = find_existing_download(&episode_id) {
+pub async fn delete_downloaded_episode(
+    episode_id: String,
+    app_handle: AppHandle,
+) -> Result<()> {
+    if let Some(path) = find_existing_download(&app_handle, &episode_id) {
         std::fs::remove_file(&path)
             .map_err(|e| IncrementumError::Internal(format!("Failed to delete: {}", e)))?;
     }

@@ -4617,6 +4617,124 @@ impl Repository {
         Ok(())
     }
 
+    /// Replace the per-segment + word-level timings for a podcast episode.
+    /// Called after transcription (local Whisper or Groq) completes with real
+    /// `start_ms`/`end_ms` per segment (and, when available from Groq word-level
+    /// transcription, the per-word timings as JSON). Existing rows for the
+    /// episode are deleted first so re-transcription replaces cleanly.
+    pub async fn save_podcast_transcript_segments(
+        &self,
+        episode_id: &str,
+        segments: &[crate::transcription::engine::TranscriptSegment],
+        word_timings_by_segment: &[Option<String>],
+    ) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("DELETE FROM podcast_transcript_segments WHERE episode_id = ?")
+            .bind(episode_id)
+            .execute(&mut *tx)
+            .await?;
+        for (idx, seg) in segments.iter().enumerate() {
+            let words = word_timings_by_segment.get(idx).cloned().flatten();
+            sqlx::query(
+                r#"
+                INSERT INTO podcast_transcript_segments
+                    (episode_id, segment_index, start_ms, end_ms, text, word_timings_json)
+                VALUES (?, ?, ?, ?, ?, ?)
+                "#,
+            )
+            .bind(episode_id)
+            .bind(idx as i64)
+            .bind(seg.start_ms)
+            .bind(seg.end_ms)
+            .bind(&seg.text)
+            .bind(words.as_deref())
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Fetch the persisted per-segment timings (with optional word timings) for
+    /// a podcast episode, ordered by start time. Returns an empty vec when no
+    /// real segments have been stored yet (caller falls back to the blob split).
+    pub async fn get_podcast_transcript_segments(
+        &self,
+        episode_id: &str,
+    ) -> Result<Vec<crate::transcription::engine::TranscriptSegment>> {
+        let rows = sqlx::query_as::<_, PodcastTranscriptSegmentRow>(
+            r#"
+            SELECT start_ms, end_ms, text, word_timings_json
+            FROM podcast_transcript_segments
+            WHERE episode_id = ?
+            ORDER BY start_ms ASC
+            "#,
+        )
+        .bind(episode_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| crate::transcription::engine::TranscriptSegment {
+                start_ms: r.start_ms,
+                end_ms: r.end_ms,
+                text: r.text,
+                confidence: r.word_timings_json.as_deref().map(|_| 1.0).unwrap_or(0.0),
+            })
+            .collect())
+    }
+
+    /// Fetch the per-word timings JSON for a specific segment (by start_ms) of a
+    /// podcast episode. Used for word-level (karaoke) highlighting when Groq
+    /// word-level transcription provided timings. Returns None when only
+    /// segment-level timings are available.
+    pub async fn get_podcast_segment_word_timings(
+        &self,
+        episode_id: &str,
+        start_ms: i64,
+    ) -> Result<Option<String>> {
+        let row: Option<(Option<String>,)> = sqlx::query_as(
+            "SELECT word_timings_json FROM podcast_transcript_segments WHERE episode_id = ? AND start_ms = ? LIMIT 1",
+        )
+        .bind(episode_id)
+        .bind(start_ms)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.and_then(|(w,)| w))
+    }
+
+    /// Fetch the persisted per-segment timings INCLUDING the per-word timings
+    /// JSON for a podcast episode, ordered by start time. Returns the
+    /// TranscriptSegmentInfo shape (start_ms/end_ms/text/word_timings_json) so
+    /// the API response carries word-level data straight to the viewer. Returns
+    /// an empty vec when no real segments are stored (caller falls back to blob).
+    pub async fn get_podcast_transcript_segments_with_words(
+        &self,
+        episode_id: &str,
+    ) -> Result<Vec<crate::commands::podcast::TranscriptSegmentInfo>> {
+        let rows = sqlx::query_as::<_, PodcastTranscriptSegmentWithWordsRow>(
+            r#"
+            SELECT start_ms, end_ms, text, word_timings_json
+            FROM podcast_transcript_segments
+            WHERE episode_id = ?
+            ORDER BY start_ms ASC
+            "#,
+        )
+        .bind(episode_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| crate::commands::podcast::TranscriptSegmentInfo {
+                start_ms: r.start_ms,
+                end_ms: r.end_ms,
+                text: r.text,
+                word_timings_json: r.word_timings_json,
+            })
+            .collect())
+    }
+
+
     pub async fn set_feed_auto_transcribe(
         &self,
         feed_id: &str,
@@ -5166,6 +5284,23 @@ fn cosine_similarity_f32(a: &[f32], b: &[f32]) -> f32 {
     (dot / denom).clamp(-1.0, 1.0)
 }
 
+// Helper structs for podcast transcript segment rows (migration 052).
+#[derive(sqlx::FromRow, Debug, Clone)]
+struct PodcastTranscriptSegmentRow {
+    start_ms: i64,
+    end_ms: i64,
+    text: String,
+    word_timings_json: Option<String>,
+}
+
+#[derive(sqlx::FromRow, Debug, Clone)]
+struct PodcastTranscriptSegmentWithWordsRow {
+    start_ms: i64,
+    end_ms: i64,
+    text: String,
+    word_timings_json: Option<String>,
+}
+
 // Helper struct for study statistics rows
 #[derive(sqlx::FromRow)]
 struct StudyStatsRow {
@@ -5500,6 +5635,69 @@ mod tests {
                 table
             );
         }
+    }
+
+    #[tokio::test]
+    async fn podcast_transcript_segments_round_trip() {
+        // Verifies the persistence path used by Groq (and local Whisper)
+        // transcription: real per-segment start_ms/end_ms timings + optional
+        // per-word timings JSON are saved and retrieved intact, and that the
+        // save replaces prior segments for the episode (idempotent re-transcribe).
+        let repo = setup_repo().await;
+
+        let episode_id = "ep-test-1";
+        let segments = vec![
+            crate::transcription::engine::TranscriptSegment {
+                start_ms: 0,
+                end_ms: 2000,
+                text: "Hello world.".to_string(),
+                confidence: 1.0,
+            },
+            crate::transcription::engine::TranscriptSegment {
+                start_ms: 2000,
+                end_ms: 4000,
+                text: "Good morning.".to_string(),
+                confidence: 1.0,
+            },
+        ];
+        let word_timings = vec![
+            // Word-level timings only on the first segment (as Groq would produce).
+            Some(r#"[{"word":"Hello","start_ms":0,"end_ms":500},{"word":"world.","start_ms":600,"end_ms":1000}]"#.to_string()),
+            None,
+        ];
+
+        repo.save_podcast_transcript_segments(episode_id, &segments, &word_timings)
+            .await
+            .expect("save");
+
+        // Retrieve with words.
+        let got = repo
+            .get_podcast_transcript_segments_with_words(episode_id)
+            .await
+            .expect("get with words");
+        assert_eq!(got.len(), 2, "both segments returned");
+        assert_eq!(got[0].start_ms, 0);
+        assert_eq!(got[0].end_ms, 2000);
+        assert_eq!(got[0].text, "Hello world.");
+        assert!(got[0].word_timings_json.is_some(), "word timings preserved on seg 0");
+        assert!(got[1].word_timings_json.is_none(), "no word timings on seg 1");
+
+        // The word-timings JSON is retrievable per-segment by start_ms too.
+        let wt = repo
+            .get_podcast_segment_word_timings(episode_id, 0)
+            .await
+            .expect("get words");
+        assert!(wt.is_some());
+
+        // Re-saving replaces (re-transcription is idempotent, no duplicates).
+        repo.save_podcast_transcript_segments(episode_id, &segments[..1], &[word_timings[0].clone()])
+            .await
+            .expect("re-save");
+        let got2 = repo
+            .get_podcast_transcript_segments_with_words(episode_id)
+            .await
+            .expect("get after re-save");
+        assert_eq!(got2.len(), 1, "re-save replaced prior segments");
     }
 
 }

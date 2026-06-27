@@ -44,6 +44,7 @@ import {
   searchPodcasts,
   renamePodcastFeed,
   transcribePodcastEpisode,
+  transcribePodcastEpisodeWithGroq,
   getPodcastTranscript,
   cancelPodcastTranscription,
   setFeedAutoTranscribe,
@@ -57,7 +58,7 @@ import type {
   PodcastTranscriptResponse,
   PodcastSearchResult,
 } from "../../api/podcast";
-import { isTauri, listen } from "../../lib/tauri";
+import { isTauri, isNativeMobile, listen } from "../../lib/tauri";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import {
@@ -802,13 +803,43 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     const settings = useSettingsStore.getState().settings;
     const provider = settings.audioTranscription.provider;
     const modelId = settings.audioTranscription.preferredModelId || "distil-small.en";
+    const language = settings.audioTranscription.language || 'en';
 
-    // Route to native sidecar transcription
+    // On mobile (Android/iOS) the local Whisper/sherpa-onnx sidecar + FFmpeg
+    // pipeline does not work, so transcription must go through Groq cloud (which
+    // fetches the audio URL directly — no FFmpeg/sidecar needed) and produces
+    // word-level timestamps for karaoke highlighting. Also use Groq on desktop
+    // when the user has selected the Groq provider. Falls back to the local
+    // sidecar command otherwise.
+    const useGroq = provider === 'groq' || isNativeMobile();
+
     try {
       setTranscriptionProgress((prev) => new Map(prev).set(episodeId, { status: "starting", progress: 0 }));
       const autoSegment = settings.documents.autoProcessOnImport;
-      const language = settings.audioTranscription.language || 'en';
-      await transcribePodcastEpisode(episodeId, modelId, language, autoSegment);
+
+      if (useGroq) {
+        const { isGroqConfigured } = await import("../../api/groqTranscription");
+        if (!isGroqConfigured()) {
+          throw new Error(
+            isNativeMobile()
+              ? "Local transcription isn't available on mobile. Add a free Groq API key in Settings → Audio Transcription to transcribe podcasts (with word-by-word highlighting)."
+              : "Groq API key not configured. Add it in Settings → Audio Transcription."
+          );
+        }
+        const episode = episodes.find((e) => e.id === episodeId);
+        const audioUrl = episode?.audioUrl;
+        if (!audioUrl) {
+          throw new Error("No audio URL available for this episode.");
+        }
+        // transcribePodcastEpisodeWithGroq persists segments + emits the same
+        // progress/complete/error events the local path uses, so the shared UI
+        // (progress bar, transcript panel refresh) works for both paths.
+        await transcribePodcastEpisodeWithGroq(episodeId, audioUrl, language);
+        // Re-load episodes so the transcript button reflects the new status.
+        if (selectedFeedId) loadEpisodes(selectedFeedId);
+      } else {
+        await transcribePodcastEpisode(episodeId, modelId, language, autoSegment);
+      }
     } catch (error) {
       setTranscriptionProgress((prev) => {
         const next = new Map(prev);

@@ -30,7 +30,7 @@ import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { downloadTranscriptionModel, deleteTranscriptionModel, enqueueAllUntranscribed } from "../../api/transcription";
 import { useTranscriptionQueueStore } from "../../stores/transcriptionQueueStore";
 import { useSettingsStore } from "../../stores/settingsStore";
-import { isTauri, isPWA } from "../../lib/tauri";
+import { isTauri, isPWA, isNativeMobile } from "../../lib/tauri";
 import {
   isGroqConfigured,
   validateGroqApiKey,
@@ -53,8 +53,16 @@ export function AudioTranscriptionSettings() {
   const { settings, updateSettings } = useSettingsStore();
   const queueStore = useTranscriptionQueueStore();
   const audioSettings = settings.audioTranscription;
-  const isDesktop = isTauri();
-  const [activeTab, setActiveTab] = useState<Provider>(audioSettings.provider);
+  // isTauri() is true inside the Android/iOS WebView (Tauri internals exist),
+  // so it does NOT distinguish desktop from mobile. Local STT (Whisper/sherpa
+  // sidecar + FFmpeg) only works on desktop — on mobile, transcription must go
+  // through Groq cloud (which provides word-level synced transcripts). Gate the
+  // Local STT tab + model download UI on actually being a desktop build.
+  const isDesktop = isTauri() && !isNativeMobile();
+  const [activeTab, setActiveTab] = useState<Provider>(
+    // On mobile, force the Groq tab (local transcription is unavailable).
+    !isDesktop ? 'groq' : audioSettings.provider,
+  );
   const [enqueuingAll, setEnqueuingAll] = useState(false);
   
   // Local state for form inputs
@@ -223,36 +231,55 @@ export function AudioTranscriptionSettings() {
         </div>
       )}
 
-      {/* Provider Selection Tabs */}
-      <div className="flex gap-2 p-1 bg-muted rounded-xl">
-        <button
-          onClick={() => handleProviderChange('local')}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-            activeTab === 'local'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
-          )}
-        >
-          <Sliders className="w-4 h-4" />
-          Local STT
-        </button>
-        <button
-          onClick={() => handleProviderChange('groq')}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-            activeTab === 'groq'
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
-          )}
-        >
-          <Cloud className="w-4 h-4" />
-          {t("settings.audioGroqCloud")}
-          <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
-            {t("settings.audioFreeTier")}
-          </span>
-        </button>
-      </div>
+      {/* Provider Selection Tabs. Local STT is desktop-only (hidden on mobile):
+          the Whisper/sherpa-onnx sidecar + FFmpeg pipeline doesn't run on
+          Android/iOS, so mobile transcription must use Groq cloud. */}
+      {isDesktop && (
+        <div className="flex gap-2 p-1 bg-muted rounded-xl">
+          <button
+            onClick={() => handleProviderChange('local')}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
+              activeTab === 'local'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+            )}
+          >
+            <Sliders className="w-4 h-4" />
+            Local STT
+          </button>
+          <button
+            onClick={() => handleProviderChange('groq')}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
+              activeTab === 'groq'
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+            )}
+          >
+            <Cloud className="w-4 h-4" />
+            {t("settings.audioGroqCloud")}
+            <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-green-500/20 text-green-600 rounded-full">
+              {t("settings.audioFreeTier")}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Mobile notice: local transcription unavailable. */}
+      {!isDesktop && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4 text-sm">
+          <p className="font-medium text-foreground">
+            {t("settings.audioTranscription")} — {t("settings.audioGroqCloud")}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Local transcription (Whisper/sherpa-onnx) is desktop-only. On mobile,
+            Groq cloud transcription is used — it transcribes podcasts and audio
+            with <strong>word-by-word timestamps</strong> so the transcript
+            highlights each word in sync with playback. Add a free Groq API key below.
+          </p>
+        </div>
+      )}
 
       {/* Local Settings */}
       {activeTab === 'local' && (

@@ -48,7 +48,7 @@ import {
   fetchArticleFullContent,
 } from "../api/rss";
 import { cleanArticleHtml } from "../components/media/RSSFullContentView";
-import { getEpisodeQueue, markEpisodePlayed, type PodcastEpisode } from "../api/podcast";
+import { getEpisodeQueue, markEpisodePlayed, importPodcastEpisodeAsDocument, type PodcastEpisode } from "../api/podcast";
 import { cn } from "../utils";
 import { scoreRssRelevance, type RssClassifier } from "../utils/rssRelevance";
 import { useClassifiersStore } from "../stores/classifiersStore";
@@ -217,6 +217,12 @@ export function QueueScrollPage() {
   const [scrollItems, setScrollItems] = useState<ScrollItem[]>([]);
   const [dueFlashcards, setDueFlashcards] = useState<LearningItem[]>([]);
   const [dueExtracts, setDueExtracts] = useState<Extract[]>([]);
+  // Maps podcast episodeId → real Document.id, so extracts created from a
+  // podcast's transcript resolve to a genuine document row (the synthetic
+  // document passed to AudiobookViewer otherwise uses the episode id, which
+  // fails the extracts.document_id FK). Resolved lazily via
+  // importPodcastEpisodeAsDocument (idempotent — returns existing doc if any).
+  const [podcastDocIds, setPodcastDocIds] = useState<Record<string, string>>({});
   const [isRating, setIsRating] = useState(false);
   const [ratedDocumentIds, setRatedDocumentIds] = useState<Set<string>>(new Set());
   const [readRssItemIds, setReadRssItemIds] = useState<Set<string>>(new Set());
@@ -1033,6 +1039,30 @@ export function QueueScrollPage() {
 
   // Rendered item (actual document being rendered)
   const renderedItem = scrollItems[renderedIndex];
+
+  // When a podcast episode is the rendered queue item, ensure it has a real
+  // Document row so extracts taken from its transcript persist correctly.
+  // importPodcastEpisodeAsDocument is idempotent (returns the existing doc if
+  // the episode was already imported), so this is safe to call on each mount.
+  useEffect(() => {
+    if (renderedItem?.type !== "podcast" || !renderedItem.podcastEpisode) return;
+    const episodeId = renderedItem.podcastEpisode.id;
+    if (podcastDocIds[episodeId]) return; // already resolved
+    let cancelled = false;
+    (async () => {
+      try {
+        const doc = await importPodcastEpisodeAsDocument(episodeId);
+        if (!cancelled && doc?.id) {
+          setPodcastDocIds((prev) => ({ ...prev, [episodeId]: doc.id }));
+        }
+      } catch (e) {
+        // Non-fatal: extracts will fall back to the synthetic id (may not
+        // persist), but playback + transcript still work.
+        console.warn("[QueueScrollPage] Failed to import podcast episode as document:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [renderedItem, podcastDocIds]);
 
   useEffect(() => {
     if (!renderedItem || renderedItem.type !== "rss") {
@@ -2560,7 +2590,9 @@ export function QueueScrollPage() {
             <AudiobookViewer
               key={renderedItem.podcastEpisode.id}
               document={{
-                id: renderedItem.podcastEpisode.id,
+                // Prefer the real Document.id (resolved via importPodcastEpisodeAsDocument)
+                // so extracts taken from the transcript persist to a genuine document row.
+                id: podcastDocIds[renderedItem.podcastEpisode.id] || renderedItem.podcastEpisode.id,
                 title: renderedItem.podcastEpisode.title,
                 filePath: "",
                 fileType: "audio",
