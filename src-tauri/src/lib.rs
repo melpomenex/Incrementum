@@ -1280,6 +1280,7 @@ pub fn run() {
             commands::podcast::resolve_podcast_audio_url,
             commands::podcast::split_audio_for_groq_mobile,
             commands::podcast::cleanup_mobile_audio_chunks,
+            commands::podcast::transcribe_podcast_groq_chunks,
             commands::podcast::cancel_podcast_transcription,
             commands::podcast::set_feed_auto_transcribe,
             commands::podcast::download_podcast_episode,

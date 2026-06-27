@@ -871,11 +871,23 @@ pub async fn split_audio_for_groq_mobile(
     app_handle: AppHandle,
     url: String,
 ) -> Result<Vec<MobileAudioChunk>> {
-    use futures_util::StreamExt;
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Incrementum")
         .build()
         .map_err(|e| IncrementumError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+    split_audio_for_groq_mobile_inner(&app_handle, &client, &url).await
+}
+
+/// Inner split logic, shared by the standalone command and the all-in-one
+/// `transcribe_podcast_groq_chunks` command (which already has a client).
+async fn split_audio_for_groq_mobile_inner(
+    app_handle: &AppHandle,
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<MobileAudioChunk>> {
+    use futures_util::StreamExt;
+
+    eprintln!("[podcast-transcribe] split_audio_for_groq_mobile: downloading from {}", url);
 
     // 1. Stream-download the full audio to a temp file (follows redirects).
     let cache_dir = app_handle
@@ -891,7 +903,7 @@ pub async fn split_audio_for_groq_mobile(
         .await
         .map_err(|e| IncrementumError::Internal(format!("Failed to create temp file: {}", e)))?;
 
-    let resp = client.get(&url).send().await
+    let resp = client.get(url).send().await
         .map_err(|e| IncrementumError::Internal(format!("Failed to download audio: {}", e)))?;
     if !resp.status().is_success() {
         return Err(IncrementumError::Internal(format!(
@@ -969,6 +981,11 @@ pub async fn split_audio_for_groq_mobile(
 
     // Remove the full source file; chunk files remain for upload + later cleanup.
     let _ = std::fs::remove_file(&full_path);
+
+    eprintln!(
+        "[podcast-transcribe] split complete: {} bytes downloaded, {} chunks (bitrate {}bps), mp3={}",
+        total, chunks_out.len(), bitrate_bps, is_mp3
+    );
 
     if chunks_out.is_empty() {
         return Err(IncrementumError::Internal(
@@ -1109,6 +1126,143 @@ pub async fn cleanup_mobile_audio_chunks(app_handle: AppHandle) -> Result<()> {
     Ok(())
 }
 
+/// A single Groq-transcribed segment returned by transcribe_podcast_groq_chunks.
+#[derive(Debug, serde::Serialize)]
+pub struct GroqChunkSegment {
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub text: String,
+    pub word_timings_json: Option<String>,
+}
+
+/// Transcribe a podcast episode's audio entirely on the Rust side: download →
+/// split into <25MB chunks (ffmpeg-free) → upload each chunk to Groq with
+/// word-level timestamps → combine offsets → return segments. This avoids
+/// transferring multi-megabyte chunk bytes over the Tauri IPC as JSON (which is
+/// what hung the previous frontend-driven path — serializing ~18MB of bytes per
+/// chunk is enormously slow). Everything stays in Rust; only the resulting
+/// segment text + timings cross the IPC boundary. Emits progress events.
+#[tauri::command]
+pub async fn transcribe_podcast_groq_chunks(
+    app_handle: AppHandle,
+    episode_id: String,
+    audio_url: String,
+    language: Option<String>,
+    groq_api_key: String,
+    groq_model: Option<String>,
+) -> Result<Vec<GroqChunkSegment>> {
+    let model = groq_model.unwrap_or_else(|| "whisper-large-v3-turbo".to_string());
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Incrementum")
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| IncrementumError::Internal(format!("HTTP client build failed: {}", e)))?;
+
+    // 1. Split on-device into <25 MB chunks (download + MP3 frame split).
+    let _ = app_handle.emit(
+        "podcast://transcription-progress",
+        serde_json::json!({ "episodeId": &episode_id, "status": "processing", "progress": 15, "message": "Splitting audio…" }),
+    );
+    let chunks = split_audio_for_groq_mobile_inner(&app_handle, &client, &audio_url).await?;
+    eprintln!("[podcast-transcribe] groq_chunks: {} chunks to transcribe", chunks.len());
+
+    let mut combined: Vec<GroqChunkSegment> = Vec::new();
+
+    for (i, chunk) in chunks.iter().enumerate() {
+        let progress = 20 + ((i as f64 / chunks.len() as f64) * 65.0) as i64;
+        let _ = app_handle.emit(
+            "podcast://transcription-progress",
+            serde_json::json!({ "episodeId": &episode_id, "status": "processing", "progress": progress, "message": format!("Transcribing chunk {}/{}…", i + 1, chunks.len()) }),
+        );
+
+        // Read chunk bytes from disk (stays in Rust — no IPC).
+        let chunk_bytes = std::fs::read(&chunk.path)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to read chunk {}: {}", i, e)))?;
+        eprintln!("[podcast-transcribe] groq_chunks: chunk {} = {} bytes", i, chunk_bytes.len());
+
+        // Upload to Groq as multipart file (verbose_json + segment/word granularity).
+        let mut form = reqwest::multipart::Form::new()
+            .text("model", model.clone())
+            .text("response_format", "verbose_json".to_string())
+            .text("timestamp_granularities[]", "segment".to_string())
+            .text("timestamp_granularities[]", "word".to_string());
+        if let Some(lang) = &language {
+            form = form.text("language", lang.clone());
+        }
+        let part = reqwest::multipart::Part::bytes(chunk_bytes)
+            .file_name(format!("chunk_{:04}.mp3", i))
+            .mime_str("audio/mp3")
+            .map_err(|e| IncrementumError::Internal(format!("mime build failed: {}", e)))?;
+        form = form.part("file", part);
+
+        let resp = client
+            .post("https://api.groq.com/openai/v1/audio/transcriptions")
+            .bearer_auth(&groq_api_key)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Groq chunk {} upload failed: {}", i, e)))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            eprintln!("[podcast-transcribe] groq_chunks: chunk {} FAILED ({}): {}", i, status, &body[..body.len().min(300)]);
+            return Err(IncrementumError::Internal(format!(
+                "Groq chunk {} failed (HTTP {}): {}", i, status, &body[..body.len().min(200)]
+            )));
+        }
+
+        let data: serde_json::Value = resp.json().await
+            .map_err(|e| IncrementumError::Internal(format!("Groq chunk {} JSON parse failed: {}", i, e)))?;
+
+        // Map this chunk's segments, adding the chunk's start_ms offset.
+        let words = data.get("words").and_then(|w| w.as_array()).cloned().unwrap_or_default();
+        let segments = data.get("segments").and_then(|s| s.as_array()).cloned().unwrap_or_default();
+        let mut wc = 0usize;
+        for seg in segments.iter() {
+            let seg_start = seg.get("start").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let seg_end = seg.get("end").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let seg_text = seg.get("text").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+
+            // Collect words whose midpoint falls within [seg_start, seg_end].
+            let mut seg_words: Vec<serde_json::Value> = Vec::new();
+            while wc < words.len() {
+                let w = &words[wc];
+                let ws = w.get("start").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let we = w.get("end").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let wmid = (ws + we) / 2.0;
+                if wmid < seg_start { wc += 1; continue; }
+                if wmid >= seg_end { break; }
+                seg_words.push(serde_json::json!({
+                    "word": w.get("word").and_then(|v| v.as_str()).unwrap_or(""),
+                    "start_ms": chunk.start_ms + (ws * 1000.0).round() as i64,
+                    "end_ms": chunk.start_ms + (we * 1000.0).round() as i64,
+                }));
+                wc += 1;
+            }
+
+            combined.push(GroqChunkSegment {
+                start_ms: chunk.start_ms + (seg_start * 1000.0).round() as i64,
+                end_ms: chunk.start_ms + (seg_end * 1000.0).round() as i64,
+                text: seg_text,
+                word_timings_json: if seg_words.is_empty() { None } else { Some(serde_json::to_string(&seg_words).unwrap_or_default()) },
+            });
+        }
+
+        // Small delay to respect Groq rate limits.
+        if i < chunks.len() - 1 {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+    }
+
+    // Clean up temp chunk files.
+    if let Ok(cache_dir) = app_handle.path().app_cache_dir() {
+        let _ = std::fs::remove_dir_all(cache_dir.join("groq_mobile_chunks"));
+    }
+
+    eprintln!("[podcast-transcribe] groq_chunks: DONE, {} combined segments", combined.len());
+    Ok(combined)
+}
 
 
 /// Persist per-segment (and optional per-word) timings produced by Groq cloud
@@ -1125,6 +1279,7 @@ pub async fn save_podcast_transcript_segments(
     if segments.is_empty() {
         return Ok(());
     }
+    eprintln!("[podcast-transcribe] save_podcast_transcript_segments: {} segments for episode {}", segments.len(), episode_id);
     let full_text = segments
         .iter()
         .map(|s| s.text.trim())
@@ -1151,6 +1306,7 @@ pub async fn save_podcast_transcript_segments(
         .collect();
     repo.save_podcast_transcript_segments(&episode_id, &seg_models, &word_timings)
         .await?;
+    eprintln!("[podcast-transcribe] save_podcast_transcript_segments: SAVED OK for episode {}", episode_id);
     Ok(())
 }
 

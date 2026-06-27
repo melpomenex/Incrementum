@@ -558,6 +558,7 @@ pub async fn read_file_bytes(file_path: String) -> Result<Vec<u8>, String> {
     ];
 
     let path = Path::new(&file_path);
+    eprintln!("[podcast-transcribe] read_file_bytes: {}", file_path);
 
     let extension = path.extension()
         .and_then(|e| e.to_str())

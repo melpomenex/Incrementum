@@ -520,6 +520,21 @@ export async function transcribePodcastEpisodeWithGroq(
   const { emit } = await import("@tauri-apps/api/event");
   await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 10, message: "Transcribing via Groq…" });
 
+  // Read the Groq key + model from the persisted settings (the Rust command
+  // needs them passed explicitly — it runs server-side and can't read the JS store).
+  const { apiKey, model } = (() => {
+    try {
+      const raw = localStorage.getItem("incrementum-settings");
+      const parsed = raw ? JSON.parse(raw) : null;
+      const g = parsed?.state?.settings?.audioTranscription?.groq;
+      return { apiKey: g?.apiKey || "", model: g?.model || "whisper-large-v3-turbo" };
+    } catch { return { apiKey: "", model: "whisper-large-v3-turbo" }; }
+  })();
+  if (!apiKey) {
+    await emit("podcast://transcription-error", { episodeId, error: "Groq API key not configured." });
+    throw new Error("Groq API key not configured.");
+  }
+
   try {
     // Resolve the redirect chain to the final media URL first. Many podcast
     // audio URLs are wrapped in tracking-redirect chains (podtrac → ... → CDN)
@@ -531,52 +546,34 @@ export async function transcribePodcastEpisodeWithGroq(
       console.warn("[podcast] resolvePodcastAudioUrl failed, using original URL:", e);
     }
 
-    // Probe the audio size. Groq's free tier caps at 25 MB; full podcast
-    // episodes are typically 40-100 MB and would otherwise hang at 10%
-    // forever (the bug this fixes). If under the limit, transcribe the URL
-    // directly. If over (or unknown), use the on-device chunker (no ffmpeg
-    // needed) to split into <25 MB chunks, transcribe each, and combine.
-    const sizeBytes = await probeAudioSize(resolvedUrl);
-    const GROQ_LIMIT = 25 * 1024 * 1024;
-    const needsChunking = sizeBytes === null || sizeBytes > GROQ_LIMIT;
+    // Transcribe entirely on the Rust side: download → split into <25MB chunks
+    // (ffmpeg-free) → upload each chunk to Groq with word-level timestamps →
+    // combine offsets. Doing this in Rust avoids transferring multi-megabyte
+    // chunk bytes over the Tauri IPC as JSON (which hung the previous
+    // frontend-driven path). Progress events are emitted from Rust.
+    const segments = await invokeCommand<Array<{
+      start_ms: number;
+      end_ms: number;
+      text: string;
+      word_timings_json: string | null;
+    }>>("transcribe_podcast_groq_chunks", {
+      episodeId,
+      audioUrl: resolvedUrl,
+      language: language ?? null,
+      groqApiKey: apiKey,
+      groqModel: model,
+    });
 
-    let segments: SaveSegmentInput[];
-
-    if (!needsChunking) {
-      // Small enough for a single Groq URL request.
-      const response = await transcribeWithGroq({
-        url: resolvedUrl,
-        responseFormat: "verbose_json",
-        timestampGranularities: ["segment", "word"],
-        language,
-      });
-      if (!response.segments || response.segments.length === 0) {
-        throw new Error("Groq returned no transcript segments");
-      }
-      segments = mapGroqResponseToSegments(response);
-    } else {
-      // Large episode: split on-device (ffmpeg-free) → upload each chunk → combine.
-      const chunkCount = await transcribeEpisodeChunked(episodeId, resolvedUrl, language, emit);
-      // The chunked path persists segments itself as it goes (so a long job shows
-      // progress) — but we re-fetch nothing here; transcribeEpisodeChunked already
-      // called savePodcastTranscriptSegments with the combined result.
-      segments = [];
-      await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 90, message: "Saving transcript…" });
-      // Chunked path is complete; emit completion and return.
-      await emit("podcast://transcription-complete", { episodeId, segmentCount: chunkCount, duration: null });
-      return;
+    if (segments.length === 0) {
+      throw new Error("Groq returned no transcript segments.");
     }
 
-    await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 80, message: "Saving transcript…" });
-
-    // Persist the real per-segment + per-word timings to the DB.
+    // Persist the combined segments + word timings to the DB.
+    await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 90, message: "Saving transcript…" });
     await savePodcastTranscriptSegments(episodeId, segments);
 
-    await emit("podcast://transcription-complete", {
-      episodeId,
-      segmentCount: segments.length,
-      duration: null,
-    });
+    await emit("podcast://transcription-complete", { episodeId, segmentCount: segments.length, duration: null });
+    return;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await emit("podcast://transcription-error", { episodeId, error: message });
