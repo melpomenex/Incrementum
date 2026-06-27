@@ -429,11 +429,11 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
       </div>
 
       {/* Category Filter */}
-      <div className="px-6 py-3 border-b border-border/70 bg-muted/20">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="px-6 py-3 border-b border-border/70 bg-muted/20 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-1.5">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
               selectedCategory === "all"
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -449,7 +449,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
                   selectedCategory === category.id
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -466,7 +466,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
                 selectedCategory === cat.id
                   ? "bg-orange-500 text-white shadow-md"
                   : "bg-muted/60 text-muted-foreground hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400"

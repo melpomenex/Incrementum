@@ -54,6 +54,7 @@
     "process:default",
     "process:allow-restart",
     "process:allow-exit",
-    "os:default"
+    "os:default",
+    "core:event:default"
   ]
 }

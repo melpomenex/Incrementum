@@ -143,7 +143,7 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         mouse-move driven (a phone has no mouse-move), and hiding controls while
         watching a video makes rating/navigation unreachable. The mobile bottom
         action bar below is rendered independently so it's always usable. */}
-    <div className={cn("fixed inset-0 pointer-events-none transition-opacity duration-300 z-50", (showControls || isMobile || isTouchDevice) ? "opacity-100" : "opacity-0")}>
+    <div className={cn("fixed inset-0 pointer-events-none transition-all duration-300 z-50", showControls ? "opacity-100 visible" : "opacity-0 invisible")}>
       {/* Top Bar */}
       <div className="absolute top-0 left-0 right-0 pt-[calc(16px+env(safe-area-inset-top,0px))] px-4 pb-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
         <div className="flex items-center justify-between max-w-7xl mx-auto">

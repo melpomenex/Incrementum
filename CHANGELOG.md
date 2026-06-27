@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.57.0] - 2026-06-27
+
+### Added
+- **Podcast word-synced transcripts on mobile (Android)** — Listen to a podcast while the transcript highlights each word in sync with playback, karaoke-style, and take extracts straight from the streaming transcript. Local transcription (Whisper/sidecar + FFmpeg) can't run on Android, so this uses Groq cloud transcription with **word-level timestamps** — finer-grained than desktop Whisper's segment-level output. Tap the transcript (T) icon in the player, tap "Transcribe with Groq," and the transcript streams in and follows the audio as you listen.
+- **Chunked transcription for full episodes** — Groq's free tier caps at 25 MB per file, but full podcast episodes are typically 40-100 MB. A new ffmpeg-free, on-device splitter breaks the audio into <25 MB chunks at MP3 frame boundaries, transcribes each chunk via Groq, and combines the offsets — so full-length episodes transcribe correctly on mobile instead of hanging at 10%.
+- **Downloaded episodes auto-queue** — A downloaded podcast episode now appears in your reading queue automatically (no manual "Add to Reading Queue" step). It imports as a high-priority, immediately-due document so it surfaces at the top of your review queue.
+- **Mobile podcast playback controls** — The mobile podcast player now has a top bar with a back chevron + title + details toggle, speed control in 0.5× intervals up to 3×, and a streaming transcript sheet. Desktop-only controls (volume slider, fullscreen, chapters sidebar) are hidden on mobile.
+- **Long-press context menus** — Long-press (touch-hold) on a podcast episode or a document now opens its context menu at your finger — the same menu as right-click on desktop. Covers play, mark played, add to queue, download, copy URL, open show notes (podcasts) and open/read-along/etc. (documents).
+
+### Fixed & Improved
+- **Podcast transcription silently failed on full episodes** — The previous chunked path read each ~18 MB chunk file into the frontend and serialized it over the Tauri IPC as JSON, which was enormously slow and effectively hung for full episodes. The entire flow (download → split → Groq upload → combine) now runs in Rust, so only the resulting segment text + timings (kilobytes) cross the IPC boundary. Transcription completes reliably and much faster.
+- **Transcription hung at 10% with no error** — The Groq request had no timeout and no handling for the 25 MB limit (HTTP 413). It now aborts after 120 s and surfaces `FILE_TOO_LARGE` / `RATE_LIMITED` errors instead of hanging silently.
+- **Podcast transcript didn't appear in the reading queue** — When a downloaded episode was auto-imported as a document, the queue rendered it through the document viewer, which didn't pass the podcast episode id — so the transcript panel showed an empty "Transcribe" state even though a transcript existed. The episode id is now stashed in the document metadata and recovered by the viewer, so the transcript loads and highlights in sync.
+- **Tapping a transcript segment gave no feedback** — The active-segment highlight only updated on the next audio `timeupdate` (which lags while the position buffers), so a tap looked like it did nothing. Tapping now instantly highlights the segment (tinted background + ring + slight zoom) and seeks the audio.
+- **Podcast transcript didn't auto-advance / auto-scroll with playback** — The active-segment detection used the audiobook transcript sources, never the podcast segments, so for a podcast the highlight never moved and the transcript didn't scroll as you listened. It now drives off the podcast transcript segments and stays centered on the spoken word.
+- **Help hint covered the podcast controls** — The "Rate or use Alt+Arrows…" hint stayed visible permanently on mobile and obscured the player controls. It now auto-hides after a few seconds.
+- **T-icon transcribe did nothing on mobile** — The transcript panel's "Start transcription" button called the local-sidecar command (no ffmpeg on Android). It now routes to Groq on mobile.
+- **Podcast player drew under the Android status bar** — The mobile full-screen player started at the very top of the screen, obscuring content under the status bar / notch. Real `safe-area-inset` utilities were added and applied so the player clears the status bar and home indicator.
+- **Podcast audio downloads failed with "Read-only file system" (Android)** — The download path used `dirs::data_dir()`, which resolves to a read-only system path on Android. It now uses the app's private writable storage via Tauri's `app_data_dir()`.
+
 ## [1.56.2] - 2026-06-26
 
 ### Fixed & Improved

@@ -1826,28 +1826,34 @@ export function QueueScrollPage() {
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [currentItem?.type, goToNext, goToPrevious, isFullscreen, toggleFullscreen, activeTabId, closeTab]);
 
-  // Auto-hide controls on mouse idle (disabled on mobile/touch devices)
+  // Auto-hide controls after 3 seconds of idle (both mobile/touch and desktop)
   useEffect(() => {
-    const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-    if (isMobile || isTouchDevice) {
-      setShowControls(true);
-      return;
-    }
+    if (!showControls) return;
 
     let hideTimeout: ReturnType<typeof setTimeout>;
 
-    const handleMouseMove = () => {
-      setShowControls(true);
+    const resetTimer = () => {
       clearTimeout(hideTimeout);
       hideTimeout = setTimeout(() => setShowControls(false), 3000);
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
+    resetTimer();
+
+    const handleInteraction = () => {
+      resetTimer();
+    };
+
+    window.addEventListener("mousemove", handleInteraction);
+    window.addEventListener("touchstart", handleInteraction, { passive: true });
+    window.addEventListener("keydown", handleInteraction);
+
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousemove", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
+      window.removeEventListener("keydown", handleInteraction);
       clearTimeout(hideTimeout);
     };
-  }, [isMobile]);
+  }, [showControls]);
 
   // Handle rating (for documents, flashcards, or mark as read for RSS)
   const handleRating = async (rating: number) => {

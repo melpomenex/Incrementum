@@ -2000,9 +2000,11 @@ export const es: Dict = {
   "podcastManager.unplayed": "Sin reproducir",
   "podcastManager.unplayedEpisode": "{count} sin reproducir",
   "podcastManager.unplayedEpisodes": "{count} episodio(s) sin reproducir en {total} podcast(s)",
-  "podcastManager.unsubscribe": "Cancelar suscripción",
   "podcastManager.unsubscribeConfirm":
     "¿Seguro que quieres cancelar la suscripción a este podcast?",
+  "podcastManager.insertToQueue": "Insertar en la cola",
+  "podcastManager.insertedToQueue": "Insertado correctamente en la cola",
+  "podcastManager.insertToQueueFailed": "Error al insertar en la cola",
   "priority.adjust": "Ajustar",
   "priority.fineTune": "Ajuste fino",
   "priority.highDesc": "Repasar con frecuencia",
@@ -2869,6 +2871,7 @@ export const es: Dict = {
   "viewer.back5s": "Retroceder 5s",
   "viewer.backToDocuments": "Volver a documentos",
   "viewer.blueHighlight": "Resaltado azul",
+  "viewer.bookmark": "Marcador",
   "viewer.bookmarks": "Marcadores",
   "viewer.browser": "Navegador",
   "viewer.cancelSleepTimer": "Cancelar temporizador de sueño",
@@ -2894,6 +2897,7 @@ export const es: Dict = {
   "viewer.directPlaybackFailed":
     "Error en la reproducción directa. Cambiando a modo buffered (puede ser lento).",
   "viewer.dismiss": "Descartar",
+  "viewer.documentNotFound": "Documento no encontrado",
   "viewer.documentTypePreviewComingSoon":
     "La vista previa del tipo de documento '{type}' estará disponible próximamente",
   "viewer.dragAcrossPdfText": "Arrastra sobre el texto del PDF para crear un extracto.",
@@ -2965,6 +2969,7 @@ export const es: Dict = {
   "viewer.loadingDocument": "Cargando documento...",
   "viewer.loadingEpub": "Cargando EPUB...",
   "viewer.loadingPdf": "Cargando PDF...",
+  "viewer.loadingPosition": "Restaurando posición...",
   "viewer.loadingTranscript": "Cargando transcripción...",
   "viewer.loadingVideo": "Cargando vídeo...",
   "viewer.lookingUp": "Buscando...",
