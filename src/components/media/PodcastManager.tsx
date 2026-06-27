@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { sanitizeHtml as _sanitizeHtml } from "../common/RichContentRenderer";
 import {
   ArrowsClockwise,
@@ -62,6 +62,7 @@ import { isTauri, isNativeMobile, listen } from "../../lib/tauri";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useQueueStore } from "../../stores/queueStore";
+import { useTabsStore } from "../../stores";
 import {
   useContextMenu,
   ContextMenu,
@@ -87,6 +88,28 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const { t } = useI18n();
   const isMobile = useMobileShell();
   const toast = useToast();
+  const { tabs, rootPane } = useTabsStore();
+  const activeTabId = useMemo(() => {
+    const findFirstTabPane = (pane: any): any => {
+      if (pane.type === "tabs") return pane;
+      if (pane.type === "split") {
+        for (const child of pane.children) {
+          const found = findFirstTabPane(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const firstPane = findFirstTabPane(rootPane);
+    return firstPane?.activeTabId ?? null;
+  }, [rootPane]);
+
+  const activeTab = useMemo(
+    () => tabs.find((tab) => tab.id === activeTabId) ?? null,
+    [tabs, activeTabId]
+  );
+
+  const isPodcastTabActive = activeTab?.type === "podcast";
   const [feeds, setFeeds] = useState<PodcastFeed[]>([]);
   const [selectedFeedId, setSelectedFeedId] = useState<string | null>(null);
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
@@ -274,6 +297,51 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     window.addEventListener("play-podcast-episode" as any, handlePlayPodcastEpisode);
     return () => window.removeEventListener("play-podcast-episode" as any, handlePlayPodcastEpisode);
   }, [feeds]);
+
+  // Synchronize playingEpisode with updated episode details from database reloads
+  useEffect(() => {
+    if (!playingEpisode) return;
+    const updated = episodes.find((e) => e.id === playingEpisode.episode.id);
+    if (updated && JSON.stringify(updated) !== JSON.stringify(playingEpisode.episode)) {
+      setPlayingEpisode((prev) => prev ? { ...prev, episode: updated } : null);
+    }
+  }, [episodes, playingEpisode]);
+
+  // Intercept native hardware back button on Android to handle view navigation
+  useEffect(() => {
+    if (!isTauri() || !isPodcastTabActive || (!playingEpisode && !selectedFeedId)) return;
+
+    let listener: any | undefined;
+    let cancelled = false;
+
+    const setupBackButton = async () => {
+      try {
+        const { onBackButtonPress } = await import("@tauri-apps/api/app");
+        if (cancelled) return;
+        listener = await onBackButtonPress(() => {
+          if (playingEpisode) {
+            setPlayingEpisode(null);
+          } else if (selectedFeedId) {
+            setSelectedFeedId(null);
+          }
+        });
+        if (cancelled && listener) {
+          void listener.unregister();
+        }
+      } catch (err) {
+        console.error("Failed to setup back button interceptor:", err);
+      }
+    };
+
+    setupBackButton();
+
+    return () => {
+      cancelled = true;
+      if (listener) {
+        void listener.unregister();
+      }
+    };
+  }, [isPodcastTabActive, playingEpisode, selectedFeedId]);
 
   // Check downloaded paths and probe duration for episodes missing it
   useEffect(() => {
@@ -1582,7 +1650,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
         <div
           className={cn(
             "border-l border-border bg-card flex-shrink-0 flex flex-col overflow-hidden relative",
-            isMobile ? "fixed inset-0 z-[70] w-full" : ""
+            isMobile ? "fixed inset-0 z-[70] w-full safe-top safe-bottom" : ""
           )}
           style={isMobile ? {} : { width: playerWidth }}
         >
@@ -1595,16 +1663,163 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             }}
           />
           <div className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0">
-            <span className="text-sm font-medium text-foreground truncate">
-              Now Playing: {playingEpisode.episode.title}
-            </span>
+            <div className="flex-1 min-w-0 mr-4">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">Now Playing</span>
+              <span className="text-sm font-medium text-foreground block truncate" title={playingEpisode.episode.title}>
+                {playingEpisode.episode.title}
+              </span>
+            </div>
+
+            {/* Episode controls */}
+            <div className="flex items-center gap-1.5 mr-2">
+              {/* Download */}
+              {(() => {
+                const ep = playingEpisode.episode;
+                const isDownloaded = downloadedEpisodes.has(ep.id);
+                const isDownloading = downloadingEpisodes.has(ep.id);
+                const progress = downloadProgress.get(ep.id);
+                if (isDownloading) {
+                  return (
+                    <div className="w-8 h-8 border border-primary/30 rounded-full flex items-center justify-center relative flex-shrink-0">
+                      <CircleNotch className="w-4 h-4 text-primary animate-spin" />
+                      {progress !== undefined && (
+                        <span className="absolute -bottom-0.5 text-[7px] text-primary font-medium">{progress}%</span>
+                      )}
+                    </div>
+                  );
+                }
+                if (isDownloaded) {
+                  return (
+                    <button
+                      onClick={() => handleDeleteDownload(ep.id)}
+                      className="w-8 h-8 bg-green-500/10 text-green-600 rounded-full hover:bg-green-500/20 transition-colors flex items-center justify-center flex-shrink-0"
+                      title="Downloaded — click to delete"
+                    >
+                      <HardDrive className="w-4 h-4" />
+                    </button>
+                  );
+                }
+                return (
+                  <button
+                    onClick={() => handleDownloadEpisode(ep)}
+                    className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors flex items-center justify-center flex-shrink-0"
+                    title="Download episode"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                );
+              })()}
+
+              {/* Transcript/Transcribe */}
+              {(() => {
+                const ep = playingEpisode.episode;
+                const progress = transcriptionProgress.get(ep.id);
+                if (progress) {
+                  return (
+                    <div className="w-8 h-8 border border-primary/30 rounded-full flex items-center justify-center flex-shrink-0" title={`${progress.status} (${progress.progress}%)`}>
+                      <CircleNotch className="w-4 h-4 text-primary animate-spin" />
+                    </div>
+                  );
+                }
+                if (ep.transcriptStatus === "done") {
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleViewTranscript(ep)}
+                        className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors flex items-center justify-center flex-shrink-0"
+                        title="View Transcript"
+                      >
+                        <TextT className="w-4.5 h-4.5" />
+                      </button>
+                      <button
+                        onClick={() => handleChatAboutThis(ep, playingEpisode.feed)}
+                        className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full hover:bg-secondary/80 transition-colors flex items-center justify-center flex-shrink-0"
+                        title="Chat About This"
+                      >
+                        <ChatCircle className="w-4.5 h-4.5" />
+                      </button>
+                    </div>
+                  );
+                }
+                if (ep.transcriptStatus === "error") {
+                  return (
+                    <button
+                      onClick={() => handleTranscribe(ep.id)}
+                      className="w-8 h-8 border border-destructive/30 text-destructive rounded-full hover:bg-destructive/10 transition-colors flex items-center justify-center flex-shrink-0"
+                      title={`Retry transcription: ${ep.transcriptError || "Unknown error"}`}
+                    >
+                      <WarningCircle className="w-4.5 h-4.5" />
+                    </button>
+                  );
+                }
+                return (
+                  <button
+                    onClick={() => handleTranscribe(ep.id)}
+                    className="w-8 h-8 border border-border text-muted-foreground rounded-full hover:text-foreground hover:border-primary/50 transition-colors flex items-center justify-center flex-shrink-0"
+                    title="Transcribe with Whisper"
+                  >
+                    <FileAudio className="w-4.5 h-4.5" />
+                  </button>
+                );
+              })()}
+            </div>
+
             <button
               onClick={() => setPlayingEpisode(null)}
-              className="p-1 hover:bg-muted rounded transition-colors"
+              className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
+
+          {/* Transcription progress bar for playing episode */}
+          {(() => {
+            const ep = playingEpisode.episode;
+            const progress = transcriptionProgress.get(ep.id);
+            if (!progress) {
+              if (ep.transcriptStatus === "error") {
+                return (
+                  <div className="px-4 py-1.5 bg-destructive/10 border-b border-destructive/20 flex items-center justify-between text-xs text-destructive">
+                    <span>Transcription Failed: {ep.transcriptError || "Unknown error"}</span>
+                    <button
+                      onClick={() => handleTranscribe(ep.id)}
+                      className="font-semibold underline hover:text-destructive/80"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            }
+            return (
+              <div className="px-4 py-2 bg-primary/5 border-b border-border space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {progress.status === "downloading"
+                      ? "Downloading audio..."
+                      : progress.status === "starting"
+                      ? "Starting transcription..."
+                      : `Transcribing... ${progress.progress}%`}
+                  </span>
+                  <button
+                    onClick={() => handleCancelTranscription(ep.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    title="Cancel"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${progress.progress}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="flex-1 min-h-0">
           <AudiobookViewer
             document={{
@@ -1627,6 +1842,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             onEpisodeEnded={handleEpisodeEnded}
             autoPlayOnOpen={true}
             initialSeekTime={playerInitialSeekTime}
+            onBack={() => setPlayingEpisode(null)}
           />
           </div>
         </div>
