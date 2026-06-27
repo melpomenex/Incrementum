@@ -528,22 +528,44 @@ export async function transcribePodcastEpisodeWithGroq(
     try {
       resolvedUrl = await resolvePodcastAudioUrl(audioUrl);
     } catch (e) {
-      // Non-fatal: try the original URL; some feeds already point at the CDN.
       console.warn("[podcast] resolvePodcastAudioUrl failed, using original URL:", e);
     }
 
-    const response = await transcribeWithGroq({
-      url: resolvedUrl,
-      responseFormat: "verbose_json",
-      timestampGranularities: ["segment", "word"],
-      language,
-    });
+    // Probe the audio size. Groq's free tier caps at 25 MB; full podcast
+    // episodes are typically 40-100 MB and would otherwise hang at 10%
+    // forever (the bug this fixes). If under the limit, transcribe the URL
+    // directly. If over (or unknown), use the on-device chunker (no ffmpeg
+    // needed) to split into <25 MB chunks, transcribe each, and combine.
+    const sizeBytes = await probeAudioSize(resolvedUrl);
+    const GROQ_LIMIT = 25 * 1024 * 1024;
+    const needsChunking = sizeBytes === null || sizeBytes > GROQ_LIMIT;
 
-    if (!response.segments || response.segments.length === 0) {
-      throw new Error("Groq returned no transcript segments");
+    let segments: SaveSegmentInput[];
+
+    if (!needsChunking) {
+      // Small enough for a single Groq URL request.
+      const response = await transcribeWithGroq({
+        url: resolvedUrl,
+        responseFormat: "verbose_json",
+        timestampGranularities: ["segment", "word"],
+        language,
+      });
+      if (!response.segments || response.segments.length === 0) {
+        throw new Error("Groq returned no transcript segments");
+      }
+      segments = mapGroqResponseToSegments(response);
+    } else {
+      // Large episode: split on-device (ffmpeg-free) → upload each chunk → combine.
+      const chunkCount = await transcribeEpisodeChunked(episodeId, resolvedUrl, language, emit);
+      // The chunked path persists segments itself as it goes (so a long job shows
+      // progress) — but we re-fetch nothing here; transcribeEpisodeChunked already
+      // called savePodcastTranscriptSegments with the combined result.
+      segments = [];
+      await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 90, message: "Saving transcript…" });
+      // Chunked path is complete; emit completion and return.
+      await emit("podcast://transcription-complete", { episodeId, segmentCount: chunkCount, duration: null });
+      return;
     }
-
-    const segments = mapGroqResponseToSegments(response);
 
     await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 80, message: "Saving transcript…" });
 
@@ -553,13 +575,148 @@ export async function transcribePodcastEpisodeWithGroq(
     await emit("podcast://transcription-complete", {
       episodeId,
       segmentCount: segments.length,
-      duration: response.duration ? Math.round(response.duration) : null,
+      duration: null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await emit("podcast://transcription-error", { episodeId, error: message });
     throw err;
   }
+}
+
+/**
+ * Probe the Content-Length of an audio URL via a Range request (follows the
+ * resolved redirect). Returns null when the server doesn't report a length
+ * (caller then assumes large → chunk). This is the size gate that decides
+ * whether to use a single Groq request or chunked transcription.
+ */
+async function probeAudioSize(resolvedUrl: string): Promise<number | null> {
+  try {
+    const resp = await fetch(resolvedUrl, { method: "GET", headers: { Range: "bytes=0-0" } });
+    // Content-Range: bytes 0-0/12345  → total is after the slash.
+    const cr = resp.headers.get("content-range");
+    if (cr) {
+      const m = /\/(\d+)/.exec(cr);
+      if (m) return parseInt(m[1], 10);
+    }
+    const cl = resp.headers.get("content-length");
+    if (cl) return parseInt(cl, 10);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Transcribe a large podcast episode by splitting it on-device (ffmpeg-free
+ * Rust chunker) and uploading each <25 MB chunk to Groq with word-level
+ * timestamps, then combining the per-chunk segments (adjusting each segment's
+ * timestamps by the chunk's start_ms offset) and persisting the result.
+ * Emits per-chunk progress (15% → 85%). Returns the total segment count.
+ */
+async function transcribeEpisodeChunked(
+  episodeId: string,
+  resolvedUrl: string,
+  language: string | undefined,
+  emit: (event: string, payload: unknown) => Promise<void>,
+): Promise<number> {
+  // Read the Groq key + model from the persisted settings (getGroqApiKey isn't
+  // exported, and we're in a dynamic-import context anyway).
+  const { apiKey, model } = (() => {
+    try {
+      const raw = localStorage.getItem("incrementum-settings");
+      const parsed = raw ? JSON.parse(raw) : null;
+      const g = parsed?.state?.settings?.audioTranscription?.groq;
+      return { apiKey: g?.apiKey || "", model: g?.model || "whisper-large-v3-turbo" };
+    } catch { return { apiKey: "", model: "whisper-large-v3-turbo" }; }
+  })();
+  if (!apiKey) throw new Error("Groq API key not configured.");
+
+  // 1. Split on-device into <25 MB chunks.
+  await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 15, message: "Splitting audio…" });
+  const chunks = await invokeCommand<Array<{ index: number; path: string; start_ms: number; end_ms: number; bytes: number }>>(
+    "split_audio_for_groq_mobile", { url: resolvedUrl }
+  );
+  if (!chunks || chunks.length === 0) {
+    throw new Error("Audio splitting produced no chunks.");
+  }
+
+  const combinedSegments: SaveSegmentInput[] = [];
+
+  // 2. Transcribe each chunk with word-level timestamps.
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const progress = 20 + Math.round((i / chunks.length) * 65);
+    await emit("podcast://transcription-progress", { episodeId, status: "processing", progress, message: `Transcribing chunk ${i + 1}/${chunks.length}…` });
+
+    // Read chunk bytes → Blob → upload to Groq.
+    const bytes = await invokeCommand<number[]>("read_file_bytes", { filePath: chunk.path, file_path: chunk.path });
+    const blob = new Blob([new Uint8Array(bytes)], { type: "audio/mp3" });
+    const form = new FormData();
+    form.append("file", blob, "chunk.mp3");
+    form.append("model", model);
+    form.append("response_format", "verbose_json");
+    form.append("timestamp_granularities[]", "segment");
+    form.append("timestamp_granularities[]", "word");
+    if (language) form.append("language", language);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+    let resp: Response;
+    try {
+      resp = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+        method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, signal: controller.signal,
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new Error(`Chunk ${i + 1} upload failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    clearTimeout(timeoutId);
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(`Chunk ${i + 1} failed (HTTP ${resp.status}): ${e?.error?.message || resp.statusText}`);
+    }
+    const data = await resp.json();
+
+    // Map this chunk's segments, adding the chunk's start_ms offset to every
+    // segment + word timestamp so the combined transcript is continuous.
+    const chunkWords = data.words || [];
+    let wc = 0;
+    const chunkSegs: SaveSegmentInput[] = (data.segments || []).map((seg: { start: number; end: number; text: string }) => {
+      const segWords: { word: string; start_ms: number; end_ms: number }[] = [];
+      while (wc < chunkWords.length) {
+        const w = chunkWords[wc];
+        const mid = (w.start + w.end) / 2;
+        if (mid < seg.start) { wc++; continue; }
+        if (mid >= seg.end) break;
+        segWords.push({ word: w.word, start_ms: chunk.start_ms + Math.round(w.start * 1000), end_ms: chunk.start_ms + Math.round(w.end * 1000) });
+        wc++;
+      }
+      return {
+        start_ms: chunk.start_ms + Math.round(seg.start * 1000),
+        end_ms: chunk.start_ms + Math.round(seg.end * 1000),
+        text: seg.text.trim(),
+        word_timings_json: segWords.length ? JSON.stringify(segWords) : null,
+      };
+    });
+    combinedSegments.push(...chunkSegs);
+
+    // Small delay to respect Groq rate limits between chunks.
+    if (i < chunks.length - 1) await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  // 3. Clean up temp chunk files.
+  try { await invokeCommand("cleanup_mobile_audio_chunks", {}); } catch { /* non-fatal */ }
+
+  if (combinedSegments.length === 0) {
+    throw new Error("Groq returned no transcript segments across all chunks.");
+  }
+
+  // 4. Persist the combined segments.
+  await emit("podcast://transcription-progress", { episodeId, status: "processing", progress: 88, message: "Saving transcript…" });
+  await savePodcastTranscriptSegments(episodeId, combinedSegments);
+
+  return combinedSegments.length;
 }
 
 /** Segment payload for the save_podcast_transcript_segments command. */

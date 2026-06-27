@@ -72,6 +72,12 @@ describe("transcribePodcastEpisodeWithGroq (mocked Groq + invoke)", () => {
       return Promise.resolve(undefined);
     });
     (emitMock as any).mockClear?.();
+    // Seed the Groq key in localStorage so the chunked path (which reads it
+    // directly, not via the mocked settings store) finds a key.
+    localStorage.setItem(
+      "incrementum-settings",
+      JSON.stringify({ state: { settings: { audioTranscription: { groq: { apiKey: "gsk_test_key_for_unit_test_only", model: "whisper-large-v3-turbo" } } } } }),
+    );
   });
 
   afterEach(() => {
@@ -83,6 +89,14 @@ describe("transcribePodcastEpisodeWithGroq (mocked Groq + invoke)", () => {
     let capturedUrl = "";
     let capturedAuth = "";
     global.fetch = vi.fn(async (url: any, init: any) => {
+      // Size-probe: a Range GET. Respond with a small total so the single-URL
+      // path is taken (not chunking).
+      if (init?.headers?.Range === "bytes=0-0") {
+        return new Response(new Uint8Array([0]), {
+          status: 206,
+          headers: { "Content-Range": "bytes 0-0/1000" },
+        });
+      }
       capturedUrl = String(url);
       capturedAuth = init.headers?.Authorization ?? "";
       capturedBody = init.body as FormData;
@@ -141,12 +155,19 @@ describe("transcribePodcastEpisodeWithGroq (mocked Groq + invoke)", () => {
   });
 
   it("throws and emits a transcription-error event when Groq returns an error", async () => {
-    global.fetch = vi.fn(async () =>
-      new Response(JSON.stringify({ error: { message: "Invalid API key" } }), {
+    global.fetch = vi.fn(async (_url: any, init: any) => {
+      // Size-probe: small total → single-URL path → reaches the 401 Groq call.
+      if (init?.headers?.Range === "bytes=0-0") {
+        return new Response(new Uint8Array([0]), {
+          status: 206,
+          headers: { "Content-Range": "bytes 0-0/1000" },
+        });
+      }
+      return new Response(JSON.stringify({ error: { message: "Invalid API key" } }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
-      }),
-    ) as typeof fetch;
+      });
+    }) as typeof fetch;
 
     await expect(
       transcribePodcastEpisodeWithGroq("ep-2", "https://example.com/bad.mp3", "en"),

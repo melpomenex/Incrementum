@@ -445,22 +445,44 @@ async function transcribeUrl(options: GroqTranscriptionOptions): Promise<GroqTra
       formData.append('timestamp_granularities[]', granularity);
     });
   }
-  
-  const response = await fetch(`${GROQ_API_BASE}/audio/transcriptions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-  
+
+  // Timeout: Groq normally returns in seconds, but a hung/over-large request can
+  // sit forever. Abort after 120s so the caller emits a real error instead of
+  // sticking on "10% transcribing…" indefinitely (root cause of podcast hangs on
+  // large episodes that exceed the 25 MB free-tier limit).
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
+  let response: Response;
+  try {
+    response = await fetch(`${GROQ_API_BASE}/audio/transcriptions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new GroqTranscriptionError(
+        'Groq transcription timed out after 120s. The episode may exceed the free-tier 25 MB limit.',
+        'TIMEOUT',
+      );
+    }
+    throw e;
+  }
+  clearTimeout(timeoutId);
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new GroqTranscriptionError(
-      errorData.error?.message || `Transcription failed: ${response.statusText}`,
-      'API_ERROR',
-      { status: response.status, response: errorData }
-    );
+    const msg = errorData.error?.message || `Transcription failed: ${response.statusText}`;
+    // 413 / explicit too-large → FILE_TOO_LARGE so the caller falls back to
+    // chunked transcription rather than surfacing a generic error.
+    const code = response.status === 413 || /too large|file size|exceed/i.test(msg)
+      ? 'FILE_TOO_LARGE'
+      : response.status === 429 ? 'RATE_LIMITED' : 'API_ERROR';
+    throw new GroqTranscriptionError(msg, code, { status: response.status, response: errorData });
   }
   
   const result: GroqTranscriptionResponse = await response.json();
@@ -511,22 +533,44 @@ async function transcribeSingleFile(
       formData.append('timestamp_granularities[]', granularity);
     });
   }
-  
-  const response = await fetch(`${GROQ_API_BASE}/audio/transcriptions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-  
+
+  // Timeout: Groq normally returns in seconds, but a hung/over-large request can
+  // sit forever. Abort after 120s so the caller emits a real error instead of
+  // sticking on "10% transcribing…" indefinitely (root cause of podcast hangs on
+  // large episodes that exceed the 25 MB free-tier limit).
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
+  let response: Response;
+  try {
+    response = await fetch(`${GROQ_API_BASE}/audio/transcriptions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new GroqTranscriptionError(
+        'Groq transcription timed out after 120s. The episode may exceed the free-tier 25 MB limit.',
+        'TIMEOUT',
+      );
+    }
+    throw e;
+  }
+  clearTimeout(timeoutId);
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new GroqTranscriptionError(
-      errorData.error?.message || `Transcription failed: ${response.statusText}`,
-      'API_ERROR',
-      { status: response.status, response: errorData }
-    );
+    const msg = errorData.error?.message || `Transcription failed: ${response.statusText}`;
+    // 413 / explicit too-large → FILE_TOO_LARGE so the caller falls back to
+    // chunked transcription rather than surfacing a generic error.
+    const code = response.status === 413 || /too large|file size|exceed/i.test(msg)
+      ? 'FILE_TOO_LARGE'
+      : response.status === 429 ? 'RATE_LIMITED' : 'API_ERROR';
+    throw new GroqTranscriptionError(msg, code, { status: response.status, response: errorData });
   }
   
   const result: GroqTranscriptionResponse = await response.json();

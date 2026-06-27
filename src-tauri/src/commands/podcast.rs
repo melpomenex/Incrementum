@@ -836,6 +836,280 @@ pub async fn resolve_podcast_audio_url(url: String) -> Result<String> {
     Ok(resp.url().to_string())
 }
 
+/// An audio chunk produced by the mobile splitter (ffmpeg-free). Mirrors the
+/// desktop `AudioChunk` shape so the frontend chunked-transcription path is
+/// shared, but the offset is in MILLISECONDS (mobile path works in ms) and the
+/// path points at a temp file written by this command.
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct MobileAudioChunk {
+    pub index: usize,
+    pub path: String,
+    /// Approximate start time of this chunk within the original audio, in ms.
+    /// Estimated from byte offset ÷ bitrate; the final per-segment timestamps
+    /// come from Groq, this is just for assembling chunked results in order.
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub bytes: u64,
+}
+
+/// Target chunk size for the mobile splitter. Groq's free-tier limit is 25 MB;
+/// we target 20 MB to stay safely under and leave room for the multipart upload
+/// overhead. Podcast MP3s are typically 64-128 kbps, so 20 MB ≈ 20-40 min/chunk.
+const MOBILE_CHUNK_TARGET: u64 = 20 * 1024 * 1024;
+
+/// Split a remote podcast audio file into <25 MB chunks on-device WITHOUT ffmpeg
+/// (ffmpeg isn't available on Android). The audio is downloaded in full to a temp
+/// file, then split on **MP3 frame boundaries** (the 11-bit sync word 0x7FF) so
+/// each chunk is independently decodable by Groq. For non-MP3 formats (M4A/MP4)
+/// we fall back to raw byte-range chunks — less clean at arbitrary boundaries,
+/// but Groq's Whisper decoder is tolerant, and the vast majority of podcasts are
+/// MP3. Each chunk's start_ms is estimated from byte offset ÷ bitrate (parsed
+/// from the first MP3 frame header). This is what makes full-episode (40-100MB)
+/// podcast transcription work on mobile within Groq's 25 MB limit.
+#[tauri::command]
+pub async fn split_audio_for_groq_mobile(
+    app_handle: AppHandle,
+    url: String,
+) -> Result<Vec<MobileAudioChunk>> {
+    use futures_util::StreamExt;
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Incrementum")
+        .build()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to build HTTP client: {}", e)))?;
+
+    // 1. Stream-download the full audio to a temp file (follows redirects).
+    let cache_dir = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve cache dir: {}", e)))?;
+    let chunks_dir = cache_dir.join("groq_mobile_chunks");
+    let _ = std::fs::remove_dir_all(&chunks_dir);
+    std::fs::create_dir_all(&chunks_dir)?;
+
+    let full_path = chunks_dir.join("source.bin");
+    let mut file = tokio::fs::File::create(&full_path)
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create temp file: {}", e)))?;
+
+    let resp = client.get(&url).send().await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to download audio: {}", e)))?;
+    if !resp.status().is_success() {
+        return Err(IncrementumError::Internal(format!(
+            "Audio download failed: HTTP {}", resp.status()
+        )));
+    }
+    // Detect format from Content-Type / URL extension to pick the split strategy.
+    let content_type = resp.headers().get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let is_mp3 = content_type.contains("mpeg") || content_type.contains("mp3")
+        || url.to_ascii_lowercase().ends_with(".mp3");
+
+    let mut stream = resp.bytes_stream();
+    while let Some(item) = stream.next().await {
+        let chunk = item.map_err(|e| IncrementumError::Internal(format!("Download stream error: {}", e)))?;
+        file.write_all(&chunk).await
+            .map_err(|e| IncrementumError::Internal(format!("Failed to write temp file: {}", e)))?;
+    }
+    file.flush().await?;
+    drop(file);
+
+    // 2. Read the downloaded bytes.
+    let data = std::fs::read(&full_path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to read temp file: {}", e)))?;
+    let total = data.len() as u64;
+
+    // 3. Parse the bitrate from the first valid MP3 frame header (for start_ms
+    //    estimation). If we can't find a frame or it's not MP3, fall back to raw
+    //    byte splitting with a nominal 128kbps assumption.
+    let bitrate_bps: u64 = if is_mp3 {
+        find_mp3_frame_bitrate(&data).unwrap_or(128_000)
+    } else {
+        128_000
+    };
+
+    // 4. Compute split boundaries. For MP3, advance to MOBILE_CHUNK_TARGET then
+    //    scan forward for the next frame sync so the chunk starts cleanly. For
+    //    non-MP3, split at raw byte boundaries.
+    let mut boundaries: Vec<u64> = vec![0];
+    let mut cursor: u64 = MOBILE_CHUNK_TARGET;
+    while cursor < total {
+        let boundary = if is_mp3 {
+            find_next_mp3_frame(&data, cursor).unwrap_or(cursor)
+        } else {
+            cursor
+        };
+        boundaries.push(boundary.min(total));
+        cursor = boundary + MOBILE_CHUNK_TARGET;
+    }
+    if *boundaries.last().unwrap() < total {
+        boundaries.push(total);
+    }
+
+    // 5. Write each chunk to its own file and record its byte range + est. start_ms.
+    let mut chunks_out = Vec::new();
+    for i in 0..boundaries.len().saturating_sub(1) {
+        let start_byte = boundaries[i];
+        let end_byte = boundaries[i + 1];
+        let chunk_bytes = &data[start_byte as usize..end_byte as usize];
+        let chunk_path = chunks_dir.join(format!("chunk_{:04}.mp3", i));
+        std::fs::write(&chunk_path, chunk_bytes)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to write chunk {}: {}", i, e)))?;
+        let start_ms = (start_byte * 8000 / bitrate_bps.max(1)) as i64;
+        let end_ms = (end_byte * 8000 / bitrate_bps.max(1)) as i64;
+        chunks_out.push(MobileAudioChunk {
+            index: i,
+            path: chunk_path.to_string_lossy().to_string(),
+            start_ms,
+            end_ms,
+            bytes: (end_byte - start_byte),
+        });
+    }
+
+    // Remove the full source file; chunk files remain for upload + later cleanup.
+    let _ = std::fs::remove_file(&full_path);
+
+    if chunks_out.is_empty() {
+        return Err(IncrementumError::Internal(
+            "Audio split produced no chunks (empty download?)".to_string(),
+        ));
+    }
+    Ok(chunks_out)
+}
+
+/// Scan `data` for the first valid MP3 frame header and return its bitrate in
+/// bits/sec. MP3 frame headers start with an 11-bit sync word (0x7FF): the first
+/// byte is 0xFF and the upper 3 bits of the second byte are all 1. We then read
+/// the 4-bit bitrate index from the frame header using the MPEG1 Layer III
+/// bitrate table. Returns None if no valid frame is found (non-MP3 data).
+fn find_mp3_frame_bitrate(data: &[u8]) -> Option<u64> {
+    // MPEG1 Layer III bitrate table (kbps), indexed by the 4-bit bitrate field.
+    const BITRATES: [u64; 16] = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+    let n = data.len().saturating_sub(4);
+    for i in 0..n {
+        if data[i] != 0xFF {
+            continue;
+        }
+        let b = data[i + 1];
+        // 11-bit sync: 0xFF followed by upper-3-bits set (0xE0 mask). Also
+        // require Layer III (bits 2-1 == 01, i.e. (b >> 1) & 0x3 == 0x1).
+        if (b & 0xE0) != 0xE0 {
+            continue;
+        }
+        let layer = (b >> 1) & 0x3;
+        if layer != 0x1 {
+            // Layer III encoded as 01 in the header bits.
+            continue;
+        }
+        // Bitrate index is the high nibble of byte 2.
+        let bitrate_index = ((data[i + 2] >> 4) & 0xF) as usize;
+        let kbps = BITRATES[bitrate_index];
+        if kbps > 0 {
+            return Some(kbps * 1000);
+        }
+    }
+    None
+}
+
+/// From `min_byte`, scan forward (up to a small window) for the next MP3 frame
+/// sync (0xFF then upper-3-bits 0xE0). Returns the byte offset of that frame, or
+/// None if no frame is found within the window (caller falls back to raw split).
+fn find_next_mp3_frame(data: &[u8], min_byte: u64) -> Option<u64> {
+    let start = (min_byte as usize).min(data.len().saturating_sub(2));
+    // Search window: ~256 KB. A frame at 128kbps is ~0.5-1.5KB, so 256KB is
+    // hundreds of frames — plenty to find a clean boundary. If none, the file is
+    // likely not actually MP3 despite the extension; fall back.
+    let end = (start + 256 * 1024).min(data.len().saturating_sub(1));
+    let mut i = start;
+    while i < end {
+        if data[i] == 0xFF && i + 1 < data.len() && (data[i + 1] & 0xE0) == 0xE0 {
+            return Some(i as u64);
+        }
+        i += 1;
+    }
+    None
+}
+
+#[cfg(test)]
+mod mp3_tests {
+    use super::*;
+
+    /// Build a synthetic MP3-like byte stream: a valid frame header (0xFF 0xFB =
+    /// MPEG1 Layer III, no CRC) followed by `payload_len` padding bytes, repeated
+    /// `frame_count` times. The bitrate nibble is set to index 9 (128 kbps).
+    fn synthetic_mp3(frame_count: usize, payload_len: usize) -> Vec<u8> {
+        let mut out = Vec::new();
+        for _ in 0..frame_count {
+            out.push(0xFF);
+            out.push(0xFB); // sync + MPEG1 Layer III
+            // Byte 2 high nibble = bitrate index 9 (128kbps) → 0x90; low nibble
+            // can be anything valid; use 0x00.
+            out.push(0x90);
+            out.push(0x00);
+            out.extend(std::iter::repeat(0u8).take(payload_len));
+        }
+        out
+    }
+
+    #[test]
+    fn finds_bitrate_from_first_mp3_frame() {
+        let data = synthetic_mp3(3, 100);
+        assert_eq!(find_mp3_frame_bitrate(&data), Some(128_000));
+    }
+
+    #[test]
+    fn bitrate_none_for_non_mp3_data() {
+        // No 0xFF sync byte → not MP3.
+        let data = vec![0x00u8; 2048];
+        assert_eq!(find_mp3_frame_bitrate(&data), None);
+    }
+
+    #[test]
+    fn finds_next_frame_after_a_byte_offset() {
+        // Two frames of 104 bytes each (4 header + 100 payload).
+        let data = synthetic_mp3(3, 100);
+        // Look for a frame starting somewhere in the middle of frame 0's payload
+        // — should find the start of frame 1.
+        let next = find_next_mp3_frame(&data, 50);
+        assert_eq!(next, Some(104), "should land on the next frame boundary");
+    }
+
+    #[test]
+    fn find_next_frame_returns_none_if_no_sync_in_window() {
+        let data = vec![0x00u8; 2048]; // no sync bytes at all
+        assert_eq!(find_next_mp3_frame(&data, 0), None);
+    }
+
+    #[test]
+    fn bitrate_ignores_false_sync_followed_by_non_layer3() {
+        // 0xFF 0xF0 has the sync bits but layer bits 00 (reserved), not Layer III.
+        let mut data = vec![0xFF, 0xF0];
+        data.extend(std::iter::repeat(0u8).take(100));
+        // A real Layer III frame later in the stream should still be found.
+        data.push(0xFF);
+        data.push(0xFB);
+        data.push(0x90);
+        data.push(0x00);
+        // Trailing padding so the real frame is within the scanner's bound
+        // (find_mp3_frame_bitrate loops i in 0..len-4, so the real frame at the
+        // tail needs ≥4 bytes after it to be examined).
+        data.extend(std::iter::repeat(0u8).take(10));
+        assert_eq!(find_mp3_frame_bitrate(&data), Some(128_000));
+    }
+}
+
+/// Clean up temp chunk files created by split_audio_for_groq_mobile after the
+/// transcription uploads are done (success or failure).
+#[tauri::command]
+pub async fn cleanup_mobile_audio_chunks(app_handle: AppHandle) -> Result<()> {
+    if let Ok(cache_dir) = app_handle.path().app_cache_dir() {
+        let _ = std::fs::remove_dir_all(cache_dir.join("groq_mobile_chunks"));
+    }
+    Ok(())
+}
+
+
 
 /// Persist per-segment (and optional per-word) timings produced by Groq cloud
 /// transcription. Used by the mobile/Groq transcription path, which runs the

@@ -2615,6 +2615,7 @@ export function QueueScrollPage() {
                 setItemsReviewedThisSession(prev => prev + 1);
                 advanceAfterRemoval(renderedItem.id);
               }}
+              onBack={handleExit}
             />
           ) : renderedItem?.type === "extract" && renderedItem.extract ? (
             <ExtractScrollItem

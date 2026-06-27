@@ -18,9 +18,11 @@ import {
   ArrowsOutSimple,
   Bookmark,
   BookmarkSimple,
+  CaretLeft,
   CircleNotch,
   Clock,
   Headphones,
+  Info,
   List,
   Microphone,
   Moon,
@@ -57,6 +59,7 @@ import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { startTranscription, saveTranscript, enqueueAutoTranscription } from "../../api/transcription";
 import { convertFileSrc, isTauri, listen } from "../../lib/tauri";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto, updateDocumentContent, getDocument } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
 import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath, getPodcastTranscript, transcribePodcastEpisode } from "../../api/podcast";
@@ -79,6 +82,8 @@ interface AudiobookViewerProps {
   podcastTitle?: string;
   /** Callback when episode finishes playing */
   onEpisodeEnded?: () => void;
+  /** Back/exit handler (mobile top-bar back chevron). */
+  onBack?: () => void;
 }
 
 interface AudiobookBookmark {
@@ -237,6 +242,7 @@ export function AudiobookViewer({
   episodeTitle,
   podcastTitle,
   onEpisodeEnded,
+  onBack,
 }: AudiobookViewerProps) {
   const internalAudioRef = useRef<HTMLAudioElement>(null);
   const audioRef = externalAudioRef ?? internalAudioRef;
@@ -321,6 +327,8 @@ export function AudiobookViewer({
 
   // Podcast transcript state (podcasts are stored separately from document/audiobook transcripts)
   const isPodcast = !!episodeId;
+  const isMobile = useMobileShell();
+  const [showMobileDetails, setShowMobileDetails] = useState(false);
   const [podcastTranscriptText, setPodcastTranscriptText] = useState<string | null>(null);
   const [podcastTranscriptSegments, setPodcastTranscriptSegments] = useState<Array<{ start: number; end: number; text: string; wordTimings?: Array<{ word: string; start_ms: number; end_ms: number }> }>>([]);
   const [podcastTranscriptionProgress, setPodcastTranscriptionProgress] = useState<{ status: string; progress: number } | null>(null);
@@ -1391,8 +1399,8 @@ export function AudiobookViewer({
     }
   };
   
-  // Playback rate
-  const playbackRates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+  // Playback rate (0.5x intervals up to 3x, per the mobile spec).
+  const playbackRates = [0.5, 1, 1.5, 2, 2.5, 3];
   const cyclePlaybackRate = () => {
     const currentIndex = playbackRates.indexOf(playbackRate);
     const nextRate = playbackRates[(currentIndex + 1) % playbackRates.length];
@@ -1798,6 +1806,49 @@ export function AudiobookViewer({
       "flex flex-col bg-background h-full relative",
       isFullscreen && "fixed inset-0 z-50"
     )}>
+      {/* Mobile top bar: back chevron + title + details. Rendered only on mobile
+          (PodcastManager supplies its own external bar on desktop-style mounts). */}
+      {isMobile && (
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-card/80 backdrop-blur-md flex-shrink-0 safe-top">
+          <button
+            onClick={() => onBack?.()}
+            className="flex-shrink-0 w-9 h-9 -ml-1 flex items-center justify-center rounded-full hover:bg-muted transition-colors active:scale-95"
+            aria-label="Back"
+          >
+            <CaretLeft className="w-6 h-6" />
+          </button>
+          <div className="flex-1 min-w-0 text-center">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {episodeTitle || document.title}
+            </p>
+            {podcastTitle && (
+              <p className="text-xs text-muted-foreground truncate">{podcastTitle}</p>
+            )}
+          </div>
+          <button
+            onClick={() => setShowMobileDetails((v) => !v)}
+            className={cn(
+              "flex-shrink-0 w-9 h-9 -mr-1 flex items-center justify-center rounded-full transition-colors active:scale-95",
+              showMobileDetails ? "bg-primary/10 text-primary" : "hover:bg-muted"
+            )}
+            aria-label="Details"
+          >
+            <Info className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile details panel (toggled by the info button). */}
+      {isMobile && showMobileDetails && (
+        <div className="px-4 py-3 border-b border-border bg-card/60 flex-shrink-0 space-y-1.5 text-sm">
+          <p className="font-medium text-foreground">{episodeTitle || document.title}</p>
+          {podcastTitle && <p className="text-muted-foreground">{podcastTitle}</p>}
+          <p className="text-muted-foreground">
+            {audiobookApi.formatDuration(duration)} · {playbackRate}x speed
+          </p>
+        </div>
+      )}
+
       {/* Premium SponsorBlock Skip Notification Overlay */}
       {skipNotification && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top duration-300">
@@ -1849,8 +1900,8 @@ export function AudiobookViewer({
       
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar - Chapters/Bookmarks */}
-        {(showChapters || showBookmarks) && (
+        {/* Left sidebar - Chapters/Bookmarks (desktop only) */}
+        {!isMobile && (showChapters || showBookmarks) && (
           <div className="w-80 border-r border-border bg-card flex flex-col">
             <div className="flex items-center justify-between border-b border-border p-3">
               <h3 className="font-semibold">
@@ -2095,7 +2146,9 @@ export function AudiobookViewer({
             
             {/* Control buttons */}
             <div className="flex items-center justify-between">
-              {/* Left - Secondary controls */}
+              {/* Left - Secondary controls (desktop only; mobile uses the top bar
+                  for back/details and keeps the center playback cluster). */}
+              {!isMobile && (
               <div className="flex items-center gap-2">
                 {/* Chapters */}
                 <button
@@ -2136,7 +2189,8 @@ export function AudiobookViewer({
                   <BookmarkSimple className="h-5 w-5" />
                 </button>
               </div>
-              
+              )}
+
               {/* Center - Main playback */}
               <div className="flex items-center gap-3">
                 <button
@@ -2213,7 +2267,8 @@ export function AudiobookViewer({
                   {playbackRate}x
                 </button>
                 
-                {/* Volume */}
+                {/* Volume (desktop only — mobile uses hardware volume) */}
+                {!isMobile && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={toggleMute}
@@ -2236,7 +2291,8 @@ export function AudiobookViewer({
                     className="w-20 h-1 bg-muted rounded-full appearance-none cursor-pointer"
                   />
                 </div>
-                
+                )}
+
                 {/* Transcript toggle */}
                 <button
                   onClick={() => setShowTranscript(!showTranscript)}
@@ -2249,7 +2305,8 @@ export function AudiobookViewer({
                   <TextT className="h-5 w-5" />
                 </button>
                 
-                {/* Fullscreen */}
+                {/* Fullscreen (desktop only) */}
+                {!isMobile && (
                 <button
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className="p-2 hover:bg-muted rounded-lg transition-colors"
@@ -2261,6 +2318,7 @@ export function AudiobookViewer({
                     <ArrowsOutSimple className="h-5 w-5" />
                   )}
                 </button>
+                )}
               </div>
             </div>
           </div>
@@ -2268,18 +2326,27 @@ export function AudiobookViewer({
         
         {/* Right sidebar - Transcript */}
         {showTranscript && (
-          <div className="w-96 border-l border-border bg-card flex flex-col">
-            <div className="flex items-center justify-between border-b border-border p-3">
+          <div className={cn(
+            "bg-card flex flex-col",
+            // Desktop: a fixed-width sidebar beside the player. Mobile: a
+            // full-screen overlay sheet (the w-96 sidebar is unusable on a phone)
+            // so the streaming transcript + karaoke word highlight have room.
+            isMobile
+              ? "fixed inset-0 z-40 w-full h-full"
+              : "w-96 border-l border-border"
+          )}>
+            <div className="flex items-center justify-between border-b border-border p-3 safe-top">
               <h3 className="font-semibold">{t("viewer.transcript")}</h3>
               <button
                 onClick={() => setShowTranscript(false)}
-                className="p-1 hover:bg-muted rounded"
+                className="p-2 -mr-2 hover:bg-muted rounded-full active:scale-95 transition-transform"
+                aria-label="Close transcript"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            
-            <div 
+
+            <div
               ref={transcriptRef}
               className="flex-1 overflow-y-auto overscroll-contain p-4"
               onMouseUp={handleTextSelection}
