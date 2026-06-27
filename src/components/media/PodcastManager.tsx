@@ -61,6 +61,7 @@ import type {
 import { isTauri, isNativeMobile, listen } from "../../lib/tauri";
 import { useCollectionStore } from "../../stores/collectionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useQueueStore } from "../../stores/queueStore";
 import {
   useContextMenu,
   ContextMenu,
@@ -235,6 +236,10 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             );
           }
         })();
+        // The backend auto-imports the downloaded episode as a Document (due
+        // immediately), so it appears in the reading queue. Refresh the queue so
+        // it shows up live if the queue is already open.
+        void useQueueStore.getState().loadQueue();
       },
     );
 

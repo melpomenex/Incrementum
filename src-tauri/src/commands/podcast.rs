@@ -1179,14 +1179,28 @@ pub async fn import_podcast_episode_as_document(
     app_handle: AppHandle,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
-    // 1. Get episode
     let episode = repo
         .get_podcast_episode_by_id(&episode_id)
         .await?
         .ok_or_else(|| IncrementumError::NotFound(format!("Podcast episode {}", episode_id)))?;
+    import_episode_as_document_inner(&app_handle, &repo, &episode, collection_id).await
+}
 
-    // 2. Check if already imported
-    let local_path_str = find_existing_download(&app_handle, &episode_id)
+/// Shared import logic: create (or return an existing) Document for a podcast
+/// episode so it appears in the reading queue (the FSRS queue admits documents
+/// with next_reading_date <= now; we set it to now + priority 8). Idempotent —
+/// if a Document already exists for the episode's audio_url or local download
+/// path, it's returned as-is. Used by both the manual "Add to Reading Queue"
+/// command AND auto-import on download completion (so downloaded episodes land
+/// in the queue without the user having to add them manually).
+async fn import_episode_as_document_inner(
+    app_handle: &AppHandle,
+    repo: &Repository,
+    episode: &crate::models::podcast::PodcastEpisode,
+    collection_id: Option<String>,
+) -> Result<Document> {
+    // Check if already imported (by remote URL or local download path).
+    let local_path_str = find_existing_download(app_handle, &episode.id)
         .map(|p| p.to_string_lossy().to_string());
 
     if let Some(existing) = repo.find_document_by_url(&episode.audio_url).await? {
@@ -1198,23 +1212,21 @@ pub async fn import_podcast_episode_as_document(
         }
     }
 
-    // 3. Create a new Document record
+    // Create a new Document record, due immediately at high priority.
     let file_path = local_path_str.unwrap_or_else(|| episode.audio_url.clone());
-    let mut doc = Document::with_collection(episode.title, file_path, FileType::Audio, collection_id);
+    let mut doc = Document::with_collection(episode.title.clone(), file_path, FileType::Audio, collection_id);
     doc.date_added = Utc::now();
     doc.date_modified = Utc::now();
     doc.next_reading_date = Some(Utc::now()); // Make it due immediately
     doc.priority_rating = 8; // High priority for new items
     doc.tags = vec!["podcast".to_string()];
-    
-    if let Some(image_url) = episode.image_url {
-        doc.cover_image_url = Some(image_url);
+
+    if let Some(image_url) = &episode.image_url {
+        doc.cover_image_url = Some(image_url.clone());
         doc.cover_image_source = Some("podcast".to_string());
     }
 
-    // 4. Save to DB
     let created = repo.create_document(&doc).await?;
-    
     Ok(created)
 }
 
@@ -1375,6 +1387,16 @@ pub async fn download_podcast_episode(
         doc.file_path = dest_path.to_string_lossy().to_string();
         doc.date_modified = Utc::now();
         let _ = repo.update_document(&doc.id, &doc).await;
+    }
+
+    // Auto-import the episode as a Document so it appears in the reading queue.
+    // Downloaded episodes should flow into the user's review queue without a
+    // manual "Add to Reading Queue" step. import_episode_as_document_inner is
+    // idempotent (returns the existing doc if already imported), so this is safe
+    // on re-downloads. The created doc is due immediately (next_reading_date=now,
+    // priority 8), so it surfaces at the top of the FSRS queue.
+    if let Ok(Some(episode)) = repo.get_podcast_episode_by_id(&episode_id).await {
+        let _ = import_episode_as_document_inner(&app_handle, &repo, &episode, None).await;
     }
 
     let _ = app_handle.emit(
