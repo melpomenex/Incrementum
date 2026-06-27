@@ -256,6 +256,11 @@ export function TranscriptSync({
   };
 
   const handleSegmentClick = (segment: TranscriptSegment) => {
+    // Optimistically set the active index for instant visual feedback — the
+    // active segment is normally derived from currentTime (which lags while the
+    // new position buffers), so without this the tap looks like it did nothing.
+    const idx = safeSegments.findIndex((s) => s.id === segment.id);
+    if (idx !== -1) setActiveIndex(idx);
     onSeek?.(segment.start);
   };
 

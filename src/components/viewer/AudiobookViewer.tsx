@@ -2468,15 +2468,20 @@ export function AudiobookViewer({
                           key={id}
                           id={`segment-${id}`}
                           className={cn(
-                            "p-3 rounded-lg cursor-pointer transition-colors",
+                            "p-3 rounded-lg cursor-pointer transition-all duration-150",
                             activeSegmentId === id
-                              ? "bg-primary/10 border-l-4 border-primary"
+                              ? "bg-primary/15 border-l-4 border-primary ring-1 ring-primary/30 scale-[1.01]"
                               : "hover:bg-muted/50 border-l-4 border-transparent"
                           )}
                           onClick={() => {
                             const targetTime = sponsorBlockCuts.length > 0
                               ? mapOriginalTimeToCutTime(startTime, sponsorBlockCuts)
                               : startTime;
+                            // Optimistically mark this segment active for instant visual
+                            // feedback — otherwise the highlight only updates on the next
+                            // audio timeupdate (which lags while the new position buffers),
+                            // so the tap feels like it did nothing.
+                            setActiveSegmentId(id);
                             seek(targetTime);
                           }}
                         >
