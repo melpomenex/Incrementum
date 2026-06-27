@@ -67,6 +67,7 @@ import {
 } from "../common/ContextMenu";
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
 import { TranscriptSync, type TranscriptSearchState } from "./TranscriptSync";
 import { cn } from "../../utils";
@@ -81,6 +82,7 @@ interface PodcastManagerProps {
 
 export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const { t } = useI18n();
+  const isMobile = useMobileShell();
   const toast = useToast();
   const [feeds, setFeeds] = useState<PodcastFeed[]>([]);
   const [selectedFeedId, setSelectedFeedId] = useState<string | null>(null);
