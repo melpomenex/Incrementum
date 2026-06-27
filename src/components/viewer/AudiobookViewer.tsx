@@ -904,7 +904,23 @@ export function AudiobookViewer({
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allSegments: any[] = transcript?.segments || activeSegments;
+      // Use the podcast transcript segments for podcasts (they live in a separate
+      // system from the audiobook document-transcript store); otherwise the
+      // audiobook sources. This is what drives active-segment highlighting +
+      // auto-scroll as the audio plays. Built from raw state here (not the
+      // podcastDisplaySegments derivation, which is declared later in the component)
+      // — the segment lookup below already normalizes startTime/endTime.
+      const allSegments: any[] = isPodcast
+        ? (podcastTranscriptSegments.length > 0
+            ? podcastTranscriptSegments.map((s, i) => ({
+                id: `pod-seg-${i}`,
+                startTime: s.start || 0,
+                endTime: s.end || 0,
+                text: s.text,
+                wordTimings: s.wordTimings,
+              }))
+            : (podcastTranscriptText || "").split(/(?<=[.!?])\s+/).map((s, i) => s.trim()).filter(Boolean).map((text, i) => ({ id: `pod-seg-${i}`, startTime: 0, endTime: 0, text })))
+        : (transcript?.segments || activeSegments);
       if (allSegments.length > 0) {
         const checkTime = sponsorBlockCuts.length > 0
           ? mapCutTimeToOriginalTime(time, sponsorBlockCuts)
@@ -955,7 +971,7 @@ export function AudiobookViewer({
         setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
       }
     }
-  }, [activeSegmentId, activeSegments, currentPartIndex, showTranscript, toGlobalSeconds, transcript, sponsorBlockCuts, sponsorBlockSegments]);
+  }, [activeSegmentId, activeSegments, currentPartIndex, showTranscript, toGlobalSeconds, transcript, sponsorBlockCuts, sponsorBlockSegments, isPodcast, podcastTranscriptSegments, podcastTranscriptText]);
   
   const [isWaitingForSeek, setIsWaitingForSeek] = useState(false);
   const seekRetryCountRef = useRef(0);
