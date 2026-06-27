@@ -20,6 +20,7 @@ import {
   House,
   List,
   MagnifyingGlass,
+  Microphone,
   Newspaper,
   Rss,
   TextT,
@@ -39,6 +40,7 @@ import {
   SettingsTab,
   RSSReader,
   NewsletterDirectoryTab,
+  PodcastTab,
 } from "../tabs/TabRegistry";
 
 interface NavItem {
@@ -139,6 +141,16 @@ const allNavItems: NavItem[] = [
     tabTitle: "nav.analytics",
     tabIcon: "📈",
     tabContent: AnalyticsTab,
+    closable: true,
+  },
+  {
+    id: "podcast",
+    label: "podcastManager.podcasts",
+    icon: Microphone,
+    tabType: "podcast",
+    tabTitle: "podcastManager.podcasts",
+    tabIcon: "🎙️",
+    tabContent: PodcastTab,
     closable: true,
   },
 ];

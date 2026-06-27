@@ -949,231 +949,250 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   return (
     <div className="h-full flex relative">
       {/* Sidebar - Podcast List */}
-      <div className="w-80 border-r border-border bg-card flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Rss className="w-5 h-5 text-primary" />
-              Podcasts
-            </h2>
-            <div className="flex gap-1">
-              <button
-                onClick={() => {
-                  setShowAddDialog(true);
-                  setPodcastSearchQuery("");
-                  setPodcastSearchResults([]);
-                  setSearchError(null);
-                  setShowUrlInput(false);
-                }}
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                title="Add podcast"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+      {(!isMobile || !selectedFeedId) && (
+        <div className="w-full md:w-80 border-r border-border bg-card flex flex-col flex-shrink-0">
+          {/* Header */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Rss className="w-5 h-5 text-primary" />
+                Podcasts
+              </h2>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => {
+                    setShowAddDialog(true);
+                    setPodcastSearchQuery("");
+                    setPodcastSearchResults([]);
+                    setSearchError(null);
+                    setShowUrlInput(false);
+                  }}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+                  title="Add podcast"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* MagnifyingGlass */}
+            <div className="relative">
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search podcasts..."
+                className="w-full pl-9 pr-8 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* MagnifyingGlass */}
-          <div className="relative">
-            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search podcasts..."
-              className="w-full pl-9 pr-8 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
+          {/* Podcast List */}
+          <div className="overflow-y-auto flex-1">
+            {isLoadingFeeds ? (
+              <div className="p-8 flex items-center justify-center">
+                <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : feeds.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                <Rss className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="mb-2">No podcasts yet</p>
+                <button
+                  onClick={() => setShowAddDialog(true)}
+                  className="text-primary hover:underline"
+                >
+                  Add your first podcast
+                </button>
+              </div>
+            ) : (
+              <div>
+                {(() => {
+                  const filteredFeeds = podcastFeedSearch(searchQuery, feeds);
 
-        {/* Podcast List */}
-        <div className="overflow-y-auto flex-1">
-          {isLoadingFeeds ? (
-            <div className="p-8 flex items-center justify-center">
-              <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : feeds.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <Rss className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="mb-2">No podcasts yet</p>
-              <button
-                onClick={() => setShowAddDialog(true)}
-                className="text-primary hover:underline"
-              >
-                Add your first podcast
-              </button>
-            </div>
-          ) : (
-            <div>
-              {(() => {
-                const filteredFeeds = podcastFeedSearch(searchQuery, feeds);
+                  if (filteredFeeds.length === 0 && searchQuery.trim()) {
+                    return (
+                      <div className="p-8 text-center text-muted-foreground">
+                        <MagnifyingGlass className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p>No podcasts found for "{searchQuery}"</p>
+                      </div>
+                    );
+                  }
 
-                if (filteredFeeds.length === 0 && searchQuery.trim()) {
-                  return (
-                    <div className="p-8 text-center text-muted-foreground">
-                      <MagnifyingGlass className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>No podcasts found for "{searchQuery}"</p>
-                    </div>
-                  );
-                }
-
-                return filteredFeeds.map((feed) => (
-                  <button
-                    key={feed.id}
-                    onClick={() => setSelectedFeedId(feed.id)}
-                    onContextMenu={(e) => handleFeedContextMenu(e, feed)}
-                    className={`w-full p-3 text-left hover:bg-muted transition-all duration-200 border-b border-border/40 group relative overflow-hidden ${
-                      selectedFeedId === feed.id ? "bg-muted/55 font-medium border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 font-normal">
-                      {/* Cover art */}
-                      {feed.imageUrl ? (
-                        <img
-                          src={feed.imageUrl}
-                          alt={feed.title}
-                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 shadow-md border border-white/5 transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/45 transition-transform duration-300 group-hover:scale-105">
-                          <Rss className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-foreground truncate flex items-center gap-1">
-                          {feed.title}
-                          {refreshErrors[feed.id] && (
-                            <span title={`Refresh failed: ${refreshErrors[feed.id]}`}>
-                              <WarningCircle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
-                            </span>
-                          )}
-                        </h3>
-                        {feed.author && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            {feed.author}
-                          </p>
-                        )}
-                        {(feed.unplayedCount ?? 0) > 0 && (
-                          <div className="mt-1 flex items-center gap-1">
-                            <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-primary-foreground bg-primary rounded-full">
-                              {feed.unplayedCount > 99 ? "99+" : feed.unplayedCount}
-                            </span>
-                            <span className="text-xs text-primary">unplayed</span>
+                  return filteredFeeds.map((feed) => (
+                    <button
+                      key={feed.id}
+                      onClick={() => setSelectedFeedId(feed.id)}
+                      onContextMenu={(e) => handleFeedContextMenu(e, feed)}
+                      className={`w-full p-3 text-left hover:bg-muted transition-all duration-200 border-b border-border/40 group relative overflow-hidden ${
+                        selectedFeedId === feed.id ? "bg-muted/55 font-medium border-l-4 border-l-primary" : "border-l-4 border-l-transparent"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 font-normal">
+                        {/* Cover art */}
+                        {feed.imageUrl ? (
+                          <img
+                            src={feed.imageUrl}
+                            alt={feed.title}
+                            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 shadow-md border border-white/5 transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border border-border/45 transition-transform duration-300 group-hover:scale-105">
+                            <Rss className="w-6 h-6 text-muted-foreground" />
                           </div>
                         )}
-                      </div>
-                    </div>
-                  </button>
-                ));
-              })()}
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="p-4 bg-card border-t border-border">
-          <div className="text-sm text-muted-foreground">
-            {totalUnplayed} unplayed episode{totalUnplayed !== 1 ? "s" : ""} across{" "}
-            {feeds.length} podcast{feeds.length !== 1 ? "s" : ""}
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-foreground truncate flex items-center gap-1">
+                            {feed.title}
+                            {refreshErrors[feed.id] && (
+                              <span title={`Refresh failed: ${refreshErrors[feed.id]}`}>
+                                <WarningCircle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                              </span>
+                            )}
+                          </h3>
+                          {feed.author && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {feed.author}
+                            </p>
+                          )}
+                          {(feed.unplayedCount ?? 0) > 0 && (
+                            <div className="mt-1 flex items-center gap-1">
+                              <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-primary-foreground bg-primary rounded-full">
+                                {feed.unplayedCount > 99 ? "99+" : feed.unplayedCount}
+                              </span>
+                              <span className="text-xs text-primary">unplayed</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ));
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 bg-card border-t border-border">
+            <div className="text-sm text-muted-foreground">
+              {totalUnplayed} unplayed episode{totalUnplayed !== 1 ? "s" : ""} across{" "}
+              {feeds.length} podcast{feeds.length !== 1 ? "s" : ""}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content - Episodes */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {selectedFeed ? (
-          <>
-            {/* Feed Header */}
-            <div className="relative overflow-hidden p-8 border-b border-border bg-card/70 backdrop-blur-md transition-all duration-500">
-              {/* Dynamic Cover Art Backdrop Glow */}
-              {selectedFeed.imageUrl && (
-                <div
-                  className="absolute inset-0 -z-10 bg-cover bg-center scale-110 blur-3xl opacity-[0.14] dark:opacity-[0.22] transition-all duration-700 select-none pointer-events-none"
-                  style={{ backgroundImage: `url(${selectedFeed.imageUrl})` }}
-                />
-              )}
-              <div className="flex items-start gap-6 relative z-10">
-                {selectedFeed.imageUrl ? (
-                  <div className="relative group flex-shrink-0 select-none">
-                    {/* Dynamic Ambient Shadow Glow */}
-                    <div
-                      className="absolute inset-0 rounded-2xl bg-cover bg-center blur-md opacity-50 scale-95 translate-y-1.5 transition-all duration-300 group-hover:scale-100 group-hover:translate-y-2.5 group-hover:blur-lg"
-                      style={{ backgroundImage: `url(${selectedFeed.imageUrl})` }}
-                    />
-                    <img
-                      src={selectedFeed.imageUrl}
-                      alt={selectedFeed.title}
-                      className="relative w-28 h-28 rounded-2xl object-cover border border-white/10 dark:border-white/5 shadow-xl transition-transform duration-300 group-hover:-translate-y-0.5"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-28 h-28 rounded-2xl bg-secondary flex items-center justify-center flex-shrink-0 border border-border shadow-inner">
-                    <Rss className="w-12 h-12 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-3xl font-extrabold text-foreground mb-1 tracking-tight truncate">
-                    {selectedFeed.title}
-                  </h2>
-                  {selectedFeed.author && (
-                    <p className="text-xs font-semibold text-primary/95 mb-3 tracking-wide uppercase">
-                      {selectedFeed.author}
-                    </p>
-                  )}
-                  <div 
-                    className="text-sm text-muted-foreground line-clamp-2 mb-4 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline font-normal leading-relaxed" 
-                    dangerouslySetInnerHTML={{ __html: _sanitizeHtml(selectedFeed.description || "") }} 
+      {(!isMobile || (selectedFeedId && !playingEpisode)) && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {selectedFeed ? (
+            <>
+              {/* Feed Header */}
+              <div className="relative overflow-hidden p-4 sm:p-8 border-b border-border bg-card/70 backdrop-blur-md transition-all duration-500">
+                {/* Dynamic Cover Art Backdrop Glow */}
+                {selectedFeed.imageUrl && (
+                  <div
+                    className="absolute inset-0 -z-10 bg-cover bg-center scale-110 blur-3xl opacity-[0.14] dark:opacity-[0.22] transition-all duration-700 select-none pointer-events-none"
+                    style={{ backgroundImage: `url(${selectedFeed.imageUrl})` }}
                   />
-                  <div className="flex items-center gap-2">
+                )}
+                <div className="flex flex-col gap-4 relative z-10">
+                  {isMobile && (
                     <button
-                      onClick={() => handleRefreshFeed(selectedFeed)}
-                      disabled={isRefreshing === selectedFeed.id}
-                      className={cn(
-                        "px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm",
-                        refreshErrors[selectedFeed.id]
-                          ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/30"
-                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      type="button"
+                      onClick={() => setSelectedFeedId(null)}
+                      className="self-start p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-lg bg-background/50 hover:bg-background/80 transition-colors flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider"
+                      title="Back to podcasts"
+                    >
+                      <CaretLeft className="w-4 h-4" />
+                      <span>Back to Podcasts</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-start gap-4 sm:gap-6">
+                    {selectedFeed.imageUrl ? (
+                      <div className="relative group flex-shrink-0 select-none">
+                        <div
+                          className="absolute inset-0 rounded-2xl bg-cover bg-center blur-md opacity-50 scale-95 translate-y-1.5 transition-all duration-300 group-hover:scale-100 group-hover:translate-y-2.5 group-hover:blur-lg"
+                          style={{ backgroundImage: `url(${selectedFeed.imageUrl})` }}
+                        />
+                        <img
+                          src={selectedFeed.imageUrl}
+                          alt={selectedFeed.title}
+                          className="relative w-20 h-20 sm:w-28 sm:h-28 rounded-2xl object-cover border border-white/10 dark:border-white/5 shadow-xl transition-transform duration-300 group-hover:-translate-y-0.5"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-secondary flex items-center justify-center flex-shrink-0 border border-border shadow-inner">
+                        <Rss className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl sm:text-3xl font-extrabold text-foreground mb-1 tracking-tight truncate">
+                        {selectedFeed.title}
+                      </h2>
+                      {selectedFeed.author && (
+                        <p className="text-xs font-semibold text-primary/95 tracking-wide uppercase">
+                          {selectedFeed.author}
+                        </p>
                       )}
-                    >
-                      {isRefreshing === selectedFeed.id ? (
-                        <CircleNotch className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <ArrowsClockwise className="w-3.5 h-3.5" />
-                      )}
-                      {refreshErrors[selectedFeed.id] ? "Retry" : "Refresh"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRenamingFeed(selectedFeed);
-                        setRenameTitle(selectedFeed.title);
-                      }}
-                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Rename
-                    </button>
-                    <button
-                      onClick={() => handleRemoveSubscription(selectedFeed.id)}
-                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-destructive hover:bg-destructive/10 rounded-lg flex items-center gap-1.5 transition-all duration-200"
-                    >
-                      <Trash className="w-3.5 h-3.5" />
-                      Unsubscribe
-                    </button>
+                    </div>
+                  </div>
+
+                  <div className="w-full">
+                    <div 
+                      className="text-sm text-muted-foreground line-clamp-2 mb-4 prose prose-sm max-w-none [&_a]:text-primary [&_a]:underline font-normal leading-relaxed" 
+                      dangerouslySetInnerHTML={{ __html: _sanitizeHtml(selectedFeed.description || "") }} 
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleRefreshFeed(selectedFeed)}
+                        disabled={isRefreshing === selectedFeed.id}
+                        className={cn(
+                          "px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shadow-sm",
+                          refreshErrors[selectedFeed.id]
+                            ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/30"
+                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        )}
+                      >
+                        {isRefreshing === selectedFeed.id ? (
+                          <CircleNotch className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ArrowsClockwise className="w-3.5 h-3.5" />
+                        )}
+                        {refreshErrors[selectedFeed.id] ? "Retry" : "Refresh"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setRenamingFeed(selectedFeed);
+                          setRenameTitle(selectedFeed.title);
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg flex items-center gap-1.5 shadow-sm transition-all duration-200"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Rename
+                      </button>
+                      <button
+                        onClick={() => handleRemoveSubscription(selectedFeed.id)}
+                        className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-destructive hover:bg-destructive/10 rounded-lg flex items-center gap-1.5 transition-all duration-200"
+                      >
+                        <Trash className="w-3.5 h-3.5" />
+                        Unsubscribe
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
             {/* Episodes List */}
             <div className="flex-1 overflow-y-auto p-4 min-h-0">
@@ -1489,13 +1508,17 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Inline podcast player */}
       {playingEpisode && (
         <div
-          className="border-l border-border bg-card flex-shrink-0 flex flex-col overflow-hidden relative"
-          style={{ width: playerWidth }}
+          className={cn(
+            "border-l border-border bg-card flex-shrink-0 flex flex-col overflow-hidden relative",
+            isMobile ? "fixed inset-0 z-[70] w-full" : ""
+          )}
+          style={isMobile ? {} : { width: playerWidth }}
         >
           {/* Drag handle */}
           <div
@@ -1546,7 +1569,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
       {/* Add Podcast Dialog (unified search) */}
       {showAddDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-2xl max-h-[85vh] flex flex-col">
+          <div className="bg-card border border-border rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[85vh] mx-4 flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-foreground">Add Podcast</h2>
