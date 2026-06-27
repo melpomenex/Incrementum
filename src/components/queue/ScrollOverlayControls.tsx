@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Brain,
   CaretDown,
@@ -104,6 +104,17 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
   const isDocOrRss = itemType === "document" || itemType === "rss";
   const showRatingButtons = itemType !== "flashcard" && itemType !== "extract";
+
+  // The help hint ("Rate or use Alt+Arrows…") auto-hides a few seconds after the
+  // item changes. On mobile/touch the whole overlay stays visible (controls are
+  // always reachable), but the hint was covering the podcast controls — so it
+  // fades on its own after 3.5s, and re-shows briefly whenever the item changes.
+  const [showHint, setShowHint] = useState(true);
+  useEffect(() => {
+    setShowHint(true);
+    const id = setTimeout(() => setShowHint(false), 3500);
+    return () => clearTimeout(id);
+  }, [itemDocumentId, itemType, currentIndex]);
 
   const typeLabel = itemType === "document"
     ? labels?.docShort ?? "doc"
@@ -333,9 +344,9 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((currentIndex + 1 + sessionOffset) / (totalItems + sessionOffset)) * 100}%` }} />
       </div>
 
-      {/* Help Text */}
-      {helpText && (
-        <div className={cn("absolute left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none", isTouchDevice ? "bottom-[calc(80px+env(safe-area-inset-bottom,0px))]" : "bottom-20")}>
+      {/* Help Text (auto-hides after a few seconds; see showHint) */}
+      {helpText && showHint && (
+        <div className={cn("absolute left-1/2 -translate-x-1/2 text-white text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg pointer-events-none transition-opacity duration-500", isTouchDevice ? "bottom-[calc(80px+env(safe-area-inset-bottom,0px))]" : "bottom-20")}>
           {helpText}
         </div>
       )}

@@ -62,7 +62,8 @@ import { convertFileSrc, isTauri, listen } from "../../lib/tauri";
 import { useMobileShell } from "../../hooks/useMobileShell";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto, updateDocumentContent, getDocument } from "../../api/documents";
 import { getDocumentPosition, saveDocumentPosition, timePosition } from "../../api/position";
-import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath, getPodcastTranscript, transcribePodcastEpisode } from "../../api/podcast";
+import { getEpisodePosition, updateEpisodePosition, markEpisodePlayed, downloadEpisodeAudio, getDownloadedEpisodePath, getPodcastTranscript, transcribePodcastEpisode, transcribePodcastEpisodeWithGroq } from "../../api/podcast";
+import { isNativeMobile } from "../../lib/tauri";
 
 interface AudiobookViewerProps {
   document: Document;
@@ -1490,12 +1491,26 @@ export function AudiobookViewer({
       if (!episodeId) return;
       const allSettings = useSettingsStore.getState().settings;
       const audioSettings = allSettings.audioTranscription;
-      const modelId = audioSettings.preferredModelId || "distil-small.en";
       const language = audioSettings.language || "en";
-      const autoSegment = allSettings.documents.autoProcessOnImport;
       try {
         setPodcastTranscriptionProgress({ status: "starting", progress: 0 });
-        await transcribePodcastEpisode(episodeId, modelId, language, autoSegment);
+        // On mobile the local Whisper/sherpa-onnx sidecar + FFmpeg pipeline
+        // doesn't work — route to Groq cloud transcription (which also yields
+        // word-level timestamps for karaoke highlighting). Falls back to the
+        // local command on desktop (when the provider isn't groq).
+        const useGroq = audioSettings.provider === "groq" || isNativeMobile();
+        if (useGroq) {
+          const audioUrl = remoteAudioUrl || document.filePath;
+          if (!audioUrl) {
+            showError("Transcription Failed", "No audio URL available for this episode.");
+            return;
+          }
+          await transcribePodcastEpisodeWithGroq(episodeId, audioUrl, language);
+        } else {
+          const modelId = audioSettings.preferredModelId || "distil-small.en";
+          const autoSegment = allSettings.documents.autoProcessOnImport;
+          await transcribePodcastEpisode(episodeId, modelId, language, autoSegment);
+        }
       } catch (err) {
         setPodcastTranscriptionProgress(null);
         showError("Transcription Failed", String(err));

@@ -67,6 +67,7 @@ import {
 } from "../../api/documents";
 import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube";
 import { useMobileShell } from "../../hooks/useMobileShell";
+import { useLongPress } from "../../hooks/useLongPress";
 import { invokeCommand, isTauri, isNativeMobile } from "../../lib/tauri";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
@@ -194,6 +195,14 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
   const [activeId, setActiveId] = useState<string | null>(null);
   const [listCtxDoc, setListCtxDoc] = useState<{ doc: Document; pos: { x: number; y: number } } | null>(null);
   const listCtxRef = useRef<HTMLDivElement>(null);
+  // Ref to the document currently being long-pressed (set on touchstart so the
+  // long-press timer's callback knows which doc to open the menu for).
+  const longPressDocRef = useRef<Document | null>(null);
+  const docLongPress = useLongPress((pos) => {
+    if (longPressDocRef.current) {
+      setListCtxDoc({ doc: longPressDocRef.current, pos });
+    }
+  });
   const [listPairPicker, setListPairPicker] = useState<Document | null>(null);
   const [listPairSearch, setListPairSearch] = useState("");
 
@@ -1288,6 +1297,10 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                         e.preventDefault();
                         setListCtxDoc({ doc, pos: { x: e.clientX, y: e.clientY } });
                       }}
+                      onTouchStart={(e) => { longPressDocRef.current = doc; docLongPress.onTouchStart(e); }}
+                      onTouchMove={docLongPress.onTouchMove}
+                      onTouchEnd={docLongPress.onTouchEnd}
+                      onTouchCancel={docLongPress.onTouchCancel}
                       className={`border rounded-lg p-3 cursor-pointer transition-colors ${
                         selectedIds.has(doc.id)
                           ? "border-primary bg-primary/5"
@@ -2306,6 +2319,8 @@ function LibraryCard({
   const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
   const [showPairPicker, setShowPairPicker] = useState(false);
   const [pairSearch, setPairSearch] = useState("");
+  // Long-press (touch-hold) opens the same context menu as right-click.
+  const cardLongPress = useLongPress((pos) => setCtxPos(pos));
 
   const typeColors: Record<string, string> = {
     pdf: "bg-red-500/15 text-red-400",
@@ -2416,6 +2431,10 @@ function LibraryCard({
           e.preventDefault();
           setCtxPos({ x: e.clientX, y: e.clientY });
         }}
+        onTouchStart={cardLongPress.onTouchStart}
+        onTouchMove={cardLongPress.onTouchMove}
+        onTouchEnd={cardLongPress.onTouchEnd}
+        onTouchCancel={cardLongPress.onTouchCancel}
         className={"snap-start flex-shrink-0 w-[280px] sm:w-[320px] rounded-xl border bg-card cursor-pointer transition-all hover:shadow-lg hover:shadow-black/10 hover:-translate-y-0.5 group " + (selected ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-border/80")}
       >
         {/* Cover */}

@@ -70,6 +70,7 @@ import {
 import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { useMobileShell } from "../../hooks/useMobileShell";
+import { useLongPress } from "../../hooks/useLongPress";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
 import { TranscriptSync, type TranscriptSearchState } from "./TranscriptSync";
 import { cn } from "../../utils";
@@ -301,6 +302,9 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   }, [episodes]);
   const [_contextFeed, setContextFeed] = useState<PodcastFeed | null>(null);
   const [_contextEpisode, setContextEpisode] = useState<PodcastEpisode | null>(null);
+  // Ref holding the episode the user is currently long-pressing (set on
+  // touchstart so the long-press timer's callback knows which episode to menu).
+  const contextEpisodeRef = useRef<PodcastEpisode | null>(null);
   const [renamingFeed, setRenamingFeed] = useState<PodcastFeed | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
@@ -702,9 +706,19 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     (e: React.MouseEvent, episode: PodcastEpisode, feed: PodcastFeed) => {
       e.preventDefault();
       e.stopPropagation();
+      showEpisodeMenu({ x: e.clientX, y: e.clientY }, episode, feed);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Shared menu builder for both right-click (desktop) and long-press (mobile).
+  // Takes an explicit position so the long-press hook can pass touch coordinates.
+  const showEpisodeMenu = useCallback(
+    (position: { x: number; y: number }, episode: PodcastEpisode, feed: PodcastFeed) => {
       setContextEpisode(episode);
       episodeContextMenu.showMenu(
-        { x: e.clientX, y: e.clientY },
+        position,
         [
           {
             id: "play",
@@ -780,6 +794,16 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
     },
     [episodeContextMenu, loadFeeds, loadEpisodes, selectedFeedId]
   );
+
+  // Long-press (touch-hold) handler for episode rows on mobile. Opens the same
+  // context menu as right-click on desktop. `selectedFeed` is the feed the user
+  // is currently viewing, so the menu actions (play, mark played, download, etc.)
+  // have the right feed context.
+  const episodeLongPress = useLongPress((pos) => {
+    if (contextEpisodeRef.current && selectedFeed) {
+      showEpisodeMenu(pos, contextEpisodeRef.current, selectedFeed);
+    }
+  });
 
   // Rename handler
   const handleRenameFeed = async () => {
@@ -1295,6 +1319,10 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                           playingEpisode?.episode.id === episode.id ? "border-primary" : "border-border"
                         )}
                         onContextMenu={(e) => handleEpisodeContextMenu(e, episode, selectedFeed)}
+                        onTouchStart={(e) => { contextEpisodeRef.current = episode; episodeLongPress.onTouchStart(e); }}
+                        onTouchMove={episodeLongPress.onTouchMove}
+                        onTouchEnd={episodeLongPress.onTouchEnd}
+                        onTouchCancel={episodeLongPress.onTouchCancel}
                       >
                         <div className="flex items-start gap-3">
                           {/* Play button */}
