@@ -5818,6 +5818,14 @@ export function DocumentViewer({
               document={currentDocument}
               fileContent={mediaSource.src}
               remoteAudioUrl={(currentDocument.filePath.startsWith("http://") || currentDocument.filePath.startsWith("https://") || currentDocument.filePath.startsWith("data:")) ? currentDocument.filePath : undefined}
+              // Recover the podcast episode id from metadata.source ("podcast:<id>")
+              // so the transcript panel loads the podcast's Groq transcript (keyed by
+              // episode id). Without this, AudiobookViewer sees a non-podcast audio
+              // doc and shows the generic empty transcribe state.
+              episodeId={(currentDocument.metadata?.source?.startsWith("podcast:"))
+                ? currentDocument.metadata.source.slice("podcast:".length)
+                : undefined}
+              episodeTitle={currentDocument.title}
               initialSeekTime={initialJump?.kind === "audio" ? initialJump.timeSeconds : undefined}
               initialTranscriptSegmentId={initialJump?.kind === "audio" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "audio"}

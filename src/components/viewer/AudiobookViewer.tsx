@@ -328,11 +328,17 @@ export function AudiobookViewer({
 
   // Podcast transcript state (podcasts are stored separately from document/audiobook transcripts)
   const isPodcast = !!episodeId;
+  const audioTranscriptionSettings = useSettingsStore((state) => state.settings.audioTranscription);
+  const displayProvider = isNativeMobile()
+    ? (audioTranscriptionSettings.provider === "local" ? "groq" : audioTranscriptionSettings.provider)
+    : audioTranscriptionSettings.provider;
   const isMobile = useMobileShell();
   const [showMobileDetails, setShowMobileDetails] = useState(false);
   const [podcastTranscriptText, setPodcastTranscriptText] = useState<string | null>(null);
   const [podcastTranscriptSegments, setPodcastTranscriptSegments] = useState<Array<{ start: number; end: number; text: string; wordTimings?: Array<{ word: string; start_ms: number; end_ms: number }> }>>([]);
   const [podcastTranscriptionProgress, setPodcastTranscriptionProgress] = useState<{ status: string; progress: number } | null>(null);
+  const [podcastTranscriptStatus, setPodcastTranscriptStatus] = useState<string | null>(null);
+  const [hasLoadedStatus, setHasLoadedStatus] = useState(false);
 
   const shouldPlayAfterDownloadRef = useRef(false);
   const pendingAutoplayAfterDownloadRef = useRef(false);
@@ -1524,6 +1530,9 @@ export function AudiobookViewer({
     }
 
     const settings = useSettingsStore.getState().settings.audioTranscription;
+    const provider = isNativeMobile()
+      ? (settings.provider === "local" ? "groq" : settings.provider)
+      : settings.provider;
 
     try {
       let currentProfiles = profiles;
@@ -1563,18 +1572,18 @@ export function AudiobookViewer({
         }
       }
 
-      const isGroq = settings.provider === "groq";
+      const isGroq = provider === "groq";
       const finalModelId = isGroq ? "groq-whisper" : bestModelId;
 
       const currentChapter = getCurrentChapter();
       const chapterId = currentChapter?.id?.toString() || "default";
 
       // Route transcription based on model & provider
-      if (isGroq || settings.provider === "groq") {
+      if (isGroq) {
         await enqueueAutoTranscription(
           document.id,
           document.filePath,
-          settings.provider,
+          provider,
           finalModelId,
           settings.language || "en",
         );
@@ -1597,6 +1606,8 @@ export function AudiobookViewer({
   const isCurrentTranscribing = isPodcast
     ? !!podcastTranscriptionProgress
     : activeJob?.bookId === document.id;
+
+  const isTranscribing = isCurrentTranscribing || podcastTranscriptStatus === "transcribing" || podcastTranscriptStatus === "downloading";
 
   // Text selection for extracts
   const handleTextSelection = () => {
@@ -1645,7 +1656,10 @@ export function AudiobookViewer({
   // podcast_episodes.transcript_text, a separate system from the document
   // transcript tables that loadTranscript() reads from).
   useEffect(() => {
-    if (!showTranscript || !isPodcast || !episodeId) return;
+    if (!showTranscript || !isPodcast || !episodeId) {
+      setHasLoadedStatus(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -1653,10 +1667,23 @@ export function AudiobookViewer({
         if (cancelled) return;
         setPodcastTranscriptText(res.text || null);
         setPodcastTranscriptSegments(res.segments || []);
+        setPodcastTranscriptStatus(res.status || null);
+
+        // If it's currently downloading/transcribing in backend, initialize local progress bar
+        if (res.status === "transcribing" || res.status === "downloading") {
+          setPodcastTranscriptionProgress({
+            status: res.status,
+            progress: res.status === "downloading" ? 10 : 30,
+          });
+        }
+
+        setHasLoadedStatus(true);
       } catch (_e) {
         if (!cancelled) {
           setPodcastTranscriptText(null);
           setPodcastTranscriptSegments([]);
+          setPodcastTranscriptStatus(null);
+          setHasLoadedStatus(true);
         }
       }
     })();
@@ -1668,41 +1695,74 @@ export function AudiobookViewer({
   useEffect(() => {
     if (!isTauri() || !isPodcast || !episodeId) return;
     let unlisteners: Array<() => void> = [];
+    let cancelled = false;
 
-    (async () => {
-      const u1 = await listen<{ episodeId: string; status: string; progress: number }>(
-        "podcast://transcription-progress",
-        (e) => {
-          if (e.payload.episodeId !== episodeId) return;
-          setPodcastTranscriptionProgress({ status: e.payload.status, progress: e.payload.progress });
-        },
-      );
-      const u2 = await listen<{ episodeId: string; segmentCount: number; duration: number }>(
-        "podcast://transcription-complete",
-        async (e) => {
-          if (e.payload.episodeId !== episodeId) return;
-          setPodcastTranscriptionProgress(null);
-          try {
-            const res = await getPodcastTranscript(episodeId);
-            setPodcastTranscriptText(res.text || null);
-            setPodcastTranscriptSegments(res.segments || []);
-            showSuccess("Transcription Complete", "Podcast transcript is ready.");
-          } catch (_e) { /* non-critical */ }
-        },
-      );
-      const u3 = await listen<{ episodeId: string; error: string }>(
-        "podcast://transcription-error",
-        (e) => {
-          if (e.payload.episodeId !== episodeId) return;
-          setPodcastTranscriptionProgress(null);
-          showError("Transcription Failed", e.payload.error);
-        },
-      );
-      unlisteners = [u1, u2, u3];
-    })();
+    const setupListeners = async () => {
+      try {
+        const u1 = await listen<{ episodeId: string; status: string; progress: number }>(
+          "podcast://transcription-progress",
+          (e) => {
+            if (e.payload.episodeId !== episodeId) return;
+            setPodcastTranscriptionProgress({ status: e.payload.status, progress: e.payload.progress });
+            setPodcastTranscriptStatus(e.payload.status);
+          },
+        );
+        const u2 = await listen<{ episodeId: string; segmentCount: number; duration: number }>(
+          "podcast://transcription-complete",
+          async (e) => {
+            if (e.payload.episodeId !== episodeId) return;
+            setPodcastTranscriptionProgress(null);
+            setPodcastTranscriptStatus("done");
+            try {
+              const res = await getPodcastTranscript(episodeId);
+              setPodcastTranscriptText(res.text || null);
+              setPodcastTranscriptSegments(res.segments || []);
+              showSuccess("Transcription Complete", "Podcast transcript is ready.");
+            } catch (_e) { /* non-critical */ }
+          },
+        );
+        const u3 = await listen<{ episodeId: string; error: string }>(
+          "podcast://transcription-error",
+          (e) => {
+            if (e.payload.episodeId !== episodeId) return;
+            setPodcastTranscriptionProgress(null);
+            setPodcastTranscriptStatus("error");
+            showError("Transcription Failed", e.payload.error);
+          },
+        );
 
-    return () => { unlisteners.forEach((u) => u()); };
+        if (cancelled) {
+          u1();
+          u2();
+          u3();
+        } else {
+          unlisteners = [u1, u2, u3];
+        }
+      } catch (err) {
+        console.error("Failed to setup podcast transcription listeners:", err);
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      cancelled = true;
+      unlisteners.forEach((u) => u());
+    };
   }, [isPodcast, episodeId, showSuccess, showError]);
+
+  // Auto-start transcription for podcasts when the transcript view is opened and none exists
+  useEffect(() => {
+    if (!showTranscript || !isPodcast || !episodeId || !hasLoadedStatus) return;
+
+    const isTranscribing = !!podcastTranscriptionProgress || podcastTranscriptStatus === "transcribing" || podcastTranscriptStatus === "downloading";
+    const hasTranscript = !!podcastTranscriptText || podcastTranscriptSegments.length > 0;
+
+    if (!isTranscribing && !hasTranscript) {
+      // Auto-start Groq transcription for podcasts on mobile/desktop
+      void handleTranscribe();
+    }
+  }, [showTranscript, isPodcast, episodeId, hasLoadedStatus, podcastTranscriptStatus, podcastTranscriptText, podcastTranscriptSegments.length, podcastTranscriptionProgress]);
 
   useEffect(() => {
     if (!showTranscript) return;
@@ -2347,18 +2407,29 @@ export function AudiobookViewer({
             // full-screen overlay sheet (the w-96 sidebar is unusable on a phone)
             // so the streaming transcript + karaoke word highlight have room.
             isMobile
-              ? "fixed inset-0 z-40 w-full h-full"
+              ? "fixed inset-0 z-[60] w-full h-full"
               : "w-96 border-l border-border"
           )}>
-            <div className="flex items-center justify-between border-b border-border p-3 safe-top">
-              <h3 className="font-semibold">{t("viewer.transcript")}</h3>
-              <button
-                onClick={() => setShowTranscript(false)}
-                className="p-2 -mr-2 hover:bg-muted rounded-full active:scale-95 transition-transform"
-                aria-label="Close transcript"
-              >
-                <X className="h-5 w-5" />
-              </button>
+            <div className="flex items-center gap-2 border-b border-border p-3 safe-top">
+              {isMobile && (
+                <button
+                  onClick={() => setShowTranscript(false)}
+                  className="p-2 -ml-2 hover:bg-muted rounded-lg active:scale-95 transition-transform"
+                  aria-label="Go back to player"
+                >
+                  <CaretLeft className="h-5 w-5" />
+                </button>
+              )}
+              <h3 className="font-semibold flex-1">{t("viewer.transcript")}</h3>
+              {!isMobile && (
+                <button
+                  onClick={() => setShowTranscript(false)}
+                  className="p-2 -mr-2 hover:bg-muted rounded-full active:scale-95 transition-transform"
+                  aria-label="Close transcript"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
             </div>
 
             <div
@@ -2428,45 +2499,54 @@ export function AudiobookViewer({
                     })}
                   </div>
                 </>
+              ) : isTranscribing ? (
+                <div className="flex flex-col items-center justify-center h-full py-16 px-6 text-center animate-[fadeIn_0.3s_ease-out]">
+                  <div className="relative mb-6">
+                    {/* Glowing outer ring */}
+                    <div className="absolute inset-0 rounded-full bg-primary/20 blur-md animate-pulse" />
+                    <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center text-white border border-primary/30 shadow-lg">
+                      <Microphone className="w-8 h-8 animate-pulse" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-foreground text-lg mb-2">
+                    {podcastTranscriptionProgress?.status === "downloading" || podcastTranscriptStatus === "downloading"
+                      ? "Downloading Audio..."
+                      : "Transcribing Audio..."}
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mb-6">
+                    {podcastTranscriptionProgress?.status === "downloading" || podcastTranscriptStatus === "downloading"
+                      ? "Downloading audio file for transcription..."
+                      : "Transcribing podcast episode using Groq Cloud Whisper..."}
+                  </p>
+
+                  {/* Progress bar */}
+                  <div className="w-full max-w-xs bg-muted/60 border border-border/40 rounded-full h-2.5 overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-orange-500 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${isPodcast ? (podcastTranscriptionProgress?.progress ?? 10) : transcriptionProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-primary mt-2">
+                    {isPodcast ? (podcastTranscriptionProgress?.progress ?? 10) : transcriptionProgress}% Completed
+                  </span>
+                </div>
               ) : (
-                <div className="text-center text-muted-foreground py-8">
+                <div className="text-center text-muted-foreground py-8 animate-[fadeIn_0.3s_ease-out]">
                   <TextT className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="font-medium">{t("viewer.noTranscriptAvailable")}</p>
-                  
+
                   <div className="mt-6 space-y-4">
                     <button
                       onClick={handleTranscribe}
-                      disabled={isCurrentTranscribing || (!isPodcast && currentStatus === 'processing')}
-                      className="w-full flex flex-col items-center justify-center gap-1 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50"
+                      className="w-full flex flex-col items-center justify-center gap-1 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all active:scale-98"
                     >
                       <div className="flex items-center gap-2">
-                        {isCurrentTranscribing ? (
-                          <>
-                            <CircleNotch className="w-5 h-5 animate-spin" />
-                            {t("viewer.transcribing")}
-                          </>
-                        ) : (
-                          <>
-                            <Microphone className="w-5 h-5" />
-                            {t("viewer.startLocalTranscription")}
-                          </>
-                        )}
+                        <Microphone className="w-5 h-5" />
+                        {isNativeMobile()
+                          ? `Transcribe with ${displayProvider === "groq" ? "Groq" : displayProvider}`
+                          : t("viewer.startLocalTranscription")
+                        }
                       </div>
-
-                      {isCurrentTranscribing && (
-                        <div className="w-full mt-2 px-1">
-                          <div className="flex justify-between text-[10px] mb-1 opacity-90">
-                            <span>{t("viewer.overallProgress")}</span>
-                            <span>{(isPodcast ? (podcastTranscriptionProgress?.progress ?? 0) : transcriptionProgress)}%</span>
-                          </div>
-                          <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-white transition-all duration-300"
-                              style={{ width: `${isPodcast ? (podcastTranscriptionProgress?.progress ?? 0) : transcriptionProgress}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
                     </button>
                     <p className="text-xs" dangerouslySetInnerHTML={{ __html: t("viewer.usesWhisper") }} />
                   </div>

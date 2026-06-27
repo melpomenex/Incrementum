@@ -1376,6 +1376,13 @@ async fn import_episode_as_document_inner(
     doc.next_reading_date = Some(Utc::now()); // Make it due immediately
     doc.priority_rating = 8; // High priority for new items
     doc.tags = vec!["podcast".to_string()];
+    // Stash the episode id in metadata.source so the viewer can recover it and
+    // load the podcast transcript (keyed by episode id) even when the document
+    // is rendered via DocumentViewer (which otherwise wouldn't pass episodeId).
+    doc.metadata = Some(crate::models::document::DocumentMetadata {
+        source: Some(format!("podcast:{}", episode.id)),
+        ..Default::default()
+    });
 
     if let Some(image_url) = &episode.image_url {
         doc.cover_image_url = Some(image_url.clone());
