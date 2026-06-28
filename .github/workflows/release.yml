@@ -93,6 +93,10 @@ jobs:
         # Retry npm ci to ride out transient npm-registry connectivity failures
         # (e.g. IPv6 ENETUNREACH / ETIMEDOUT / ECONNRESET seen intermittently on
         # GitHub-hosted Linux runners — these are network flakes, not code bugs).
+        # `shell: bash` is required because the default shell on Windows runners
+        # is PowerShell, which can't parse the bash for-loop and fails with
+        # "Missing opening '(' after keyword 'for'".
+        shell: bash
         run: |
           for attempt in 1 2 3; do
             echo "npm ci attempt $attempt/3"
@@ -335,6 +339,10 @@ jobs:
         # Retry npm ci to ride out transient npm-registry connectivity failures
         # (e.g. IPv6 ENETUNREACH / ETIMEDOUT / ECONNRESET seen intermittently on
         # GitHub-hosted Linux runners — these are network flakes, not code bugs).
+        # `shell: bash` is required because the default shell on Windows runners
+        # is PowerShell, which can't parse the bash for-loop and fails with
+        # "Missing opening '(' after keyword 'for'".
+        shell: bash
         run: |
           for attempt in 1 2 3; do
             echo "npm ci attempt $attempt/3"
@@ -449,6 +457,10 @@ jobs:
         # Retry npm ci to ride out transient npm-registry connectivity failures
         # (e.g. IPv6 ENETUNREACH / ETIMEDOUT / ECONNRESET seen intermittently on
         # GitHub-hosted Linux runners — these are network flakes, not code bugs).
+        # `shell: bash` is required because the default shell on Windows runners
+        # is PowerShell, which can't parse the bash for-loop and fails with
+        # "Missing opening '(' after keyword 'for'".
+        shell: bash
         run: |
           for attempt in 1 2 3; do
             echo "npm ci attempt $attempt/3"
