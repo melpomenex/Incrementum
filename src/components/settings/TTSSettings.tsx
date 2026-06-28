@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowsClockwise,
+  CaretDown,
   Check,
   CircleNotch,
   Copy,
   Download,
   FloppyDisk,
+  MagnifyingGlass,
   Microphone,
   Play,
   Plus,
@@ -29,7 +31,11 @@ import {
 } from "../../utils/ttsSettings";
 import { cn } from "../../utils";
 import { isTauri, isNativeMobile } from "../../lib/tauri";
-import { useSystemVoices, resolveSystemVoice } from "../../hooks/useSystemVoices";
+import {
+  useSystemVoices,
+  resolveSystemVoice,
+  SYSTEM_VOICE_SELECT_CAP,
+} from "../../hooks/useSystemVoices";
 import { useI18n } from "../../lib/i18n";
 
 const MAX_SAMPLE_FILE_SIZE_MB = 12;
@@ -99,6 +105,132 @@ function getErrorMessage(error: unknown): string {
   return "Unexpected error while processing TTS request.";
 }
 
+interface SystemVoicePickerProps {
+  voices: TTSVoiceProfile[];
+  defaultVoiceId: string;
+  previewingId: string | null;
+  onSelect: (id: string) => void;
+  onPreview: (id: string) => void;
+  onStopPreview: () => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  showAll: boolean;
+  onToggleShowAll: () => void;
+}
+
+/**
+ * Voice picker for the System (device) TTS provider. Unlike the card grid
+ * used for cloud providers, this handles the case where a platform exposes
+ * a very large number of voices (Linux speech-dispatcher can list 300+):
+ *  - a search box filters by name/locale
+ *  - results are capped (SYSTEM_VOICE_SELECT_CAP) with a "show all" toggle
+ *  - the list is rendered inside a fixed-height scroll container so the page
+ *    never has to lay out hundreds of cards at once
+ *  - each row has a Preview button to audition the voice — device voices vary
+ *    wildly in quality, so hearing them is the only reliable way to choose
+ */
+function SystemVoicePicker({
+  voices,
+  defaultVoiceId,
+  previewingId,
+  onSelect,
+  onPreview,
+  onStopPreview,
+  search,
+  onSearchChange,
+  showAll,
+  onToggleShowAll,
+}: SystemVoicePickerProps) {
+  const { t } = useI18n();
+  const query = search.trim().toLowerCase();
+  const filtered = query
+    ? voices.filter((v) => v.name.toLowerCase().includes(query))
+    : voices;
+  const capped = showAll ? filtered : filtered.slice(0, SYSTEM_VOICE_SELECT_CAP);
+  const hiddenCount = filtered.length - capped.length;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] flex-1">
+          <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={t("settings.ttsSystemVoiceSearch")}
+            className="w-full rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {t("settings.ttsSystemVoiceCount", { count: filtered.length })}
+        </span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {t("settings.ttsSystemNoVoices")}
+        </p>
+      ) : (
+        <div className="max-h-80 space-y-1.5 overflow-y-auto rounded-lg border border-border p-2">
+          {capped.map((voice) => {
+            const isDefault = voice.id === defaultVoiceId;
+            const isPreviewing = previewingId === voice.id;
+            return (
+              <div
+                key={voice.id}
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-md border px-3 py-2",
+                  isDefault ? "border-primary/40 bg-primary/5" : "border-transparent hover:bg-muted/40",
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{voice.name}</p>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={() => (isPreviewing ? onStopPreview() : onPreview(voice.id))}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+                    title={t("settings.ttsSystemPreview")}
+                  >
+                    {isPreviewing ? (
+                      <CircleNotch className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5" />
+                    )}
+                    {isPreviewing ? t("settings.ttsSystemStop") : t("settings.ttsSystemPreview")}
+                  </button>
+                  <button
+                    onClick={() => onSelect(voice.id)}
+                    className={cn(
+                      "rounded-md border px-2 py-1 text-xs",
+                      isDefault ? "border-primary bg-primary/10 text-primary" : "border-border",
+                    )}
+                  >
+                    {isDefault ? t("settings.ttsDefault") : t("settings.ttsSetDefault")}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {hiddenCount > 0 && (
+        <button
+          onClick={onToggleShowAll}
+          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <CaretDown className={cn("h-3.5 w-3.5 transition-transform", showAll && "rotate-180")} />
+          {showAll
+            ? t("settings.ttsSystemShowFewer")
+            : t("settings.ttsSystemShowAll", { count: hiddenCount })}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function TTSSettings() {
   const { t } = useI18n();
   const { settings, updateSettings } = useSettingsStore();
@@ -132,6 +264,13 @@ export function TTSSettings() {
     maxNewTokens: 220,
   });
 
+  // System TTS voice picker state: search filter + "show all beyond the cap".
+  // Some platforms (Linux/KDE speech-dispatcher) expose hundreds of voices;
+  // rendering every one as a card froze the tab.
+  const [systemVoiceSearch, setSystemVoiceSearch] = useState("");
+  const [showAllSystemVoices, setShowAllSystemVoices] = useState(false);
+  const [systemPreviewingId, setSystemPreviewingId] = useState<string | null>(null);
+
   useEffect(() => {
     setApiKeyInput(tts.apiKey);
     setProxyUrlInput(tts.proxyUrl);
@@ -154,7 +293,6 @@ export function TTSSettings() {
       }
       return persisted;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tts, systemVoices]
   );
   const isGroqProvider = tts.provider === "groq";
@@ -302,32 +440,9 @@ export function TTSSettings() {
         setOperationMessage(t("settings.ttsSystemNoVoices"));
         return;
       }
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        const voiceId =
-          overrideVoiceId && overrideVoiceId !== "default" ? overrideVoiceId : "system-default";
-        const voice = resolveSystemVoice(voiceId, systemSynthVoices);
-        if (voice) {
-          utterance.voice = voice;
-          utterance.lang = voice.lang;
-        }
-        utterance.onend = () => {
-          setOperationState("success");
-          setOperationMessage(t("settings.ttsGenerationSucceeded"));
-        };
-        utterance.onerror = () => {
-          setOperationState("error");
-          setOperationMessage(getErrorMessage(new Error("System TTS playback failed")));
-        };
-        setOperationState("generating");
-        setOperationMessage(t("settings.ttsGeneratingSpeech"));
-        setGeneratedAudioUrl(null);
-        window.speechSynthesis.speak(utterance);
-      } catch (error) {
-        setOperationState("error");
-        setOperationMessage(getErrorMessage(error));
-      }
+      const voiceId =
+        overrideVoiceId && overrideVoiceId !== "default" ? overrideVoiceId : "system-default";
+      void previewSystemVoice(voiceId, text);
       return;
     }
 
@@ -410,7 +525,7 @@ export function TTSSettings() {
     const voice = tts.voiceProfiles.find((item) => item.id === voiceId);
     if (!voice || voice.kind !== "cloned") return;
 
-    const nextVoices = tts.voiceProfiles.filter((item) => item.id !== voiceId);
+    const nextVoices = tts.voiceProfiles.filter((item) => item.id === voiceId);
     const fallbackVoiceId =
       nextVoices.find((item) => item.kind === "builtin")?.id ||
       createDefaultTTSSettings().defaultVoiceId;
@@ -419,6 +534,52 @@ export function TTSSettings() {
       voiceProfiles: nextVoices,
       defaultVoiceId: tts.defaultVoiceId === voiceId ? fallbackVoiceId : tts.defaultVoiceId,
     });
+  };
+
+  /**
+   * Speak a short sample using a specific system (device) voice via the Web
+   * Speech API. Used both by the test-generation section (default voice) and
+   * by the per-voice Preview button in the system voice picker.
+   */
+  const previewSystemVoice = (voiceId: string, sampleText?: string) => {
+    if (!("speechSynthesis" in window)) {
+      setOperationState("error");
+      setOperationMessage(t("settings.ttsSystemNoVoices"));
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(
+        sampleText ?? t("settings.ttsSystemPreviewSample"),
+      );
+      const voice = resolveSystemVoice(voiceId, systemSynthVoices);
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      }
+      const previewId = voiceId;
+      setSystemPreviewingId(previewId);
+      setOperationState("generating");
+      setOperationMessage(t("settings.ttsGeneratingSpeech"));
+      setGeneratedAudioUrl(null);
+      const finish = (ok: boolean) => {
+        setSystemPreviewingId((cur) => (cur === previewId ? null : cur));
+        if (ok) {
+          setOperationState("success");
+          setOperationMessage(t("settings.ttsGenerationSucceeded"));
+        } else {
+          setOperationState("error");
+          setOperationMessage(getErrorMessage(new Error("System TTS playback failed")));
+        }
+      };
+      utterance.onend = () => finish(true);
+      utterance.onerror = () => finish(false);
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      setSystemPreviewingId(null);
+      setOperationState("error");
+      setOperationMessage(getErrorMessage(error));
+    }
   };
 
   const setProvider = (provider: TTSProvider) => {
@@ -796,6 +957,23 @@ export function TTSSettings() {
           </div>
         </div>
 
+        {isSystemProvider ? (
+          <SystemVoicePicker
+            voices={providerVoices}
+            defaultVoiceId={tts.defaultVoiceId}
+            previewingId={systemPreviewingId}
+            onSelect={(id) => updateTTS({ defaultVoiceId: id })}
+            onPreview={(id) => previewSystemVoice(id)}
+            onStopPreview={() => {
+              if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+              setSystemPreviewingId(null);
+            }}
+            search={systemVoiceSearch}
+            onSearchChange={setSystemVoiceSearch}
+            showAll={showAllSystemVoices}
+            onToggleShowAll={() => setShowAllSystemVoices((v) => !v)}
+          />
+        ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {providerVoices.map((voice) => (
             <div key={voice.id} className="rounded-lg border border-border p-3">
@@ -831,6 +1009,7 @@ export function TTSSettings() {
             </div>
           ))}
         </div>
+        )}
 
         {tts.provider === "fal" && (
         <div className="rounded-lg border border-border bg-muted/20 p-4">
