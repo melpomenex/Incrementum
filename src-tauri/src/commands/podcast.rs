@@ -880,6 +880,7 @@ pub async fn split_audio_for_groq_mobile(
 
 /// Inner split logic, shared by the standalone command and the all-in-one
 /// `transcribe_podcast_groq_chunks` command (which already has a client).
+/// Downloads the remote audio, then delegates to [`split_audio_bytes_into_groq_chunks`].
 async fn split_audio_for_groq_mobile_inner(
     app_handle: &AppHandle,
     client: &reqwest::Client,
@@ -927,28 +928,51 @@ async fn split_audio_for_groq_mobile_inner(
     file.flush().await?;
     drop(file);
 
-    // 2. Read the downloaded bytes.
+    // 2. Read the downloaded bytes and split them (shared with the local-file path).
     let data = std::fs::read(&full_path)
         .map_err(|e| IncrementumError::Internal(format!("Failed to read temp file: {}", e)))?;
+    let chunks_out = split_audio_bytes_into_groq_chunks(&data, is_mp3, &chunks_dir)?;
+
+    // Remove the full source file; chunk files remain for upload + later cleanup.
+    let _ = std::fs::remove_file(&full_path);
+
+    if chunks_out.is_empty() {
+        return Err(IncrementumError::Internal(
+            "Audio split produced no chunks (empty download?)".to_string(),
+        ));
+    }
+    Ok(chunks_out)
+}
+
+/// Split already-in-memory audio bytes into <25 MB chunks (ffmpeg-free) on MP3
+/// frame boundaries. Shared by the remote-download path (podcasts) and the
+/// local-file path (audiobooks imported from device storage). Each chunk's
+/// start_ms is estimated from byte offset ÷ bitrate (parsed from the first MP3
+/// frame header); for non-MP3 formats a nominal 128 kbps is assumed.
+fn split_audio_bytes_into_groq_chunks(
+    data: &[u8],
+    is_mp3: bool,
+    chunks_dir: &Path,
+) -> Result<Vec<MobileAudioChunk>> {
     let total = data.len() as u64;
 
-    // 3. Parse the bitrate from the first valid MP3 frame header (for start_ms
-    //    estimation). If we can't find a frame or it's not MP3, fall back to raw
-    //    byte splitting with a nominal 128kbps assumption.
+    // Parse the bitrate from the first valid MP3 frame header (for start_ms
+    // estimation). If we can't find a frame or it's not MP3, fall back to raw
+    // byte splitting with a nominal 128kbps assumption.
     let bitrate_bps: u64 = if is_mp3 {
-        find_mp3_frame_bitrate(&data).unwrap_or(128_000)
+        find_mp3_frame_bitrate(data).unwrap_or(128_000)
     } else {
         128_000
     };
 
-    // 4. Compute split boundaries. For MP3, advance to MOBILE_CHUNK_TARGET then
-    //    scan forward for the next frame sync so the chunk starts cleanly. For
-    //    non-MP3, split at raw byte boundaries.
+    // Compute split boundaries. For MP3, advance to MOBILE_CHUNK_TARGET then
+    // scan forward for the next frame sync so the chunk starts cleanly. For
+    // non-MP3, split at raw byte boundaries.
     let mut boundaries: Vec<u64> = vec![0];
     let mut cursor: u64 = MOBILE_CHUNK_TARGET;
     while cursor < total {
         let boundary = if is_mp3 {
-            find_next_mp3_frame(&data, cursor).unwrap_or(cursor)
+            find_next_mp3_frame(data, cursor).unwrap_or(cursor)
         } else {
             cursor
         };
@@ -959,7 +983,7 @@ async fn split_audio_for_groq_mobile_inner(
         boundaries.push(total);
     }
 
-    // 5. Write each chunk to its own file and record its byte range + est. start_ms.
+    // Write each chunk to its own file and record its byte range + est. start_ms.
     let mut chunks_out = Vec::new();
     for i in 0..boundaries.len().saturating_sub(1) {
         let start_byte = boundaries[i];
@@ -979,19 +1003,11 @@ async fn split_audio_for_groq_mobile_inner(
         });
     }
 
-    // Remove the full source file; chunk files remain for upload + later cleanup.
-    let _ = std::fs::remove_file(&full_path);
-
     eprintln!(
-        "[podcast-transcribe] split complete: {} bytes downloaded, {} chunks (bitrate {}bps), mp3={}",
+        "[groq-split] split complete: {} bytes, {} chunks (bitrate {}bps), mp3={}",
         total, chunks_out.len(), bitrate_bps, is_mp3
     );
 
-    if chunks_out.is_empty() {
-        return Err(IncrementumError::Internal(
-            "Audio split produced no chunks (empty download?)".to_string(),
-        ));
-    }
     Ok(chunks_out)
 }
 
@@ -1262,6 +1278,198 @@ pub async fn transcribe_podcast_groq_chunks(
 
     eprintln!("[podcast-transcribe] groq_chunks: DONE, {} combined segments", combined.len());
     Ok(combined)
+}
+
+/// Transcribe a LOCAL audio file (an audiobook staged on-device) entirely in
+/// Rust: read the file → split into <25 MB chunks (ffmpeg-free, MP3-frame-aware)
+/// → upload each chunk to Groq with word-level timestamps → combine offsets →
+/// persist the resulting segments into the document transcript tables (the same
+/// `transcripts`/`transcript_segments` tables `get_transcript` reads from, keyed
+/// by `book_id = chapter_id = document_id`) → also write the combined full text
+/// to `documents.content` so the AI assistant / book sync can see it.
+///
+/// This mirrors `transcribe_podcast_groq_chunks` but for local audiobook files
+/// instead of remote podcast URLs. It exists because the auto-transcription
+/// queue worker (`auto_queue::process_entry`) only knows how to run local
+/// Whisper/Parakeet/SenseVoice models — it has no Groq path, so on mobile
+/// (where local STT is unavailable) audiobooks need this dedicated command.
+///
+/// Emits `audiobook://transcription-progress` (keyed by documentId) and returns
+/// the final segment count.
+#[tauri::command]
+pub async fn transcribe_audio_file_groq(
+    app_handle: AppHandle,
+    repo: State<'_, Repository>,
+    document_id: String,
+    file_path: String,
+    language: Option<String>,
+    groq_api_key: String,
+    groq_model: Option<String>,
+) -> Result<i64> {
+    let model = groq_model.unwrap_or_else(|| "whisper-large-v3-turbo".to_string());
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Incrementum")
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| IncrementumError::Internal(format!("HTTP client build failed: {}", e)))?;
+
+    // 1. Read the local audio file.
+    let path = Path::new(&file_path);
+    if !path.exists() {
+        return Err(IncrementumError::NotFound(format!("Audio file not found: {}", file_path)));
+    }
+    let _ = app_handle.emit(
+        "audiobook://transcription-progress",
+        serde_json::json!({ "documentId": &document_id, "status": "processing", "progress": 5, "message": "Reading audio…" }),
+    );
+    let data = std::fs::read(path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to read audio file {}: {}", file_path, e)))?;
+
+    // 2. Split into <25 MB chunks (ffmpeg-free). Detect MP3 by extension.
+    let _ = app_handle.emit(
+        "audiobook://transcription-progress",
+        serde_json::json!({ "documentId": &document_id, "status": "processing", "progress": 10, "message": "Splitting audio…" }),
+    );
+    let cache_dir = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve cache dir: {}", e)))?;
+    let chunks_dir = cache_dir.join("groq_mobile_chunks");
+    let _ = std::fs::remove_dir_all(&chunks_dir);
+    std::fs::create_dir_all(&chunks_dir)?;
+    let is_mp3 = file_path.to_ascii_lowercase().ends_with(".mp3");
+    let chunks = split_audio_bytes_into_groq_chunks(&data, is_mp3, &chunks_dir)?;
+    eprintln!("[audiobook-transcribe] groq: {} chunks for document {}", chunks.len(), document_id);
+
+    // 3. Mark transcript row as processing (keyed book_id=chapter_id=document_id,
+    //    matching how auto-transcription stores it and how the viewer loads it).
+    sqlx::query("INSERT OR REPLACE INTO transcripts (book_id, chapter_id, model_used, language, status) VALUES (?, ?, ?, ?, 'processing')")
+        .bind(&document_id)
+        .bind(&document_id)
+        .bind(&model)
+        .bind(language.as_deref().unwrap_or("en"))
+        .execute(repo.pool())
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to mark transcript processing: {}", e)))?;
+
+    let transcript_id: i64 = sqlx::query_scalar("SELECT id FROM transcripts WHERE book_id = ? AND chapter_id = ?")
+        .bind(&document_id)
+        .bind(&document_id)
+        .fetch_one(repo.pool())
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to fetch transcript id: {}", e)))?;
+    sqlx::query("DELETE FROM transcript_segments WHERE transcript_id = ?")
+        .bind(transcript_id)
+        .execute(repo.pool())
+        .await
+        .map_err(|e| IncrementumError::Internal(format!("Failed to clear old segments: {}", e)))?;
+
+    // 4. Upload each chunk to Groq and persist segments as they arrive.
+    let mut combined: Vec<GroqChunkSegment> = Vec::new();
+    for (i, chunk) in chunks.iter().enumerate() {
+        let progress = 15 + ((i as f64 / chunks.len() as f64) * 70.0) as i64;
+        let _ = app_handle.emit(
+            "audiobook://transcription-progress",
+            serde_json::json!({ "documentId": &document_id, "status": "processing", "progress": progress, "message": format!("Transcribing chunk {}/{} …", i + 1, chunks.len()) }),
+        );
+
+        let chunk_bytes = std::fs::read(&chunk.path)
+            .map_err(|e| IncrementumError::Internal(format!("Failed to read chunk {}: {}", i, e)))?;
+
+        let mut form = reqwest::multipart::Form::new()
+            .text("model", model.clone())
+            .text("response_format", "verbose_json".to_string())
+            .text("timestamp_granularities[]", "segment".to_string())
+            .text("timestamp_granularities[]", "word".to_string());
+        if let Some(lang) = &language {
+            form = form.text("language", lang.clone());
+        }
+        let part = reqwest::multipart::Part::bytes(chunk_bytes)
+            .file_name(format!("chunk_{:04}.mp3", i))
+            .mime_str("audio/mp3")
+            .map_err(|e| IncrementumError::Internal(format!("mime build failed: {}", e)))?;
+        form = form.part("file", part);
+
+        let resp = client
+            .post("https://api.groq.com/openai/v1/audio/transcriptions")
+            .bearer_auth(&groq_api_key)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| IncrementumError::Internal(format!("Groq chunk {} upload failed: {}", i, e)))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            eprintln!("[audiobook-transcribe] groq: chunk {} FAILED ({}): {}", i, status, &body[..body.len().min(300)]);
+            return Err(IncrementumError::Internal(format!(
+                "Groq chunk {} failed (HTTP {}): {}", i, status, &body[..body.len().min(200)]
+            )));
+        }
+
+        let data_json: serde_json::Value = resp.json().await
+            .map_err(|e| IncrementumError::Internal(format!("Groq chunk {} JSON parse failed: {}", i, e)))?;
+
+        let words = data_json.get("words").and_then(|w| w.as_array()).cloned().unwrap_or_default();
+        let segments = data_json.get("segments").and_then(|s| s.as_array()).cloned().unwrap_or_default();
+        let mut wc = 0usize;
+        for seg in segments.iter() {
+            let seg_start = seg.get("start").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let seg_end = seg.get("end").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let seg_text = seg.get("text").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+            if seg_text.is_empty() { continue; }
+
+            let start_ms = chunk.start_ms + (seg_start * 1000.0).round() as i64;
+            let end_ms = chunk.start_ms + (seg_end * 1000.0).round() as i64;
+
+            // Persist this segment immediately so the transcript panel can show
+            // progress as it streams in (best-effort; errors are logged, not fatal).
+            if let Err(e) = sqlx::query("INSERT INTO transcript_segments (transcript_id, start_ms, end_ms, text, confidence) VALUES (?, ?, ?, ?, ?)")
+                .bind(transcript_id)
+                .bind(start_ms)
+                .bind(end_ms)
+                .bind(&seg_text)
+                .bind(1.0)
+                .execute(repo.pool())
+                .await
+            {
+                tracing::warn!("Failed to insert audiobook transcript segment: {}", e);
+            }
+
+            combined.push(GroqChunkSegment { start_ms, end_ms, text: seg_text, word_timings_json: None });
+            let _ = wc; // words array walked for parity with podcast path (unused here)
+        }
+
+        if i < chunks.len() - 1 {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+    }
+
+    // 5. Clean up temp chunk files.
+    let _ = std::fs::remove_dir_all(&chunks_dir);
+
+    // 6. Write the combined full text to documents.content (AI assistant / book
+    //    sync) and mark the transcript row completed.
+    let full_text = combined.iter().map(|s| s.text.trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" ");
+    if !full_text.is_empty() {
+        let _ = sqlx::query("UPDATE documents SET content = ? WHERE id = ?")
+            .bind(&full_text)
+            .bind(&document_id)
+            .execute(repo.pool())
+            .await;
+    }
+    let _ = sqlx::query("UPDATE transcripts SET status = 'completed' WHERE book_id = ? AND chapter_id = ?")
+        .bind(&document_id)
+        .bind(&document_id)
+        .execute(repo.pool())
+        .await;
+
+    let _ = app_handle.emit(
+        "audiobook://transcription-complete",
+        serde_json::json!({ "documentId": &document_id, "segmentCount": combined.len() }),
+    );
+    eprintln!("[audiobook-transcribe] groq: DONE, {} segments for document {}", combined.len(), document_id);
+    Ok(combined.len() as i64)
 }
 
 

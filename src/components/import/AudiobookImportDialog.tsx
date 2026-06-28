@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
+  ArrowLeft,
   Bookmark,
   CaretLeft,
   CaretRight,
@@ -34,8 +35,9 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "../../utils";
 import { useDocumentStore } from "../../stores/documentStore";
+import { useCollectionStore } from "../../stores/collectionStore";
 import { useToast } from "../common/Toast";
-import { updateDocument as updateDocumentApi, openFilePicker, openFolderPicker } from "../../api/documents";
+import { updateDocument as updateDocumentApi, openFilePicker, importDocumentFromFileStreamed, pickFolderDocuments, pickFilesMobile } from "../../api/documents";
 import {
   AudiobookMetadata,
   AudiobookChapter,
@@ -48,13 +50,13 @@ import {
   importTranscriptFromFile,
   formatDuration,
   AUDIOBOOK_FORMATS,
-  scanDirectoryForAudiobooks,
   BatchImportResult,
   detectMultiPartAudiobook,
   MultiPartAudiobook,
 } from "../../api/audiobooks";
 import { downloadTranscriptionModel, getTranscriptionProfiles } from "../../api/transcription";
-import { isTauri } from "../../lib/tauri";
+import { isTauri, isNativeMobile } from "../../lib/tauri";
+import { useMobileShell } from "../../hooks/useMobileShell";
 import type { Document } from "../../types/document";
 
 interface AudiobookImportDialogProps {
@@ -62,6 +64,8 @@ interface AudiobookImportDialogProps {
   onClose: () => void;
   onOpenDocument?: (doc: Document) => void;
 }
+
+
 
 interface BatchItem {
   id: string;
@@ -109,6 +113,8 @@ export function AudiobookImportDialog({
   // Multi-part book state
   const [multiPartBook, setMultiPartBook] = useState<MultiPartAudiobook | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+
+
   
   // Audio preview state
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -117,6 +123,13 @@ export function AudiobookImportDialog({
 
   const { importFromFiles, loadDocuments } = useDocumentStore();
   const { success: showSuccess, error: showError, info: showInfo } = useToast();
+  const isMobileShell = useMobileShell();
+  const onMobile = isNativeMobile();
+  // Native mobile IS Tauri, but its dialog plugin returns unreadable content://
+  // URIs and there's no ffmpeg for the directory scanner — so the only platform
+  // where the desktop directory/folder path is unavailable is pure browser/PWA.
+  const folderImportAvailable = isTauri();
+  const collectionId = useCollectionStore.getState().activeCollectionId;
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -132,6 +145,7 @@ export function AudiobookImportDialog({
       setBatchItems([]);
       setMultiPartBook(null);
       setSelectedFiles([]);
+
       setError(null);
       setSearchQuery("");
       setSearchResults([]);
@@ -157,39 +171,47 @@ export function AudiobookImportDialog({
   // Handle file selection (single or multiple)
   const handleFileSelect = async () => {
     try {
-      // In PWA/browser, allow selecting multiple files
-      // In Tauri, we'll handle multi-part via a special flow
-      const files = await openFilePicker({
-        title: "Select Audiobook Files",
-        multiple: true, // Allow multiple selection
-        filters: [
-          {
-            name: "Audiobooks",
-            extensions: AUDIOBOOK_FORMATS,
-          },
-        ],
-      });
-      
-      if (!files || files.length === 0) return;
-      
+      let files: string[] = [];
+      let stagedItems: any[] = [];
+
+      if (onMobile) {
+        const staged = await pickFilesMobile({
+          multiple: true,
+          extensions: AUDIOBOOK_FORMATS,
+        });
+        if (!staged || staged.length === 0) return;
+        files = staged.map((f) => f.path);
+        stagedItems = staged;
+      } else {
+        const selected = await openFilePicker({
+          title: "Select Audiobook Files",
+          multiple: true,
+          filters: [
+            {
+              name: "Audiobooks",
+              extensions: AUDIOBOOK_FORMATS,
+            },
+          ],
+        });
+        if (!selected || selected.length === 0) return;
+        files = selected;
+      }
+
       if (files.length > 1) {
         const detectedMultiPart = detectMultiPartAudiobook(files);
-        
+
         if (detectedMultiPart) {
-          // This looks like a multi-part book
           setSelectedFiles(files);
           setMultiPartBook(detectedMultiPart);
-          
-          // Set metadata from detection
+
           setMetadata({
             title: detectedMultiPart.title,
             author: detectedMultiPart.author,
-            duration: 0, // Will sum parts later
+            duration: 0,
           });
-          
-          // Extract embedded cover and search for online covers in parallel
+
           const [embeddedCover, covers, metaResults] = await Promise.all([
-            extractAudioCoverArt(files[0]),
+            (onMobile ? Promise.resolve(null) : extractAudioCoverArt(files[0])),
             searchAudiobookCover(detectedMultiPart.title, detectedMultiPart.author),
             searchAudiobookMetadata(detectedMultiPart.title, detectedMultiPart.author),
           ]);
@@ -201,81 +223,81 @@ export function AudiobookImportDialog({
           if (metaResults.length > 0) {
             setMetadata(prev => ({ ...prev, ...metaResults[0] }));
           }
-          
-          setImportMode("single"); // Treat as single book
+
+          setImportMode("single");
           setCurrentStep("metadata");
           showSuccess("Multi-part book detected", `${files.length} parts found for "${detectedMultiPart.title}"`);
           return;
         }
-        
-        // Multiple files but not detected as parts - treat as batch
-        // Convert to batch items
-        const items: BatchItem[] = files.map((filePath, index) => ({
-          id: `item-${index}`,
-          filePath,
-          fileName: filePath.split(/[/\\]/).pop() || filePath,
-          status: "pending",
-        }));
-        
+
+        const items: BatchItem[] = files.map((filePath, index) => {
+          const fileName = onMobile && stagedItems[index]
+            ? stagedItems[index].fileName
+            : filePath.split(/[/\\]/).pop() || filePath;
+          return {
+            id: `item-${index}`,
+            filePath,
+            fileName,
+            status: "pending",
+          };
+        });
+
         setBatchItems(items);
         setImportMode("batch");
         await loadBatchMetadata(items);
         return;
       }
-      
+
       await loadSingleFile(files[0]);
-    } catch {
+    } catch (err) {
+      console.error("[AudiobookImport] File selection error:", err);
       showError("File selection failed", "Could not open file picker");
     }
   };
 
-  // Handle directory selection for batch import (desktop) or multi-file (browser)
+  // Handle directory selection for batch import. Uses the folder-import plugin
+  // (pickFolderDocuments), which works on desktop AND native mobile: on mobile
+  // it shows the system folder picker (SAF / document picker) and stages chosen
+  // files into app-private storage with readable filesystem paths. In pure
+  // browser/PWA (no Tauri backend) it's unavailable.
   const handleDirectorySelect = async () => {
-    // In browser/PWA, fall back to multi-file selection
-    if (!isTauri()) {
+    if (!folderImportAvailable) {
       showInfo(
-        "Directory import not available", 
+        "Directory import not available",
         "In the web app, please use 'Single File' mode and select multiple files to import them as a batch."
       );
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const dirPath = await openFolderPicker({
-        title: "Select Directory with Audiobooks",
-      });
-      
-      if (!dirPath) {
-        setIsLoading(false);
-        return;
-      }
-      
-      setImportMode("batch");
-      
-      // Scan directory for audiobook files
-      let audiobookFiles: string[] = [];
+      // pickFolderDocuments returns staged readable paths for every supported
+      // file in the picked folder (recursive). On mobile the files are copied
+      // into app-private storage so the path-based import pipeline can read them.
+      let staged: Awaited<ReturnType<typeof pickFolderDocuments>> = [];
       try {
-        audiobookFiles = await scanDirectoryForAudiobooks(dirPath);
+        staged = await pickFolderDocuments(AUDIOBOOK_FORMATS);
       } catch (scanErr) {
-        console.error("[AudiobookImport] Scan failed - backend may not support this command:", scanErr);
+        console.error("[AudiobookImport] Folder pick failed:", scanErr);
         showError(
-          "Directory scanner not available", 
-          "The directory scan feature is not yet available in this build. Please use 'Single File' mode and select multiple files instead."
+          "Folder picker not available",
+          "The folder import feature isn't available in this build. Please use 'Single File' mode and select multiple files instead."
         );
         setImportMode("single");
         setCurrentStep("select");
         setIsLoading(false);
         return;
       }
-      
-      if (audiobookFiles.length === 0) {
-        setError(`No audiobook files found in ${dirPath}. Supported formats: ${AUDIOBOOK_FORMATS.join(", ")}`);
+
+      if (staged.length === 0) {
+        // User cancelled, or folder had no audiobook files.
         setIsLoading(false);
         return;
       }
+
+      const audiobookFiles = staged.map((s) => s.path);
 
       // Try to detect multi-part audiobook
       const detectedMultiPart = detectMultiPartAudiobook(audiobookFiles);
@@ -313,10 +335,10 @@ export function AudiobookImportDialog({
       // Not a multi-part book — import as batch
       setImportMode("batch");
 
-      const items: BatchItem[] = audiobookFiles.map((filePath, index) => ({
+      const items: BatchItem[] = staged.map((s, index) => ({
         id: `item-${index}`,
-        filePath,
-        fileName: filePath.split(/[/\\]/).pop() || filePath,
+        filePath: s.path,
+        fileName: s.fileName,
         status: "pending",
       }));
 
@@ -324,7 +346,7 @@ export function AudiobookImportDialog({
       setImportProgress({ current: 0, total: items.length });
 
       await loadBatchMetadata(items);
-      
+
     } catch (err) {
       console.error("[AudiobookImport] Directory selection error:", err);
       setError(err instanceof Error ? err.message : "Failed to open directory");
@@ -342,15 +364,33 @@ export function AudiobookImportDialog({
       setImportProgress({ current: i + 1, total: items.length });
       
       try {
-        setBatchItems(prev => prev.map(b => 
+        setBatchItems(prev => prev.map(b =>
           b.id === item.id ? { ...b, status: "loading" } : b
         ));
-        
-        const parsed = await parseAudiobookMetadata(item.filePath);
-        
-        // Extract embedded cover and search for online covers in parallel
+
+        // On mobile there's no ffmpeg and (for HTML-input picks) the file isn't
+        // staged yet, so derive basic metadata from the filename. For mobile
+        // folder picks the staged path IS readable, but ffmpeg still isn't
+        // available, so the filename path is used there too.
+        let parsed: AudiobookMetadata;
+        if (onMobile) {
+          const nameWithoutExt = item.fileName.replace(/\.[^/.]+$/, "");
+          const parts = nameWithoutExt.split(" - ");
+          const title = parts.length >= 2 ? parts.slice(1).join(" - ").trim() : nameWithoutExt;
+          const author = parts.length >= 2 ? parts[0].trim() : undefined;
+          parsed = {
+            title,
+            author,
+            duration: 0,
+            chapters: [{ id: 1, title: "Chapter 1", startTime: 0 }],
+          };
+        } else {
+          parsed = await parseAudiobookMetadata(item.filePath);
+        }
+
+        // Extract embedded cover (desktop only) and search for online covers in parallel
         const [embeddedCover, covers, metaResults] = await Promise.all([
-          extractAudioCoverArt(item.filePath),
+          onMobile ? Promise.resolve(null) : extractAudioCoverArt(item.filePath),
           searchAudiobookCover(parsed.title, parsed.author),
           searchAudiobookMetadata(parsed.title, parsed.author),
         ]);
@@ -392,15 +432,34 @@ export function AudiobookImportDialog({
     setFilePath(path);
     setIsLoading(true);
     setImportMode("single");
-    
+
     try {
-      const parsed = await parseAudiobookMetadata(path);
+      // On mobile there's no ffmpeg to parse embedded tags, and the file isn't
+      // staged to a readable path until after import, so derive basic metadata
+      // from the filename and rely on online lookups for the rest.
+      let parsed: AudiobookMetadata;
+      if (onMobile) {
+        const fileName = path.split(/[/\\]/).pop() || path;
+        const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+        const parts = nameWithoutExt.split(" - ");
+        const title = parts.length >= 2 ? parts.slice(1).join(" - ").trim() : nameWithoutExt;
+        const author = parts.length >= 2 ? parts[0].trim() : undefined;
+        parsed = {
+          title,
+          author,
+          duration: 0,
+          chapters: [{ id: 1, title: "Chapter 1", startTime: 0 }],
+        };
+      } else {
+        parsed = await parseAudiobookMetadata(path);
+      }
       setMetadata(parsed);
       setChapters(parsed.chapters || []);
-      
-      // Extract embedded cover and search for online covers in parallel
+
+      // Extract embedded cover (desktop only — mobile file isn't staged yet)
+      // and search for online covers in parallel.
       const [embeddedCover, covers, metaResults] = await Promise.all([
-        extractAudioCoverArt(path),
+        onMobile ? Promise.resolve(null) : extractAudioCoverArt(path),
         searchAudiobookCover(parsed.title, parsed.author),
         searchAudiobookMetadata(parsed.title, parsed.author),
       ]);
@@ -411,7 +470,7 @@ export function AudiobookImportDialog({
       if (allCovers.length > 0) {
         setSelectedCover(allCovers[0]);
       }
-      
+
       if (metaResults.length > 0) {
         const bestMatch = metaResults[0];
         setMetadata(prev => ({
@@ -420,7 +479,7 @@ export function AudiobookImportDialog({
           duration: prev.duration || bestMatch.duration || 0,
         }));
       }
-      
+
       setCurrentStep("metadata");
     } catch {
       setError("Failed to parse audiobook metadata");
@@ -539,6 +598,17 @@ export function AudiobookImportDialog({
   };
 
   const startTranscription = async () => {
+    // On mobile the audio file isn't staged to a readable path until after
+    // import, so import-time transcription can't read it yet. The working Groq
+    // path lives in the audiobook player (transcribe_audio_file_groq runs on
+    // the staged file). Guide the user there instead of failing silently.
+    if (onMobile) {
+      showInfo(
+        "Transcribe after import",
+        "Open the audiobook in the player and tap the transcript button to transcribe it with Groq."
+      );
+      return;
+    }
     setIsGeneratingTranscript(true);
     setTranscriptProgress(0);
     showInfo(
@@ -634,7 +704,6 @@ export function AudiobookImportDialog({
         localStorage.setItem(`audiobook-${doc.id}`, JSON.stringify(audiobookData));
         
       } else {
-        // Single file import
         const imported = await importFromFiles([filePath]);
         if (imported.length === 0) throw new Error("Failed to import audiobook");
         doc = imported[0];
@@ -708,11 +777,11 @@ export function AudiobookImportDialog({
       
       try {
         const imported = await importFromFiles([item.filePath]);
-        
+
         if (imported.length === 0) {
           throw new Error("Import failed");
         }
-        
+
         const doc = imported[0];
         
         await updateDocumentApi(doc.id, {
@@ -789,11 +858,42 @@ export function AudiobookImportDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex flex-col bg-background",
+        // Mobile shell: true fullscreen (no dimmed backdrop, no rounded card,
+        // no 90vh gap → eliminates the "tiny slivers of window below"). Desktop
+        // keeps the centered card over a dimmed backdrop.
+        isMobileShell
+          ? "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+          : "items-center justify-center bg-black/50 p-4"
+      )}
+    >
+      <div
+        className={cn(
+          "relative flex w-full flex-col overflow-hidden bg-background",
+          isMobileShell
+            ? "h-full"
+            : "h-[90vh] max-w-6xl rounded-xl shadow-2xl"
+        )}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+        <div
+          className={cn(
+            "flex items-center justify-between border-b border-border bg-card",
+            isMobileShell ? "px-4 py-3" : "px-6 py-4"
+          )}
+        >
           <div className="flex items-center gap-3">
+            {isMobileShell && (
+              <button
+                onClick={onClose}
+                className="-ml-1 rounded-full p-1.5 text-foreground hover:bg-muted active:scale-95 transition"
+                aria-label="Back"
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+            )}
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
               <Headphones className="h-5 w-5 text-amber-500" />
             </div>
@@ -871,34 +971,43 @@ export function AudiobookImportDialog({
                 Import a single audiobook or select a directory to batch import multiple files.
                 We'll automatically fetch metadata and cover art.
               </p>
-              
-              <div className="flex flex-wrap justify-center gap-4">
+
+              <div className={cn(
+                "flex gap-4",
+                isMobileShell ? "w-full max-w-sm flex-col" : "flex-wrap justify-center"
+              )}>
                 {/* Single file import */}
                 <button
                   onClick={handleFileSelect}
                   disabled={isLoading}
-                  className="flex flex-col items-center gap-3 rounded-xl border-2 border-border bg-card p-6 hover:border-primary/50 hover:bg-muted/30 transition-all disabled:opacity-50"
+                  className={cn(
+                    "flex flex-col items-center gap-3 rounded-xl border-2 border-border bg-card p-6 hover:border-primary/50 hover:bg-muted/30 transition-all disabled:opacity-50",
+                    isMobileShell && "w-full"
+                  )}
                 >
                   <div className="rounded-full bg-primary/10 p-3">
                     <Upload className="h-6 w-6 text-primary" />
                   </div>
                   <div>
                     <p className="font-medium">Single File</p>
-                    <p className="text-xs text-muted-foreground">Import one audiobook</p>
+                    <p className="text-xs text-muted-foreground">Import one or more audiobooks</p>
                   </div>
                 </button>
-                
-                {/* Directory import */}
+
+                {/* Directory import — available on desktop AND native mobile
+                    (folder-import plugin stages files to readable paths). Only
+                    disabled in pure browser/PWA. */}
                 <button
                   onClick={handleDirectorySelect}
-                  disabled={isLoading || !isTauri()}
+                  disabled={isLoading || !folderImportAvailable}
                   className={cn(
                     "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-all",
-                    isTauri() 
+                    isMobileShell && "w-full",
+                    folderImportAvailable
                       ? "border-border bg-card hover:border-primary/50 hover:bg-muted/30 disabled:opacity-50"
                       : "border-dashed border-border/50 bg-muted/20 opacity-60 cursor-not-allowed"
                   )}
-                  title={isTauri() ? "Import all audiobooks in a folder" : "Directory import requires desktop app - use Single File mode to select multiple files"}
+                  title={folderImportAvailable ? "Import all audiobooks in a folder" : "Directory import requires the app — use Single File mode to select multiple files"}
                 >
                   <div className="rounded-full bg-amber-500/10 p-3">
                     <FolderOpen className="h-6 w-6 text-amber-500" />
@@ -906,10 +1015,10 @@ export function AudiobookImportDialog({
                   <div>
                     <p className="font-medium">Directory</p>
                     <p className="text-xs text-muted-foreground">
-                      {isTauri() ? "Import all audiobooks in folder" : "Desktop app only"}
+                      {folderImportAvailable ? "Import all audiobooks in folder" : "App only"}
                     </p>
                   </div>
-                  {!isTauri() && (
+                  {!folderImportAvailable && (
                     <span className="text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       Use Single File mode
                     </span>
@@ -967,7 +1076,10 @@ export function AudiobookImportDialog({
               
               {/* Batch items grid */}
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className={cn(
+                  "grid gap-4",
+                  isMobileShell ? "grid-cols-1" : "grid-cols-2 md:grid-cols-3"
+                )}>
                   {batchItems.map((item) => (
                     <div 
                       key={item.id}
@@ -1332,7 +1444,9 @@ export function AudiobookImportDialog({
                       <p className="text-xs text-muted-foreground text-center">
                         {isGeneratingTranscript
                           ? "You can continue with the import while this runs"
-                          : "Use local STT or Groq Cloud to transcribe"}
+                          : onMobile
+                            ? "Transcribe via Groq after import from the player"
+                            : "Use local STT or Groq Cloud to transcribe"}
                       </p>
                       {isGeneratingTranscript && (
                         <div className="mt-3 w-full px-2">

@@ -174,6 +174,45 @@ mod commands {
         }
     }
 
+    /// Pick one or more FILES (not a folder) and return them staged into app-
+    /// private storage with readable filesystem paths. On mobile this delegates
+    /// to the native SAF picker (ACTION_OPEN_DOCUMENT) which copies each file
+    /// natively — no bytes cross the JSON IPC (the fast path, like native apps).
+    /// On desktop it falls back to the Tauri dialog plugin's file open.
+    ///
+    /// Returns an empty Vec if the user cancels.
+    #[tauri::command]
+    pub async fn pick_files(
+        state: State<'_, FolderImport>,
+        extensions: Option<Vec<String>>,
+        multiple: Option<bool>,
+    ) -> Result<Vec<StagedFile>, Error> {
+        let ext_set = normalize_extension_set(extensions);
+
+        // Mobile: native SAF file picker + native copy.
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        {
+            let import_state = state.inner().clone();
+            let mult = multiple.unwrap_or(false);
+            let result = tauri::async_runtime::spawn_blocking(move || {
+                let exts: Vec<String> = ext_set.into_iter().collect();
+                pick_files_mobile(&import_state, exts, mult)
+            })
+            .await
+            .map_err(|e| Error::Message(format!("file pick join error: {e}")))??;
+            return Ok(result);
+        }
+
+        // Desktop: no native handle available here; callers use openFilePicker.
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        {
+            let _ = (state, ext_set, multiple);
+            Err(Error::Message(
+                "pick_files is only supported on mobile; use the dialog plugin on desktop".to_string(),
+            ))
+        }
+    }
+
     #[tauri::command]
     pub async fn install_apk(
         state: State<'_, FolderImport>,
@@ -361,6 +400,20 @@ fn pick_mobile(
 }
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
+fn pick_files_mobile(
+    state: &FolderImport,
+    extensions: Vec<String>,
+    multiple: bool,
+) -> Result<Vec<StagedFile>, Error> {
+    let payload = serde_json::json!({ "extensions": extensions, "multiple": multiple });
+    let response = state
+        .handle
+        .run_mobile_plugin::<MobilePickResponse>("pickFiles", payload)
+        .map_err(|e| Error::Message(e.to_string()))?;
+    Ok(response.files)
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
 #[derive(Debug, Deserialize)]
 struct MobilePickResponse {
     files: Vec<StagedFile>,
@@ -373,6 +426,9 @@ struct MobilePickResponse {
 /// Pick a folder and return all supported files inside it (recursively).
 /// See `commands::pick_folder_documents` for the implementation.
 pub use commands::pick_folder_documents;
+/// Pick one or more files and return them staged into app-private storage.
+/// See `commands::pick_files` for the implementation.
+pub use commands::pick_files;
 pub use commands::install_apk;
 pub use commands::backup_db_to_downloads;
 
@@ -386,6 +442,7 @@ pub fn init() -> TauriPlugin<Wry> {
     tauri::plugin::Builder::<Wry>::new("incrementum-folder-import")
         .invoke_handler(tauri::generate_handler![
             commands::pick_folder_documents,
+            commands::pick_files,
             commands::install_apk,
             commands::backup_db_to_downloads
         ])

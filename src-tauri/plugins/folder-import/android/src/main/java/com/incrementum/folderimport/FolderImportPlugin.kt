@@ -46,6 +46,12 @@ class PickFolderOptions {
 }
 
 @InvokeArg
+class PickFilesOptions {
+  var extensions: Array<String>? = null
+  var multiple: Boolean = false
+}
+
+@InvokeArg
 class InstallApkOptions {
   var filePath: String? = null
 }
@@ -66,12 +72,17 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
 
   /** Extension allow-list captured while the picker is shown, applied on result. */
   private var pendingExtensions: Set<String> = emptySet()
+  /** Whether the current file pick allows multiple selection. */
+  private var pendingMultiple: Boolean = false
+  /** Whether the current picker is picking a folder or files. */
+  private var isFolderPick: Boolean = false
 
   @Command
   fun pickFolderDocuments(invoke: Invoke) {
     try {
       val args = invoke.parseArgs(PickFolderOptions::class.java)
       pendingExtensions = normalizeExtensions(args.extensions)
+      isFolderPick = true
 
       // Persistable permission so re-picking later doesn't re-prompt; harmless
       // if the provider doesn't grant it.
@@ -82,11 +93,159 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
         )
       }
 
-      startActivityForResult(invoke, intent, "folderPickerResult")
+      startActivityForResult(invoke, intent, "pickerResult")
     } catch (ex: Exception) {
       val message = ex.message ?: "Failed to open folder picker"
       Logger.error(message)
       invoke.reject(message)
+    }
+  }
+
+  /**
+   * Pick one or more FILES (not a folder) via Android's Storage Access Framework
+   * (ACTION_OPEN_DOCUMENT), copy each natively into `<filesDir>/imports/<name>`
+   * — exactly like [stageFile] does for folder imports — and return the staged
+   * filesystem paths. This is the mobile single-file/multi-file path: the copy
+   * happens in native Kotlin with no bytes crossing the Tauri IPC (which on
+   * Android is JSON-only and would hang/OOM on large files). Mirrors what native
+   * audiobook players do.
+   */
+  @Command
+  fun pickFiles(invoke: Invoke) {
+    try {
+      val args = invoke.parseArgs(PickFilesOptions::class.java)
+      pendingExtensions = normalizeExtensions(args.extensions)
+      pendingMultiple = args.multiple
+      isFolderPick = false
+
+      val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        type = "*/*"
+        if (pendingExtensions.isNotEmpty()) {
+          // SAF matches EXTRA_MIME_TYPES against MIME; we also constrain by
+          // extension after the pick. Allow any so files aren't greyed out.
+          putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("*/*"))
+        }
+        if (args.multiple) {
+          putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+        addCategory(Intent.CATEGORY_OPENABLE)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      }
+
+      startActivityForResult(invoke, intent, "pickerResult")
+    } catch (ex: Exception) {
+      val message = ex.message ?: "Failed to open file picker"
+      Logger.error(message)
+      invoke.reject(message)
+    }
+  }
+
+  private fun handleFilePickerResult(invoke: Invoke, result: androidx.activity.result.ActivityResult) {
+    try {
+      if (result.resultCode != Activity.RESULT_OK) {
+        return invoke.reject("File picker cancelled")
+      }
+      val data = result.data
+      val uris = mutableListOf<Uri>()
+      if (data?.clipData != null) {
+        val clip = data.clipData!!
+        for (i in 0 until clip.itemCount) {
+          uris.add(clip.getItemAt(i).uri)
+        }
+      } else {
+        val singleUri = data?.data
+        if (singleUri != null) {
+          uris.add(singleUri)
+        }
+      }
+      if (uris.isEmpty()) {
+        return invoke.reject("File picker cancelled")
+      }
+
+      val importRoot = File(activity.filesDir, "imports")
+      val staged = mutableListOf<StagedFile>()
+      for (uri in uris) {
+        val fileName = queryDisplayName(uri) ?: "file_${System.currentTimeMillis()}"
+        // Enforce the extension allow-list post-pick (SAF may surface other types).
+        if (!hasSupportedExtension(fileName)) continue
+        stageFileByUri(uri, fileName, fileName, importRoot)?.let(staged::add)
+      }
+
+      if (staged.isEmpty()) {
+        return invoke.reject("No supported files selected")
+      }
+
+      val arr = JSArray()
+      for (f in staged) {
+        val obj = JSObject()
+        obj.put("path", f.path)
+        obj.put("relativePath", f.relativePath)
+        obj.put("fileName", f.fileName)
+        arr.put(obj)
+      }
+      val out = JSObject()
+      out.put("files", arr)
+      invoke.resolve(out)
+    } catch (ex: Exception) {
+      val message = ex.message ?: "Failed to import files"
+      Logger.error(message)
+      invoke.reject(message)
+    }
+  }
+
+  /** Resolve a content URI's human-readable display name. */
+  private fun queryDisplayName(uri: Uri): String? {
+    return try {
+      activity.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+      }
+    } catch (ex: Exception) {
+      null
+    }
+  }
+
+  /**
+   * Copy a single content:// URI's bytes into `<filesDir>/imports/<relativePath>`,
+   * returning the staged [StagedFile] or null on copy failure. Native-side copy
+   * (like [stageFile] for folders) — no IPC byte transfer.
+   */
+  private fun stageFileByUri(
+    uri: Uri,
+    fileName: String,
+    relativePath: String,
+    importRoot: File,
+  ): StagedFile? {
+    // Avoid collisions: if the name exists, suffix a counter.
+    val dest = uniqueDest(importRoot, relativePath)
+    return try {
+      activity.contentResolver.openInputStream(uri)?.use { input ->
+        FileOutputStream(dest).use { output ->
+          input.copyTo(output)
+        }
+      } ?: return null
+      StagedFile(
+        path = dest.absolutePath,
+        relativePath = relativePath,
+        fileName = fileName,
+      )
+    } catch (ex: Exception) {
+      Logger.error("Failed to stage $relativePath: ${ex.message}")
+      null
+    }
+  }
+
+  private fun uniqueDest(importRoot: File, relativePath: String): File {
+    val base = File(importRoot, relativePath)
+    base.parentFile?.mkdirs()
+    if (!base.exists()) return base
+    val dot = relativePath.lastIndexOf('.')
+    val stem = if (dot > 0) relativePath.substring(0, dot) else relativePath
+    val ext = if (dot > 0) relativePath.substring(dot) else ""
+    var i = 1
+    while (true) {
+      val candidate = File(importRoot, "$stem ($i)$ext")
+      if (!candidate.exists()) return candidate
+      i++
     }
   }
 
@@ -234,7 +393,15 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
 
 
   @ActivityCallback
-  fun folderPickerResult(invoke: Invoke, result: androidx.activity.result.ActivityResult) {
+  fun pickerResult(invoke: Invoke, result: androidx.activity.result.ActivityResult) {
+    if (isFolderPick) {
+      handleFolderPickerResult(invoke, result)
+    } else {
+      handleFilePickerResult(invoke, result)
+    }
+  }
+
+  private fun handleFolderPickerResult(invoke: Invoke, result: androidx.activity.result.ActivityResult) {
     try {
       val data = result.data
       val treeUri: Uri = data?.data

@@ -644,3 +644,108 @@ export async function extractAudioSample(
     duration,
   });
 }
+
+/**
+ * Enrich a freshly-imported audiobook document with metadata + cover art derived
+ * from its filename and an online lookup (Google Books). Used by the main import
+ * path (which doesn't run the full AudiobookImportDialog flow) so that audiobooks
+ * imported via the quick "+" import still get a title, author, description, and
+ * cover attached. Best-effort and non-blocking — failures are swallowed.
+ *
+ * @param doc The document as imported (title is likely the filename).
+ * @param filePath The staged readable filesystem path of the audio file.
+ */
+export async function enrichAudiobookDocument(doc: Document, filePath: string): Promise<void> {
+  try {
+    const fileName = filePath.split("/").pop()?.split("\\").pop() || filePath;
+    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+    // Parse "Author - Title" (the most common audiobook naming convention).
+    const parts = nameWithoutExt.split(" - ");
+    const titleGuess = parts.length >= 2 ? parts.slice(1).join(" - ").trim() : nameWithoutExt;
+    const authorGuess = parts.length >= 2 ? parts[0].trim() : undefined;
+
+    // Online metadata + cover lookup in parallel.
+    const [metaResults, covers] = await Promise.all([
+      searchAudiobookMetadata(titleGuess, authorGuess),
+      searchAudiobookCover(titleGuess, authorGuess),
+    ]);
+
+    const best = metaResults[0] || {};
+    const finalTitle = best.title || titleGuess;
+    const finalAuthor = best.author || authorGuess;
+    const coverUrl = best.coverUrl || covers[0];
+
+    // Persist the enriched fields. Only attach what we found.
+    const { updateDocument: updateDocumentApi } = await import("./documents");
+    await updateDocumentApi(doc.id, {
+      ...doc,
+      title: finalTitle,
+      coverImageUrl: coverUrl ?? doc.coverImageUrl,
+      fileType: "audio",
+      tags: ["audiobook", "audio", ...(best.genre || [])],
+      metadata: {
+        ...(doc.metadata || {}),
+        author: finalAuthor,
+        subject: best.description?.substring(0, 200),
+        keywords: best.genre,
+        language: best.language,
+      },
+    } as Document);
+  } catch (err) {
+    console.error("[audiobook] enrichAudiobookDocument failed (non-critical):", err);
+  }
+}
+
+/**
+ * Transcribe a local audiobook file via Groq cloud transcription, entirely on
+ * the Rust side (read file → ffmpeg-free chunking → per-chunk Groq upload →
+ * persist segments to the document transcript tables). This is the path used on
+ * mobile, where local Whisper/Parakeet/SenseVoice sidecars are unavailable and
+ * the auto-transcription queue worker has no Groq branch. Also works on desktop
+ * when the user's provider is Groq.
+ *
+ * The Rust command persists segments into the same `transcripts`/`
+ * transcript_segments` tables `get_transcript` reads from (keyed by
+ * book_id=chapter_id=document_id), and writes the combined text to
+ * `documents.content`. So once this resolves, the viewer's transcript panel,
+ * karaoke highlight, and auto-scroll (book sync) all work automatically.
+ *
+ * Emits `audiobook://transcription-progress` / `-complete` / `-error` events
+ * keyed by `documentId` (these are also emitted from Rust during processing).
+ * Returns the number of transcribed segments.
+ */
+export async function transcribeAudiobookWithGroq(
+  documentId: string,
+  filePath: string,
+  language?: string,
+): Promise<number> {
+  if (!isTauri()) {
+    throw new Error("Groq audiobook transcription requires the app (Tauri) backend.");
+  }
+
+  // Read the Groq key + model from persisted settings — the Rust command runs
+  // server-side and can't read the JS store. Mirrors the podcast path.
+  const { apiKey, model } = (() => {
+    try {
+      const raw = localStorage.getItem("incrementum-settings");
+      const parsed = raw ? JSON.parse(raw) : null;
+      const g = parsed?.state?.settings?.audioTranscription?.groq;
+      return { apiKey: g?.apiKey || "", model: g?.model || "whisper-large-v3-turbo" };
+    } catch {
+      return { apiKey: "", model: "whisper-large-v3-turbo" };
+    }
+  })();
+  if (!apiKey) {
+    throw new Error("Groq API key not configured. Please add your API key in Audio Transcription settings.");
+  }
+
+  const { invokeCommand } = await import("../lib/tauri");
+  const segmentCount = await invokeCommand<number>("transcribe_audio_file_groq", {
+    documentId,
+    filePath,
+    language: language ?? null,
+    groqApiKey: apiKey,
+    groqModel: model,
+  });
+  return segmentCount;
+}

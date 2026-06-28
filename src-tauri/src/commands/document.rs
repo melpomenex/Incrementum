@@ -13,16 +13,18 @@ use lopdf::{Document as LoDocument, Object};
 
 /// Copy a media file to app-managed storage so it survives macOS sandbox revocation.
 /// Returns the destination path.
-fn copy_media_to_app_storage(source_path: &str, subdir: &str) -> Result<PathBuf> {
+fn copy_media_to_app_storage(app: &tauri::AppHandle, source_path: &str, subdir: &str) -> Result<PathBuf> {
+    use tauri::Manager;
     let source = Path::new(source_path);
     if !source.exists() {
         return Err(IncrementumError::NotFound(format!("Source file not found: {}", source_path)));
     }
 
-    let dest_dir = dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("incrementum")
-        .join(subdir);
+    let dest_dir = app
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("incrementum").join(subdir))
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve app data dir: {}", e)))?;
 
     std::fs::create_dir_all(&dest_dir)
         .map_err(|e| IncrementumError::Internal(format!("Failed to create {} directory: {}", subdir, e)))?;
@@ -131,6 +133,7 @@ pub async fn open_file_picker(
 pub async fn import_document(
     file_path: String,
     collection_id: Option<String>,
+    app: tauri::AppHandle,
     repo: State<'_, Repository>,
 ) -> Result<Document> {
     let path = PathBuf::from(&file_path);
@@ -141,7 +144,7 @@ pub async fn import_document(
     let canonical = std::fs::canonicalize(&path)
         .map_err(|e| IncrementumError::Internal(format!("Invalid path: {}", e)))?;
 
-    import_from_path(canonical.to_string_lossy().to_string(), &file_path, collection_id, &repo).await
+    import_from_path(canonical.to_string_lossy().to_string(), &file_path, collection_id, &app, &repo).await
 }
 
 /// Shared import pipeline used by both `import_document` (path-based, desktop)
@@ -152,6 +155,7 @@ async fn import_from_path(
     disk_path: String,
     file_name: &str,
     collection_id: Option<String>,
+    app: &tauri::AppHandle,
     repo: &Repository,
 ) -> Result<Document> {
     let path = Path::new(&disk_path);
@@ -180,7 +184,7 @@ async fn import_from_path(
     // private data dir, which remains readable. Storing the bare filename
     // (as the old code did) left the document unable to be re-opened.
     let stored_path = match file_type {
-        FileType::Audio => copy_media_to_app_storage(&disk_path, "audio")?.to_string_lossy().to_string(),
+        FileType::Audio => copy_media_to_app_storage(app, &disk_path, "audio")?.to_string_lossy().to_string(),
         _ => disk_path.clone(),
     };
 
@@ -271,7 +275,7 @@ pub async fn import_document_from_bytes(
         .map_err(|e| IncrementumError::Internal(format!("Failed to stage import file {}: {}", staged_path.display(), e)))?;
     eprintln!("[mobile-import] staged to {}", staged_path.display());
 
-    match import_from_path(staged_path.to_string_lossy().to_string(), &file_name, collection_id, &repo).await {
+    match import_from_path(staged_path.to_string_lossy().to_string(), &file_name, collection_id, &app_handle, &repo).await {
         Ok(doc) => {
             eprintln!("[mobile-import] success: id={}, title={}", doc.id, doc.title);
             Ok(doc)
@@ -283,10 +287,70 @@ pub async fn import_document_from_bytes(
     }
 }
 
+/// Begin streaming a large file to the app's private storage on mobile. Returns
+/// the staged path the caller should pass to subsequent `append_import_file_chunk`
+/// calls and finally `import_document`.
+///
+/// Why this exists: Tauri's IPC on Android is JSON-only — `Vec<u8>` args must be
+/// sent as a JSON array of numbers (`Array.from(bytes)`), and raw-byte channels
+/// (`tauri::ipc::Request`) don't work on Android (see tauri/ipc/mod.rs). For a
+/// multi-hundred-MB audiobook that round-trip hangs/OOMs. So the mobile import
+/// path streams the file to disk in modest (~256 KB) JSON chunks via these three
+/// commands, then imports the staged path normally. Each chunk is small enough
+/// that the JSON serialization is fast and bounded.
+#[tauri::command]
+pub async fn stage_import_file_start(
+    app_handle: tauri::AppHandle,
+    file_name: String,
+) -> Result<String> {
+    use tauri::Manager;
+    let dest_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("imports"))
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve app data dir: {}", e)))?;
+    std::fs::create_dir_all(&dest_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create imports directory {}: {}", dest_dir.display(), e)))?;
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let safe_name = std::path::Path::new(&file_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("import")
+        .replace(['/', '\\', ':'], "_");
+    let staged_name = format!("{}-{}", timestamp, safe_name);
+    let staged_path = dest_dir.join(&staged_name);
+
+    // Create/truncate the target file so appends start fresh.
+    std::fs::File::create(&staged_path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create staged file {}: {}", staged_path.display(), e)))?;
+
+    Ok(staged_path.to_string_lossy().to_string())
+}
+
+/// Append a chunk of bytes (already JSON-deserialized into Vec<u8>) to a file
+/// previously opened with `stage_import_file_start`. Returns the new total size.
+#[tauri::command]
+pub async fn append_import_file_chunk(staged_path: String, chunk: Vec<u8>) -> Result<u64> {
+    use std::io::Write;
+    let path = std::path::Path::new(&staged_path);
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(path)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to open staged file for append {}: {}", path.display(), e)))?;
+    file.write_all(&chunk)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to append chunk to {}: {}", path.display(), e)))?;
+    let len = std::fs::metadata(path)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    Ok(len)
+}
+
 #[tauri::command]
 pub async fn import_documents(
     file_paths: Vec<String>,
     collection_id: Option<String>,
+    app: tauri::AppHandle,
     repo: State<'_, Repository>,
 ) -> Result<Vec<Document>> {
     let mut imported = Vec::new();
@@ -294,7 +358,7 @@ pub async fn import_documents(
     for file_path in file_paths {
         let path_clone = file_path.clone();
         let coll_id = collection_id.clone();
-        match import_document(file_path, coll_id, repo.clone()).await {
+        match import_document(file_path, coll_id, app.clone(), repo.clone()).await {
             Ok(doc) => imported.push(doc),
             Err(e) => {
                 eprintln!("Failed to import {}: {}", path_clone, e);

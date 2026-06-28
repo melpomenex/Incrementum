@@ -8,6 +8,7 @@ import { useCollectionStore } from "./collectionStore";
 import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivUtil } from "../utils/documentImport";
 import { listen, isTauri, isNativeMobile } from "../lib/tauri";
 import { useToastStore, ToastType } from "../components/common/Toast";
+import { enrichAudiobookDocument, isAudiobookFile } from "../api/audiobooks";
 
 /**
  * Mobile file picker: uses the WebView's <input type=file>, which Android/iOS
@@ -400,6 +401,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
             totalExtracts += count;
             set({ isSegmenting: false });
           }
+
+          if (isAudiobookFile(fileName)) {
+            void enrichAudiobookDocument(doc, fileName).catch(() => {});
+          }
         } catch (error) {
           console.error(`Failed to import ${fileName}:`, error);
         }
@@ -469,47 +474,18 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   },
 
   openFilePickerAndImport: async () => {
-    // On native Android/iOS, the Tauri dialog plugin returns content:// URIs
-    // the Rust import backend can't read. Instead use the WebView's native
-    // <input type=file> (which Android routes to the SAF picker), read the
-    // File bytes in JS, and send them to import_document_from_bytes so the
-    // document lands in the same SQLite store as desktop imports.
+    // On native Android/iOS, use the native fast-copy picker (pickFilesMobile)
+    // which copies chosen files to internal storage natively, bypassing the
+    // slow JSON IPC byte transfer.
     if (isNativeMobile()) {
-      const files = await pickMobileFiles({ multiple: true });
-      if (!files || files.length === 0) return [];
-      set({ isImporting: true, error: null, importProgress: { current: 0, total: files.length } });
-      const collectionId = useCollectionStore.getState().activeCollectionId;
-      const settings = useSettingsStore.getState().settings;
-      const autoSegment = settings.documents.autoProcessOnImport;
-      const imported: Document[] = [];
-      try {
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          set({ importProgress: { current: i, total: files.length, fileName: file.name } });
-          try {
-            const bytes = new Uint8Array(await file.arrayBuffer());
-            const doc = await documentsApi.importDocumentFromBytes(file.name, bytes, collectionId);
-            imported.push(doc);
-            if (autoSegment) {
-              set({ isSegmenting: true });
-              await get().segmentDocument(doc.id, doc.fileType);
-              set({ isSegmenting: false });
-            }
-          } catch (err) {
-            console.error(`[mobile import] Failed to import ${file.name}:`, err);
-            const toast = useToastStore.getState();
-            toast.addToast({
-              type: ToastType.Error,
-              title: "Import failed",
-              message: `${file.name}: ${err instanceof Error ? err.message : String(err)}`,
-            });
-          }
-        }
-        await get().loadDocuments();
-        return imported;
-      } finally {
-        set({ isImporting: false, importProgress: { current: 0, total: 0 } });
-      }
+      const staged = await documentsApi.pickFilesMobile({
+        multiple: true,
+        extensions: undefined
+      });
+      if (!staged || staged.length === 0) return [];
+      
+      const paths = staged.map((f) => f.path);
+      return await get().importFromFiles(paths);
     }
 
     const filePaths = await documentsApi.openFilePicker({ multiple: true });

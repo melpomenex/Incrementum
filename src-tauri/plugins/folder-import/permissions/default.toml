@@ -2,7 +2,7 @@
 
 [default]
 description = """
-Allows the folder-import plugin's folder picker command to be invoked
+Allows the folder-import plugin's folder + file picker commands to be invoked
 from the frontend.
 """
-permissions = ["allow-pick-folder-documents", "allow-install-apk", "allow-backup-db-to-downloads"]
+permissions = ["allow-pick-folder-documents", "allow-pick-files", "allow-install-apk", "allow-backup-db-to-downloads"]

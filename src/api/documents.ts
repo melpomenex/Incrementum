@@ -162,6 +162,47 @@ export async function importDocumentFromBytes(
   });
 }
 
+/**
+ * Import a File (e.g. from the WebView <input type=file> on mobile) by streaming
+ * it to the app's private storage in modest chunks, then importing the staged
+ * path. This is the mobile-safe path for LARGE files (audiobooks can be hundreds
+ * of MB): the Tauri IPC on Android is JSON-only, so passing the whole file as a
+ * `Vec<u8>` (Array.from) hangs/OOMs on big files. Chunking keeps each JSON
+ * payload small and bounded.
+ *
+ * `onProgress` receives the fraction complete (0–1) as bytes stream across.
+ */
+export async function importDocumentFromFileStreamed(
+  file: File,
+  collectionId?: string,
+  onProgress?: (fraction: number) => void,
+): Promise<Document> {
+  const CHUNK_SIZE = 256 * 1024; // 256 KB per JSON IPC payload — fast & bounded.
+  const stagedPath = await invokeCommand<string>("stage_import_file_start", {
+    fileName: file.name,
+  });
+
+  const total = file.size;
+  let written = 0;
+  for (let offset = 0; offset < total; offset += CHUNK_SIZE) {
+    const slice = file.slice(offset, Math.min(offset + CHUNK_SIZE, total));
+    const buf = new Uint8Array(await slice.arrayBuffer());
+    // Vec<u8> args cross IPC as a JSON number array (Tauri/serde requirement).
+    // Each chunk is small enough that this is cheap.
+    written = await invokeCommand<number>("append_import_file_chunk", {
+      stagedPath,
+      chunk: Array.from(buf),
+    });
+    if (onProgress && total > 0) onProgress(written / total);
+  }
+
+  // Now import the fully-staged file by path (the normal, non-bytes pipeline).
+  return await invokeCommand<Document>("import_document", {
+    filePath: stagedPath,
+    collectionId: collectionId ?? null,
+  });
+}
+
 export interface PodcastImportResult {
   document: Document;
   transcript_segments: number;
@@ -309,6 +350,32 @@ export async function pickFolderDocuments(
   return await invokeCommand<StagedFolderFile[]>(
     "plugin:incrementum-folder-import|pick_folder_documents",
     { extensions: extensions ?? null }
+  );
+}
+
+/**
+ * Pick one or more FILES (mobile only) via the folder-import plugin's native
+ * Storage Access Framework picker (ACTION_OPEN_DOCUMENT). Each picked file is
+ * copied into app-private storage in native Kotlin — no bytes cross the
+ * JSON-only Tauri IPC — so this works instantly for large files (audiobooks,
+ * videos) and returns readable filesystem paths ready for the path-based
+ * `importDocument` pipeline. This is the mobile equivalent of `openFilePicker`
+ * but with the native fast-copy path.
+ *
+ * Returns an empty array in pure browser/PWA or if the user cancels.
+ */
+export async function pickFilesMobile(
+  options?: { multiple?: boolean; extensions?: string[] }
+): Promise<StagedFolderFile[]> {
+  if (isWebMode()) {
+    return [];
+  }
+  return await invokeCommand<StagedFolderFile[]>(
+    "plugin:incrementum-folder-import|pick_files",
+    {
+      extensions: options?.extensions ?? null,
+      multiple: options?.multiple ?? false,
+    }
   );
 }
 

@@ -57,7 +57,7 @@ import { useToast } from "../common/Toast";
 import { CreateExtractDialog } from "../extracts/CreateExtractDialog";
 import { useTranscriptionStore } from "../../stores/useTranscriptionStore";
 import { useSettingsStore } from "../../stores/settingsStore";
-import { startTranscription, saveTranscript, enqueueAutoTranscription } from "../../api/transcription";
+import { startTranscription } from "../../api/transcription";
 import { convertFileSrc, isTauri, listen } from "../../lib/tauri";
 import { useMobileShell } from "../../hooks/useMobileShell";
 import { readDocumentFile, updateDocument as updateDocumentApi, updateDocumentProgressAuto, updateDocumentContent, getDocument } from "../../api/documents";
@@ -339,6 +339,11 @@ export function AudiobookViewer({
   const [podcastTranscriptionProgress, setPodcastTranscriptionProgress] = useState<{ status: string; progress: number } | null>(null);
   const [podcastTranscriptStatus, setPodcastTranscriptStatus] = useState<string | null>(null);
   const [hasLoadedStatus, setHasLoadedStatus] = useState(false);
+
+  // Audiobook (non-podcast) Groq transcription state. Used on mobile and when
+  // the provider is Groq — the auto-transcription queue worker has no Groq path,
+  // so we drive the dedicated transcribe_audio_file_groq command from here.
+  const [audiobookTranscriptionProgress, setAudiobookTranscriptionProgress] = useState<{ status: string; progress: number; message?: string } | null>(null);
 
   const shouldPlayAfterDownloadRef = useRef(false);
   const pendingAutoplayAfterDownloadRef = useRef(false);
@@ -1589,22 +1594,35 @@ export function AudiobookViewer({
       }
 
       const isGroq = provider === "groq";
-      const finalModelId = isGroq ? "groq-whisper" : bestModelId;
+      const language = settings.language === "auto" ? undefined : (settings.language || "en");
 
-      const currentChapter = getCurrentChapter();
-      const chapterId = currentChapter?.id?.toString() || "default";
-
-      // Route transcription based on model & provider
+      // Route transcription based on model & provider.
+      // Groq (always on mobile, or when the user picks Groq on desktop) goes
+      // through the dedicated transcribe_audio_file_groq command — the
+      // auto-transcription queue worker only knows local Whisper/Parakeet models
+      // and has no Groq path, so queueing "groq" there fails to find a model.
       if (isGroq) {
-        await enqueueAutoTranscription(
-          document.id,
-          document.filePath,
-          provider,
-          finalModelId,
-          settings.language || "en",
-        );
-        showSuccess("Transcription Queued", "Document queued for background transcription.");
+        if (!document.filePath) {
+          showError("Transcription Error", "No file path available for this document");
+          return;
+        }
+        setAudiobookTranscriptionProgress({ status: "starting", progress: 0 });
+        showInfo("Transcribing via Groq…", "Your audiobook is being transcribed. You can keep listening while it runs.");
+        try {
+          await audiobookApi.transcribeAudiobookWithGroq(document.id, document.filePath, language);
+          // The command persists segments to the transcript tables; reload them
+          // so the panel + karaoke highlight + auto-scroll (book sync) pick up.
+          await loadTranscript(document.id, document.id);
+          setAudiobookTranscriptionProgress(null);
+          showSuccess("Transcription Complete", "Audiobook transcript is ready.");
+        } catch (err) {
+          setAudiobookTranscriptionProgress(null);
+          showError("Transcription Failed", String(err));
+        }
       } else {
+        const finalModelId = bestModelId;
+        const currentChapter = getCurrentChapter();
+        const chapterId = currentChapter?.id?.toString() || "default";
         await startTranscription(
           document.id,
           chapterId,
@@ -1621,7 +1639,7 @@ export function AudiobookViewer({
 
   const isCurrentTranscribing = isPodcast
     ? !!podcastTranscriptionProgress
-    : activeJob?.bookId === document.id;
+    : (activeJob?.bookId === document.id || !!audiobookTranscriptionProgress);
 
   const isTranscribing = isCurrentTranscribing || podcastTranscriptStatus === "transcribing" || podcastTranscriptStatus === "downloading";
 
@@ -1779,6 +1797,60 @@ export function AudiobookViewer({
       void handleTranscribe();
     }
   }, [showTranscript, isPodcast, episodeId, hasLoadedStatus, podcastTranscriptStatus, podcastTranscriptText, podcastTranscriptSegments.length, podcastTranscriptionProgress]);
+
+  // Listen for audiobook (non-podcast) Groq transcription progress/complete/error
+  // events so the transcript panel's progress bar reflects the background job run
+  // by transcribe_audio_file_groq. (Podcasts use the podcast:// events above.)
+  useEffect(() => {
+    if (isPodcast) return;
+    if (!isTauri()) return;
+    let unlisteners: Array<() => void> = [];
+    let cancelled = false;
+
+    const setupListeners = async () => {
+      try {
+        const u1 = await listen<{ documentId: string; status: string; progress: number; message?: string }>(
+          "audiobook://transcription-progress",
+          (e) => {
+            if (e.payload.documentId !== document.id) return;
+            setAudiobookTranscriptionProgress({
+              status: e.payload.status,
+              progress: e.payload.progress,
+              message: e.payload.message,
+            });
+          },
+        );
+        const u2 = await listen<{ documentId: string; segmentCount: number }>(
+          "audiobook://transcription-complete",
+          async (e) => {
+            if (e.payload.documentId !== document.id) return;
+            setAudiobookTranscriptionProgress(null);
+            // Reload transcript segments from the DB so the panel + karaoke +
+            // auto-scroll (book sync) pick them up.
+            try {
+              await loadTranscript(document.id, document.id);
+              showSuccess("Transcription Complete", "Audiobook transcript is ready.");
+            } catch { /* non-critical */ }
+          },
+        );
+        if (cancelled) {
+          u1();
+          u2();
+        } else {
+          unlisteners = [u1, u2];
+        }
+      } catch (err) {
+        console.error("Failed to setup audiobook transcription listeners:", err);
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      cancelled = true;
+      unlisteners.forEach((u) => u());
+    };
+  }, [isPodcast, document.id, loadTranscript, showSuccess]);
 
   useEffect(() => {
     if (!showTranscript) return;
@@ -2535,20 +2607,22 @@ export function AudiobookViewer({
                       : "Transcribing Audio..."}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                    {podcastTranscriptionProgress?.status === "downloading" || podcastTranscriptStatus === "downloading"
-                      ? "Downloading audio file for transcription..."
-                      : "Transcribing podcast episode using Groq Cloud Whisper..."}
+                    {isPodcast
+                      ? (podcastTranscriptionProgress?.status === "downloading" || podcastTranscriptStatus === "downloading"
+                          ? "Downloading audio file for transcription..."
+                          : "Transcribing podcast episode using Groq Cloud Whisper...")
+                      : (audiobookTranscriptionProgress?.message || "Transcribing audiobook using Groq Cloud Whisper...")}
                   </p>
 
                   {/* Progress bar */}
                   <div className="w-full max-w-xs bg-muted/60 border border-border/40 rounded-full h-2.5 overflow-hidden shadow-inner">
                     <div
                       className="h-full bg-gradient-to-r from-primary to-orange-500 rounded-full transition-all duration-500 ease-out"
-                      style={{ width: `${isPodcast ? (podcastTranscriptionProgress?.progress ?? 10) : transcriptionProgress}%` }}
+                      style={{ width: `${isPodcast ? (podcastTranscriptionProgress?.progress ?? 10) : (audiobookTranscriptionProgress?.progress ?? transcriptionProgress ?? 10)}%` }}
                     />
                   </div>
                   <span className="text-xs font-semibold text-primary mt-2">
-                    {isPodcast ? (podcastTranscriptionProgress?.progress ?? 10) : transcriptionProgress}% Completed
+                    {isPodcast ? (podcastTranscriptionProgress?.progress ?? 10) : (audiobookTranscriptionProgress?.progress ?? transcriptionProgress ?? 10)}% Completed
                   </span>
                 </div>
               ) : (

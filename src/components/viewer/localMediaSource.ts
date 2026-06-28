@@ -1,6 +1,6 @@
 import { readDocumentFile } from "../../api/documents";
 import { getBrowserFile } from "../../lib/browser-file-store";
-import { convertFileSrc, isTauri } from "../../lib/tauri";
+import { convertFileSrc, isTauri, isNativeMobile, invokeCommand } from "../../lib/tauri";
 
 export type LocalMediaType = "video" | "audio";
 export type LocalMediaSourceStrategy = "tauri-asset" | "browser-object-url" | "backend-blob";
@@ -149,6 +149,27 @@ export async function resolveLocalMediaSource(
   }
 
   const mimeType = inferMimeType(filePath, mediaType);
+
+  if (isNativeMobile()) {
+    try {
+      // Use the local streaming HTTP server with Range request support.
+      // The Tauri asset protocol (convertFileSrc) buffers the entire file
+      // into memory on Android, causing OOM crashes for large audiobooks.
+      const streamUrl = await invokeCommand<string>("get_media_stream_url", { filePath });
+      return {
+        src: streamUrl,
+        mimeType,
+        mediaType,
+        originalPath: filePath,
+        strategy: "tauri-asset",
+        revokeSrcOnDispose: false,
+        attempts: [{ strategy: "tauri-asset", status: "success", detail: "Using local streaming HTTP server on mobile." }],
+      };
+    } catch (error) {
+      throw new Error(`Failed to resolve media source on mobile: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   const attempts: LocalMediaResolutionAttempt[] = [];
 
   if (!isTauri() && filePath.startsWith("browser-file://")) {

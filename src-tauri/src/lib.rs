@@ -45,6 +45,7 @@ mod screenshot;
 mod security_tests;
 mod security;
 mod sponsorblock;
+mod media_server;
 
 use anyhow::Context;
 use database::Database;
@@ -885,8 +886,11 @@ pub fn run() {
             commands::import_document,
             commands::import_documents,
             commands::import_document_from_bytes,
+            commands::stage_import_file_start,
+            commands::append_import_file_chunk,
             commands::import_pdf_highlights_as_extracts,
             commands::read_document_file,
+            media_server::get_media_stream_url,
             commands::fetch_url_content,
             commands::fetch_web_page_preview,
             commands::convert_pdf_to_html,
@@ -1343,6 +1347,7 @@ pub fn run() {
             commands::podcast::split_audio_for_groq_mobile,
             commands::podcast::cleanup_mobile_audio_chunks,
             commands::podcast::transcribe_podcast_groq_chunks,
+            commands::podcast::transcribe_audio_file_groq,
             commands::podcast::cancel_podcast_transcription,
             commands::podcast::set_feed_auto_transcribe,
             commands::podcast::download_podcast_episode,

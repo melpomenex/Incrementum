@@ -103,6 +103,12 @@ export function nativePlatform(): string | null {
  * Synchronous — safe to call during module evaluation or first render.
  */
 export function isNativeMobile(): boolean {
+  if (typeof navigator !== 'undefined') {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('android') || ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
+      return isTauri();
+    }
+  }
   const p = nativePlatform();
   return p === 'android' || p === 'ios';
 }
