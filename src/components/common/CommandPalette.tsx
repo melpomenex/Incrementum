@@ -190,7 +190,7 @@ export function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProp
           className="bg-card border border-border rounded-lg shadow-2xl overflow-hidden"
           onKeyDown={handleKeyDown}
         >
-          {/* MagnifyingGlass Input */}
+          {/* Search Input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
             <MagnifyingGlass className="w-5 h-5 text-muted-foreground" />
             <input

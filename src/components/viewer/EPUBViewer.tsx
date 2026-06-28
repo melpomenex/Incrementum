@@ -762,6 +762,85 @@ export function EPUBViewer({
             contents.document.addEventListener("mouseup", selectionHandler);
             contents.document.addEventListener("touchend", selectionHandler);
 
+            // Vertical swipe paging inside the EPUB iframe.
+            // Touches inside epub.js's iframe are isolated from the parent window,
+            // so the queue's TikTok-style swipe handler can't see them. Handle
+            // vertical swipes here instead: swipe up turns to the next page (like a
+            // Kindle), swipe down to the previous page. When already on the last /
+            // first page, dispatch "incrementum-queue-swipe" so the parent
+            // QueueScrollPage advances to the next/previous queue item — that's how
+            // a long EPUB bridges into the queue without forcing the reader to
+            // "scroll to the bottom" of the whole book.
+            let epubTouchStartX = 0;
+            let epubTouchStartY = 0;
+            let epubTouchStartT = 0;
+            const EPUB_SWIPE_MIN_DIST = 45;
+            const EPUB_SWIPE_MIN_VEL = 0.35;
+            const dispatchQueueSwipe = (direction: "next" | "prev") => {
+              try {
+                contents.window.parent.dispatchEvent(
+                  new CustomEvent("incrementum-queue-swipe", { detail: { direction } })
+                );
+              } catch {
+                /* parent unreachable (standalone reader) — ignore */
+              }
+            };
+            contents.document.addEventListener("touchstart", (e: TouchEvent) => {
+              if (e.touches.length !== 1) return;
+              epubTouchStartX = e.touches[0].clientX;
+              epubTouchStartY = e.touches[0].clientY;
+              epubTouchStartT = Date.now();
+            }, { passive: true });
+            contents.document.addEventListener("touchend", (e: TouchEvent) => {
+              if (e.changedTouches.length !== 1) return;
+              const endX = e.changedTouches[0].clientX;
+              const endY = e.changedTouches[0].clientY;
+              const dx = endX - epubTouchStartX;
+              const dy = endY - epubTouchStartY;
+              const dt = Date.now() - epubTouchStartT;
+              const adx = Math.abs(dx);
+              const ady = Math.abs(dy);
+              const vel = dt > 0 ? Math.hypot(dx, dy) / dt : 0;
+              // Horizontal swipes are left to epub.js's own handling / selection.
+              if (adx > ady) return;
+              if (ady < EPUB_SWIPE_MIN_DIST && vel < EPUB_SWIPE_MIN_VEL) return;
+
+              const r = renditionInstance;
+              if (!r) return;
+              // epub.js exposes atStart/atEnd on its Location object (set after each
+              // navigation). currentLocation() returns only a DisplayedLocation slice,
+              // so read the booleans off rendition.location instead. Guard heavily:
+              // some builds surface them as methods, others as plain properties.
+              const atEdge = (dir: "next" | "prev"): boolean => {
+                try {
+                  const loc = r.location;
+                  const flag = dir === "next" ? loc?.atEnd : loc?.atStart;
+                  return typeof flag === "function" ? !!flag() : Boolean(flag);
+                } catch {
+                  return false;
+                }
+              };
+              try {
+                if (dy < 0) {
+                  // Swipe up → next page, or advance the queue at the last page.
+                  if (!atEdge("next")) {
+                    r.next();
+                  } else {
+                    dispatchQueueSwipe("next");
+                  }
+                } else if (dy > 0) {
+                  // Swipe down → previous page, or previous queue item at first page.
+                  if (!atEdge("prev")) {
+                    r.prev();
+                  } else {
+                    dispatchQueueSwipe("prev");
+                  }
+                }
+              } catch {
+                /* ignore paging errors */
+              }
+            }, { passive: true });
+
             const handleEpubMouseOver = (e: MouseEvent) => {
               const target = e.target as HTMLElement;
               if (target && target.tagName === "IMG") {
@@ -1943,7 +2022,10 @@ export function EPUBViewer({
     <div
       className="flex flex-col h-full bg-background relative overflow-hidden"
       style={{
-        paddingTop: "env(safe-area-inset-top)",
+        // The top safe-area inset is applied once at the .app-shell wrapper so the
+        // reader clears the status bar. Don't re-apply it here — that compounds the
+        // inset and wastes ~1/5 of the screen. Keep the bottom inset so the reader's
+        // own bottom chrome clears the gesture/nav area.
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
@@ -2199,7 +2281,7 @@ export function EPUBViewer({
                 <List className="w-5 h-5 text-foreground" />
               </button>
 
-              {/* Top-right: Gear quick access */}
+              {/* Top-right: Settings quick access */}
               <button
                 type="button"
                 onClick={() => setShowSettingsSheet(true)}

@@ -55,7 +55,7 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
     : (card.memory_state as any)?.retrievability;
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+    <div className="bg-card border border-border rounded-lg p-3 md:p-4 space-y-2 md:space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Flask className="w-4 h-4" />
@@ -101,7 +101,7 @@ export function ReviewTransparencyPanel({ card, previewIntervals }: ReviewTransp
               ["good", "Good"],
               ["easy", "Easy"],
             ] as const).map(([key, label]) => (
-              <div key={key} className="bg-muted/50 rounded-md p-2">
+              <div key={key} className="bg-muted/50 rounded-md p-1.5 md:p-2">
                 <div className="text-muted-foreground">{label}</div>
                 <div className="text-foreground font-semibold">
                   {formatInterval(previewIntervals[key])}

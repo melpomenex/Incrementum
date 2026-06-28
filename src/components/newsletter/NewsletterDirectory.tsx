@@ -385,7 +385,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           )}
         </div>
 
-        {/* MagnifyingGlass */}
+        {/* Search */}
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -527,7 +527,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
           </>
         )}
 
-        {/* MagnifyingGlass results (priority over category) */}
+        {/* Search results (priority over category) */}
         {isSearching && (
           <>
             {/* Editor's Picks collapsible */}
@@ -594,7 +594,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               </div>
             )}
 
-            {/* MagnifyingGlass error */}
+            {/* Search error */}
             {searchError && (
               <div className="text-center py-8">
                 <WarningCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
@@ -609,7 +609,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               </div>
             )}
 
-            {/* MagnifyingGlass results heading */}
+            {/* Search results heading */}
             {!searchError && hasSearchResults && (
               <div className="flex items-center gap-2 mb-4">
                 <MagnifyingGlass className="w-5 h-5 text-primary" />
@@ -622,7 +622,7 @@ export function NewsletterDirectory({ onSubscribe, onClose }: NewsletterDirector
               </div>
             )}
 
-            {/* MagnifyingGlass results grid */}
+            {/* Search results grid */}
             {!searchError && hasSearchResults && (
               <>
                 <SubstackSearchGrid

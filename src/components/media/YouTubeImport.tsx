@@ -371,7 +371,7 @@ export function YouTubeImportDialog({
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-2"
                 >
                   <Gear className="w-4 h-4" />
-                  Download Gear
+                  Download Settings
                 </button>
 
                 {showSettings && (

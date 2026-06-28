@@ -269,7 +269,7 @@ export function PasteExtractDialog({ isOpen, onClose, onCreate }: PasteExtractDi
             </button>
           </div>
 
-          {/* Document MagnifyingGlass */}
+          {/* Document Search */}
           {showDocumentSearch && (
             <div className="mt-3">
               <input

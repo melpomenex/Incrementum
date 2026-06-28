@@ -927,20 +927,20 @@ When you ask me to create flashcards or extracts, I'll use tool calls like:
         // Provider doesn't exist at all
         const availableTypes = enabledProviders.map((p) => p.provider).join(", ");
         return {
-          content: `No ${effectiveProvider} provider configured. Available providers: ${availableTypes || "None"}. Please add an API key in Gear.`,
+          content: `No ${effectiveProvider} provider configured. Available providers: ${availableTypes || "None"}. Please add an API key in Settings.`,
         };
       }
 
       if (!selectedTypeProvider.enabled) {
         // Provider exists but is disabled
         return {
-          content: `The ${effectiveProvider} provider is configured but disabled. Please enable it in Gear, or select a different provider.`,
+          content: `The ${effectiveProvider} provider is configured but disabled. Please enable it in Settings, or select a different provider.`,
         };
       }
 
       if (providerRequiresApiKey(selectedTypeProvider.provider, selectedTypeProvider.baseUrl) && (!selectedTypeProvider.apiKey || !selectedTypeProvider.apiKey.trim())) {
         return {
-          content: `${effectiveProvider} provider found but API key is empty. Please remove and re-add the provider in Gear.`,
+          content: `${effectiveProvider} provider found but API key is empty. Please remove and re-add the provider in Settings.`,
         };
       }
 

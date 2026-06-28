@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.57.3] - 2026-06-28
+
+### Fixed & Improved
+- **Reclaimed wasted space at the top of documents on mobile** — The status-bar fix from v1.57.2 was applying the top safe-area inset three times (once at the app shell, again on the mobile content wrapper, and a third time on the EPUB reader itself), compounding into a large empty band — roughly a fifth of the screen — sitting above every document. The inset is now applied exactly once (at the app shell), so documents start right below the status bar and use the full screen, while full-screen overlays (podcast player, flashcard studio) still clear the status bar and home indicator correctly.
+- **Fixed Phosphor icon names showing as literal text in the UI** — Across many screens, the internal name of a Phosphor icon had been written into user-facing strings instead of the actual word, so the app displayed things like "MagnifyingGlass Anna's Archive", "Pencil question", "FloppyDisk edits", "Manual Pencil", "Feed Gear", and "Download Gear". These are now corrected to read "Search", "Edit", "Save", "Manual Edit", "Feed Settings", and "Download Settings" throughout — search bars, edit/save button tooltips, podcast feed and download labels, and the AI assistant's "add an API key in Settings" messages.
+
 ## [1.57.2] - 2026-06-28
 
 ### Fixed & Improved

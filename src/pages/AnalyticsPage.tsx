@@ -139,7 +139,7 @@ export function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Pulse Chart */}
+          {/* Activity Chart */}
           <div className="bg-card border border-border rounded p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">
               {t("analytics.reviewActivity")}

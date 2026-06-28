@@ -222,9 +222,9 @@ export function LearningCardsList({ documentId }: LearningCardsListProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
-                    const nextQuestion = prompt("Pencil question", card.question);
+                    const nextQuestion = prompt("Edit question", card.question);
                     if (nextQuestion === null || !nextQuestion.trim()) return;
-                    const nextAnswer = prompt("Pencil answer", card.answer || "") ?? "";
+                    const nextAnswer = prompt("Edit answer", card.answer || "") ?? "";
                     const reason = prompt("Reason for edit (optional)") || undefined;
                     const updated = await updateLearningItemContentWithVersion(
                       card.id,

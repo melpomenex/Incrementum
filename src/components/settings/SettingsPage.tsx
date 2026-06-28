@@ -393,7 +393,7 @@ export function SettingsPage() {
             <h1 className="text-lg font-semibold">{t("settings.title")}</h1>
           </div>
 
-          {/* MagnifyingGlass Bar */}
+          {/* Search Bar */}
           <div
             className={cn(
               "relative transition-all",
@@ -424,7 +424,7 @@ export function SettingsPage() {
         {/* Navigation */}
         <nav className="p-2 space-y-1 overflow-y-auto" style={{ maxHeight: "calc(100% - 140px)" }}>
           {searchQuery ? (
-            // MagnifyingGlass Results
+            // Search Results
             searchResults && searchResults.length > 0 ? (
               <>
                 <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">

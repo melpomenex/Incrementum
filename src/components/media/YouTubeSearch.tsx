@@ -76,7 +76,7 @@ export function YouTubeSearch({ onImport }: YouTubeSearchProps) {
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <YoutubeLogo className="w-5 h-5 text-red-500" />
-          <h2 className="text-lg font-semibold text-foreground">YouTube MagnifyingGlass</h2>
+          <h2 className="text-lg font-semibold text-foreground">YouTube Search</h2>
         </div>
 
         <div className="mt-3 flex gap-2">

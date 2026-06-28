@@ -500,7 +500,7 @@ export function CommandCenter() {
       },
       {
         id: "nav-settings",
-        label: "Go to Gear",
+        label: "Go to Settings",
         description: "View application settings",
         icon: <Gear className="w-4 h-4" />,
         category: CommandCategory.Navigation,

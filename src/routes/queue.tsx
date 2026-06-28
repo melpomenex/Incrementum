@@ -210,7 +210,7 @@ export function Queue() {
       {/* Statistics */}
       <QueueStatsDisplay stats={stats} isLoading={isLoading} />
 
-      {/* MagnifyingGlass and Filters */}
+      {/* Search and Filters */}
       <div className="flex items-center gap-4">
         <div className="flex-1 relative">
           <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />

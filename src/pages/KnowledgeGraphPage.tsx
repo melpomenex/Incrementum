@@ -176,7 +176,7 @@ export function KnowledgeGraphPage() {
     return applyGraphFilters(graphData.nodes, graphData.edges, filters);
   }, [graphData, filters]);
 
-  // MagnifyingGlass-with-zoom: auto-fit viewport when search results change
+  // Search-with-zoom: auto-fit viewport when search results change
   useEffect(() => {
     if (searchFitTimeout.current) {
       clearTimeout(searchFitTimeout.current);
@@ -440,7 +440,7 @@ export function KnowledgeGraphPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* MagnifyingGlass with glass styling */}
+          {/* Search with glass styling */}
           <div className="relative">
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input

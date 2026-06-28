@@ -1,7 +1,7 @@
 {
   "name": "incrementum-tauri",
   "private": true,
-  "version": "1.57.2",
+  "version": "1.57.3",
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
@@ -172,6 +172,7 @@
     "@types/react-dom": "^19.1.6",
     "@types/react-youtube": "^7.6.2",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.52.0",
     "@typescript-eslint/parser": "^8.52.0",
     "@vitejs/plugin-react": "^4.6.0",
@@ -186,7 +187,8 @@
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
     "vite-plugin-wasm": "^3.4.1",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "ws": "^8.21.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

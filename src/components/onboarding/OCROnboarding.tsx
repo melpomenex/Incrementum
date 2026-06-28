@@ -64,8 +64,8 @@ const onboardingSteps: OnboardingStep[] = [
   },
   {
     id: "settings",
-    title: "Configure Your Gear",
-    description: "Access all OCR options in Gear → Documents → OCR Gear. Configure providers, languages, and processing options to match your workflow.",
+    title: "Configure Your Settings",
+    description: "Access all OCR options in Settings → Documents → OCR Settings. Configure providers, languages, and processing options to match your workflow.",
     icon: Gear,
   },
 ];

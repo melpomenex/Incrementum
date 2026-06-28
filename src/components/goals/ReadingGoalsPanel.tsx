@@ -122,7 +122,7 @@ export function ReadingGoalsPanel({ className = '' }: ReadingGoalsPanelProps) {
           <button
             onClick={() => setIsEditing(true)}
             className="p-1.5 hover:bg-muted rounded transition-colors"
-            title="Pencil goal"
+            title="Edit goal"
           >
             <Pencil className="w-4 h-4 text-foreground" />
           </button>

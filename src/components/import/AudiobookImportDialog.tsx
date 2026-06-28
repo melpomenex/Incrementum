@@ -1102,7 +1102,7 @@ export function AudiobookImportDialog({
                 )}
                 
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs text-muted-foreground">MagnifyingGlass covers:</p>
+                  <p className="text-xs text-muted-foreground">Search covers:</p>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1234,7 +1234,7 @@ export function AudiobookImportDialog({
                   {searchResults.length > 0 && (
                     <div className="rounded-lg border border-border bg-muted/30 p-3">
                       <p className="mb-2 text-xs font-medium text-muted-foreground">
-                        MagnifyingGlass Results - Click to apply:
+                        Search Results - Click to apply:
                       </p>
                       <div className="space-y-2">
                         {searchResults.slice(0, 3).map((result, idx) => (

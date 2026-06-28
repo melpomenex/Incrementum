@@ -455,7 +455,7 @@ export function NotebookLMPage() {
         </div>
       </div>
 
-      {/* Gear Panel */}
+      {/* Settings Panel */}
       {showSettings && (
         <div className="px-4 py-3 bg-muted/50 border-b border-border flex items-center gap-4">
           <div className="flex items-center gap-2">

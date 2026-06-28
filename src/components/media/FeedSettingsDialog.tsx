@@ -23,7 +23,7 @@ interface FeedSettingsDialogProps {
 type AutoFetchMode = "always" | "favorites" | "manual";
 
 /**
- * Feed Gear Dialog
+ * Feed Settings Dialog
  * Configure per-feed settings including auto-fetch mode for full content,
  * auto-mark-as-read timing, view mode, and layout preferences
  */
@@ -127,7 +127,7 @@ export function FeedSettingsDialog({ feed, isOpen, onClose, onUpdate }: FeedSett
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
           <div className="flex items-center gap-2">
             <Gear className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Feed Gear</h2>
+            <h2 className="text-sm font-semibold">Feed Settings</h2>
           </div>
           <button
             onClick={onClose}

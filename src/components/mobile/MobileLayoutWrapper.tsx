@@ -63,7 +63,10 @@ export function MobileLayoutWrapper({ children }: MobileLayoutWrapperProps) {
       <OfflineIndicator />
 
       {/* Main Content */}
-      <div className="mobile-main-content safe-top">
+      {/* The top safe-area inset is applied once by the inner .app-shell (via the
+          @media (max-width: 1024px) rule in index.css). Don't add .safe-top here —
+          that re-applies the inset and compounds it, wasting screen space. */}
+      <div className="mobile-main-content">
         {children}
       </div>
 

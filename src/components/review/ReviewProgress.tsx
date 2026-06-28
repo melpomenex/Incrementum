@@ -41,10 +41,10 @@ export function ReviewProgress({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto mb-6 space-y-3">
+    <div className="w-full max-w-2xl mx-auto mb-3 md:mb-6 space-y-2 md:space-y-3">
       {/* Streak Display */}
       {streak && streak.current_streak > 0 && (
-        <div className="flex items-center justify-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+        <div className="flex items-center justify-center gap-2 px-3 py-1.5 md:py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
           <Flame className="w-4 h-4 text-orange-500" />
           <span className="text-sm font-medium text-orange-500">
             {t("reviewProgress.dayStreak", { count: streak.current_streak })}

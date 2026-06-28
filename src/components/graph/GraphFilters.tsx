@@ -207,7 +207,7 @@ export function GraphFilterControls({
 
       {isExpanded && (
         <div className="flex-1 overflow-y-auto">
-          {/* MagnifyingGlass */}
+          {/* Search */}
           <div className="p-4 border-b border-border">
             <div className="relative">
               <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

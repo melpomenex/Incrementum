@@ -396,7 +396,7 @@ export function RSSFullContentView({ item }: RSSFullContentViewProps) {
         </div>
       </div>
 
-      {/* Floating Reader Gear Dropdown */}
+      {/* Floating Reader Settings Dropdown */}
       {showSettings && (
         <div className="absolute right-16 top-14 z-50 w-72 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 text-gray-900 dark:text-gray-100">
           <div className="space-y-4">

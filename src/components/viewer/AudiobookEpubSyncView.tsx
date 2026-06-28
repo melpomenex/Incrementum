@@ -167,7 +167,7 @@ export function AudiobookEpubSyncView({
     totalSegments: 0,
   });
 
-  // MagnifyingGlass state
+  // Search state
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatchIndex, setSearchMatchIndex] = useState<number | null>(null);
@@ -227,7 +227,7 @@ export function AudiobookEpubSyncView({
     <div className="h-full flex flex-col">
       {/* EPUB toolbar */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border bg-card flex-shrink-0">
-        {/* MagnifyingGlass toggle / input */}
+        {/* Search toggle / input */}
         {showSearch ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
             <input

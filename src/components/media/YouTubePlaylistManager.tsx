@@ -381,14 +381,14 @@ export function YouTubePlaylistManager({
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
         >
           <Gear className="w-4 h-4" />
-          Gear
+          Settings
         </button>
       </div>
 
-      {/* Global Gear */}
+      {/* Global Settings */}
       {showSettings && settings && (
         <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-          <h3 className="font-medium">Global Gear</h3>
+          <h3 className="font-medium">Global Settings</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="flex items-center gap-2">
               <input

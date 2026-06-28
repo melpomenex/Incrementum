@@ -392,7 +392,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                   <button
                     onClick={handleSaveEdit}
                     className="p-2 text-green-500 hover:bg-green-500/20 rounded-lg"
-                    title="FloppyDisk edits"
+                    title="Save edits"
                   >
                     <FloppyDisk className="w-4 h-4" />
                   </button>
@@ -400,7 +400,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                   <button
                     onClick={() => setIsEditing(true)}
                     className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
-                    title="Pencil text"
+                    title="Edit text"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -515,7 +515,7 @@ export function OCRProcessor({ onTextExtracted }: OCRProcessorProps) {
                 onClick={() => setIsEditing(true)}
                 className="px-3 py-1.5 text-xs bg-muted text-muted-foreground rounded hover:opacity-90"
               >
-                Manual Pencil
+                Manual Edit
               </button>
             </div>
           </div>

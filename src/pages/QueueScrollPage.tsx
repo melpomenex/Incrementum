@@ -2149,6 +2149,25 @@ export function QueueScrollPage() {
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [currentItem?.type, goToNext, goToPrevious, isFullscreen, toggleFullscreen, activeTabId, closeTab]);
 
+  // Bridge for TikTok-style vertical paging originating inside the EPUB iframe.
+  // Touches inside epub.js's iframe are isolated from the parent document, so the
+  // queue's own touch handler can't see them. The EPUBViewer instead pages the
+  // book internally (rendition.next/prev) and, when the user is already on the
+  // first/last page, dispatches this event so the queue advances to the next item.
+  // This is what makes a long EPUB feel like a Kindle: swipe to turn pages, and a
+  // swipe past the final page moves on in the queue — no need to "scroll to the
+  // bottom" of the whole book.
+  useEffect(() => {
+    const handleBridge = (e: Event) => {
+      const detail = (e as CustomEvent<{ direction: "next" | "prev" }>).detail;
+      if (!detail) return;
+      if (detail.direction === "next") goToNext();
+      else goToPrevious();
+    };
+    window.addEventListener("incrementum-queue-swipe", handleBridge as EventListener);
+    return () => window.removeEventListener("incrementum-queue-swipe", handleBridge as EventListener);
+  }, [goToNext, goToPrevious]);
+
   // Auto-hide controls after 3 seconds of idle (both mobile/touch and desktop)
   useEffect(() => {
     if (!showControls) return;
@@ -2383,7 +2402,16 @@ export function QueueScrollPage() {
     );
   }, []);
 
-  // Touch gesture handlers for swipe actions and vertical navigation (matches RSS scroll mode gestures)
+  // Touch gesture handlers — TikTok-style vertical paging plus horizontal swipe
+  // ratings for RSS items.
+  //
+  // Vertical: a deliberate upward drag advances to the next item and a downward
+  // drag returns to the previous one, but only once the current item's content is
+  // already scrolled to its edge — so the user can read through a long EPUB/PDF or
+  // article, then one more flick flips to the next item. For EPUB/PDF/audio (which
+  // render inside iframes/canvases where event.target traversal can't reach the
+  // real scroll element) we trust the scrollPercent reported by the viewer via
+  // scrollStateRef instead.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -2393,6 +2421,9 @@ export function QueueScrollPage() {
     let touchStartTime = 0;
     let currentX = 0;
     let currentY = 0;
+    // Track the last scrollable element we found during the move so the edge
+    // check at touchend stays consistent even if target changed mid-gesture.
+    let trackedScrollEl: HTMLElement | null = null;
 
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX = e.touches[0].clientX;
@@ -2400,6 +2431,7 @@ export function QueueScrollPage() {
       currentX = touchStartX;
       currentY = touchStartY;
       touchStartTime = Date.now();
+      trackedScrollEl = null;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -2416,15 +2448,36 @@ export function QueueScrollPage() {
 
       const absDeltaX = Math.abs(deltaX);
       const absDeltaY = Math.abs(deltaY);
-      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime;
-
-      // Minimum thresholds for swipe gestures
-      const minSwipeDistance = 50;
-      const minVelocity = 0.3;
+      // Pixels of movement per ms. A casual flick is ~0.4–1.0 px/ms.
+      const velocity = deltaTime > 0 ? Math.sqrt(deltaX * deltaX + deltaY * deltaY) / deltaTime : 0;
 
       const target = e.target as HTMLElement;
       if (target.closest(".assistant-panel")) return;
 
+      // Horizontal swipe → RSS rate/favorite (unchanged behavior).
+      if (absDeltaX > absDeltaY) {
+        const minSwipeDistance = 50;
+        const minVelocity = 0.3;
+        if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
+          if (currentItem?.type === "rss" && currentItem.rssFeed && currentItem.rssItem) {
+            if (deltaX > 0) {
+              void handleRating(1);
+            } else if (deltaX < 0) {
+              void handleRssToggleFavorite(currentItem.rssFeed.id, currentItem.rssItem.id);
+            }
+          }
+        }
+        return;
+      }
+
+      // --- Vertical: TikTok-style paging ---
+      // Require either a firm drag (>= 90px) or a brisk flick (>= 0.45 px/ms).
+      // Lowering both thresholds makes the gesture feel responsive on phones.
+      const minDragDistance = 90;
+      const minFlickVelocity = 0.45;
+      if (absDeltaY < minDragDistance && velocity < minFlickVelocity) return;
+
+      // Determine document type so we can pick the right "at edge?" signal.
       let isScrollableDocument = false;
       let isYouTubeItem = false;
       if (currentItem?.type === "document" && currentItem.documentId) {
@@ -2438,51 +2491,64 @@ export function QueueScrollPage() {
         }
       }
 
-      if (absDeltaX > absDeltaY) {
-        if (absDeltaX > minSwipeDistance && velocity > minVelocity) {
-          if (currentItem?.type === "rss" && currentItem.rssFeed && currentItem.rssItem) {
-            // Swipe right = mark as read, Swipe left = favorite
-            if (deltaX > 0) {
-              void handleRating(1);
-            } else if (deltaX < 0) {
-              void handleRssToggleFavorite(currentItem.rssFeed.id, currentItem.rssItem.id);
-            }
-          }
+      // For EPUB/PDF/audio the real scroll element lives in an iframe/canvas, so
+      // target-traversal can't see it.
+      //  - EPUB: touches are fully isolated inside the epub.js iframe, so this
+      //    parent handler never even fires for them. Vertical paging is handled
+      //    inside EPUBViewer (turn page → dispatch "incrementum-queue-swipe" past
+      //    the last page). Nothing to do here.
+      //  - PDF/audio: use the viewer-reported scroll percent (>= 98% bottom,
+      //    <= 2% top) since the document's own scroller isn't reachable via
+      //    event.target.
+      if (isScrollableDocument) {
+        const doc = currentItem?.documentId ? documents.find(d => d.id === currentItem.documentId) : undefined;
+        const isEpub = (doc?.fileType || doc?.filePath?.split('.').pop()?.toLowerCase()) === "epub";
+        // EPUB swipes are handled entirely inside its iframe; ignore them here so
+        // we don't double-advance or fight the bridge.
+        if (isEpub) return;
+        const pct = scrollStateRef.current.scrollPercent ?? 0;
+        // Drag up (deltaY < 0) at the bottom → next; drag down at top → previous.
+        if (deltaY < 0 && pct >= 98) {
+          goToNext();
+        } else if (deltaY > 0 && pct <= 2) {
+          goToPrevious();
         }
-      } else {
-        // Vertical gesture - check for navigation
-        if (absDeltaY > minSwipeDistance && velocity > minVelocity) {
-          if (isScrollableDocument || currentItem?.type === "podcast" || currentItem?.type === "extract") {
-            return;
-          }
+        return;
+      }
 
-          const transcriptScrollElement = target.closest('[data-transcript-scroll="true"]') as HTMLElement | null;
-          const extractScrollContainer = target.closest('[data-extract-scroll="true"]') as HTMLElement | null;
-          const extractScrollElement = (target.tagName === 'TEXTAREA' && extractScrollContainer)
-            ? (target as HTMLElement)
-            : extractScrollContainer;
-          const scrollableElement = transcriptScrollElement
-            || extractScrollElement
-            || target.closest('[class*="overflow"]') as HTMLElement
-            || target.closest('.prose') as HTMLElement
-            || document.documentElement;
+      // For everything else (RSS, extract, YouTube, flashcard, podcast), find the
+      // scrollable element from the DOM and check its edges directly.
+      const transcriptScrollElement = target.closest('[data-transcript-scroll="true"]') as HTMLElement | null;
+      const extractScrollContainer = target.closest('[data-extract-scroll="true"]') as HTMLElement | null;
+      const extractScrollElement = (target.tagName === 'TEXTAREA' && extractScrollContainer)
+        ? (target as HTMLElement)
+        : extractScrollContainer;
+      const scrollableElement = transcriptScrollElement
+        || extractScrollElement
+        || trackedScrollEl
+        || target.closest('[class*="overflow"]') as HTMLElement
+        || target.closest('.prose') as HTMLElement
+        || document.documentElement;
+      trackedScrollEl = scrollableElement;
 
-          if (scrollableElement) {
-            const canScrollDown = scrollableElement.scrollTop < (scrollableElement.scrollHeight - scrollableElement.clientHeight - 10);
-            const canScrollUp = scrollableElement.scrollTop > 10;
+      let canScrollDown = false;
+      let canScrollUp = false;
+      if (scrollableElement) {
+        canScrollDown = scrollableElement.scrollTop < (scrollableElement.scrollHeight - scrollableElement.clientHeight - 10);
+        canScrollUp = scrollableElement.scrollTop > 10;
+      }
 
-            if (!(isYouTubeItem && !transcriptScrollElement)) {
-              if (deltaY < 0 && canScrollDown) return;
-              if (deltaY > 0 && canScrollUp) return;
-            }
-          }
+      // YouTube: only page when the transcript isn't the active scroller (so the
+      // video page itself flips), matching the prior wheel behavior.
+      if (!(isYouTubeItem && !transcriptScrollElement)) {
+        if (deltaY < 0 && canScrollDown) return;
+        if (deltaY > 0 && canScrollUp) return;
+      }
 
-          if (deltaY < 0) {
-            goToNext();
-          } else if (deltaY > 0) {
-            goToPrevious();
-          }
-        }
+      if (deltaY < 0) {
+        goToNext();
+      } else if (deltaY > 0) {
+        goToPrevious();
       }
     };
 

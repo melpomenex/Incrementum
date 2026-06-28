@@ -230,7 +230,7 @@ export function ArxivBrowser({ onImport }: ArxivBrowserProps) {
           {papers.length === 0 && !isLoading && !error && (
             <div className="p-8 text-center text-muted-foreground">
               <TextT className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="mb-2">MagnifyingGlass for papers or select a category</p>
+              <p className="mb-2">Search for papers or select a category</p>
               <p className="text-xs">
                 Access millions of research papers from ArXiv
               </p>

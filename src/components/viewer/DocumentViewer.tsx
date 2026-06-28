@@ -3614,9 +3614,30 @@ export function DocumentViewer({
   };
 
   const handleBack = () => {
-    const currentTab = tabs.find(t => t.data?.documentId === documentId);
+    // 1. Try to find by paneId first (desktop/split layout)
+    if (paneId) {
+      const pane = useTabsStore.getState().findPaneById(paneId);
+      if (pane && pane.type === "tabs" && pane.activeTabId) {
+        closeTab(pane.activeTabId);
+        return;
+      }
+    }
+
+    // 2. Try to find in tabs array by matching documentId
+    const docId = documentId || currentDocument?.id;
+    const currentTab = tabs.find((t) => t.data?.documentId === docId);
     if (currentTab) {
       closeTab(currentTab.id);
+      return;
+    }
+
+    // 3. Fallback: Close the active tab in the tabs store
+    const activePaneId = useTabsStore.getState().getTabPaneIds()[0];
+    if (activePaneId) {
+      const activePane = useTabsStore.getState().findPaneById(activePaneId);
+      if (activePane && activePane.type === "tabs" && activePane.activeTabId) {
+        closeTab(activePane.activeTabId);
+      }
     }
   };
 
@@ -5191,7 +5212,7 @@ export function DocumentViewer({
         </div>
 
         <div className="flex w-full max-w-full flex-shrink-0 flex-wrap items-center justify-end gap-1 pr-1 sm:w-auto sm:max-w-none sm:flex-nowrap sm:gap-2 sm:overflow-visible sm:pr-0">
-          {/* MagnifyingGlass */}
+          {/* Search */}
           {showSearch ? (
             <div className="flex items-center gap-2 bg-muted rounded-md p-1">
               <input
@@ -5631,7 +5652,7 @@ export function DocumentViewer({
                   <Gear className="w-4 h-4 text-foreground" />
                 </button>
 
-                {/* Gear panel */}
+                {/* Settings panel */}
                 <div
                   className={cn(
                     "absolute top-3 right-14 z-30 bg-card border border-border rounded-lg shadow-lg transition-all",
@@ -5830,6 +5851,7 @@ export function DocumentViewer({
               initialTranscriptSegmentId={initialJump?.kind === "audio" ? initialJump.segmentId : undefined}
               autoPlayOnOpen={!!autoPlay && initialJump?.kind === "audio"}
               onEpisodeEnded={onEnded}
+              onBack={handleBack}
             />
           ) : mediaError ? (
             <div className="flex items-center justify-center h-full">
@@ -5983,7 +6005,7 @@ export function DocumentViewer({
               <Gear className="w-4 h-4 text-foreground" />
             </button>
 
-            {/* Gear panel */}
+            {/* Settings panel */}
             <div
               className={cn(
                 "absolute top-3 right-14 z-30 bg-card border border-border rounded-lg shadow-lg transition-all",

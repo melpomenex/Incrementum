@@ -197,7 +197,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
             <div>
               <h2 className="text-lg font-semibold text-foreground">Import from ArXiv</h2>
               <p className="text-sm text-muted-foreground">
-                MagnifyingGlass and download research papers
+                Search and download research papers
               </p>
             </div>
           </div>
@@ -356,7 +356,7 @@ export function ArxivImportDialog({ isOpen, onClose, onOpenDocument }: ArxivImpo
                     <TextT className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="mb-2 text-lg font-medium text-foreground">
-                    MagnifyingGlass ArXiv Papers
+                    Search ArXiv Papers
                   </h3>
                   <p className="max-w-sm text-sm text-muted-foreground">
                     Enter keywords to search millions of research papers, or select a category from the sidebar.

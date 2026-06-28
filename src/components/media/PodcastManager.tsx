@@ -1979,7 +1979,7 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
               {!searchError && podcastSearchQuery.trim().length < 2 && (
                 <div className="p-6 text-center text-muted-foreground">
                   <MagnifyingGlass className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">MagnifyingGlass for any podcast by name</p>
+                  <p className="text-sm">Search for any podcast by name</p>
                 </div>
               )}
             </div>

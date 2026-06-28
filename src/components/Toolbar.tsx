@@ -599,7 +599,7 @@ export function Toolbar({ position = "top" }: ToolbarProps) {
       action: handleScreenshot,
       group: 3,
     }, */
-    // Group 4: Gear & Tools
+    // Group 4: Settings & Tools
     {
       id: "settings",
       icon: Gear,

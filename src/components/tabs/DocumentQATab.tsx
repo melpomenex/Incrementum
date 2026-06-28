@@ -715,7 +715,7 @@ export function DocumentQATab() {
         const errorMsg = {
           id: `error-${Date.now()}`,
           role: "system" as const,
-          content: "No LLM provider configured. Please add an API key in Gear to use Document Q&A.",
+          content: "No LLM provider configured. Please add an API key in Settings to use Document Q&A.",
           timestamp: Date.now(),
         };
         addMessage(errorMsg);
@@ -746,7 +746,7 @@ When the user asks to CREATE or SAVE learning items, you MUST output tool calls 
 **When to use tools**:
 - "Create flashcards", "make cards", "generate cards", "add to database" → MUST use create_qa_card or create_cloze_card tools
 - "Create an extract", "save this quote", "save this passage" → MUST use create_extract tool
-- "FloppyDisk this note" → MUST use create_extract tool
+- "Save this note" → MUST use create_extract tool
 
 **For regular questions** like "summarize", "explain", "what is" - answer directly without tools.
 
@@ -1108,7 +1108,7 @@ ${mcpTools.length > 0 ? `**AVAILABLE TOOLS**: ${mcpTools.map((t) => t.name).join
                     className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 flex items-center gap-1"
                   >
                     {isSavingArtifact ? <CircleNotch className="w-3 h-3 animate-spin" /> : <FloppyDisk className="w-3 h-3" />}
-                    FloppyDisk Card
+                    Save Card
                   </button>
                   <button
                     onClick={() => setArtifactDraft(null)}

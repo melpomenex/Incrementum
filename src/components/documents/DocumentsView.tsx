@@ -952,7 +952,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
 
           {/* Controls Bar */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            {/* MagnifyingGlass */}
+            {/* Search */}
             <div className="relative flex-1 min-w-0 order-1 sm:min-w-[200px]">
               <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input

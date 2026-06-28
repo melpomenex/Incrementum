@@ -490,7 +490,7 @@ export function MobileSettingsPanel({
           <PWastatusIndicator />
         </div>
 
-        {/* Sync Gear */}
+        {/* Sync Settings */}
         <div className="mobile-settings-section">
           <h3 className="mobile-settings-section-title">{t("mobileNav.syncOffline")}</h3>
           <ToggleSetting
@@ -506,7 +506,7 @@ export function MobileSettingsPanel({
           />
         </div>
 
-        {/* Reading Gear */}
+        {/* Reading Settings */}
         <div className="mobile-settings-section">
           <h3 className="mobile-settings-section-title">{t("mobileNav.reading")}</h3>
           <SelectSetting
@@ -521,7 +521,7 @@ export function MobileSettingsPanel({
           />
         </div>
 
-        {/* Interface Gear */}
+        {/* Interface Settings */}
         <div className="mobile-settings-section">
           <h3 className="mobile-settings-section-title">{t("mobileNav.interface")}</h3>
           <ToggleSetting

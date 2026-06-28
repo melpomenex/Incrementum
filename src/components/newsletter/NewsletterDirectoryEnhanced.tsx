@@ -467,7 +467,7 @@ export function NewsletterDirectoryEnhanced({ onSubscribe, onClose }: Newsletter
 
         {activeTab === "directory" && (
           <>
-            {/* MagnifyingGlass and Filters */}
+            {/* Search and Filters */}
             <div className="px-6 py-4 border-b border-border/70 bg-muted/10">
               <div className="flex items-center gap-3">
                 <div className="flex-1 relative">

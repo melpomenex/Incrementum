@@ -369,7 +369,7 @@ export function GlobalSearch({
           className="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-md hover:bg-muted transition-colors"
         >
           <MagnifyingGlass className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">MagnifyingGlass...</span>
+          <span className="text-sm text-muted-foreground">Search...</span>
           <kbd className="ml-auto px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded">
             ⌘K
           </kbd>

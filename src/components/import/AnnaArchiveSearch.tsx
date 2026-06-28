@@ -113,9 +113,9 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
     <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">MagnifyingGlass Anna's Archive</h2>
+          <h2 className="text-lg font-semibold text-foreground">Search Anna's Archive</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            MagnifyingGlass 60M+ books from Anna's Archive mirrors
+            Search 60M+ books from Anna's Archive mirrors
           </p>
         </div>
         {onClose && (
@@ -255,7 +255,7 @@ export function AnnaArchiveSearch({ onImportComplete, onClose }: AnnaArchiveSear
           {!query && (
             <p className="text-xs mt-2 max-w-sm mx-auto">
               Anna's Archive searches through Library Genesis, Z-Library, Sci-Hub, and more. 
-              MagnifyingGlass by title, author, or ISBN to find and download books.
+              Search by title, author, or ISBN to find and download books.
             </p>
           )}
         </div>
