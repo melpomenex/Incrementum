@@ -102,6 +102,50 @@ export function AnalyticsTab() {
         </p>
       </div>
 
+      {/* Quick Actions — kept near the top so the primary Start Review / Browse
+          Documents actions are reachable without scrolling past all the stats. */}
+      <div className="p-4 bg-card border border-border rounded-lg">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={() => addTab({
+              title: "Review",
+              icon: <Brain className="w-4 h-4" />,
+              type: "review",
+              content: ReviewTab,
+              closable: true,
+            })}
+            className="flex items-center gap-3 p-3 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors text-left"
+          >
+            <Sparkle className="w-5 h-5 text-primary" />
+            <div>
+              <p className="font-medium text-foreground">{t("dashboard.startReview")}</p>
+              <p className="text-sm text-muted-foreground">
+                {dashboardStats?.cards_due_today || 0} {t("dashboard.cardsDue")}
+              </p>
+            </div>
+          </button>
+          <button
+            onClick={() => addTab({
+              title: "Documents",
+              icon: <Books className="w-4 h-4" />,
+              type: "documents",
+              content: DocumentsTab,
+              closable: true,
+            })}
+            className="flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 border border-border rounded-lg transition-colors text-left"
+          >
+            <BookOpen className="w-5 h-5 text-foreground" />
+            <div>
+              <p className="font-medium text-foreground">{t("dashboard.browseDocumentsLabel")}</p>
+              <p className="text-sm text-muted-foreground">
+                {dashboardStats?.total_documents || 0} {t("dashboard.documentsLabel")}
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Study Streak */}
       {dashboardStats && (
         <StudyStreak streak={dashboardStats.study_streak} />
@@ -288,49 +332,6 @@ export function AnalyticsTab() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="p-4 bg-card border border-border rounded-lg">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <button
-            onClick={() => addTab({
-              title: "Review",
-              icon: <Brain className="w-4 h-4" />,
-              type: "review",
-              content: ReviewTab,
-              closable: true,
-            })}
-            className="flex items-center gap-3 p-3 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg transition-colors text-left"
-          >
-            <Sparkle className="w-5 h-5 text-primary" />
-            <div>
-              <p className="font-medium text-foreground">{t("dashboard.startReview")}</p>
-              <p className="text-sm text-muted-foreground">
-                {dashboardStats?.cards_due_today || 0} {t("dashboard.cardsDue")}
-              </p>
-            </div>
-          </button>
-          <button
-            onClick={() => addTab({
-              title: "Documents",
-              icon: <Books className="w-4 h-4" />,
-              type: "documents",
-              content: DocumentsTab,
-              closable: true,
-            })}
-            className="flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 border border-border rounded-lg transition-colors text-left"
-          >
-            <BookOpen className="w-5 h-5 text-foreground" />
-            <div>
-              <p className="font-medium text-foreground">{t("dashboard.browseDocumentsLabel")}</p>
-              <p className="text-sm text-muted-foreground">
-                {dashboardStats?.total_documents || 0} {t("dashboard.documentsLabel")}
-              </p>
-            </div>
-          </button>
-        </div>
       </div>
     </div>
   );

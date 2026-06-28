@@ -68,6 +68,17 @@ import { ScrollQueueSettings } from "../components/queue/ScrollQueueSettings";
 import { ScrollOverlayControls } from "../components/queue/ScrollOverlayControls";
 import type { ExtractSourceContext } from "../types/extractNavigation";
 import { bulkSuspendItems } from "../api/queue";
+import { ModernSummaryPanel } from "../components/media/summary";
+import { useSummaryCache } from "../utils/rssSummary";
+import {
+  SUMMARY_LENGTH_CONFIG,
+  SUMMARY_LOADING_STAGES,
+  type SummaryLength,
+  type SummaryFocus,
+} from "../types/rssSummary";
+import { chatWithLLM, type LLMMessage } from "../api/llm";
+import { getAIConfig, type AIConfig } from "../api/ai";
+import { useLLMProvidersStore } from "../stores/llmProvidersStore";
 import {
   resolvePdfAssistantContext,
   resolveGenericAssistantContext,
@@ -166,11 +177,12 @@ export function QueueScrollPage() {
     addDocument: s.addDocument,
     updateDocument: s.updateDocument,
   })));
-  const { rootPane, closeTab, updateTab, addTab } = useTabsStore(useShallow(s => ({
+  const { rootPane, closeTab, updateTab, addTab, tabs } = useTabsStore(useShallow(s => ({
     rootPane: s.rootPane,
     closeTab: s.closeTab,
     updateTab: s.updateTab,
     addTab: s.addTab,
+    tabs: s.tabs,
   })));
   const { settings, updateSettingsCategory } = useSettingsStore(useShallow(s => ({
     settings: s.settings,
@@ -232,6 +244,32 @@ export function QueueScrollPage() {
     const saved = localStorage.getItem("assistant-panel-position");
     return saved === "left" ? "left" : "right";
   });
+
+  // AI Summary panel state — mirrors the summary experience from RSS Scroll
+  // Mode, but works across document and RSS items in the unified Optimal Queue.
+  const { getCachedSummary, cacheSummary } = useSummaryCache();
+  const [showSummary, setShowSummary] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryText, setSummaryText] = useState("");
+  const [loadingStage, setLoadingStage] = useState<keyof typeof SUMMARY_LOADING_STAGES>("analyzing");
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [modernSummaryMode, setModernSummaryMode] = useState<"modern" | "terminal">(() => {
+    const saved = localStorage.getItem("queue-summary-display-mode");
+    return saved === "terminal" ? "terminal" : "modern";
+  });
+  const [modernSummaryLength, setModernSummaryLength] = useState<SummaryLength>(() => {
+    const saved = localStorage.getItem("queue-summary-length");
+    return saved === "brief" || saved === "medium" || saved === "detailed" ? saved : "medium";
+  });
+  const [modernSummaryFocus, setModernSummaryFocus] = useState<SummaryFocus>(() => {
+    const saved = localStorage.getItem("queue-summary-focus");
+    return saved === "key-points" || saved === "actionable" || saved === "background" ? saved : "key-points";
+  });
+  const [summaryPanelWidth, setSummaryPanelWidth] = useState(() => {
+    const saved = localStorage.getItem("queue-summary-width");
+    const parsed = saved ? parseInt(saved, 10) : NaN;
+    return Number.isNaN(parsed) ? 320 : parsed;
+  });
   const transcriptCacheRef = useRef<Map<string, string>>(new Map());
   const transcriptFetchInFlightRef = useRef<Set<string>>(new Set());
 
@@ -244,6 +282,23 @@ export function QueueScrollPage() {
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scrollViewMode, setScrollViewMode] = useState<"document" | "extracts" | "cards">("document");
+  // Assistant panel visibility — persisted across sessions. The floating toggle
+  // was removed in a prior refactor (queue-scroll-mode-ui-fix); restored here so
+  // the user can show/hide the assistant from the scroll-mode top bar without it
+  // overlapping audiobook controls (the original conflict).
+  const [isAssistantVisible, setIsAssistantVisible] = useState<boolean>(() => {
+    if (typeof localStorage === "undefined") return true;
+    return localStorage.getItem("assistant-panel-visible") !== "false";
+  });
+  const toggleAssistantVisibility = useCallback(() => {
+    setIsAssistantVisible((prev) => {
+      const next = !prev;
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("assistant-panel-visible", String(next));
+      }
+      return next;
+    });
+  }, []);
   const isMobile = useMobileShell();
   const [rssSelectedText, setRssSelectedText] = useState("");
   const MAX_SELECTION_CHARS = 10000;
@@ -504,33 +559,67 @@ export function QueueScrollPage() {
     loadAllData();
   }, []); // Only run on mount
 
-  // Apply smart start position once items are loaded
+  // Restore the exact last-viewed position once items are loaded, falling back to
+  // the backend "smart start" (engagement-variety) algorithm only for a genuinely
+  // fresh session. This makes "navigate away → back to Scroll Mode" land on the
+  // exact item the user was reading, and also survives closing/reopening the tab
+  // (position is persisted into tab.data + sessionStorage on every index change).
+  const restoredPositionRef = useRef(false);
   useEffect(() => {
-    if (scrollItems.length > 0 && currentIndex === 0) {
-      calculateSmartStart(scrollItems.length).then(result => {
-        const { position: startPos, shouldShowToast, lastPosition } = result;
-        if (startPos > 0) {
-          setCurrentIndex(startPos);
-          setRenderedIndex(startPos);
-
-          if (activeTabId) {
-            updateTab(activeTabId, {
-              data: {
-                currentIndex: startPos,
-                renderedIndex: startPos,
-                sessionTimestamp: Date.now(),
-              },
-            });
-          }
-
-          // Only show toast when position is actually applied
-          if (shouldShowToast) {
-            toast.info(t("queueScroll.resuming"), t("queueScroll.resumingPosition", { position: lastPosition + 1, total: scrollItems.length }));
-          }
-        }
-      });
+    if (scrollItems.length === 0 || currentIndex !== 0 || restoredPositionRef.current) {
+      return;
     }
-  }, [scrollItems.length, currentIndex, calculateSmartStart, activeTabId, updateTab, toast]);
+
+    // 1. Try the persisted position from this tab's data (survives tab close/reopen).
+    let restoredIndex: number | null = null;
+    const activeTab = tabs.find((tab) => tab.id === activeTabId);
+    const persistedIndex = activeTab?.data?.currentIndex;
+    if (typeof persistedIndex === "number" && persistedIndex > 0 && persistedIndex < scrollItems.length) {
+      restoredIndex = persistedIndex;
+    }
+
+    // 2. Fall back to the session-storage position (survives app reload within a session).
+    if (restoredIndex === null) {
+      const lastPositionStr = sessionStorage.getItem(SESSION_KEYS.LAST_POSITION);
+      const lastPosition = lastPositionStr ? parseInt(lastPositionStr, 10) : NaN;
+      if (!Number.isNaN(lastPosition) && lastPosition > 0 && lastPosition < scrollItems.length) {
+        restoredIndex = lastPosition;
+      }
+    }
+
+    if (restoredIndex !== null) {
+      // Exact restore — do NOT run the engagement-variety algorithm here.
+      restoredPositionRef.current = true;
+      setCurrentIndex(restoredIndex);
+      setRenderedIndex(restoredIndex);
+      return;
+    }
+
+    // 3. Genuinely fresh session — run the smart-start algorithm for variety.
+    restoredPositionRef.current = true;
+    calculateSmartStart(scrollItems.length).then(result => {
+      const { position: startPos, shouldShowToast, lastPosition } = result;
+      if (startPos > 0) {
+        setCurrentIndex(startPos);
+        setRenderedIndex(startPos);
+
+        if (activeTabId) {
+          updateTab(activeTabId, {
+            data: {
+              currentIndex: startPos,
+              renderedIndex: startPos,
+              sessionTimestamp: Date.now(),
+            },
+          });
+        }
+
+        // Only show toast when position is actually applied
+        if (shouldShowToast) {
+          toast.info(t("queueScroll.resuming"), t("queueScroll.resumingPosition", { position: lastPosition + 1, total: scrollItems.length }));
+        }
+      }
+    });
+  }, [scrollItems.length, currentIndex, calculateSmartStart, activeTabId, updateTab, toast, tabs]);
 
   useEffect(() => {
     sessionStorage.setItem(SESSION_KEYS.LAST_POSITION, String(currentIndex));
@@ -1274,6 +1363,11 @@ export function QueueScrollPage() {
     setPdfContextText(undefined);
     setPdfOcrContextText(null);
     setDocumentContent(undefined);
+    // Clear any open summary so a stale summary from the previous item doesn't
+    // carry over to the newly-rendered item.
+    setShowSummary(false);
+    setSummaryText("");
+    setIsSummarizing(false);
   }, [renderedItem?.id]);
 
   const [assistantContext, setAssistantContext] = useState<AssistantContext | undefined>(undefined);
@@ -1567,6 +1661,29 @@ export function QueueScrollPage() {
     }
   }, [currentIndex, currentItem, scrollItems.length, documents]);
 
+  // Reset the in-item scroll surface to the top after advancing, so the next item
+  // is read from the beginning rather than at the previous item's scroll offset.
+  // The RSS article scroll container is not keyed to the item, so React reconciles
+  // it across items and would otherwise preserve scrollTop.
+  const resetScrollToTop = useCallback(() => {
+    // RSS article: its scroll parent is the overflow-y-auto wrapper around rssContentRef.
+    const rssScrollParent = rssContentRef.current?.parentElement as HTMLElement | null;
+    if (rssScrollParent) {
+      rssScrollParent.scrollTop = 0;
+    }
+    // Generic fallback: any other overflow scroll surface inside the viewer.
+    const viewer = containerRef.current;
+    if (viewer) {
+      viewer
+        .querySelectorAll<HTMLElement>(".overflow-y-auto, .overflow-auto")
+        .forEach((el) => {
+          el.scrollTop = 0;
+        });
+    }
+    // Document viewers (EPUB/PDF/HTML) manage their own scroll and are keyed by
+    // documentId, so they remount to the top naturally.
+  }, []);
+
   // Navigation functions
   const goToNext = useCallback(() => {
     if (currentIndex < scrollItems.length - 1 && !isTransitioning && !isRating) {
@@ -1578,9 +1695,10 @@ export function QueueScrollPage() {
       setTimeout(() => {
         setRenderedIndex(nextIndex);
         setIsTransitioning(false);
+        resetScrollToTop();
       }, 300);
     }
-  }, [currentIndex, scrollItems.length, isTransitioning, isRating]);
+  }, [currentIndex, scrollItems.length, isTransitioning, isRating, resetScrollToTop]);
 
   const goToPrevious = useCallback(() => {
     if (currentIndex > 0 && !isTransitioning && !isRating) {
@@ -1592,9 +1710,10 @@ export function QueueScrollPage() {
       setTimeout(() => {
         setRenderedIndex(prevIndex);
         setIsTransitioning(false);
+        resetScrollToTop();
       }, 300);
     }
-  }, [currentIndex, isTransitioning, isRating]);
+  }, [currentIndex, isTransitioning, isRating, resetScrollToTop]);
 
   const advanceAfterRemoval = useCallback((removedItemId: string) => {
     setScrollItems((prev) => {
@@ -1612,10 +1731,214 @@ export function QueueScrollPage() {
       setTimeout(() => {
         setRenderedIndex(nextIndex);
         setIsTransitioning(false);
+        resetScrollToTop();
       }, 300);
       return updated;
     });
-  }, [currentIndex]);
+  }, [currentIndex, resetScrollToTop]);
+
+  // --- AI Summary (Optimal Queue) ---------------------------------------------------
+  // Mirrors the RSS Scroll Mode summary experience but operates on whichever item
+  // is currently rendered: a document (using its loaded text content) or an RSS
+  // article. Reuses the same summary cache, LLM provider resolution, and
+  // ModernSummaryPanel UI as RSS Scroll Mode for consistency.
+
+  // Convert an HTML fragment to plain text for summarization.
+  const htmlToText = useCallback((html: string): string => {
+    if (typeof document === "undefined") {
+      return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    }
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    const text = tmp.textContent || tmp.innerText || "";
+    return text.replace(/\s+/g, " ").trim();
+  }, []);
+
+  const closeSummary = useCallback(() => {
+    setShowSummary(false);
+  }, []);
+
+  const handleSummarize = useCallback(
+    async (params?: { length?: SummaryLength; focus?: SummaryFocus }) => {
+      const summaryItem = renderedItem ?? currentItem;
+      if (!summaryItem || isSummarizing) return;
+
+      // Resolve the raw text content + identity for the current item.
+      let rawContent = "";
+      let articleId = "";
+      let articleTitle = "";
+      let articleUrl: string | undefined;
+
+      if (summaryItem.type === "rss" && summaryItem.rssItem) {
+        rawContent = summaryItem.rssItem.content || summaryItem.rssItem.description || "";
+        articleId = `rss-${summaryItem.rssItem.id}`;
+        articleTitle = summaryItem.rssItem.title;
+        articleUrl = summaryItem.rssItem.link;
+      } else if (summaryItem.type === "document" && summaryItem.documentId) {
+        // Prefer the already-loaded assistant document content; fall back to the
+        // document store's plain content if available.
+        const doc = documentsRef.current.find((d) => d.id === summaryItem.documentId);
+        const fromLoaded = documentContentRef.current;
+        rawContent = fromLoaded ?? doc?.content ?? "";
+        articleId = `doc-${summaryItem.documentId}`;
+        articleTitle = summaryItem.documentTitle || doc?.title || "";
+        articleUrl = undefined;
+      } else {
+        toast.error(t("queueScroll.noContentToSummarize"));
+        return;
+      }
+
+      const content = htmlToText(rawContent);
+      if (!content.trim()) {
+        toast.error(t("queueScroll.noContentToSummarize"));
+        return;
+      }
+
+      const length = params?.length || modernSummaryLength;
+      const focus = params?.focus || modernSummaryFocus;
+
+      // Serve from cache when params match.
+      const cached = getCachedSummary(articleId, content);
+      if (cached && cached.length === length && cached.focus === focus) {
+        setSummaryText(cached.content);
+        setShowSummary(true);
+        return;
+      }
+
+      // Resolve an LLM provider (same precedence as RSS Scroll Mode).
+      let providerType: string = "openrouter";
+      let apiKey: string | undefined;
+      let model: string | undefined;
+      let baseUrl: string | undefined;
+
+      let aiConfig: AIConfig | null = null;
+      try {
+        aiConfig = await getAIConfig();
+      } catch {
+        /* AIConfig may not be initialized yet */
+      }
+
+      if (aiConfig?.default_provider && aiConfig.api_keys) {
+        const providerMap: Record<string, string> = {
+          OpenAI: "openai",
+          Anthropic: "anthropic",
+          OpenRouter: "openrouter",
+          Ollama: "ollama",
+        };
+        providerType = providerMap[aiConfig.default_provider] ?? "openrouter";
+        apiKey = providerType === "ollama"
+          ? undefined
+          : (aiConfig.api_keys as Record<string, string | undefined>)[providerType] ?? undefined;
+        model = String(aiConfig.models?.[`${providerType}_model` as keyof typeof aiConfig.models] ?? "");
+        baseUrl = providerType === "ollama"
+          ? aiConfig.local_settings?.ollama_base_url || undefined
+          : undefined;
+      }
+
+      if (!apiKey) {
+        const providers = useLLMProvidersStore.getState().getEnabledProviders();
+        const withKey = providers.filter((p) => p.apiKey && p.apiKey.trim().length > 0 && p.provider !== "ollama");
+        const chosen = withKey[0] || providers.find((p) => p.provider === "ollama");
+        if (chosen) {
+          providerType = chosen.provider;
+          apiKey = chosen.apiKey || undefined;
+          model = chosen.model || undefined;
+          baseUrl = chosen.baseUrl || undefined;
+        }
+      }
+
+      if (providerType !== "ollama" && !apiKey) {
+        toast.error(t("queueScroll.noProviderConfigured"));
+        return;
+      }
+
+      setIsSummarizing(true);
+      setSummaryText("");
+      setShowSummary(true);
+      setLoadingStage("analyzing");
+      setLoadingProgress(SUMMARY_LOADING_STAGES.analyzing.progress);
+
+      try {
+        const tokenLimit = SUMMARY_LENGTH_CONFIG[length].tokens;
+        const inputWindow = contextWindowTokens && contextWindowTokens > 0 ? contextWindowTokens : 4000;
+        const trimmedContent = await trimToTokenWindow(content, inputWindow, String(model || ""));
+
+        const focusInstruction =
+          focus === "actionable"
+            ? "Focus on actionable takeaways and next steps."
+            : focus === "background"
+              ? "Provide background context and explain why this matters."
+              : "Focus on key points and main conclusions.";
+
+        const messages: LLMMessage[] = [
+          {
+            role: "system",
+            content: `You are a concise article summarizer. ${focusInstruction} Keep the summary under ${tokenLimit} words. Use markdown formatting. Do not include preamble — output only the summary.`,
+          },
+          {
+            role: "user",
+            content: `Summarize this article:\n\n${trimmedContent}`,
+          },
+        ];
+
+        setLoadingStage("extracting");
+        setLoadingProgress(SUMMARY_LOADING_STAGES.extracting.progress);
+
+        const summary = (
+          await Promise.race([
+            chatWithLLM({
+              provider: providerType as "openai" | "anthropic" | "ollama" | "openrouter",
+              model: model as string | undefined,
+              messages,
+              maxTokens: Math.max(tokenLimit * 4, 2048),
+              apiKey,
+              baseUrl,
+              temperature: 0.3,
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Summarization timed out")), 30000)
+            ),
+          ])
+        ).content;
+
+        setLoadingStage("synthesizing");
+        setLoadingProgress(SUMMARY_LOADING_STAGES.synthesizing.progress);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        setSummaryText(summary);
+        setLoadingStage("complete");
+        setLoadingProgress(100);
+
+        cacheSummary(articleId, content, summary, { length, focus }, {
+          articleTitle,
+          articleUrl,
+        });
+      } catch (error) {
+        console.error("Failed to summarize:", error);
+        toast.error(
+          t("queueScroll.failedSummarize"),
+          error instanceof Error ? error.message : "Unknown error"
+        );
+        setSummaryText("");
+      } finally {
+        setIsSummarizing(false);
+      }
+    },
+    [
+      renderedItem,
+      currentItem,
+      isSummarizing,
+      htmlToText,
+      documents,
+      modernSummaryLength,
+      modernSummaryFocus,
+      getCachedSummary,
+      cacheSummary,
+      contextWindowTokens,
+      toast,
+      t,
+    ]
+  );
 
   // Mouse wheel scroll detection - only navigate when document can't scroll further
   // For EPUB documents, disable auto-advance to allow user to read through the entire book
@@ -2309,7 +2632,7 @@ export function QueueScrollPage() {
           }
         }}
       >
-        {!isMobile && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "left" && (
+        {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "left" && (
           <>
             {/* Model Chooser - Above Assistant */}
             <div className="flex-shrink-0 flex flex-col items-center gap-2 p-2 border-r border-border bg-card z-10">
@@ -2429,7 +2752,7 @@ export function QueueScrollPage() {
               }}
             />
           ) : renderedItem?.type === "rss" ? (
-            <div className="h-full w-full overflow-y-auto">
+            <div key={renderedItem.id} className="h-full w-full overflow-y-auto">
               <div ref={rssContentRef} className="max-w-3xl mx-auto px-8 py-12 reading-surface">
                 {/* RSS Article Header */}
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
@@ -2662,7 +2985,7 @@ export function QueueScrollPage() {
             />
           )}
         </div>
-        {!isMobile && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (
+        {!isMobile && isAssistantVisible && renderedItem && renderedItem.type !== "flashcard" && assistantPosition === "right" && (
           <>
             <div className="flex-shrink-0 h-full min-h-0 z-10">
               <AssistantPanel
@@ -2760,6 +3083,51 @@ export function QueueScrollPage() {
         seed={flashcardStudioSeed}
       />
 
+      {/* AI Summary panel for the current document / RSS item (Optimal Queue). */}
+      {renderedItem && (renderedItem.type === "document" || renderedItem.type === "rss") && (
+        <ModernSummaryPanel
+          isOpen={showSummary}
+          content={summaryText}
+          mode={modernSummaryMode}
+          length={modernSummaryLength}
+          focus={modernSummaryFocus}
+          position={assistantPosition}
+          width={summaryPanelWidth}
+          isLoading={isSummarizing}
+          loadingProgress={loadingProgress}
+          loadingStage={SUMMARY_LOADING_STAGES[loadingStage].label}
+          onClose={closeSummary}
+          onModeChange={(mode) => {
+            setModernSummaryMode(mode);
+            localStorage.setItem("queue-summary-display-mode", mode);
+          }}
+          onLengthChange={(length) => {
+            setModernSummaryLength(length);
+            localStorage.setItem("queue-summary-length", length);
+            if (summaryText && !isSummarizing) {
+              void handleSummarize({ length, focus: modernSummaryFocus });
+            }
+          }}
+          onFocusChange={(focus) => {
+            setModernSummaryFocus(focus);
+            localStorage.setItem("queue-summary-focus", focus);
+            if (summaryText && !isSummarizing) {
+              void handleSummarize({ length: modernSummaryLength, focus });
+            }
+          }}
+          onPositionToggle={() => {
+            const newPosition = assistantPosition === "left" ? "right" : "left";
+            setAssistantPosition(newPosition);
+            localStorage.setItem("assistant-panel-position", newPosition);
+          }}
+          onWidthChange={(width) => {
+            setSummaryPanelWidth(width);
+            localStorage.setItem("queue-summary-width", String(width));
+          }}
+          onRegenerate={() => { void handleSummarize(); }}
+        />
+      )}
+
       {/* RSS Extract Action */}
       {renderedItem?.type === "rss" && rssSelectedText && (
         <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[70] pointer-events-auto">
@@ -2844,6 +3212,16 @@ export function QueueScrollPage() {
         onDismiss={handleDismiss}
         onGoToNext={goToNext}
         onGoToPrevious={goToPrevious}
+        isAssistantVisible={isAssistantVisible}
+        onToggleAssistant={toggleAssistantVisibility}
+        isSummaryActive={showSummary}
+        onToggleSummary={() => {
+          if (showSummary) {
+            closeSummary();
+          } else {
+            void handleSummarize();
+          }
+        }}
         detailsButton={detailsTarget ? (
           <ItemDetailsPopover
             target={detailsTarget}
@@ -2899,6 +3277,10 @@ export function QueueScrollPage() {
           cardShort: t("queueScroll.cardShort"),
           rssShort: t("queueScroll.rssShort"),
           extractShort: t("queueScroll.extractShort"),
+          showAssistant: t("queueScroll.showAssistant"),
+          hideAssistant: t("queueScroll.hideAssistant"),
+          summarize: t("queueScroll.summarize"),
+          closeSummary: t("queueScroll.closeSummary"),
         }}
       />
 

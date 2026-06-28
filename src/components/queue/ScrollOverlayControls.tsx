@@ -3,6 +3,7 @@ import {
   Brain,
   CaretDown,
   CaretUp,
+  ChatCircle,
   CheckCircle,
   EyeSlash,
   Lightbulb,
@@ -42,6 +43,12 @@ interface ScrollOverlayControlsProps {
   onDismiss: () => void;
   onGoToNext: () => void;
   onGoToPrevious: () => void;
+  /** Toggle the AI assistant panel visibility (desktop only). */
+  isAssistantVisible?: boolean;
+  onToggleAssistant?: () => void;
+  /** Toggle the AI summary panel visibility (document/rss items). */
+  isSummaryActive?: boolean;
+  onToggleSummary?: () => void;
   /** Render slot for ItemDetailsPopover in top bar */
   detailsButton?: React.ReactNode;
   /** i18n labels (optional — falls back to English) */
@@ -72,6 +79,10 @@ interface ScrollOverlayControlsProps {
     cardShort?: string;
     rssShort?: string;
     extractShort?: string;
+    showAssistant?: string;
+    hideAssistant?: string;
+    summarize?: string;
+    closeSummary?: string;
   };
 }
 
@@ -98,6 +109,10 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
   onDismiss,
   onGoToNext,
   onGoToPrevious,
+  isAssistantVisible = true,
+  onToggleAssistant,
+  isSummaryActive = false,
+  onToggleSummary,
   detailsButton,
   labels,
 }: ScrollOverlayControlsProps) {
@@ -168,6 +183,40 @@ export const ScrollOverlayControls = React.memo(function ScrollOverlayControls({
                   <Rss className="w-4 h-4" />
                   {labels?.rss ?? "RSS"}
                 </button>
+                {/* AI Summary toggle (document / rss items only). */}
+                {isDocOrRss && onToggleSummary && (
+                  <button
+                    onClick={onToggleSummary}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg backdrop-blur-sm text-white text-sm transition-colors",
+                      isSummaryActive
+                        ? "bg-[#ffb000] text-black hover:bg-[#ffb000]/90"
+                        : "bg-black/40 hover:bg-black/60"
+                    )}
+                    title={isSummaryActive ? (labels?.closeSummary ?? "Close summary") : (labels?.summarize ?? "Summarize")}
+                    aria-pressed={isSummaryActive}
+                  >
+                    <Sparkle className="w-4 h-4" />
+                    {isSummaryActive ? (labels?.closeSummary ?? "Summary") : (labels?.summarize ?? "Summarize")}
+                  </button>
+                )}
+                {/* Assistant Show/Hide toggle (desktop; not for flashcard items). */}
+                {itemType !== "flashcard" && onToggleAssistant && (
+                  <button
+                    onClick={onToggleAssistant}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg backdrop-blur-sm text-white text-sm transition-colors",
+                      isAssistantVisible
+                        ? "bg-primary/80 hover:bg-primary"
+                        : "bg-black/40 hover:bg-black/60"
+                    )}
+                    title={isAssistantVisible ? (labels?.hideAssistant ?? "Hide Assistant") : (labels?.showAssistant ?? "Show Assistant")}
+                    aria-pressed={isAssistantVisible}
+                  >
+                    <ChatCircle className="w-4 h-4" />
+                    {isAssistantVisible ? (labels?.hideAssistant ?? "Assistant") : (labels?.showAssistant ?? "Assistant")}
+                  </button>
+                )}
                 <div className="text-white text-sm bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg max-w-[200px] sm:max-w-md truncate">
                   <span className="flex items-center gap-2 truncate">
                     <span className={cn("px-1.5 py-0.5 rounded text-xs shrink-0", typeColor)}>{typeLabel}</span>

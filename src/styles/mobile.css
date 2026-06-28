@@ -247,6 +247,15 @@
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
+/* Ensure content never extends under the Android/iOS status bar / top toolbar.
+   The top inset is consumed by .app-shell, but keep this as a belt-and-suspenders
+   guard for the mobile content wrapper itself. */
+@supports (padding: env(safe-area-inset-top)) {
+  .mobile-main-content.safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0;
@@ -537,7 +546,8 @@
   right: 0;
   width: 100%;
   max-width: 400px;
-  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
   background: #1a1a1a;
   z-index: 1001;
   overflow-y: auto;
@@ -545,7 +555,7 @@
 
 .mobile-settings-content {
   padding: 20px;
-  max-height: calc(100vh - 20px);
+  max-height: calc(100dvh - 20px);
   overflow-y: auto;
 }
 

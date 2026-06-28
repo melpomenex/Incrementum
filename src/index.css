@@ -281,7 +281,7 @@
     }
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     .app-shell {
       padding-top: env(safe-area-inset-top, 0px);
       height: calc(100dvh - env(safe-area-inset-top, 0px));

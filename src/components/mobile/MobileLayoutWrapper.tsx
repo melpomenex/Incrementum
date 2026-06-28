@@ -63,7 +63,7 @@ export function MobileLayoutWrapper({ children }: MobileLayoutWrapperProps) {
       <OfflineIndicator />
 
       {/* Main Content */}
-      <div className="mobile-main-content">
+      <div className="mobile-main-content safe-top">
         {children}
       </div>
 

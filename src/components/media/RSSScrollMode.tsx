@@ -556,6 +556,14 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
   }, [currentIndex, showFullContent, visibleScrollItems]);
 
   // Navigation functions
+  const resetScrollToTop = useCallback(() => {
+    // The article scroll container is contentRef; reset it so the next item is
+    // read from the beginning rather than at the previous item's scroll offset.
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, []);
+
   const goToNext = useCallback(() => {
     if (currentIndex < visibleScrollItems.length - 1 && !isTransitioning) {
       setIsTransitioning(true);
@@ -566,9 +574,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       setTimeout(() => {
         setRenderedIndex(nextIndex);
         setIsTransitioning(false);
+        resetScrollToTop();
       }, 300);
     }
-  }, [currentIndex, visibleScrollItems.length, isTransitioning]);
+  }, [currentIndex, visibleScrollItems.length, isTransitioning, resetScrollToTop]);
 
   const goToPrevious = useCallback(() => {
     if (currentIndex > 0 && !isTransitioning) {
@@ -580,9 +589,10 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
       setTimeout(() => {
         setRenderedIndex(prevIndex);
         setIsTransitioning(false);
+        resetScrollToTop();
       }, 300);
     }
-  }, [currentIndex, isTransitioning]);
+  }, [currentIndex, isTransitioning, resetScrollToTop]);
 
   useEffect(() => {
     if (visibleScrollItems.length === 0) {
@@ -1939,6 +1949,7 @@ export function RSSScrollMode({ onExit, initialFeedId }: RSSScrollModeProps) {
         {/* Article content */}
         {renderedItem && (
           <article
+            key={`${renderedItem.feed.id}-${renderedItem.item.id}`}
             className={cn(
               "h-full w-full max-w-4xl mx-auto overflow-hidden transition-all duration-300",
               isTransitioning ? "opacity-50 scale-[0.98]" : "opacity-100 scale-100"
