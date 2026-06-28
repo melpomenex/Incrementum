@@ -17,10 +17,14 @@
 package com.incrementum.folderimport
 
 import android.app.Activity
+import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.documentfile.provider.DocumentFile
@@ -151,6 +155,80 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
       invoke.resolve()
     } catch (e: Exception) {
       invoke.reject("Failed to trigger installation: ${e.message}")
+    }
+  }
+
+
+  @Command
+  fun backupDbToDownloads(invoke: Invoke) {
+    try {
+      val context = activity.applicationContext
+      val dbFile = File(context.filesDir, "incrementum.db")
+      if (!dbFile.exists()) {
+        return invoke.reject("Database file does not exist at: ${dbFile.absolutePath}")
+      }
+
+      val resolver = context.contentResolver
+      val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, "Incrementum_Backup_Auto.db")
+        put(MediaStore.MediaColumns.MIME_TYPE, "application/x-sqlite3")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Incrementum")
+        }
+      }
+
+      val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        MediaStore.Downloads.EXTERNAL_CONTENT_URI
+      } else {
+        @Suppress("DEPRECATION")
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val incrementumDir = File(downloadsDir, "Incrementum")
+        incrementumDir.mkdirs()
+        val destFile = File(incrementumDir, "Incrementum_Backup_Auto.db")
+        dbFile.inputStream().use { input ->
+          destFile.outputStream().use { output ->
+            input.copyTo(output)
+          }
+        }
+        val res = JSObject()
+        res.put("path", destFile.absolutePath)
+        return invoke.resolve(res)
+      }
+
+      // Query if the file already exists in MediaStore and delete it to overwrite
+      val projection = arrayOf(MediaStore.MediaColumns._ID)
+      val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+      val selectionArgs = arrayOf("Incrementum_Backup_Auto.db", Environment.DIRECTORY_DOWNLOADS + "/Incrementum/")
+      resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+          val deleteUri = ContentUris.withAppendedId(collection, id)
+          resolver.delete(deleteUri, null, null)
+        }
+      }
+
+      val fileUri = resolver.insert(collection, contentValues)
+        ?: return invoke.reject("Failed to insert media store record")
+
+      resolver.openOutputStream(fileUri)?.use { outputStream ->
+        dbFile.inputStream().use { inputStream ->
+          inputStream.copyTo(outputStream)
+        }
+      }
+
+      var pathResult = ""
+      val pathProjection = arrayOf(MediaStore.MediaColumns.DATA)
+      resolver.query(fileUri, pathProjection, null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          pathResult = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)) ?: ""
+        }
+      }
+
+      val res = JSObject()
+      res.put("path", if (pathResult.isNotEmpty()) pathResult else "/sdcard/Download/Incrementum/Incrementum_Backup_Auto.db")
+      invoke.resolve(res)
+    } catch (e: Exception) {
+      invoke.reject("Failed to backup database: ${e.message}")
     }
   }
 

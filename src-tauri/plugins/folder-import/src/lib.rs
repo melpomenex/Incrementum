@@ -194,6 +194,29 @@ mod commands {
             Err(Error::Message("install_apk is only supported on Android".to_string()))
         }
     }
+
+    #[tauri::command]
+    pub async fn backup_db_to_downloads(
+        state: State<'_, FolderImport>,
+    ) -> Result<String, Error> {
+        #[cfg(target_os = "android")]
+        {
+            let res: serde_json::Value = state
+                .handle
+                .run_mobile_plugin("backupDbToDownloads", serde_json::json!({}))
+                .map_err(|e| Error::Message(e.to_string()))?;
+            let path = res.get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("/sdcard/Download/Incrementum/Incrementum_Backup_Auto.db")
+                .to_string();
+            Ok(path)
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = state;
+            Err(Error::Message("backup_db_to_downloads is only supported on Android".to_string()))
+        }
+    }
 }
 
 
@@ -351,6 +374,7 @@ struct MobilePickResponse {
 /// See `commands::pick_folder_documents` for the implementation.
 pub use commands::pick_folder_documents;
 pub use commands::install_apk;
+pub use commands::backup_db_to_downloads;
 
 /// Initializes the plugin.
 pub fn init() -> TauriPlugin<Wry> {
@@ -362,7 +386,8 @@ pub fn init() -> TauriPlugin<Wry> {
     tauri::plugin::Builder::<Wry>::new("incrementum-folder-import")
         .invoke_handler(tauri::generate_handler![
             commands::pick_folder_documents,
-            commands::install_apk
+            commands::install_apk,
+            commands::backup_db_to_downloads
         ])
         .setup(|app, api| {
             let folder_import = init_mobile(app.app_handle(), api)?;

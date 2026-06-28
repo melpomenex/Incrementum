@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.57.2] - 2026-06-28
+
+### Fixed & Improved
+- **No more lost data on Android app updates** — Installing an APK update previously wiped the app's private storage, taking your `incrementum.db` (all documents, extracts, flashcards, podcasts, queue, and FSRS history) with it. The in-app updater now **automatically backs up your database to the public Downloads folder before installing any APK update**, so it survives the reinstall. On the next launch after an update, if a fresh database is detected alongside an auto-backup, you're prompted to restore it. You can also manually restore a `.db` file from Settings → Import/Export (the file picker now accepts `.db`, and the app relaunches after restoring). This closes the loop end-to-end: backup-before-update → detect-on-startup → one-tap restore.
+
 ## [1.57.1] - 2026-06-28
 
 ### Added

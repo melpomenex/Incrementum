@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the backup_db_to_downloads command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-backup-db-to-downloads",
+          "markdownDescription": "Enables the backup_db_to_downloads command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the backup_db_to_downloads command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-backup-db-to-downloads",
+          "markdownDescription": "Denies the backup_db_to_downloads command without any pre-configured scope."
+        },
+        {
           "description": "Enables the install_apk command without any pre-configured scope.",
           "type": "string",
           "const": "allow-install-apk",
@@ -319,10 +331,10 @@
           "markdownDescription": "Denies the pick_folder_documents command without any pre-configured scope."
         },
         {
-          "description": "Allows the folder-import plugin's folder picker command to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-install-apk`",
+          "description": "Allows the folder-import plugin's folder picker command to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-install-apk`\n- `allow-backup-db-to-downloads`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows the folder-import plugin's folder picker command to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-install-apk`"
+          "markdownDescription": "Allows the folder-import plugin's folder picker command to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-install-apk`\n- `allow-backup-db-to-downloads`"
         }
       ]
     }

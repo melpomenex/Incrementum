@@ -7,6 +7,7 @@ from the frontend.
 
 - `allow-pick-folder-documents`
 - `allow-install-apk`
+- `allow-backup-db-to-downloads`
 
 ## Permission Table
 
@@ -16,6 +17,32 @@ from the frontend.
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`incrementum-folder-import:allow-backup-db-to-downloads`
+
+</td>
+<td>
+
+Enables the backup_db_to_downloads command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`incrementum-folder-import:deny-backup-db-to-downloads`
+
+</td>
+<td>
+
+Denies the backup_db_to_downloads command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>

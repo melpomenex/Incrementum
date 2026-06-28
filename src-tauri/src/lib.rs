@@ -78,6 +78,9 @@ pub enum StartupNotice {
     /// empty database was created. The user has lost local data and may want
     /// to restore from a cloud backup.
     DatabaseRecoveredAfterQuarantine,
+    /// A fresh database was created, but we found an auto-backup file
+    /// in the public Downloads directory. The user may want to restore it.
+    AutoBackupFound { backup_path: String },
 }
 
 mod startup_notice {
@@ -214,6 +217,45 @@ async fn download_update_apk(
 #[tauri::command]
 fn consume_startup_notice(app_handle: tauri::AppHandle) -> Option<StartupNotice> {
     startup_notice::take(&app_handle)
+}
+
+#[tauri::command]
+async fn restore_local_db_backup(
+    app: tauri::AppHandle,
+    repo: tauri::State<'_, database::Repository>,
+    backup_path: String,
+) -> std::result::Result<(), String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_dir.join("incrementum.db");
+
+    // Close the connection pool to avoid lock conflicts
+    let pool = repo.pool().clone();
+    pool.close().await;
+
+    let backup_db_path = std::path::PathBuf::from(backup_path);
+    if !backup_db_path.exists() {
+        return Err("Backup file does not exist".to_string());
+    }
+
+    // Run online backup copy pages
+    tokio::task::spawn_blocking(move || {
+        let backup_db = rusqlite::Connection::open_with_flags(
+            &backup_db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?;
+        let mut live_db = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        )?;
+        let backup = rusqlite::backup::Backup::new(&backup_db, &mut live_db)?;
+        backup.run_to_completion(5, std::time::Duration::from_millis(250), None)?;
+        Ok::<(), rusqlite::Error>(())
+    })
+    .await
+    .map_err(|e| format!("Restore task join error: {e}"))?
+    .map_err(|e| format!("SQLite copy failed: {e}"))?;
+
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -611,6 +653,25 @@ pub fn run() {
                         StartupNotice::DatabaseRecoveredAfterQuarantine,
                     );
                     let _ = app_handle.emit("database-recovered", ());
+                } else if matches!(db_outcome, database::connection::OpenOutcome::CreatedFresh) {
+                    #[cfg(target_os = "android")]
+                    {
+                        let paths = [
+                            "/storage/emulated/0/Download/Incrementum/Incrementum_Backup_Auto.db",
+                            "/sdcard/Download/Incrementum/Incrementum_Backup_Auto.db",
+                        ];
+                        for p in &paths {
+                            let path = std::path::Path::new(p);
+                            if path.exists() {
+                                tracing::info!("Found database auto-backup at: {}", p);
+                                startup_notice::set(
+                                    &app_handle,
+                                    StartupNotice::AutoBackupFound { backup_path: p.to_string() },
+                                );
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 log_startup(&app_handle, "startup: database initialized");
@@ -789,6 +850,7 @@ pub fn run() {
             greet,
             download_update_apk,
             consume_startup_notice,
+            restore_local_db_backup,
             apply_theme_vibrancy,
             commands::get_documents,
             commands::get_document,

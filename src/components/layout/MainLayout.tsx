@@ -273,11 +273,45 @@ export function MainLayout() {
       );
     };
 
+    const showAutoBackupToast = (backupPath: string) => {
+      toast.success(
+        "Auto-Backup Found",
+        "An automatic database backup from a previous installation was found. " +
+          "Would you like to restore your transcripts, settings, and cards?",
+        {
+          duration: 0,
+          action: {
+            label: "Restore",
+            onClick: async () => {
+              try {
+                toast.info("Restoring backup...", "Please wait while the database is being restored.");
+                await invokeCommand("restore_local_db_backup", { backupPath });
+                
+                const { relaunch } = await import("@tauri-apps/plugin-process");
+                await relaunch();
+              } catch (err) {
+                console.error("[MainLayout] Failed to restore auto-backup:", err);
+                toast.error("Restore Failed", err instanceof Error ? err.message : String(err));
+              }
+            },
+          },
+        }
+      );
+    };
+
     // 1) Pull any pending notice that was generated before the webview booted.
     invokeCommand<StartupNotice | null>("consume_startup_notice")
       .then((notice) => {
+        if (!notice) return;
         if (notice === "DatabaseRecoveredAfterQuarantine") {
           showDatabaseRecoveredToast();
+        } else if (typeof notice === "object") {
+          if ("DatabaseRecoveredAfterQuarantine" in notice) {
+            showDatabaseRecoveredToast();
+          } else if ("AutoBackupFound" in notice) {
+            const backupPath = notice.AutoBackupFound.backup_path;
+            showAutoBackupToast(backupPath);
+          }
         }
       })
       .catch((err) => {

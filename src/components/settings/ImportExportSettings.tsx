@@ -280,6 +280,28 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
           console.warn("Not a collection archive, falling back to legacy import.", error);
         }
       }
+      if (fileName.endsWith(".db")) {
+        const filePath = (importFile as File & { path?: string }).path;
+        if (filePath) {
+          if (confirm("Are you sure you want to restore this database? The current database will be replaced, and the app will close/relaunch after restoring.")) {
+            setIsProcessing(true);
+            try {
+              await invokeCommand("restore_local_db_backup", { backupPath: filePath });
+              const { relaunch } = await import("@tauri-apps/plugin-process");
+              await relaunch();
+            } catch (err) {
+              alert("Restore failed: " + (err instanceof Error ? err.message : String(err)));
+            } finally {
+              setIsProcessing(false);
+            }
+          }
+          return;
+        } else {
+          alert("Database file restore is only supported on native desktop and mobile versions.");
+          return;
+        }
+      }
+
       if (fileName.endsWith(".apkg")) {
         const filePath = (importFile as File & { path?: string }).path;
         if (filePath) {
@@ -647,7 +669,7 @@ export function ImportExportSettings({ onChange }: { onChange: () => void }) {
             <div className="flex items-center gap-3">
               <input
                 type="file"
-                accept=".json,.csv,.incrementum,.apkg,.zip,.7z,application/json,application/octet-stream,application/zip,application/x-7z-compressed,text/csv,text/plain"
+                accept=".json,.csv,.incrementum,.apkg,.zip,.7z,.db,application/json,application/octet-stream,application/zip,application/x-7z-compressed,application/x-sqlite3,text/csv,text/plain"
                 onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                 className="flex-1 text-sm text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
               />

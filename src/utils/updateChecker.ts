@@ -216,8 +216,17 @@ async function checkViaGitHub(
             onProgress: channel,
           });
 
-          // 2. Install the APK file via our custom Android plugin command
+          // 1b. Automatically backup database to Downloads folder on Android before installing
           const { invokeCommand } = await import("../lib/tauri");
+          try {
+            console.log("[updateChecker] Backing up database to Downloads before installation...");
+            const backupPath = await invokeCommand<string>("plugin:incrementum-folder-import|backup_db_to_downloads");
+            console.log("[updateChecker] Auto-backup completed to:", backupPath);
+          } catch (err) {
+            console.warn("[updateChecker] Auto-backup database failed:", err);
+          }
+
+          // 2. Install the APK file via our custom Android plugin command
           await invokeCommand("plugin:incrementum-folder-import|install_apk", {
             filePath,
           });
