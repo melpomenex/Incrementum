@@ -9,10 +9,12 @@ import {
   Key,
   Lock,
   LockOpen,
+  Scan,
   WifiHigh,
 } from "@phosphor-icons/react";
 import { createNewSyncRoomId, getSyncRoomId, setSyncRoomId, rejoinRoom } from "../../lib/yjsSync";
 import { useI18n } from "../../lib/i18n";
+import { isNativeMobile, isPWA } from "../../lib/tauri";
 import { QRCodeCanvas } from "qrcode.react";
 import { SyncQrScanner } from "./SyncQrScanner";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -80,14 +82,20 @@ export function SyncSettings() {
     }
   }
 
+  // Decide whether THIS device is the scanner or the code-being-scanned.
+  //   - Camera-bearing devices (native Android/iOS builds, plus PWA installs
+  //     on phones) are the scanner: hide the QR, show the "Scan" button.
+  //   - Everything else (desktop Tauri, desktop browser) shows the QR so a
+  //     phone can scan it.
+  //
+  // The old gate was `display-mode: standalone`, which Tauri's WebView does
+  // NOT report — so on native mobile `isStandalone` was false, `showQr` stayed
+  // true, and the Scan button (gated on `!showQr`) never rendered. That is
+  // why "mobile has no scan functionality": it was showing the QR image to the
+  // phone that was supposed to do the scanning.
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const isStandalone =
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone;
-    setShowQr(!isStandalone);
+    const hasCamera = isNativeMobile() || isPWA();
+    setShowQr(!hasCamera);
   }, []);
 
   useEffect(() => {
@@ -428,9 +436,9 @@ export function SyncSettings() {
               {!showQr && (
                 <button
                   onClick={() => setShowScanner(true)}
-                  className="px-3 py-2 bg-muted text-foreground rounded text-xs"
+                  className="px-3 py-2 bg-muted text-foreground rounded text-xs flex items-center gap-1"
                 >
-                  Scan
+                  <Scan className="w-3.5 h-3.5" /> Scan
                 </button>
               )}
             </div>

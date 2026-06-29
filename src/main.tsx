@@ -221,9 +221,16 @@ try {
   // Settings not yet available or parse error — Inter is already loaded statically.
 }
 
-// Only enable browser localStorage mirroring in standalone web installs.
-// In desktop Tauri this adds global write amplification without helping UX.
-if (!isTauri() && isPWA()) {
+// Initialize localStorage -> Yjs sync (shared state across devices).
+// Runs on every profile: PWA installs AND Tauri (desktop + mobile). This is
+// the bridge that actually moves app state (documents, settings, collections,
+// highlights …) through the yjs doc so cross-device sync delivers data, not
+// just an idle WebSocket. It is the difference between "joined the room" and
+// "synced my library" — the reason scan-to-join needs it.
+// (Previously gated to PWA-only to avoid desktop write amplification, but that
+// also left desktop + mobile with a connected-but-empty doc — see main.tsx
+// commit history on this block.)
+if (isPWA() || isTauri()) {
   initLocalStorageSync().catch((error) => {
     console.error("[main.tsx] Failed to initialize local storage sync:", error);
   });

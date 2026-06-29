@@ -34,6 +34,11 @@ const mocks = vi.hoisted(() => {
     getSyncRoomId: vi.fn().mockReturnValue("initial-room-1234"),
     createNewSyncRoomId: vi.fn().mockReturnValue("rotated-room"),
     enableEncryptionWithSecret: vi.fn().mockResolvedValue(undefined),
+    // isNativeMobile controls whether the Scan button renders. The scan-to-join
+    // UI is for camera-bearing devices, so the tests simulate a native mobile
+    // build (isNativeMobile = true) to exercise the scanner flow.
+    isNativeMobile: vi.fn().mockReturnValue(true),
+    isPWA: vi.fn().mockReturnValue(false),
   };
 });
 
@@ -65,6 +70,11 @@ vi.mock("../../../lib/sync/roomCrypto", () => ({
   getCachedRoomSecretOrNull: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("../../../lib/tauri", () => ({
+  isNativeMobile: mocks.isNativeMobile,
+  isPWA: mocks.isPWA,
+}));
+
 vi.mock("../../../stores/settingsStore", () => ({
   useSettingsStore: () => ({
     settings: { sync: { autoDownloadMode: "wifi-only" } },
@@ -94,17 +104,8 @@ async function renderToScanner() {
 
 describe("SyncSettings scan-to-join", () => {
   it("joins a scanned bare room id without a manual Join tap", async () => {
-    // Force standalone display mode so the Scan button renders.
-    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
-      matches: query.includes("standalone"),
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }) as unknown as MediaQueryList);
+    // Simulate a native mobile build so the Scan button renders.
+    mocks.isNativeMobile.mockReturnValue(true);
 
     render(React.createElement(SyncSettings));
 
@@ -128,16 +129,7 @@ describe("SyncSettings scan-to-join", () => {
   });
 
   it("returns false (keeps scanner open) for an empty scanned value", async () => {
-    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
-      matches: query.includes("standalone"),
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }) as unknown as MediaQueryList);
+    mocks.isNativeMobile.mockReturnValue(true);
 
     render(React.createElement(SyncSettings));
     const scanButtons = screen.getAllByRole("button", { name: /scan/i });
