@@ -573,8 +573,8 @@ jobs:
           # Build the package
           cd arch-pkg
           useradd -m builder
-          chown -R builder:builder /__w/incrementum-tauri/incrementum-tauri/arch-pkg
-          su builder -c "cd /__w/incrementum-tauri/incrementum-tauri/arch-pkg && makepkg --noconfirm --nosign"
+          chown -R builder:builder "$GITHUB_WORKSPACE/arch-pkg"
+          su builder -c "cd $GITHUB_WORKSPACE/arch-pkg && makepkg --noconfirm --nosign"
 
       - name: Upload Pacman to release
         uses: softprops/action-gh-release@v2
