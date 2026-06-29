@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.58.3] - 2026-06-29
+
+### Fixed
+- **Documents now replicate across devices** — fixed the root cause of imported documents not appearing on other devices. The document library is backed by per-device SQLite, not localStorage, so the existing state-sync bridge never carried document rows. A new document-replication layer mirrors document rows through the sync room into each device's SQLite (with dateModified conflict resolution), so importing on one device makes the document appear in the other's library. Paired with file sync, the document shows an "available to download" badge and pulls its file on demand.
+
 ## [1.58.2] - 2026-06-29
 
 ### Fixed & Improved
