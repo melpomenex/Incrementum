@@ -363,6 +363,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       });
       if (fileId) {
         doc.fileId = fileId;
+        doc.metadata = { ...doc.metadata, fileId };
+        await documentsApi.upsertSyncedDocument(doc).catch((e) => {
+          console.warn("[documentStore] failed to save fileId to SQLite metadata", e);
+        });
       }
 
       // Publish the doc row to the sync room (see importFromFiles).
@@ -422,6 +426,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
           });
           if (fileId) {
             doc.fileId = fileId;
+            doc.metadata = { ...doc.metadata, fileId };
+            await documentsApi.upsertSyncedDocument(doc).catch((e) => {
+              console.warn("[documentStore] failed to save fileId to SQLite metadata", e);
+            });
           }
 
           // Publish the document row to the sync room so other devices' libraries

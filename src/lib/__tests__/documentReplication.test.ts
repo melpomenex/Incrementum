@@ -21,7 +21,7 @@ vi.mock("../tauri", async (importOriginal) => {
   return { ...actual, isTauri: () => true, invokeCommand: mocks.invokeCommand };
 });
 vi.mock("../yjsSync", () => ({ getYjsSync: mocks.getYjsSync }));
-vi.mock("../stores/documentStore", () => ({
+vi.mock("../../stores/documentStore", () => ({
   useDocumentStore: {
     getState: () => ({
       // Defensive: handlers may run async after test cleanup; always return an array.

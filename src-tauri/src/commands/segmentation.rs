@@ -318,6 +318,7 @@ pub async fn split_document(
             chunk_start_pos: None,
             chunk_end_pos: None,
             estimated_reading_time_mins: None,
+            ..Default::default()
         });
 
         let mut child_metadata = parent_metadata.clone();

@@ -6224,20 +6224,21 @@ export function DocumentViewer({
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center">
+            <div className="text-center max-w-md px-4">
               <div className="text-6xl mb-4">📄</div>
               <h3 className="text-xl font-semibold text-foreground mb-2">
                 {t("viewer.previewNotAvailable")}
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 {t("viewer.documentTypePreviewComingSoon", { type: docType })}
                 {docType !== "epub" && currentDocument.filePath?.endsWith(".epub") && " (fileType was empty, inferred from extension)"}
               </p>
               {docType === "epub" && !fileData && !epubUrl && (
-                <p className="text-sm text-orange-500 mt-2">
+                <p className="text-sm text-orange-500 mb-4">
                   {t("viewer.epubDetectedButNotLoaded")}
                 </p>
               )}
+              {currentDocument && <ReaderFileDownload doc={currentDocument} />}
             </div>
           </div>
         )}

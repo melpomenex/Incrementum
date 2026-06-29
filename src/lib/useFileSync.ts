@@ -106,6 +106,11 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
       const transferManager = getFileTransferManager();
 
       const checkStatus = async () => {
+        if (transferManager.hasFileLocal(fileId) && mounted) {
+          setState({ status: "synced" });
+          return;
+        }
+
         const cached = await getCachedFile(fileId);
         if (cached && mounted) {
           setState({ status: "synced" });
@@ -189,10 +194,11 @@ export function useAllFileSyncStatus(): Map<string, FileSyncState> {
         const newStates = new Map<string, FileSyncState>();
 
         for (const file of files) {
-          const cached = await getCachedFile(file.id);
+          const isLocal = transferManager.hasFileLocal(file.id);
+          const cached = isLocal ? null : await getCachedFile(file.id);
           const available = manifest.isFileAvailable(file.id);
 
-          if (cached) {
+          if (isLocal || cached) {
             newStates.set(file.id, { status: "synced" });
           } else if (available) {
             newStates.set(file.id, { status: "available" });

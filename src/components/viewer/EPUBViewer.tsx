@@ -1223,7 +1223,7 @@ export function EPUBViewer({
     try {
       const contentsList = rendition.getContents?.() ?? [];
       for (const contents of contentsList) {
-        const doc = contents?.document as Document | undefined;
+        const doc = contents?.document as globalThis.Document | undefined;
         const body = doc?.body;
         if (!body) continue;
 

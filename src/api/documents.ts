@@ -17,25 +17,37 @@ function isWebMode(): boolean {
   return !isTauri();
 }
 
+export function mapDocument(doc: Document | null): Document | null {
+  if (!doc) return null;
+  return {
+    ...doc,
+    fileId: doc.metadata?.fileId || doc.fileId,
+  };
+}
+
+export function mapDocuments(docs: Document[]): Document[] {
+  return docs.map((d) => mapDocument(d) as Document);
+}
+
 export async function getDocuments(collectionId?: string): Promise<Document[]> {
-  if (isWebMode()) {
-    return await browserInvoke<Document[]>("get_documents", { collectionId: collectionId ?? null });
-  }
-  return await invokeCommand<Document[]>("get_documents", { collectionId: collectionId ?? null });
+  const result = isWebMode()
+    ? await browserInvoke<Document[]>("get_documents", { collectionId: collectionId ?? null })
+    : await invokeCommand<Document[]>("get_documents", { collectionId: collectionId ?? null });
+  return mapDocuments(result);
 }
 
 export async function getDocument(id: string): Promise<Document | null> {
-  if (isWebMode()) {
-    return await browserInvoke<Document | null>("get_document", { id });
-  }
-  return await invokeCommand<Document | null>("get_document", { id });
+  const result = isWebMode()
+    ? await browserInvoke<Document | null>("get_document", { id })
+    : await invokeCommand<Document | null>("get_document", { id });
+  return mapDocument(result);
 }
 
 export async function resolveDocumentCover(id: string): Promise<Document | null> {
-  if (isWebMode()) {
-    return await browserInvoke<Document | null>("resolve_document_cover", { id });
-  }
-  return await invokeCommand<Document | null>("resolve_document_cover", { id });
+  const result = isWebMode()
+    ? await browserInvoke<Document | null>("resolve_document_cover", { id })
+    : await invokeCommand<Document | null>("resolve_document_cover", { id });
+  return mapDocument(result);
 }
 
 export async function createDocument(
@@ -44,40 +56,40 @@ export async function createDocument(
   fileType: string,
   collectionId?: string
 ): Promise<Document> {
-  if (isWebMode()) {
-    return await browserInvoke<Document>("create_document", {
-      title,
-      filePath,
-      fileType,
-      collectionId: collectionId ?? null,
-    });
-  }
-  return await invokeCommand<Document>("create_document", {
-    title,
-    filePath,
-    fileType,
-    collectionId: collectionId ?? null,
-  });
+  const result = isWebMode()
+    ? await browserInvoke<Document>("create_document", {
+        title,
+        filePath,
+        fileType,
+        collectionId: collectionId ?? null,
+      })
+    : await invokeCommand<Document>("create_document", {
+        title,
+        filePath,
+        fileType,
+        collectionId: collectionId ?? null,
+      });
+  return mapDocument(result) as Document;
 }
 
 export async function updateDocument(
   id: string,
   updates: Document
 ): Promise<Document> {
-  if (isWebMode()) {
-    return await browserInvoke<Document>("update_document", { id, updates });
-  }
-  return await invokeCommand<Document>("update_document", { id, updates });
+  const result = isWebMode()
+    ? await browserInvoke<Document>("update_document", { id, updates })
+    : await invokeCommand<Document>("update_document", { id, updates });
+  return mapDocument(result) as Document;
 }
 
 export async function updateDocumentContent(
   id: string,
   content: string
 ): Promise<Document> {
-  if (isWebMode()) {
-    return await browserInvoke<Document>("update_document_content", { id, content });
-  }
-  return await invokeCommand<Document>("update_document_content", { id, content });
+  const result = isWebMode()
+    ? await browserInvoke<Document>("update_document_content", { id, content })
+    : await invokeCommand<Document>("update_document_content", { id, content });
+  return mapDocument(result) as Document;
 }
 
 export async function updateDocumentPriority(
@@ -85,20 +97,20 @@ export async function updateDocumentPriority(
   rating: number,
   slider: number
 ): Promise<Document> {
-  if (isWebMode()) {
-    return await browserInvoke<Document>("update_document_priority", { id, rating, slider });
-  }
-  return await invokeCommand<Document>("update_document_priority", { id, rating, slider });
+  const result = isWebMode()
+    ? await browserInvoke<Document>("update_document_priority", { id, rating, slider })
+    : await invokeCommand<Document>("update_document_priority", { id, rating, slider });
+  return mapDocument(result) as Document;
 }
 
 export async function dismissDocument(
   id: string,
   dismissed: boolean
 ): Promise<Document> {
-  if (isWebMode()) {
-    return await browserInvoke<Document>("dismiss_document", { id, dismissed });
-  }
-  return await invokeCommand<Document>("dismiss_document", { id, dismissed });
+  const result = isWebMode()
+    ? await browserInvoke<Document>("dismiss_document", { id, dismissed })
+    : await invokeCommand<Document>("dismiss_document", { id, dismissed });
+  return mapDocument(result) as Document;
 }
 
 export async function deleteDocument(id: string): Promise<void> {
@@ -121,17 +133,17 @@ export async function bulkDeleteDocuments(documentIds: string[]): Promise<BulkOp
 }
 
 export async function importDocument(filePath: string, collectionId?: string): Promise<Document> {
-  if (isWebMode()) {
-    return await browserInvoke<Document>("import_document", { filePath, collectionId: collectionId ?? null });
-  }
-  return await invokeCommand<Document>("import_document", { filePath, collectionId: collectionId ?? null });
+  const result = isWebMode()
+    ? await browserInvoke<Document>("import_document", { filePath, collectionId: collectionId ?? null })
+    : await invokeCommand<Document>("import_document", { filePath, collectionId: collectionId ?? null });
+  return mapDocument(result) as Document;
 }
 
 export async function importDocuments(filePaths: string[], collectionId?: string): Promise<Document[]> {
-  if (isWebMode()) {
-    return await browserInvoke<Document[]>("import_documents", { filePaths, collectionId: collectionId ?? null });
-  }
-  return await invokeCommand<Document[]>("import_documents", { filePaths, collectionId: collectionId ?? null });
+  const result = isWebMode()
+    ? await browserInvoke<Document[]>("import_documents", { filePaths, collectionId: collectionId ?? null })
+    : await invokeCommand<Document[]>("import_documents", { filePaths, collectionId: collectionId ?? null });
+  return mapDocuments(result);
 }
 
 export async function importPdfHighlightsAsExtracts(documentId: string): Promise<number> {
@@ -155,11 +167,12 @@ export async function importDocumentFromBytes(
 ): Promise<Document> {
   // Tauri IPC deserializes Vec<u8> from a JSON array of numbers. Pass a plain
   // array (not a Uint8Array/Buffer) so it round-trips cleanly.
-  return await invokeCommand<Document>("import_document_from_bytes", {
+  const result = await invokeCommand<Document>("import_document_from_bytes", {
     fileName,
     fileBytes: Array.from(fileBytes),
     collectionId: collectionId ?? null,
   });
+  return mapDocument(result) as Document;
 }
 
 /**
@@ -197,10 +210,11 @@ export async function importDocumentFromFileStreamed(
   }
 
   // Now import the fully-staged file by path (the normal, non-bytes pipeline).
-  return await invokeCommand<Document>("import_document", {
+  const result = await invokeCommand<Document>("import_document", {
     filePath: stagedPath,
     collectionId: collectionId ?? null,
   });
+  return mapDocument(result) as Document;
 }
 
 export interface PodcastImportResult {
@@ -215,13 +229,17 @@ export async function importPodcastAudioFile(
   modelId?: string,
   autoTranscribe?: boolean
 ): Promise<PodcastImportResult> {
-  return await invokeCommand<PodcastImportResult>("import_podcast_audio_file", {
+  const result = await invokeCommand<PodcastImportResult>("import_podcast_audio_file", {
     filePath,
     title,
     language,
     modelId,
     autoTranscribe,
   });
+  if (result && result.document) {
+    result.document = mapDocument(result.document) as Document;
+  }
+  return result;
 }
 
 /**
@@ -665,4 +683,11 @@ export async function deleteBundleImages(docId: string): Promise<void> {
     return;
   }
   return await invokeCommand<void>("delete_bundle_images", { docId });
+}
+
+export async function upsertSyncedDocument(document: Document): Promise<Document> {
+  const result = isWebMode()
+    ? await browserInvoke<Document>("upsert_synced_document", { document })
+    : await invokeCommand<Document>("upsert_synced_document", { document });
+  return mapDocument(result) as Document;
 }

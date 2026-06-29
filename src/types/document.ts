@@ -63,6 +63,7 @@ export interface DocumentMetadata {
   pageCount?: number;
   wordCount?: number;
   collectionId?: string;
+  fileId?: string;
   // Web import metadata
   source?: string;
   fetchedAt?: string;

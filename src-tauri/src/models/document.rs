@@ -96,6 +96,7 @@ pub struct DocumentMetadata {
     pub browser_import_mode: Option<String>,
     pub article_html: Option<String>,
     pub extracted_images: Option<Vec<DocumentImageAsset>>,
+    pub file_id: Option<String>,
 
     // Virtual & Physical Chunking Fields
     pub parent_document_id: Option<String>,
