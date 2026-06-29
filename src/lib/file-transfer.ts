@@ -266,8 +266,14 @@ export class FileTransferManager {
   private inboundTransfers: Map<string, InboundTransfer> = new Map();
   private outboundTransfers: Map<string, OutboundTransfer> = new Map();
 
-  // File storage - maps fileId to Blob
+  // File storage - maps fileId to Blob. Populated eagerly for received files
+  // (rehydrated from cache) and lazily for locally-owned files via loaders.
   private localFiles: Map<string, Blob> = new Map();
+
+  // Lazy loaders for locally-owned files (e.g. imported documents on disk).
+  // The bytes are fetched on demand only when a peer requests the file, so the
+  // app doesn't hold every document's full content in RAM for the session.
+  private localFileLoaders: Map<string, () => Promise<Blob>> = new Map();
 
   // Pending requests waiting for a source device
   private pendingRequests: Map<string, { fileId: string; resolve: (blob: Blob) => void; reject: (err: Error) => void }> =
@@ -383,25 +389,45 @@ export class FileTransferManager {
     const { fileId, requesterDeviceId, requestId } = msg;
 
     const fileBlob = this.localFiles.get(fileId);
-    if (!fileBlob) {
-      // We don't have it, ignore
+    const loader = this.localFileLoaders.get(fileId);
+    if (!fileBlob && !loader) {
+      // We don't have it (neither eager nor lazy), ignore.
       return;
     }
 
     // Notify listeners about the request
     this.emit({ type: "transfer-requested", fileId, requestId, requesterDeviceId });
 
-    // Auto-accept for now (could add UI confirmation later)
-    const totalChunks = Math.ceil(fileBlob.size / CHUNK_SIZE);
-    this.sendMessage({
-      type: "file-response",
-      fileId,
-      requestId,
-      accepted: true,
-      totalChunks,
-    });
+    // Resolve the blob: use the eager copy if present, otherwise invoke the
+    // lazy loader to read bytes from disk on demand. The actual transfer
+    // (chunking + sending) only happens once we have the bytes.
+    const resolveAndSend = async (blob: Blob) => {
+      const totalChunks = Math.ceil(blob.size / CHUNK_SIZE);
+      this.sendMessage({
+        type: "file-response",
+        fileId,
+        requestId,
+        accepted: true,
+        totalChunks,
+      });
+      await this.startOutboundTransfer(fileId, requestId, requesterDeviceId, blob);
+    };
 
-    this.startOutboundTransfer(fileId, requestId, requesterDeviceId, fileBlob);
+    if (fileBlob) {
+      void resolveAndSend(fileBlob);
+    } else if (loader) {
+      loader()
+        .then((blob) => resolveAndSend(blob))
+        .catch((err) => {
+          console.warn("[FileTransferManager] lazy loader failed for", fileId, err);
+          this.sendMessage({
+            type: "file-error",
+            fileId,
+            requestId,
+            error: `Source could not read file: ${(err as Error).message}`,
+          });
+        });
+    }
   }
 
   private handleFileResponse(msg: { type: "file-response"; fileId?: string; requestId: string; accepted: boolean; totalChunks: number }): void {
@@ -473,13 +499,39 @@ export class FileTransferManager {
   }
 
   /**
-   * Register a local file for sharing
+   * Register a local file for sharing with its bytes already in memory.
+   * Use {@link registerLocalFileLoader} for files that live on disk to avoid
+   * holding every document's content in RAM for the whole session.
    */
   registerLocalFile(fileId: string, blob: Blob): void {
     this.localFiles.set(fileId, blob);
+    this.localFileLoaders.delete(fileId);
+    this.manifest.updateMyPresence(this.allOwnedFileIds());
+  }
 
-    const fileIds = Array.from(this.localFiles.keys());
-    this.manifest.updateMyPresence(fileIds);
+  /**
+   * Register a lazy loader for a locally-owned file. The loader is invoked only
+   * when a peer actually requests the file (in handleFileRequest), so the bytes
+   * are read from disk on demand and discarded after the transfer. This is the
+   * preferred registration path for imported documents, whose full content must
+   * not be pinned in memory.
+   */
+  registerLocalFileLoader(fileId: string, loader: () => Promise<Blob>): void {
+    this.localFileLoaders.set(fileId, loader);
+    // If we previously had an in-memory copy, drop it — the loader is now the
+    // source of truth, and we don't want to advertise/serve a stale blob.
+    this.localFiles.delete(fileId);
+    this.manifest.updateMyPresence(this.allOwnedFileIds());
+  }
+
+  /**
+   * All file IDs this device can serve — eager blobs + lazy loaders. This is
+   * what we advertise in our presence so peers know what they can request.
+   */
+  private allOwnedFileIds(): string[] {
+    const ids = new Set<string>(this.localFiles.keys());
+    for (const id of this.localFileLoaders.keys()) ids.add(id);
+    return Array.from(ids);
   }
 
   /**
@@ -487,8 +539,8 @@ export class FileTransferManager {
    */
   unregisterLocalFile(fileId: string): void {
     this.localFiles.delete(fileId);
-    const fileIds = Array.from(this.localFiles.keys());
-    this.manifest.updateMyPresence(fileIds);
+    this.localFileLoaders.delete(fileId);
+    this.manifest.updateMyPresence(this.allOwnedFileIds());
   }
 
   private async startOutboundTransfer(
@@ -691,14 +743,16 @@ export class FileTransferManager {
   }
 
   /**
-   * Check if a file is available locally
+   * Check if a file is available locally (eager blob or lazy loader).
    */
   hasFileLocal(fileId: string): boolean {
-    return this.localFiles.has(fileId);
+    return this.localFiles.has(fileId) || this.localFileLoaders.has(fileId);
   }
 
   /**
-   * Get a local file
+   * Get a local file's blob if eagerly loaded. Returns undefined for lazy-
+   * loader files (their bytes aren't in memory) — callers that need the bytes
+   * should go through requestFile, which invokes the loader.
    */
   getLocalFile(fileId: string): Blob | undefined {
     return this.localFiles.get(fileId);

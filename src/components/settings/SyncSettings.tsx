@@ -17,6 +17,7 @@ import { useI18n } from "../../lib/i18n";
 import { isNativeMobile, isPWA } from "../../lib/tauri";
 import { QRCodeCanvas } from "qrcode.react";
 import { SyncQrScanner } from "./SyncQrScanner";
+import { SyncedFilesManifestPanel } from "../sync/SyncedFilesManifestPanel";
 import { useSettingsStore } from "../../stores/settingsStore";
 import {
   enableEncryption,
@@ -461,6 +462,18 @@ export function SyncSettings() {
           onClose={() => setShowScanner(false)}
         />
       )}
+
+      {/* Synced files manifest — shows every file registered for sync across
+          devices in this room. Diagnostic: if this is empty after importing,
+          the file-sync registration isn't running. If it shows files but the
+          library shows no badges, the badge rendering is the issue. */}
+      <div className="bg-card border border-border rounded-lg p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <HardDrive className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">Synced files</h3>
+        </div>
+        <SyncedFilesManifestPanel />
+      </div>
 
       {/* File Sync Settings */}
       <div className="bg-card border border-border rounded-lg p-6">

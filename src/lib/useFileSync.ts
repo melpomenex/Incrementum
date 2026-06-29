@@ -45,6 +45,14 @@ export async function ensureFileSyncReady(): Promise<void> {
           transferManagerInstance = new FileTransferManager(sync.provider, manifestInstance);
         }
       } catch (error) {
+        // CRITICAL: clear the cached promise on failure. Without this, a
+        // single transient init error (e.g. getYjsSync rejecting because
+        // IndexedDB is unavailable on a mobile WebView, or a race during boot)
+        // permanently wedges file sync for the whole session — every later
+        // ensureFileSyncReady() call returns the same rejected promise and
+        // registerImportedFileSync / useFileSyncStatus can never recover.
+        // Resetting lets the next call attempt init afresh.
+        initPromise = null;
         console.error("[useFileSync] Failed to initialize file sync:", error);
         throw error;
       }

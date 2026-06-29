@@ -77,6 +77,7 @@ function makeManifestMock() {
 function makeTransferManagerMock() {
   return {
     registerLocalFile: vi.fn(),
+    registerLocalFileLoader: vi.fn(),
     hasFileLocal: vi.fn(() => false),
   };
 }
@@ -111,9 +112,11 @@ describe("registerImportedFileSync", () => {
     expect(entry.contentType).toBe("application/pdf");
     expect(entry.id).toBeTruthy();
 
-    // Local bytes registered for serving.
-    expect(transferManager.registerLocalFile).toHaveBeenCalledTimes(1);
-    expect(transferManager.registerLocalFile.mock.calls[0][0]).toBe(entry.id);
+    // Local bytes registered for serving via a lazy loader (not eagerly read).
+    expect(transferManager.registerLocalFileLoader).toHaveBeenCalledTimes(1);
+    expect(transferManager.registerLocalFileLoader.mock.calls[0][0]).toBe(entry.id);
+    // The loader is a function that returns a Promise<Blob>.
+    expect(typeof transferManager.registerLocalFileLoader.mock.calls[0][1]).toBe("function");
 
     // fileId returned. (The caller — documentStore — stamps it onto the doc;
     // registerImportedFileSync returns it rather than mutating the document, so

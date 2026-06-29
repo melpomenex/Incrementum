@@ -83,11 +83,16 @@ export async function registerImportedFileSync(
       manifest.addFile(entry);
     }
 
-    // Register the local file bytes so this device can serve transfer requests.
-    // Read the file via the existing base64 command and decode to a Blob.
-    const base64 = await readDocumentFile(doc.filePath);
-    const blob = base64ToBlob(base64, mimeForFileType(doc.fileType));
-    transferManager.registerLocalFile(fileId, blob);
+    // Register the file for serving WITHOUT reading it into memory upfront.
+    // The transfer manager accepts a lazy loader: the file's bytes are only
+    // fetched (via readDocumentFile) when a peer actually requests the file.
+    // This avoids holding every imported file's full content in RAM for the
+    // whole session — critical for libraries with many/large documents, which
+    // would otherwise thrash memory and crash on import.
+    transferManager.registerLocalFileLoader(fileId, async () => {
+      const base64 = await readDocumentFile(doc.filePath);
+      return base64ToBlob(base64, mimeForFileType(doc.fileType));
+    });
 
     // Persist the fileId on the document so the UI can render sync status and
     // so re-imports don't re-register. We update the store-side doc; the Rust
