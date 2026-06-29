@@ -1,10 +1,9 @@
 ### Added
-- **Scan-to-join sync on mobile** — scan a desktop's sync QR code on Android to join its sync room immediately, with no manual "Join" tap and no app reload. Joining now switches the running sync in-process via a new `rejoinRoom` path. Added Android camera permission and a WebView permission bridge so `getUserMedia` resolves correctly.
-- **Mobile sync enabled at startup** — the Yjs sync provider now initializes on the Tauri (Android/iOS) profile at launch, not just on PWA. Previously mobile sync only started lazily if a file-sync hook mounted.
+- **Cross-device file sync** — PDFs, EPUBs, and audio files now transfer between devices over the same sync room as your reading state. Import a file on desktop, and it appears on your phone with a download button (or auto-downloads per your setting). Files flow through the existing sync relay using a new binary transfer protocol; received files are cached and survive app restarts.
+- **File sync status indicators** — the document library and reader now show per-file sync state (available to download, downloading with progress, waiting for the source device to come online). Tap to download from another device.
+- **Auto-download modes** — the Settings → Sync → "Auto-download files" dropdown (Always / WiFi only / Manual) now actually controls behavior. "Manual" waits for an explicit tap; the others pull files when a device with them is online.
 
 ### Fixed & Improved
-- **Removed the confusing legacy API-key sync setup** — deleted the duplicate `api/sync` + `sync.rs` path (the endpoint + API-key REST sync) so there is now exactly one sync system: the room-based Yjs connection broker. Sync settings no longer shows an API key field, endpoint field, or sync log/status tabs from the removed system.
-- **In-process room switching** — `rejoinRoom` tears down and rebuilds the sync provider against a new room without a page reload, eliminating the old "reload to connect" step after joining a room or toggling encryption.
-- **IndexedDB guard for mobile WebViews** — sync degrades gracefully to in-memory-only on WebViews without IndexedDB rather than failing to start.
-- **Rewrote the Sync section of the user handbook** in all six supported languages (English, German, Spanish, French, Chinese, Japanese) to document the room-based sync system, replacing outdated references to cloud-provider sync and legacy sync options.
-- **Deprecated the account-based REST sync server routes** (`/sync`, `/files`) with `Deprecation`/`Sunset` headers ahead of their planned removal.
+- **State sync now runs on mobile + desktop** — the localStorage-to-Yjs bridge that moves your library, settings, collections, and highlights across devices was gated to PWA-only, so Tauri apps connected to the sync room but never exchanged any data. Now enabled on all profiles.
+- **Scan-to-join button now renders on mobile** — the QR-vs-Scan detection used `display-mode: standalone`, which Tauri's WebView never reports, so native Android/iOS showed a useless QR image instead of the camera scan button. Replaced with native-platform detection.
+- **File transfer protocol correctness** — rewired from JSON text frames (which the relay forwards as binary and the receiver silently dropped) to a binary frame format that actually reaches peers. Chunk payloads are raw bytes, ~33% smaller than the prior base64 encoding.
