@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.58.2] - 2026-06-29
+
+### Fixed & Improved
+- **File sync reliability** — fixed two bugs that prevented imported files from ever registering or transferring across devices, even though state sync worked. (1) A failed file-sync initialization cached its failure permanently for the session, so the manifest never came up after one transient error. (2) Registration eagerly loaded every imported file's full content into memory, which could crash on large libraries. Files now register via lazy loaders that read bytes only when a peer requests them.
+- **Synced-files diagnostics panel** — Settings → Sync now shows the file-sync manifest contents directly. Use it to confirm whether your imported files are actually registered for sync (the key diagnostic when files aren't transferring).
+
 ## [1.58.1] - 2026-06-29
 
 ### Added
