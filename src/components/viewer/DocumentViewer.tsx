@@ -5764,6 +5764,7 @@ export function DocumentViewer({
           ) : (
           <PDFViewer
             documentId={currentDocument.id}
+            doc={currentDocument}
             fileData={fileData}
             fileUrl={pdfUrl}
             onTextLayerRootsChange={(roots, container) => {
@@ -5840,6 +5841,7 @@ export function DocumentViewer({
             fileUrl={epubUrl}
             fileName={currentDocument.title}
             documentId={currentDocument.id}
+            doc={currentDocument}
             onBack={handleBack}
             embedded={embedded}
             onLoad={(toc) => handleDocumentLoad(0, toc)}

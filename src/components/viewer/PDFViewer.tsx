@@ -13,7 +13,7 @@ import { cn } from "../../utils";
 import type { PdfDest, ViewState } from "../../types/readerPosition";
 import type { PdfRect, PdfSelectionContext, ViewportRect } from "../../types/selection";
 import type { DocumentPosition } from "../../types/position";
-import type { DocumentMetadata } from "../../types/document";
+import type { DocumentMetadata, Document } from "../../types/document";
 import { saveDocumentPosition, getDocumentPosition, pagePosition, scrollPosition as createScrollPosition } from "../../api/position";
 import { getDocumentAuto, updateDocumentProgressAuto } from "../../api/documents";
 import { isTauri } from "../../lib/tauri";
@@ -44,6 +44,7 @@ import { OcrProgressOverlay } from "./OcrProgressOverlay";
 import { OcrTextPreview } from "./OcrTextPreview";
 import { usePdfOcrManager } from "./PdfOcrManager";
 import { createPdfLoadSourceFactories } from "./pdfLoadSources";
+import { ReaderFileDownload } from "../sync/ReaderFileDownload";
 // Import PDF.js text layer styles
 import "pdfjs-dist/web/pdf_viewer.css";
 import "./PDFViewer.css";
@@ -266,6 +267,9 @@ if (typeof window !== "undefined") {
 
 interface PDFViewerProps {
   documentId: string;
+  /** Full document, for offering a download when the local file is missing
+   *  (e.g. a synced PDF whose bytes haven't transferred yet). Optional. */
+  doc?: Document;
   fileData?: Uint8Array | null;
   fileUrl?: string | null;
   pageNumber: number;
@@ -346,6 +350,7 @@ const PDF_NAV_STABILITY_DEBUG_KEY = "incrementum.debug.pdfNavigationStability";
 
 export function PDFViewer({
   documentId,
+  doc,
   fileData,
   fileUrl,
   pageNumber,
@@ -3152,6 +3157,7 @@ export function PDFViewer({
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg m-4">
           Failed to load PDF: {error}
+          {doc && <ReaderFileDownload doc={doc} />}
         </div>
       )}
 

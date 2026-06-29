@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type MouseEvent } from "react";
 import type { EpubSelectionContext, SelectionContext } from "../../types/selection";
-import type { DocumentMetadata } from "../../types/document";
+import type { DocumentMetadata, Document } from "../../types/document";
 import ePub from "epubjs";
 import { cn } from "../../utils";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -21,6 +21,7 @@ import { normalizeHighlightColor } from "../../utils/highlightColors";
 import { buildSegmentCfiMap, findActiveSegment, type SyncSegment } from "../../utils/epubSync";
 import { dispatchCommandPaletteOpen, isCommandPaletteOpenShortcut } from "../../utils/commandPaletteShortcut";
 import { getShortcutCombo, eventMatchesCombo } from "../common/KeyboardShortcuts";
+import { ReaderFileDownload } from "../sync/ReaderFileDownload";
 
 // Define outside component to keep a stable reference across renders
 const FONT_FAMILY_MAP: Record<string, string> = {
@@ -136,6 +137,9 @@ interface EPUBViewerProps {
   fileUrl?: string | null;
   fileName: string;
   documentId?: string;
+  /** Full document, for offering a download when the local file is missing
+   *  (e.g. a synced EPUB whose bytes haven't transferred yet). Optional. */
+  doc?: Document;
   onLoad?: (toc: any[]) => void;
   onSelectionChange?: (text: string, context?: SelectionContext | null) => void;
   /** Callback when user right-clicks on selected text */
@@ -176,6 +180,7 @@ export function EPUBViewer({
   fileUrl,
   fileName,
   documentId,
+  doc,
   onLoad,
   onSelectionChange,
   onContextMenu,
@@ -2055,6 +2060,10 @@ export function EPUBViewer({
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg m-4">
           {t("viewer.failedToLoadEpub", { error })}
+          {/* If this is a synced EPUB whose file hasn't transferred yet, offer
+              a download instead of just showing a dead-end error. The doc's
+              fileId links to the file manifest / transfer manager. */}
+          {doc && <ReaderFileDownload doc={doc} />}
         </div>
       )}
 
