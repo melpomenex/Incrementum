@@ -23,7 +23,7 @@ const shortcutCategoryLabels: Record<ShortcutCategory, string> = {
   [ShortcutCategory.Documents]: "settings.shortcutCategory.documents",
   [ShortcutCategory.Flashcards]: "settings.shortcutCategory.flashcards",
   [ShortcutCategory.General]: "settings.shortcutCategory.general",
-  [ShortcutCategory.VimReading]: "Vim Reading",
+  [ShortcutCategory.VimReading]: "settings.shortcutCategory.vimReading",
 };
 
 const shortcutLabels: Record<string, { name: string; description: string }> = {
@@ -377,22 +377,22 @@ export function KeyboardShortcutSettings({ onChange }: { onChange: () => void })
       </SettingsSection>
 
       <SettingsSection
-        title="Vim Reading"
-        description="Defaults for vim-triggered flashcard creation."
+        title={t("settings.vimReading")}
+        description={t("settings.vimReadingDesc")}
       >
         <div className="space-y-1">
           <SettingsRow
-            label="Default card type"
-            description="Card type seeded by the vim F key, :flashcard, and the gf chain action."
+            label={t("settings.defaultVimCardType")}
+            description={t("settings.defaultVimCardTypeDesc")}
           >
             <select
               value={useVimModeStore((s) => s.defaultVimCardType)}
               onChange={(e) => useVimModeStore.getState().setDefaultVimCardType(e.target.value as VimCardType)}
               className="w-40 px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
-              <option value="qa">Q&amp;A</option>
-              <option value="cloze">Cloze</option>
-              <option value="multiple-choice">Multiple choice</option>
+              <option value="qa">{t("settings.vimCardTypeQa")}</option>
+              <option value="cloze">{t("settings.vimCardTypeCloze")}</option>
+              <option value="multiple-choice">{t("settings.vimCardTypeMultipleChoice")}</option>
             </select>
           </SettingsRow>
         </div>

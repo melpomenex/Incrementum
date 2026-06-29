@@ -89,3 +89,9 @@ src-tauri/plugins/*/android/build/
 src-tauri/plugins/*/android/.gradle/
 src-tauri/plugins/*/ios/build/
 
+# Browser extension build artifacts (separate Node project + compiled .xpi).
+# These are not part of the Tauri app and are regenerated from source on demand;
+# tracking them would sweep unrelated files into release commits via `git add -A`.
+*.xpi
+browser_extension/
+

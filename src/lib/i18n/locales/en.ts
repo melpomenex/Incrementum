@@ -3187,6 +3187,7 @@ export const en: Dict = {
   "settings.shortcutCategory.documents": "Documents",
   "settings.shortcutCategory.flashcards": "Flashcards",
   "settings.shortcutCategory.general": "General",
+  "settings.shortcutCategory.vimReading": "Vim Reading",
   "settings.shortcuts.nav.forward.name": "Go Forward",
   "settings.shortcuts.nav.forward.description": "Navigate to next page",
   "settings.shortcuts.nav.back.name": "Go Back",
@@ -3199,6 +3200,8 @@ export const en: Dict = {
   "settings.shortcuts.edit.newDocument.description": "Create a new document",
   "settings.shortcuts.edit.newExtract.name": "New Extract",
   "settings.shortcuts.edit.newExtract.description": "Create a new extract",
+  "settings.shortcuts.edit.extractText.name": "Extract Text",
+  "settings.shortcuts.edit.extractText.description": "Create extract from selected text",
   "settings.shortcuts.edit.newFlashcard.name": "New Flashcard",
   "settings.shortcuts.edit.newFlashcard.description": "Create a new flashcard",
   "settings.shortcuts.edit.save.name": "Save",
@@ -3243,6 +3246,15 @@ export const en: Dict = {
   "settings.shortcuts.general.help.description": "Show keyboard shortcuts",
   "settings.shortcuts.general.quit.name": "Quit",
   "settings.shortcuts.general.quit.description": "Quit application",
+
+  "settings.vimReading": "Vim Reading",
+  "settings.vimReadingDesc": "Defaults for vim-triggered flashcard creation.",
+  "settings.defaultVimCardType": "Default card type",
+  "settings.defaultVimCardTypeDesc":
+    "Card type seeded by the vim F key, :flashcard, and the gf chain action.",
+  "settings.vimCardTypeQa": "Q&A",
+  "settings.vimCardTypeCloze": "Cloze",
+  "settings.vimCardTypeMultipleChoice": "Multiple choice",
 
   "settings.mcpConfiguredServers": "Configured Servers",
   "settings.mcpServersCount": "{count} / {max} servers configured",
