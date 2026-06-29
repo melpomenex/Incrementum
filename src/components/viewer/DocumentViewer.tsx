@@ -2962,27 +2962,43 @@ export function DocumentViewer({
     };
   }, [docType, isMobileTouch, setSelectedText]);
 
-  // Clear text selection when clicking outside the document content
+  // Dismiss the floating extract button when clicking away or pressing Escape.
+  //
+  // Previously this only cleared the selection when clicking "empty areas"
+  // outside the document content AND only when the browser had no live
+  // selection — so clicking anywhere inside the reader body (the most natural
+  // "I'm done, go away" gesture) left the button stuck open, and there was no
+  // Escape handler at all. Now: any click that isn't on the button itself, a
+  // dialog, or a context menu dismisses the selection; Escape dismisses it too.
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't clear if clicking on the floating button, dialog, context menus, or within the document content
+      // Don't dismiss when interacting with the floating button, dialogs, or
+      // context menus — those own their own dismissal and shouldn't fight this.
       if (
         target.closest('[data-extract-button="true"]') ||
         target.closest('[role="dialog"]') ||
-        target.closest('[data-document-content="true"]') ||
         target.closest('.context-menu')
       ) {
         return;
       }
-      // Clear selection when clicking on empty areas
-      if (activeExtractSelection && !window.getSelection()?.toString()) {
+      if (activeExtractSelection) {
+        clearTextSelection();
+      }
+    };
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeExtractSelection) {
         clearTextSelection();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [activeExtractSelection, clearTextSelection]);
 
   useEffect(() => {
