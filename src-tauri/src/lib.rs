@@ -857,6 +857,7 @@ pub fn run() {
             commands::resolve_document_cover,
             commands::create_document,
             commands::update_document,
+            commands::upsert_synced_document,
             commands::update_document_content,
             commands::update_document_priority,
             commands::update_document_progress,

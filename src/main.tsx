@@ -254,7 +254,13 @@ if (isTauri()) {
         .then(({ ensureFileSyncReady }) => ensureFileSyncReady())
         // Start the auto-download watcher (honors sync.autoDownloadMode).
         .then(() => import("./lib/autoFileSyncDownload"))
-        .then(({ startAutoFileSyncDownload }) => startAutoFileSyncDownload()),
+        .then(({ startAutoFileSyncDownload }) => startAutoFileSyncDownload())
+        // Initialize document-row replication: subscribes to the shared yjs
+        // 'documents' map and upserts remote rows into local SQLite so the
+        // library mirrors across devices (SQLite is per-device; without this,
+        // imported docs never appear on other devices even with file sync).
+        .then(() => import("./lib/documentReplication"))
+        .then(({ ensureDocumentReplicationReady }) => ensureDocumentReplicationReady()),
     )
     .catch((error) => {
       console.error("[main.tsx] Failed to initialize Yjs sync on Tauri:", error);

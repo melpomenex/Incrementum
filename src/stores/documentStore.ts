@@ -10,6 +10,7 @@ import { listen, isTauri, isNativeMobile } from "../lib/tauri";
 import { useToastStore, ToastType } from "../components/common/Toast";
 import { enrichAudiobookDocument, isAudiobookFile } from "../api/audiobooks";
 import { registerImportedFileSync } from "../lib/fileSyncRegistration";
+import { publishDocument } from "../lib/documentReplication";
 
 /**
  * Mobile file picker: uses the WebView's <input type=file>, which Android/iOS
@@ -364,6 +365,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         doc.fileId = fileId;
       }
 
+      // Publish the doc row to the sync room (see importFromFiles).
+      await publishDocument(doc).catch((e) => {
+        console.warn("[documentStore] document publish failed", e);
+      });
+
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
@@ -417,6 +423,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
           if (fileId) {
             doc.fileId = fileId;
           }
+
+          // Publish the document row to the sync room so other devices' libraries
+          // receive it (their SQLite is separate from ours). Best-effort.
+          await publishDocument(doc).catch((e) => {
+            console.warn("[documentStore] document publish failed", e);
+          });
 
           imported.push(doc);
 

@@ -581,6 +581,20 @@ pub async fn create_document(
     Ok(created)
 }
 
+/// Insert or replace a document received from another device via sync. The TS
+/// replication layer calls this for remote rows newer than the local copy (by
+/// date_modified). Trusts the incoming id so identity is shared across devices.
+/// This is what makes a synced document appear in the receiving device's
+/// library — `get_documents` reads the same table.
+#[tauri::command]
+pub async fn upsert_synced_document(
+    document: Document,
+    repo: State<'_, Repository>,
+) -> Result<Document> {
+    let upserted = repo.upsert_synced_document(&document).await?;
+    Ok(upserted)
+}
+
 #[tauri::command]
 pub async fn update_document(
     id: String,

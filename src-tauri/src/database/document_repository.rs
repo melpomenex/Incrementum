@@ -101,6 +101,70 @@ impl DocumentRepository {
         Ok(document.clone())
     }
 
+    /// Insert a document received from another device via sync, or replace the
+    /// existing row if one with the same id is present (conflict resolution by
+    /// `date_modified` happens on the caller side — the TS replication layer
+    /// only calls this for rows newer than what's local). This is the write
+    /// path that makes a synced document row appear in the receiving device's
+    /// library (queried via `get_documents`), closing the loop between the yjs
+    /// 'documents' map and per-device SQLite.
+    ///
+    /// Unlike `create_document`, this never generates a new id — it trusts the
+    /// incoming id (documents share identity across devices so the file manifest
+    /// `fileId` linkage and reading positions line up).
+    pub async fn upsert_synced_document(&self, document: &Document) -> Result<Document> {
+        let file_type_str = format!("{:?}", document.file_type).to_lowercase();
+        let tags_json = serde_json::to_string(&document.tags)?;
+        let metadata_json = document
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+
+        sqlx::query(
+            r#"
+            INSERT OR REPLACE INTO documents (
+                id, title, file_path, file_type, content, content_hash,
+                total_pages, current_page, current_scroll_percent, current_cfi, current_view_state, category, tags,
+                date_added, date_modified, date_last_reviewed,
+                extract_count, learning_item_count, priority_rating, priority_slider, priority_score,
+                is_archived, is_favorite, is_dismissed, metadata, cover_image_url, cover_image_source
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
+            "#,
+        )
+        .bind(&document.id)
+        .bind(&document.title)
+        .bind(&document.file_path)
+        .bind(&file_type_str)
+        .bind(&document.content)
+        .bind(&document.content_hash)
+        .bind(document.total_pages)
+        .bind(document.current_page)
+        .bind(document.current_scroll_percent)
+        .bind(&document.current_cfi)
+        .bind(&document.current_view_state)
+        .bind(&document.category)
+        .bind(tags_json)
+        .bind(document.date_added)
+        .bind(document.date_modified)
+        .bind(document.date_last_reviewed)
+        .bind(document.extract_count)
+        .bind(document.learning_item_count)
+        .bind(document.priority_rating)
+        .bind(document.priority_slider)
+        .bind(document.priority_score)
+        .bind(document.is_archived)
+        .bind(document.is_favorite)
+        .bind(document.is_dismissed)
+        .bind(metadata_json)
+        .bind(&document.cover_image_url)
+        .bind(&document.cover_image_source)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(document.clone())
+    }
+
     /// Get a document by ID
     pub async fn get_document(&self, id: &str) -> Result<Option<Document>> {
         let row = sqlx::query("SELECT * FROM documents WHERE id = ?")
