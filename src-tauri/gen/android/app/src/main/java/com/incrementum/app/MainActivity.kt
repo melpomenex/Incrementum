@@ -1,5 +1,6 @@
 package com.incrementum.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import app.tauri.plugin.PluginManager
@@ -24,5 +25,28 @@ class MainActivity : TauriActivity() {
         PluginManager.onActivityCreate(this)
 
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent != null && intent.action == Intent.ACTION_SEND) {
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (text != null) {
+                val url = extractUrl(text)
+                if (url != null) {
+                    com.incrementum.folderimport.FolderImportPlugin.handleSharedUrl(url)
+                }
+            }
+        }
+    }
+
+    private fun extractUrl(text: String): String? {
+        val urlRegex = Regex("""https?://[^\s]+""")
+        return urlRegex.find(text)?.value
     }
 }

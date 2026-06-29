@@ -1855,6 +1855,27 @@ export function EPUBViewer({
       return;
     }
 
+    // Volume rocker scrolling/paging
+    if (e.key === "VolumeUp" || e.key === "VolumeDown") {
+      const mode = settings.interface.volumeRockerScroll || "none";
+      if (mode !== "none") {
+        e.preventDefault();
+        e.stopPropagation();
+        const direction = e.key === "VolumeUp" ? "up" : "down";
+        if (mode === "page") {
+          if (e.repeat) return;
+          if (direction === "up") {
+            handlePrevPage();
+          } else {
+            handleNextPage();
+          }
+        } else if (mode === "scroll") {
+          scrollEpub(direction);
+        }
+        return;
+      }
+    }
+
     const lowerKey = e.key.toLowerCase();
 
     // Ctrl/Cmd + Plus to increase font size
@@ -1913,7 +1934,7 @@ export function EPUBViewer({
         void handleTocClick(flat[flat.length - 1].href);
       }
     }
-  }, [decreaseFontSize, increaseFontSize, resetFontSize, scrollEpub, handlePrevToc, handleNextToc, getFlatToc, handleTocClick]);
+  }, [decreaseFontSize, increaseFontSize, resetFontSize, scrollEpub, handlePrevToc, handleNextToc, getFlatToc, handleTocClick, handlePrevPage, handleNextPage, settings.interface.volumeRockerScroll]);
 
   // Keep ref up to date on every render
   useEffect(() => {
@@ -1921,7 +1942,9 @@ export function EPUBViewer({
   }, [handleEPUBKeyDown]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile && (!settings.interface.volumeRockerScroll || settings.interface.volumeRockerScroll === "none")) {
+      return;
+    }
 
     const handleWheel = (e: WheelEvent) => {
       // Ctrl/Cmd + Scroll to change font size
@@ -1947,7 +1970,7 @@ export function EPUBViewer({
         viewerElement.removeEventListener("wheel", handleWheel);
       }
     };
-  }, [handleEPUBKeyDown, decreaseFontSize, increaseFontSize, isMobile]);
+  }, [handleEPUBKeyDown, decreaseFontSize, increaseFontSize, isMobile, settings.interface.volumeRockerScroll]);
 
   const handleReaderTap = (event: MouseEvent<HTMLDivElement>) => {
     if (!isMobile) return;

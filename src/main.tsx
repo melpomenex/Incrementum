@@ -3,6 +3,20 @@ import { installPromiseCompat } from "./utils/promiseCompat";
 import { installUint8ArrayCompat } from "./utils/uint8ArrayCompat";
 
 if (typeof window !== 'undefined') {
+  // Check for PWA Share Target redirect before React starts bootstrapping
+  if (window.location.pathname === '/share-target') {
+    const params = new URLSearchParams(window.location.search);
+    const sharedText = params.get('url') || params.get('text') || params.get('title') || '';
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    const match = sharedText.match(urlRegex);
+    const extractedUrl = match ? match[0] : null;
+    if (extractedUrl) {
+      window.location.replace(`/#/?shared_url=${encodeURIComponent(extractedUrl)}`);
+    } else {
+      window.location.replace('/#/');
+    }
+  }
+
   // PDF.js uses newer Promise helpers that are missing in older WebView2 builds on Windows.
   installPromiseCompat(window);
 

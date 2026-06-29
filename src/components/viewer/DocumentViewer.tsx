@@ -3036,6 +3036,31 @@ export function DocumentViewer({
         (e.target instanceof Node && containerRef.current?.contains(e.target));
       if (!isFocusedInViewer) return;
 
+      // Volume rocker scrolling/paging
+      if (e.key === "VolumeUp" || e.key === "VolumeDown") {
+        const mode = settings.interface.volumeRockerScroll || "none";
+        if (mode !== "none") {
+          e.preventDefault();
+          e.stopPropagation();
+          const direction = e.key === "VolumeUp" ? "up" : "down";
+          if (mode === "page") {
+            if (e.repeat) return;
+            if (direction === "up") {
+              handlePrevPage();
+            } else {
+              handleNextPage();
+            }
+          } else if (mode === "scroll") {
+            if (docType === "html") {
+              scrollHtmlIframe(direction);
+            } else {
+              scrollDocumentContainer(direction);
+            }
+          }
+          return;
+        }
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       const lowerKey = e.key.toLowerCase();
 
@@ -3156,7 +3181,7 @@ export function DocumentViewer({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyboard handler captures many stable callbacks; exhaustive deps would cause excessive re-registration
-  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode, docType, hasDocumentHistory, queueNav.totalDocuments, scrollHtmlIframe, scrollDocumentContainer]);
+  }, [activeExtractSelection, closeViewerSearch, isExtractDialogOpen, isFullscreen, showSearch, viewerSearchSupported, viewMode, docType, hasDocumentHistory, queueNav.totalDocuments, scrollHtmlIframe, scrollDocumentContainer, settings.interface.volumeRockerScroll]);
 
   const handlePrevPage = () => {
     if (currentDocument && currentDocument.totalPages) {

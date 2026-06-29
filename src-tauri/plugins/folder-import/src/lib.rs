@@ -256,6 +256,31 @@ mod commands {
             Err(Error::Message("backup_db_to_downloads is only supported on Android".to_string()))
         }
     }
+
+    #[allow(dead_code)]
+    #[derive(Debug, Deserialize)]
+    struct ShareListenerResponse {
+        url: Option<String>,
+    }
+
+    #[tauri::command]
+    pub async fn register_share_listener(
+        state: State<'_, FolderImport>,
+    ) -> Result<Option<String>, Error> {
+        #[cfg(target_os = "android")]
+        {
+            let res: ShareListenerResponse = state
+                .handle
+                .run_mobile_plugin("registerShareListener", serde_json::json!({}))
+                .map_err(|e| Error::Message(e.to_string()))?;
+            Ok(res.url)
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let _ = state;
+            Ok(None)
+        }
+    }
 }
 
 
@@ -431,6 +456,7 @@ pub use commands::pick_folder_documents;
 pub use commands::pick_files;
 pub use commands::install_apk;
 pub use commands::backup_db_to_downloads;
+pub use commands::register_share_listener;
 
 /// Initializes the plugin.
 pub fn init() -> TauriPlugin<Wry> {
@@ -444,7 +470,8 @@ pub fn init() -> TauriPlugin<Wry> {
             commands::pick_folder_documents,
             commands::pick_files,
             commands::install_apk,
-            commands::backup_db_to_downloads
+            commands::backup_db_to_downloads,
+            commands::register_share_listener
         ])
         .setup(|app, api| {
             let folder_import = init_mobile(app.app_handle(), api)?;

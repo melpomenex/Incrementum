@@ -70,6 +70,43 @@ data class StagedFile(
 @TauriPlugin
 class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
 
+  companion object {
+    private var webView: android.webkit.WebView? = null
+    private var pendingUrl: String? = null
+    private var isFrontendReady: Boolean = false
+
+    fun handleSharedUrl(url: String) {
+      val view = webView
+      if (view != null && isFrontendReady) {
+        view.post {
+          val escapedUrl = url.replace("'", "\\'")
+          view.evaluateJavascript("window.dispatchEvent(new CustomEvent('android-shared-url', { detail: '$escapedUrl' }));", null)
+        }
+      } else {
+        pendingUrl = url
+      }
+    }
+  }
+
+  override fun load(webView: android.webkit.WebView) {
+    super.load(webView)
+    Companion.webView = webView
+  }
+
+  @Command
+  fun registerShareListener(invoke: Invoke) {
+    isFrontendReady = true
+    val response = JSObject()
+    val url = pendingUrl
+    if (url != null) {
+      pendingUrl = null
+      response.put("url", url)
+    } else {
+      response.put("url", null)
+    }
+    invoke.resolve(response)
+  }
+
   /** Extension allow-list captured while the picker is shown, applied on result. */
   private var pendingExtensions: Set<String> = emptySet()
   /** Whether the current file pick allows multiple selection. */

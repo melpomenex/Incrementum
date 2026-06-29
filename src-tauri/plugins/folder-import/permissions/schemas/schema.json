@@ -343,10 +343,22 @@
           "markdownDescription": "Denies the pick_folder_documents command without any pre-configured scope."
         },
         {
-          "description": "Allows the folder-import plugin's folder + file picker commands to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-pick-files`\n- `allow-install-apk`\n- `allow-backup-db-to-downloads`",
+          "description": "Enables the register_share_listener command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-register-share-listener",
+          "markdownDescription": "Enables the register_share_listener command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the register_share_listener command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-register-share-listener",
+          "markdownDescription": "Denies the register_share_listener command without any pre-configured scope."
+        },
+        {
+          "description": "Allows the folder-import plugin's folder + file picker commands to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-pick-files`\n- `allow-install-apk`\n- `allow-backup-db-to-downloads`\n- `allow-register-share-listener`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Allows the folder-import plugin's folder + file picker commands to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-pick-files`\n- `allow-install-apk`\n- `allow-backup-db-to-downloads`"
+          "markdownDescription": "Allows the folder-import plugin's folder + file picker commands to be invoked\nfrom the frontend.\n\n#### This default permission set includes:\n\n- `allow-pick-folder-documents`\n- `allow-pick-files`\n- `allow-install-apk`\n- `allow-backup-db-to-downloads`\n- `allow-register-share-listener`"
         }
       ]
     }

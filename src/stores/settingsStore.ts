@@ -240,6 +240,7 @@ interface InterfaceSettings {
     button: 0 | 1 | 2;
     modifier: "none" | "ctrl" | "alt" | "shift" | "meta";
   };
+  volumeRockerScroll?: "none" | "page" | "scroll";
 }
 
 /**
@@ -501,6 +502,7 @@ export const defaultSettings: Settings = {
     conversationalReviewEnabled: true,
     toolbarPosition: "left",
     splitViewSpawn: { button: 1, modifier: "none" },
+    volumeRockerScroll: "none",
   },
   learning: {
     algorithm: "fsrs",

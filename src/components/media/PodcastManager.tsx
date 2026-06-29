@@ -72,6 +72,7 @@ import { useI18n } from "../../lib/i18n";
 import { useToast } from "../common/Toast";
 import { useMobileShell } from "../../hooks/useMobileShell";
 import { useLongPress } from "../../hooks/useLongPress";
+import { useSwipeGestures } from "../../hooks/useSwipeGestures";
 import { AudiobookViewer } from "../viewer/AudiobookViewer";
 import { TranscriptSync, type TranscriptSearchState } from "./TranscriptSync";
 import { cn } from "../../utils";
@@ -88,6 +89,22 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
   const { t } = useI18n();
   const isMobile = useMobileShell();
   const toast = useToast();
+
+  const transcriptSwipe = useSwipeGestures(
+    {
+      onSwipeLeft: () => setViewingTranscript(null),
+      onSwipeRight: () => setViewingTranscript(null),
+    },
+    { disabled: !isMobile }
+  );
+
+  const chatSwipe = useSwipeGestures(
+    {
+      onSwipeLeft: () => setChattingTranscript(null),
+      onSwipeRight: () => setChattingTranscript(null),
+    },
+    { disabled: !isMobile }
+  );
   const { tabs, rootPane } = useTabsStore();
   const activeTabId = useMemo(() => {
     const findFirstTabPane = (pane: any): any => {
@@ -2045,9 +2062,30 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             onClick={() => setViewingTranscript(null)}
           />
           {/* Panel */}
-          <div className="relative w-full max-w-[500px] bg-card border-l border-border flex flex-col shadow-lg">
+          <div
+            ref={transcriptSwipe.elementRef as React.RefObject<HTMLDivElement>}
+            className={cn(
+              "relative w-full max-w-[500px] bg-card border-l border-border flex flex-col shadow-lg",
+              isMobile && "safe-top safe-bottom pb-0",
+              isMobile && !transcriptSwipe.state.isDragging && "transition-transform duration-300"
+            )}
+            style={
+              isMobile && transcriptSwipe.state.isDragging && (transcriptSwipe.state.direction === "left" || transcriptSwipe.state.direction === "right")
+                ? { transform: `translateX(${transcriptSwipe.state.offsetX}px)` }
+                : undefined
+            }
+          >
             {/* Header */}
-            <div className="p-4 border-b border-border flex items-start gap-3">
+            <div className="p-4 border-b border-border flex items-center gap-3">
+              {isMobile && (
+                <button
+                  onClick={() => setViewingTranscript(null)}
+                  className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                  aria-label="Back"
+                >
+                  <CaretLeft className="w-6 h-6 text-foreground" />
+                </button>
+              )}
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-foreground truncate">
                   {viewingTranscript.episode.title}
@@ -2056,12 +2094,14 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   Transcript
                 </p>
               </div>
-              <button
-                onClick={() => setViewingTranscript(null)}
-                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+              {!isMobile && (
+                <button
+                  onClick={() => setViewingTranscript(null)}
+                  className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
             </div>
 
             {/* Actions bar */}
@@ -2188,9 +2228,30 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
             className="absolute inset-0 bg-black/30"
             onClick={() => setChattingTranscript(null)}
           />
-          <div className="relative w-full max-w-[500px] bg-card border-l border-border flex flex-col shadow-lg">
+          <div
+            ref={chatSwipe.elementRef as React.RefObject<HTMLDivElement>}
+            className={cn(
+              "relative w-full max-w-[500px] bg-card border-l border-border flex flex-col shadow-lg",
+              isMobile && "safe-top safe-bottom",
+              isMobile && !chatSwipe.state.isDragging && "transition-transform duration-300"
+            )}
+            style={
+              isMobile && chatSwipe.state.isDragging && (chatSwipe.state.direction === "left" || chatSwipe.state.direction === "right")
+                ? { transform: `translateX(${chatSwipe.state.offsetX}px)` }
+                : undefined
+            }
+          >
             {/* Header */}
-            <div className="p-4 border-b border-border flex items-start gap-3">
+            <div className="p-4 border-b border-border flex items-center gap-3">
+              {isMobile && (
+                <button
+                  onClick={() => setChattingTranscript(null)}
+                  className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                  aria-label="Back"
+                >
+                  <CaretLeft className="w-6 h-6 text-foreground" />
+                </button>
+              )}
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-foreground truncate">
                   {chattingTranscript.episode.title}
@@ -2199,12 +2260,14 @@ export function PodcastManager({ onPlayEpisode }: PodcastManagerProps) {
                   Chat with transcript
                 </p>
               </div>
-              <button
-                onClick={() => setChattingTranscript(null)}
-                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+              {!isMobile && (
+                <button
+                  onClick={() => setChattingTranscript(null)}
+                  className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
             </div>
 
             {/* Assistant Panel */}

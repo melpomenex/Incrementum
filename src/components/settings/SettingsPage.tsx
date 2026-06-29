@@ -1142,6 +1142,26 @@ function AppearanceSettings({ onChange }: { onChange: () => void }) {
           </div>
         </SettingsRow>
 
+        <SettingsRow
+          label="Volume Rocker Scroll"
+          description="Use hardware volume buttons to navigate documents on mobile"
+        >
+          <select
+            className="w-full sm:w-auto px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px]"
+            value={settings.interface.volumeRockerScroll || "none"}
+            onChange={(e) => {
+              updateSettingsCategory("interface", {
+                volumeRockerScroll: e.target.value as "none" | "page" | "scroll",
+              });
+              onChange();
+            }}
+          >
+            <option value="none">Disabled (System Default)</option>
+            <option value="page">Page Up / Down (Next/Prev Page)</option>
+            <option value="scroll">Smooth Scroll Up / Down</option>
+          </select>
+        </SettingsRow>
+
         <SettingsRow label="Compact Mode" description="Reduce spacing and padding for more content">
           <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" onChange={onChange} />

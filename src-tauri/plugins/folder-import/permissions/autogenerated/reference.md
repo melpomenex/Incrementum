@@ -9,6 +9,7 @@ from the frontend.
 - `allow-pick-files`
 - `allow-install-apk`
 - `allow-backup-db-to-downloads`
+- `allow-register-share-listener`
 
 ## Permission Table
 
@@ -119,6 +120,32 @@ Enables the pick_folder_documents command without any pre-configured scope.
 <td>
 
 Denies the pick_folder_documents command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`incrementum-folder-import:allow-register-share-listener`
+
+</td>
+<td>
+
+Enables the register_share_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`incrementum-folder-import:deny-register-share-listener`
+
+</td>
+<td>
+
+Denies the register_share_listener command without any pre-configured scope.
 
 </td>
 </tr>

@@ -130,6 +130,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle Web Share Target
+  if (url.pathname === '/share-target') {
+    event.respondWith(caches.match('/index.html').then(response => response || fetch('/index.html')));
+    return;
+  }
+
   // Handle navigation requests (SPA routing)
   if (request.mode === 'navigate') {
     event.respondWith(handleNavigationRequest(request));
