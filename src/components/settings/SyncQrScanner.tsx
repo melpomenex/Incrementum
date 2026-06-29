@@ -3,7 +3,14 @@ import QrScanner from "qr-scanner";
 import { useI18n } from "../../lib/i18n";
 
 type SyncQrScannerProps = {
-  onDetected: (value: string) => void;
+  /**
+   * Called with each decoded value. May be async. Return `true` to accept and
+   * close the scanner; return `false` (or throw) to REJECT and keep scanning —
+   * e.g. when the scanned payload is not a valid sync code, so the user can
+   * re-aim at the right QR without re-opening the camera. Throw an Error to
+   * also surface its `.message` inline as the `error`.
+   */
+  onDetected: (value: string) => boolean | Promise<boolean>;
   onClose: () => void;
 };
 
@@ -11,6 +18,10 @@ export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // useRef rather than state so the QrScanner callback (captured once on mount)
+  // always reads the latest onDetected without re-creating the scanner.
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
 
   useEffect(() => {
     let scanner: QrScanner | null = null;
@@ -23,9 +34,20 @@ export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
       try {
         scanner = new QrScanner(
           videoRef.current,
-          (result) => {
-            onDetected(result.data);
-            onClose();
+          async (result) => {
+            setError(null);
+            try {
+              const accepted = await onDetectedRef.current(result.data);
+              if (accepted) {
+                onClose();
+              }
+              // If not accepted, the scanner keeps running so the user can
+              // re-scan. The caller is responsible for surfacing why (via
+              // throw → we set `error` below, or its own UI).
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : t("settings.syncQrInvalidCode");
+              setError(msg);
+            }
           },
           {
             returnDetailedScanResult: true,
@@ -47,7 +69,7 @@ export function SyncQrScanner({ onDetected, onClose }: SyncQrScannerProps) {
       scanner?.stop();
       scanner?.destroy();
     };
-  }, [onDetected, onClose]);
+  }, [onClose, t]);
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/70 p-4">

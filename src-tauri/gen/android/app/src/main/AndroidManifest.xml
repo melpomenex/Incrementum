@@ -8,6 +8,15 @@
          getUserMedia rejects with NotAllowedError, so the user can never grant mic access. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Camera access for the sync QR-code scanner (qr-scanner uses WebView getUserMedia).
+         Same gating model as RECORD_AUDIO above: the manifest entry alone is necessary but not
+         sufficient — MainActivity.onPermissionRequest must also grant RESOURCE_VIDEO_CAPTURE for
+         the webview's getUserMedia(video) to resolve instead of rejecting with NotAllowedError.
+         required="false" so the app still installs on camera-less devices; the Scan button
+         degrades gracefully when the camera is unavailable. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />

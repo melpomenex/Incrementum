@@ -162,7 +162,16 @@ export async function getYjsSync(): Promise<YjsSyncState> {
     try {
       doc = new Y.Doc();
 
+      // y-indexeddb relies on the browser IndexedDB API, which may be absent
+      // in some mobile WebView builds. Skip persistence there (in-memory only)
+      // rather than throwing — the corruption helpers below already use this
+      // same `typeof indexedDB` guard. Without it, getYjsSync() rejects and the
+      // whole sync stack fails to start on such a WebView.
       try {
+        if (typeof indexedDB === "undefined") {
+          console.warn("[YjsSync] IndexedDB unavailable; running without persistence");
+          throw new Error("IndexedDB unavailable");
+        }
         persistence = new IndexeddbPersistence(DB_NAME, doc);
 
         persistence.on("sync", (isSynced: boolean) => {
@@ -362,6 +371,45 @@ export async function resetYjsSync(): Promise<void> {
     instance = null;
   }
   await clearYjsIndexedDB();
+}
+
+/**
+ * Switch the running sync to a different room WITHOUT a full page reload.
+ *
+ * getYjsSync() is a module singleton that captures the room ID at first
+ * construction, so a bare setSyncRoomId() has no effect on the live provider
+ * (this is why the old join flow told the user to reload). This tears down the
+ * current instance, writes the new room ID, and rebuilds the provider against
+ * the new room in-process — the UX the scan-to-join flow needs.
+ *
+ * y-indexeddb uses ONE database (DB_NAME) shared across rooms, so switching
+ * rooms must clear it first or the new room's doc would be seeded with the old
+ * room's CRDT state. A no-op is returned early when rejoining the same room to
+ * avoid that wipe.
+ *
+ * Returns the new YjsSyncState. On any failure, the instance is left in the
+ * best available state and an error is thrown so the caller can fall back to a
+ * reload.
+ */
+export async function rejoinRoom(roomId: string): Promise<YjsSyncState> {
+  if (!roomId) throw new Error("rejoinRoom: roomId is required");
+
+  const currentRoom = instance?.room;
+  if (currentRoom === roomId) {
+    // Already on the requested room. Avoid the IndexedDB wipe below.
+    return instance ?? (await getYjsSync());
+  }
+
+  // Write the new room ID FIRST so getYjsSync() (called via resetYjsSync's
+  // clear + the fresh build below) reads it back.
+  setSyncRoomId(roomId);
+
+  // resetYjsSync() disconnects, destroys the doc, nulls the singleton, and
+  // clears the shared IndexedDB so the new room starts clean.
+  await resetYjsSync();
+
+  // Rebuild against the new room. getYjsSync() reads the room ID we just wrote.
+  return getYjsSync();
 }
 
 // Export synchronous version for backward compatibility

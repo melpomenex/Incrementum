@@ -929,23 +929,53 @@ Incrementum unterstützt vier Planungsalgorithmen. Wählen Sie diejenige, die am
 
 ### Synchronisierungseinstellungen
 
-#### Browser-Synchronisierung
-- Aktivieren/deaktivieren Sie die Synchronisierung der Browsererweiterung
-- Synchronisierungsintervall (Minuten)
-- Konfliktlösung (Local Wins / Remote Wins / Ask)
+Incrementum synchronisiert Ihre Lesedaten über einen **gemeinsamen Sync-Raum** (Sync Room) zwischen Ihren Geräten. Es gibt kein Konto, keine Server-Anmeldung und keinen API-Schlüssel — jedes Gerät, das denselben Sync-Code kennt, tritt demselben Raum bei und teilt dieselben Daten. Dies ist das einzige Synchronisierungssystem in der App.
 
-#### Cloud-Synchronisierung
+#### So funktioniert es
 
-**Unterstützte Anbieter:**
-- Dropbox
-- Google Drive
-- OneDrive
+- Jedes Gerät erzeugt beim ersten Öffnen der Sync-Einstellungen einen **Sync-Code** (eine zufällige Zeichenfolge).
+- Teilen Sie diesen Code mit Ihren anderen Geräten — kopieren Sie ihn oder scannen Sie den in den Sync-Einstellungen angezeigten QR-Code.
+- Wenn zwei Geräte denselben Code teilen, synchronisieren sich ihre Lesedaten (Dokumente, Exzerpte, Lernelemente, Wiederholungsverlauf, Einstellungen) automatisch, sobald sie gleichzeitig online sind. Dateien, die Ihren Dokumenten zugeordnet sind, werden über denselben Raum synchronisiert.
+- Der Sync-Code ist das Einzige, das den Zugang zu einem Raum gewährt. Halten Sie ihn privat — jeder, der ihn hat, kann Ihre synchronisierten Daten lesen.
 
-**Synchronisierungsoptionen:**
-- Automatische Synchronisierung bei Änderungen
-- Synchronisierungsintervall (manuell, 15 Min., 30 Min., 1 Std.)
-- Synchronisierung beim Starten/Schließen der App
-- Konfliktbearbeitung
+#### Ihre Geräte verbinden
+
+1. Öffnen Sie **Einstellungen → Sync** auf Ihrem ersten Gerät (z. B. Desktop). Notieren Sie den dort angezeigten Sync-Code oder zeigen Sie dessen QR-Code an.
+2. Öffnen Sie **Einstellungen → Sync** auf Ihrem zweiten Gerät (z. B. Ihrem Telefon).
+3. Entweder:
+   - Tippen Sie auf **Scan** und richten Sie die Kamera auf den QR-Code des ersten Geräts, oder
+   - Fügen Sie den Sync-Code in das Feld „Anderem Code beitreten" ein und tippen Sie auf „Beitreten".
+4. Das zweite Gerät tritt dem Raum bei und beginnt sofort zu synchronisieren — kein Neuladen oder Neustart nötig.
+5. Wiederholen Sie dies für jedes Gerät, das Sie synchron halten möchten.
+
+> **Tipp:** Die Schaltfläche „Neu" erzeugt einen neuen Sync-Code. Verwenden Sie sie nur, wenn Sie von vorne beginnen möchten — Geräte mit dem alten Code synchronisieren sich dann nicht mehr mit Geräten mit dem neuen Code.
+
+#### Was synchronisiert wird
+
+- Dokumente und deren Metadaten
+- Exzerpte (Hervorhebungen und Notizen)
+- Lernelemente (Karteikarten, Lückentexte, Q&A)
+- Wiederholungsverlauf und Scheduling-Zustand
+- App-Einstellungen
+- Dokumenten zugeordnete Dateien (PDFs, EPUBs usw.)
+
+#### Automatischer Datei-Download
+
+Wählen Sie unter **Datei-Sync**, wie aggressiv neue Dateien auf jedes Gerät geladen werden:
+
+- **Immer** — jede Datei automatisch herunterladen, sobald sie im Raum erscheint.
+- **Nur WLAN** — automatischer Download nur im WLAN (nützlich bei mobilen Datenverbindungen).
+- **Manuell** — niemals automatisch herunterladen; jede Datei zeigt eine Download-Schaltfläche, die Sie antippen, wenn Sie sie möchten.
+
+#### Ende-zu-Ende-Verschlüsselung (optional)
+
+Die Synchronisierung läuft standardmäßig im Modus „Nur TLS": Ihre Daten reisen verschlüsselt über das Netzwerk, und der Sync-Code fungiert als gemeinsames Geheimnis. Wenn Sie stärkeren Schutz wünschen, können Sie die **Ende-zu-Ende-Verschlüsselung** aktivieren, die Ihre Daten auf Ihrem Gerät verschlüsselt, bevor sie dieses verlassen, sodass der Sync-Server nur Chiffretext sieht.
+
+Wenn die Verschlüsselung aktiv ist, bettet der QR-Code Ihr Raum-Geheimnis ein — teilen Sie es nur mit Geräten, denen Sie vertrauen.
+
+#### Datenschutz
+
+Alle Ihre Lesedaten werden zuerst lokal auf Ihren Geräten gespeichert. Die Synchronisierung ist eine optionale Erleichterung, die diese Daten über Ihren gemeinsamen Raum auf Ihre Geräte spiegelt. Es wird nichts an einen Server gesendet, außer an die KI-Anbieter, die Sie persönlich konfiguriert haben.
 
 #### Sichern und Wiederherstellen
 

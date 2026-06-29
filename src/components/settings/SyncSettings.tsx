@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowsClockwise,
-  Check,
-  Clock,
-  ClockCounterClockwise,
   Cloud,
   CloudSlash,
   Copy,
@@ -12,28 +9,9 @@ import {
   Key,
   Lock,
   LockOpen,
-  Shield,
-  ShieldWarning,
-  TextT,
   WifiHigh,
 } from "@phosphor-icons/react";
-import {
-  syncNow,
-  getSyncLog,
-  getSyncConfig,
-  saveSyncConfig,
-  enableSync,
-  disableSync,
-  formatSyncStatus,
-  getSyncStatusColor,
-  formatLastSync,
-  getNextSyncTime,
-  SyncStatus,
-  SyncConfig,
-  SyncResult,
-  SyncLogEntry,
-} from "../../api/sync";
-import { createNewSyncRoomId, getSyncRoomId, setSyncRoomId } from "../../lib/yjsSync";
+import { createNewSyncRoomId, getSyncRoomId, setSyncRoomId, rejoinRoom } from "../../lib/yjsSync";
 import { useI18n } from "../../lib/i18n";
 import { QRCodeCanvas } from "qrcode.react";
 import { SyncQrScanner } from "./SyncQrScanner";
@@ -52,8 +30,6 @@ import {
   InvalidQrPayloadError,
 } from "../../lib/sync/qrFormat";
 
-type ViewMode = "status" | "config" | "conflicts" | "log";
-
 // Feature flag for the device-sync end-to-end encryption UI (Phase 1 of the
 // overhaul-cross-device-sync change). The crypto core, secure storage,
 // encrypted provider wrapper, and yjsSync wiring all stay loaded — this only
@@ -63,12 +39,6 @@ const SYNC_ENCRYPTION_UI_ENABLED = false;
 
 export function SyncSettings() {
   const { t } = useI18n();
-  const [config, setConfig] = useState<SyncConfig | null>(null);
-  const [status, setStatus] = useState<SyncStatus>(SyncStatus.Idle);
-  const [lastResult, setLastResult] = useState<SyncResult | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("status");
-  const [syncLog, setSyncLog] = useState<SyncLogEntry[]>([]);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [joinRoomId, setJoinRoomId] = useState("");
   const [roomMessage, setRoomMessage] = useState<string | null>(null);
@@ -88,20 +58,11 @@ export function SyncSettings() {
   const syncSettings = settings.sync;
   const autoDownloadMode = syncSettings?.autoDownloadMode ?? "wifi-only";
 
-  const [endpoint, setEndpoint] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [autoSync, setAutoSync] = useState(false);
-  const [syncInterval, setSyncInterval] = useState(30);
-
   useEffect(() => {
-    loadConfig();
-    loadSyncLog();
     setRoomId(getSyncRoomId());
     if (SYNC_ENCRYPTION_UI_ENABLED) {
       void loadEncryptionState();
     }
-    const interval = setInterval(loadSyncLog, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   async function loadEncryptionState() {
@@ -140,70 +101,6 @@ export function SyncSettings() {
     };
   }, [showScanner]);
 
-  const loadConfig = () => {
-    setConfig(getSyncConfig());
-    const loaded = getSyncConfig();
-    if (loaded) {
-      setEndpoint(loaded.endpoint);
-      setApiKey(loaded.api_key || "");
-      setAutoSync(loaded.auto_sync);
-      setSyncInterval(loaded.sync_interval_minutes);
-    }
-  };
-
-  const loadSyncLog = async () => {
-    try {
-      const log = await getSyncLog();
-      setSyncLog(log);
-    } catch {
-      // Ignore errors
-    }
-  };
-
-  const handleEnableSync = () => {
-    if (!endpoint || !apiKey) {
-      alert("Please enter both endpoint URL and API key");
-      return;
-    }
-
-    enableSync(endpoint, apiKey, autoSync);
-    loadConfig();
-    setViewMode("status");
-  };
-
-  const handleDisableSync = () => {
-    if (confirm("Are you sure you want to disable sync?")) {
-      disableSync();
-      loadConfig();
-    }
-  };
-
-  const handleSyncNow = async () => {
-    if (!config?.api_key || !config?.endpoint) {
-      alert("Sync is not configured properly");
-      return;
-    }
-
-    setIsSyncing(true);
-    setStatus(SyncStatus.Syncing);
-
-    try {
-      const result = await syncNow(config.api_key, config.endpoint);
-      setLastResult(result);
-      setStatus(result.status);
-
-      if (result.status === SyncStatus.Conflict) {
-        setViewMode("conflicts");
-      }
-    } catch {
-      setStatus(SyncStatus.Failed);
-    } finally {
-      setIsSyncing(false);
-      loadConfig();
-      loadSyncLog();
-    }
-  };
-
   const handleCopyRoom = async () => {
     try {
       await navigator.clipboard.writeText(roomId);
@@ -213,39 +110,65 @@ export function SyncSettings() {
     }
   };
 
-  const handleJoinRoom = async () => {
-    if (!joinRoomId.trim()) {
+  /**
+   * Join a sync room from a code (typed or scanned).
+   *
+   * `valueOverride` lets the QR scanner pass the scanned string directly
+   * instead of round-tripping through the input field. Returns a result so the
+   * scanner can decide whether to close (accepted) or keep scanning (rejected —
+   * e.g. a malformed or non-sync payload). For the typed-input path the return
+   * value is ignored.
+   *
+   * Joining switches the running sync to the new room in-process via
+   * rejoinRoom() (tears down the old provider, writes the room ID, rebuilds),
+   * so there is no longer a "reload to connect" step.
+   */
+  const handleJoinRoom = async (
+    valueOverride?: string,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const raw = (valueOverride ?? joinRoomId).trim();
+    if (!raw) {
       setRoomMessage("Enter a sync code to join.");
-      return;
+      return { ok: false, error: "Enter a sync code to join." };
     }
-    const trimmed = joinRoomId.trim();
 
     // New-format payloads (`incrementum-sync:v1:<roomId>:<secret>`) carry
     // both the room ID and the encryption secret. Legacy plain room IDs are
     // accepted as-is — sync runs in "TLS only" mode for them.
-    if (SYNC_ENCRYPTION_UI_ENABLED && isSyncQrPayload(trimmed)) {
+    if (SYNC_ENCRYPTION_UI_ENABLED && isSyncQrPayload(raw)) {
       try {
-        const parsed = parseSyncQrPayload(trimmed);
+        const parsed = parseSyncQrPayload(raw);
         await enableEncryptionWithSecret(parsed.roomId, parsed.roomSecret);
         setSyncRoomId(parsed.roomId);
         setRoomId(parsed.roomId);
         setEncryptionEnabled(true);
         setRoomSecret(parsed.roomSecret);
         setJoinRoomId("");
-        setRoomMessage("Joined encrypted room. Reload to connect.");
+        await rejoinRoom(parsed.roomId);
+        setRoomMessage("Joined encrypted room and connected.");
+        return { ok: true };
       } catch (err) {
-        if (err instanceof InvalidQrPayloadError) {
-          setRoomMessage(`Invalid sync code: ${err.message}`);
-        } else {
-          setRoomMessage(`Failed to join: ${(err as Error).message}`);
-        }
+        const msg =
+          err instanceof InvalidQrPayloadError
+            ? `Invalid sync code: ${err.message}`
+            : `Failed to join: ${(err as Error).message}`;
+        setRoomMessage(msg);
+        return { ok: false, error: msg };
       }
-      return;
     }
 
-    setSyncRoomId(trimmed);
-    setRoomId(trimmed);
-    setRoomMessage("Sync code updated. Reload to connect.");
+    try {
+      setSyncRoomId(raw);
+      setRoomId(raw);
+      setJoinRoomId("");
+      await rejoinRoom(raw);
+      setRoomMessage("Sync code applied and connected.");
+      return { ok: true };
+    } catch (err) {
+      const msg = `Failed to join: ${(err as Error).message}`;
+      setRoomMessage(msg);
+      return { ok: false, error: msg };
+    }
   };
 
   const handleRotateRoom = async () => {
@@ -275,8 +198,13 @@ export function SyncSettings() {
       setEncryptionEnabled(true);
       setRoomSecret(secret);
       setRevealSecret(true);
+      // The encryption key is read at provider-construction time, so rebuild
+      // the provider against the same room to pick it up without a reload.
+      await rejoinRoom(roomId).catch((e) =>
+        console.warn("[SyncSettings] rejoin after enabling encryption failed", e),
+      );
       setRoomMessage(
-        "Encryption enabled. Share the secret below (via QR or copy) with your other devices, then reload.",
+        "Encryption enabled and connected. Share the secret below (via QR or copy) with your other devices.",
       );
     } catch (err) {
       setRoomMessage(`Failed to enable encryption: ${(err as Error).message}`);
@@ -292,7 +220,10 @@ export function SyncSettings() {
       setEncryptionEnabled(false);
       setRoomSecret(null);
       setRevealSecret(false);
-      setRoomMessage("Encryption disabled. Reload to apply.");
+      await rejoinRoom(roomId).catch((e) =>
+        console.warn("[SyncSettings] rejoin after disabling encryption failed", e),
+      );
+      setRoomMessage("Encryption disabled and connected.");
     } catch (err) {
       setRoomMessage(`Failed to disable: ${(err as Error).message}`);
     }
@@ -343,601 +274,271 @@ export function SyncSettings() {
       ? "TLS only — room secret"
       : "Not syncing";
 
-  const nextSyncTime = config ? getNextSyncTime(config) : null;
-
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {config?.enabled ? (
-            <Cloud className="w-8 h-8 text-primary" />
-          ) : (
-            <CloudSlash className="w-8 h-8 text-muted-foreground" />
-          )}
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">{t("syncSettings.title")}</h2>
-            <p className="text-sm text-muted-foreground">
-              {config?.enabled ? "Cloud sync enabled" : "Cloud sync disabled"}
-            </p>
-          </div>
-        </div>
-
-        {/* View toggle */}
-        <div className="flex bg-muted rounded-lg p-1">
-          <button
-            onClick={() => setViewMode("status")}
-            className={`px-4 py-2 rounded-md text-sm transition-colors ${
-              viewMode === "status"
-                ? "bg-background text-foreground shadow"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Status
-          </button>
-          <button
-            onClick={() => setViewMode("config")}
-            className={`px-4 py-2 rounded-md text-sm transition-colors ${
-              viewMode === "config"
-                ? "bg-background text-foreground shadow"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Config
-          </button>
-          <button
-            onClick={() => setViewMode("log")}
-            className={`px-4 py-2 rounded-md text-sm transition-colors ${
-              viewMode === "log"
-                ? "bg-background text-foreground shadow"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Log
-          </button>
+      <div className="flex items-center gap-3">
+        <Cloud className="w-8 h-8 text-primary" />
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">{t("syncSettings.title")}</h2>
+          <p className="text-sm text-muted-foreground">
+            Sync your reading data across your devices over a shared sync room.
+          </p>
         </div>
       </div>
 
-      {/* Status View */}
-      {viewMode === "status" && (
-        <div className="space-y-4">
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-2">{t("syncSettings.deviceSync")}</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Use this sync code to connect your own devices. Anyone with the code can sync the
-              same data.
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">{t("syncSettings.yourSyncCode")}</label>
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono"
-                    value={roomId}
-                    readOnly
-                  />
-                  <button
-                    onClick={handleCopyRoom}
-                    className="px-3 py-2 bg-muted text-foreground rounded text-xs"
-                  >
-                    Copy
-                  </button>
-                  <button
-                    onClick={handleRotateRoom}
-                    className="px-3 py-2 bg-destructive text-destructive-foreground rounded text-xs"
-                  >
-                    New
-                  </button>
-                </div>
-              </div>
-              {showQr && (
-                <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/30 p-3">
-                  <QRCodeCanvas value={qrPayload} size={120} />
-                  <div className="text-xs text-muted-foreground">
-                    {SYNC_ENCRYPTION_UI_ENABLED && encryptionEnabled
-                      ? "Scan to join with encryption. The secret is embedded in this code — keep it private."
-                      : "Scan this QR code on your phone to join the same sync room."}
-                  </div>
-                </div>
-              )}
-
-              {/* Encryption management — gated by SYNC_ENCRYPTION_UI_ENABLED.
-                  The supporting modules (encryption, secureStorage,
-                  encryptedProvider, qrFormat, roomCrypto) stay loaded; only
-                  the user-facing controls are hidden. */}
-              {SYNC_ENCRYPTION_UI_ENABLED && (
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      {encryptionEnabled ? (
-                        <Lock className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <LockOpen className="w-4 h-4 text-amber-500" />
-                      )}
-                      <span>End-to-end encryption</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{encryptionStatusLabel}</span>
-                  </div>
-
-                  {encryptionEnabled ? (
-                    <>
-                      {roomSecret && (
-                        <div className="space-y-1">
-                          <label className="block text-xs text-muted-foreground">
-                            Room secret {revealSecret ? "" : "(hidden)"}
-                          </label>
-                          <div className="flex gap-2">
-                            <input
-                              className="flex-1 px-2 py-1 bg-background border border-border rounded text-xs font-mono"
-                              type={revealSecret ? "text" : "password"}
-                              value={roomSecret}
-                              readOnly
-                            />
-                            <button
-                              onClick={() => setRevealSecret((v) => !v)}
-                              className="px-2 py-1 bg-muted text-foreground rounded text-xs"
-                            >
-                              {revealSecret ? "Hide" : "Show"}
-                            </button>
-                            <button
-                              onClick={handleCopySecret}
-                              className="px-2 py-1 bg-muted text-foreground rounded text-xs flex items-center gap-1"
-                            >
-                              <Copy className="w-3 h-3" /> Copy
-                            </button>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Share this secret (or the QR above) with a device you trust. Anyone with it
-                            can read your synced data.
-                          </p>
-                        </div>
-                      )}
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={handleResetEncryption}
-                          className="flex-1 px-2 py-1 bg-muted text-foreground rounded text-xs flex items-center justify-center gap-1"
-                        >
-                          <Key className="w-3 h-3" /> Reset key
-                        </button>
-                        <button
-                          onClick={handleDisableEncryption}
-                          className="flex-1 px-2 py-1 bg-destructive text-destructive-foreground rounded text-xs"
-                        >
-                          Disable
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Without encryption, the relay can read your synced data. The room ID acts as a
-                        shared secret over TLS — adequate for many users, but not bulletproof.
-                      </p>
-                      <button
-                        onClick={handleEnableEncryption}
-                        className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-xs flex items-center justify-center gap-1"
-                      >
-                        <Lock className="w-3 h-3" /> Enable encryption
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">{t("syncSettings.joinCode")}</label>
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono"
-                    value={joinRoomId}
-                    onChange={(e) => setJoinRoomId(e.target.value)}
-                    placeholder="Paste sync code..."
-                  />
-                  <button
-                    onClick={handleJoinRoom}
-                    className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs"
-                  >
-                    Join
-                  </button>
-                  {!showQr && (
-                    <button
-                      onClick={() => setShowScanner(true)}
-                      className="px-3 py-2 bg-muted text-foreground rounded text-xs"
-                    >
-                      Scan
-                    </button>
-                  )}
-                </div>
-              </div>
-              {roomMessage && <div className="text-xs text-muted-foreground">{roomMessage}</div>}
+      {/* Device sync (room-based) */}
+      <div className="bg-card border border-border rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-2">{t("syncSettings.deviceSync")}</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Use this sync code to connect your own devices. Anyone with the code can sync the
+          same data.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">{t("syncSettings.yourSyncCode")}</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono"
+                value={roomId}
+                readOnly
+              />
+              <button
+                onClick={handleCopyRoom}
+                className="px-3 py-2 bg-muted text-foreground rounded text-xs"
+              >
+                Copy
+              </button>
+              <button
+                onClick={handleRotateRoom}
+                className="px-3 py-2 bg-destructive text-destructive-foreground rounded text-xs"
+              >
+                New
+              </button>
+            </div>
+          </div>
+          {showQr && (
+            <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/30 p-3">
+              <QRCodeCanvas value={qrPayload} size={120} />
               <div className="text-xs text-muted-foreground">
-                After joining a code, reload the app on this device.
+                {SYNC_ENCRYPTION_UI_ENABLED && encryptionEnabled
+                  ? "Scan to join with encryption. The secret is embedded in this code — keep it private."
+                  : "Scan this QR code on your phone to join the same sync room."}
               </div>
             </div>
-          </div>
-
-          {showScanner && (
-            <SyncQrScanner
-              onDetected={(value) => {
-                setJoinRoomId(value);
-                setRoomMessage("Sync code scanned. Tap Join to connect.");
-              }}
-              onClose={() => setShowScanner(false)}
-            />
           )}
 
-          {/* Sync status card */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.syncStatus")}</h3>
-              {config?.enabled && (
-                <div className={`flex items-center gap-2 ${getSyncStatusColor(status)}`}>
-                  {status === SyncStatus.Syncing && (
-                    <ArrowsClockwise className="w-4 h-4 animate-spin" />
-                  )}
-                  <span className="text-sm font-medium">{formatSyncStatus(status)}</span>
-                </div>
-              )}
-            </div>
-
-            {config?.enabled ? (
-              <div className="space-y-4">
-                {/* Last sync info */}
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-muted-foreground">{t("syncSettings.lastSync")}</span>
-                  <span className="text-foreground">{formatLastSync(config)}</span>
-                </div>
-
-                {autoSync && nextSyncTime && (
-                  <div className="flex items-center gap-4 text-sm">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{t("syncSettings.nextSync")}</span>
-                    <span className="text-foreground">{nextSyncTime.toLocaleString()}</span>
-                  </div>
-                )}
-
-                {/* Device ID */}
-                <div className="flex items-center gap-4 text-sm">
-                  <Shield className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{t("syncSettings.deviceId")}</span>
-                  <span className="text-foreground font-mono text-xs">{config.device_id}</span>
-                </div>
-
-                {/* Encryption status */}
-                <div className="flex items-center gap-4 text-sm">
-                  {SYNC_ENCRYPTION_UI_ENABLED && encryptionEnabled ? (
+          {/* Encryption management — gated by SYNC_ENCRYPTION_UI_ENABLED.
+              The supporting modules (encryption, secureStorage,
+              encryptedProvider, qrFormat, roomCrypto) stay loaded; only
+              the user-facing controls are hidden. */}
+          {SYNC_ENCRYPTION_UI_ENABLED && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  {encryptionEnabled ? (
                     <Lock className="w-4 h-4 text-green-500" />
                   ) : (
-                    <Lock className="w-4 h-4 text-green-500" />
+                    <LockOpen className="w-4 h-4 text-amber-500" />
                   )}
-                  <span className="text-muted-foreground">{t("syncSettings.encryption")}</span>
-                  <span className="text-foreground">
-                    {SYNC_ENCRYPTION_UI_ENABLED
-                      ? encryptionStatusLabel
-                      : config.encryption_enabled
-                        ? "End-to-end enabled"
-                        : "Disabled"}
-                  </span>
+                  <span>End-to-end encryption</span>
                 </div>
+                <span className="text-xs text-muted-foreground">{encryptionStatusLabel}</span>
+              </div>
 
-                {/* Sync button */}
-                <div className="pt-4 border-t border-border">
-                  <button
-                    onClick={handleSyncNow}
-                    disabled={isSyncing}
-                    className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isSyncing ? (
-                      <>
-                        <ArrowsClockwise className="w-4 h-4 animate-spin" />
-                        Syncing...
-                      </>
-                    ) : (
-                      <>
-                        <ArrowsClockwise className="w-4 h-4" />
-                        Sync Now
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Last result */}
-                {lastResult && (
-                  <div className="p-4 bg-muted/30 rounded-lg">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <div className="text-2xl font-bold text-foreground">{lastResult.uploaded}</div>
-                        <div className="text-xs text-muted-foreground">{t("syncSettings.uploaded")}</div>
+              {encryptionEnabled ? (
+                <>
+                  {roomSecret && (
+                    <div className="space-y-1">
+                      <label className="block text-xs text-muted-foreground">
+                        Room secret {revealSecret ? "" : "(hidden)"}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          className="flex-1 px-2 py-1 bg-background border border-border rounded text-xs font-mono"
+                          type={revealSecret ? "text" : "password"}
+                          value={roomSecret}
+                          readOnly
+                        />
+                        <button
+                          onClick={() => setRevealSecret((v) => !v)}
+                          className="px-2 py-1 bg-muted text-foreground rounded text-xs"
+                        >
+                          {revealSecret ? "Hide" : "Show"}
+                        </button>
+                        <button
+                          onClick={handleCopySecret}
+                          className="px-2 py-1 bg-muted text-foreground rounded text-xs flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" /> Copy
+                        </button>
                       </div>
-                      <div>
-                        <div className="text-2xl font-bold text-foreground">{lastResult.downloaded}</div>
-                        <div className="text-xs text-muted-foreground">{t("syncSettings.downloaded")}</div>
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-foreground">{lastResult.conflicts}</div>
-                        <div className="text-xs text-muted-foreground">{t("syncSettings.conflicts")}</div>
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Share this secret (or the QR above) with a device you trust. Anyone with it
+                        can read your synced data.
+                      </p>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <CloudSlash className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                <p className="text-muted-foreground mb-4">{t("syncSettings.cloudSyncDisabled")}</p>
-                <button
-                  onClick={() => setViewMode("config")}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
-                >
-                  Enable Sync
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Quick settings */}
-          {config?.enabled && (
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">{t("syncSettings.quickSettings")}</h3>
-              <div className="space-y-3">
-                <label className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-medium text-foreground">{t("syncSettings.autoSync")}</span>
-                    <p className="text-xs text-muted-foreground">{t("syncSettings.autoSyncDesc")}</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoSync}
-                    onChange={(e) => {
-                      setAutoSync(e.target.checked);
-                      if (config) {
-                        config.auto_sync = e.target.checked;
-                        saveSyncConfig(config);
-                      }
-                    }}
-                    className="rounded"
-                  />
-                </label>
-
-                {autoSync && (
-                  <div className="flex items-center gap-4">
-                    <label className="text-sm text-muted-foreground">{t("syncSettings.syncInterval")}</label>
-                    <select
-                      value={syncInterval}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setSyncInterval(val);
-                        if (config) {
-                          config.sync_interval_minutes = val;
-                          saveSyncConfig(config);
-                        }
-                      }}
-                      className="px-3 py-1 bg-background border border-border rounded text-sm"
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleResetEncryption}
+                      className="flex-1 px-2 py-1 bg-muted text-foreground rounded text-xs flex items-center justify-center gap-1"
                     >
-                      <option value={15}>15 minutes</option>
-                      <option value={30}>30 minutes</option>
-                      <option value={60}>1 hour</option>
-                      <option value={120}>2 hours</option>
-                      <option value={360}>6 hours</option>
-                    </select>
+                      <Key className="w-3 h-3" /> Reset key
+                    </button>
+                    <button
+                      onClick={handleDisableEncryption}
+                      className="flex-1 px-2 py-1 bg-destructive text-destructive-foreground rounded text-xs"
+                    >
+                      Disable
+                    </button>
                   </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <button
-                  onClick={handleDisableSync}
-                  className="w-full px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90"
-                >
-                  Disable Sync
-                </button>
-              </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Without encryption, the relay can read your synced data. The room ID acts as a
+                    shared secret over TLS — adequate for many users, but not bulletproof.
+                  </p>
+                  <button
+                    onClick={handleEnableEncryption}
+                    className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-xs flex items-center justify-center gap-1"
+                  >
+                    <Lock className="w-3 h-3" /> Enable encryption
+                  </button>
+                </>
+              )}
             </div>
           )}
-
-          {/* File Sync Settings */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <HardDrive className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.fileSync")}</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Files are streamed directly between your devices in real-time. Devices must be online
-              simultaneously to sync files.
-            </p>
-
-            <div className="space-y-4">
-              {/* Auto-download setting */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Auto-download files from other devices
-                </label>
-                <select
-                  value={autoDownloadMode}
-                  onChange={(e) =>
-                    updateSettings({
-                      sync: {
-                        ...syncSettings,
-                        autoDownloadMode: e.target.value as "always" | "wifi-only" | "manual",
-                      },
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground"
-                >
-                  <option value="always">
-                    Always - Download all files automatically
-                  </option>
-                  <option value="wifi-only">
-                    WiFi only - Auto-download only on WiFi (mobile)
-                  </option>
-                  <option value="manual">
-                    Manual - Never auto-download, request each file manually
-                  </option>
-                </select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {autoDownloadMode === "always" && (
-                    <span className="flex items-center gap-1">
-                      <Download className="w-3 h-3" /> Files will be downloaded automatically when announced by other devices
-                    </span>
-                  )}
-                  {autoDownloadMode === "wifi-only" && (
-                    <span className="flex items-center gap-1">
-                      <WifiHigh className="w-3 h-3" /> Files will wait for WiFi before downloading on mobile
-                    </span>
-                  )}
-                  {autoDownloadMode === "manual" && (
-                    <span>Files will appear with a download button - you choose what to download</span>
-                  )}
-                </p>
-              </div>
-
-              {/* Info box */}
-              <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
-                <strong>Note:</strong> Files are not stored on the server. They stream directly between
-                devices that are online at the same time. If a device with a file you need is offline,
-                you&apos;ll see &quot;waiting for source&quot; status until it comes back online.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Config View */}
-      {viewMode === "config" && (
-        <div className="space-y-4">
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">{t("syncSettings.configuration")}</h3>
-
-            {config?.enabled ? (
-              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-500 mb-4">
-                <Check className="w-4 h-4" />
-                <span className="text-sm">{t("syncSettings.syncIsEnabled")}</span>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground mb-4">
-                Configure your cloud sync settings below
-              </p>
-            )}
-
-            <div className="space-y-4">
-              {/* Endpoint */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Sync Endpoint
-                </label>
-                <input
-                  type="url"
-                  value={endpoint}
-                  onChange={(e) => setEndpoint(e.target.value)}
-                  placeholder="https://sync.example.com/api"
-                  disabled={config?.enabled}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                />
-              </div>
-
-              {/* API Key */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Your sync API key"
-                  disabled={config?.enabled}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                />
-              </div>
-
-              {/* Auto-sync option */}
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={autoSync}
-                  onChange={(e) => setAutoSync(e.target.checked)}
-                  disabled={config?.enabled}
-                  className="rounded disabled:opacity-50"
-                />
-                <span className="text-sm text-foreground">{t("syncSettings.enableAutoSync")}</span>
-              </label>
-
-              {/* Enable button */}
-              {!config?.enabled && (
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">{t("syncSettings.joinCode")}</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono"
+                value={joinRoomId}
+                onChange={(e) => setJoinRoomId(e.target.value)}
+                placeholder="Paste sync code..."
+              />
+              <button
+                onClick={() => { void handleJoinRoom(); }}
+                className="px-3 py-2 bg-primary text-primary-foreground rounded text-xs"
+              >
+                Join
+              </button>
+              {!showQr && (
                 <button
-                  onClick={handleEnableSync}
-                  className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center justify-center gap-2"
+                  onClick={() => setShowScanner(true)}
+                  className="px-3 py-2 bg-muted text-foreground rounded text-xs"
                 >
-                  <Cloud className="w-4 h-4" />
-                  Enable Cloud Sync
+                  Scan
                 </button>
               )}
             </div>
           </div>
-
-          {/* Info */}
-          <div className="p-4 bg-muted/30 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Shield className="w-4 h-4 text-primary mt-0.5" />
-              <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">{t("syncSettings.e2eEncryption")}</p>
-                <p>
-                  Your data is encrypted locally before syncing. The encryption key never leaves
-                  your device, ensuring your privacy even if the sync server is compromised.
-                </p>
-              </div>
-            </div>
+          {roomMessage && <div className="text-xs text-muted-foreground">{roomMessage}</div>}
+          <div className="text-xs text-muted-foreground">
+            {t("syncSettings.scanToJoinHint")}
           </div>
         </div>
+      </div>
+
+      {showScanner && (
+        <SyncQrScanner
+          onDetected={async (value) => {
+            const result = await handleJoinRoom(value);
+            // Returning true closes the scanner; false keeps it open so the
+            // user can re-scan after an invalid code.
+            return result.ok;
+          }}
+          onClose={() => setShowScanner(false)}
+        />
       )}
 
-      {/* Log View */}
-      {viewMode === "log" && (
+      {/* File Sync Settings */}
+      <div className="bg-card border border-border rounded-lg p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <HardDrive className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.fileSync")}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Files attached to your documents sync across your devices through the same room. Set how
+          aggressively new files should be pulled onto this device.
+        </p>
+
+        <div className="space-y-4">
+          {/* Auto-download setting */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Auto-download files from other devices
+            </label>
+            <select
+              value={autoDownloadMode}
+              onChange={(e) =>
+                updateSettings({
+                  sync: {
+                    ...syncSettings,
+                    autoDownloadMode: e.target.value as "always" | "wifi-only" | "manual",
+                  },
+                })
+              }
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground"
+            >
+              <option value="always">
+                Always - Download all files automatically
+              </option>
+              <option value="wifi-only">
+                WiFi only - Auto-download only on WiFi (mobile)
+              </option>
+              <option value="manual">
+                Manual - Never auto-download, request each file manually
+              </option>
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {autoDownloadMode === "always" && (
+                <span className="flex items-center gap-1">
+                  <Download className="w-3 h-3" /> Files will be downloaded automatically when announced by other devices
+                </span>
+              )}
+              {autoDownloadMode === "wifi-only" && (
+                <span className="flex items-center gap-1">
+                  <WifiHigh className="w-3 h-3" /> Files will wait for WiFi before downloading on mobile
+                </span>
+              )}
+              {autoDownloadMode === "manual" && (
+                <span>Files will appear with a download button - you choose what to download</span>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Sync not active hint — shown until a room is established. */}
+      {!roomId && (
         <div className="bg-card border border-border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">{t("syncSettings.syncLog")}</h3>
-            <ClockCounterClockwise className="w-5 h-5 text-muted-foreground" />
+          <div className="flex items-center gap-3">
+            <CloudSlash className="w-5 h-5 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Sync is not active yet. A sync code has been generated for this device — share it with
+              your other devices (or scan their code) to start syncing.
+            </p>
           </div>
-
-          {syncLog.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <TextT className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>{t("syncSettings.noSyncHistory")}</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {syncLog.map((entry, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg border ${
-                    entry.status === SyncStatus.Synced
-                      ? "border-green-500/20 bg-green-500/10"
-                      : entry.status === SyncStatus.Failed
-                      ? "border-destructive/20 bg-destructive/10"
-                      : "border-border bg-muted/30"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(entry.timestamp).toLocaleString()}
-                    </span>
-                    <span className={`text-xs font-medium ${getSyncStatusColor(entry.status)}`}>
-                      {formatSyncStatus(entry.status)}
-                    </span>
-                  </div>
-                  {entry.status === SyncStatus.Synced && (
-                    <div className="text-xs text-muted-foreground">
-                      ↑ {entry.uploaded} • ↓ {entry.downloaded}
-                    </div>
-                  )}
-                  {entry.error && (
-                    <div className="text-xs text-destructive mt-1">{entry.error}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
+
+      {/* Reassurance footer */}
+      <div className="p-4 bg-muted/30 rounded-lg">
+        <div className="flex items-start gap-2">
+          <ArrowsClockwise className="w-4 h-4 text-primary mt-0.5" />
+          <div className="text-sm text-muted-foreground">
+            <p className="font-medium text-foreground mb-1">{t("syncSettings.e2eEncryption")}</p>
+            <p>
+              Your reading data is synced over a shared room. Keep your sync code private — anyone
+              with it can sync the same data. When encryption is enabled, your data is encrypted on
+              your device before it ever leaves.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

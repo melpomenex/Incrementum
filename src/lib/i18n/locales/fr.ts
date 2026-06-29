@@ -2486,6 +2486,7 @@ export const fr: Dict = {
   "settings.syncQrCameraFailed": "Échec du démarrage de la caméra",
   "settings.syncQrInstruction":
     "Pointez votre caméra vers le code QR affiché sur l'application web de bureau.",
+  "settings.syncQrInvalidCode": "Ce code n'est pas un code de synchronisation valide. Visez le code QR affiché dans les paramètres de synchronisation.",
   "settings.syncQrScanCode": "Scanner le code de synchronisation",
   "settings.themeAnimated": "animé",
   "settings.themeCount": "{count} thèmes disponibles",

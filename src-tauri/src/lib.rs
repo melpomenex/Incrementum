@@ -18,7 +18,6 @@ mod kindle_clippings;
 mod supermemo_import;
 mod youtube;
 mod twitter;
-mod sync;
 mod integrations;
 mod ocr;
 mod segmentation;
@@ -1058,11 +1057,6 @@ pub fn run() {
             commands::update_playlist_settings,
             commands::get_playlist_queue_items,
             commands::mark_playlist_video_queued,
-            // Sync commands
-            sync::sync_now,
-            sync::get_sync_status,
-            sync::resolve_sync_conflict,
-            sync::get_sync_log,
             integrations::export_to_obsidian,
             integrations::export_extract_to_obsidian,
             integrations::export_flashcards_to_obsidian,

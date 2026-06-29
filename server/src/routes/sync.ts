@@ -5,6 +5,20 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 export const syncRouter = Router();
 
+// DEPRECATED: This account-based REST sync server is superseded by the
+// room-based Yjs sync (yjs connection broker at sync.readsync.org) which ships
+// in the app. New clients sync over a shared room code and never hit these
+// routes. Per openspec/changes/overhaul-cross-device-sync/tasks.md task 9.2,
+// mark every response deprecated so operators can monitor remaining traffic
+// ahead of removal (task 9.5).
+syncRouter.use((_req, res, next) => {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', 'Sat, 31 Dec 2025 23:59:59 GMT');
+  res.setHeader('Link', '</docs/sync-migration>; rel="deprecation"');
+  console.warn('[deprecated] /sync REST endpoint hit — clients should migrate to room-based Yjs sync');
+  next();
+});
+
 // All sync routes require authentication
 syncRouter.use(authMiddleware);
 

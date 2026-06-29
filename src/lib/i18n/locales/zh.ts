@@ -2517,6 +2517,7 @@ export const zh: Dict = {
   "settings.smartQueuesDesc": "配置智能学习队列行为",
   "settings.syncQrCameraFailed": "启动相机失败",
   "settings.syncQrInstruction": "将相机对准桌面网页应用上显示的二维码。",
+  "settings.syncQrInvalidCode": "该代码不是有效的同步代码。请对准同步设置中显示的二维码。",
   "settings.syncQrScanCode": "扫描同步代码",
   "settings.themeAnimated": "动画",
   "settings.themeCount": "{count} 个主题可用",

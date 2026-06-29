@@ -929,23 +929,53 @@ Incrementum admite cuatro algoritmos de programación. Elige el que mejor se ada
 
 ### Configuración de sincronización
 
-#### Sincronización del navegador
-- Activar/desactivar la sincronización de la extensión del navegador
-- Intervalo de sincronización (minutos)
-- Resolución de conflictos (victorias locales/victorias remotas/preguntar)
+Incrementum sincroniza tus datos de lectura entre tus dispositivos a través de una **sala de sincronización compartida** (sync room). No hay cuenta, no hay inicio de sesión en el servidor ni clave de API: cada dispositivo que conoce el mismo código de sincronización se une a la misma sala y comparte los mismos datos. Este es el único sistema de sincronización de la aplicación.
 
-#### Sincronización en la nube
+#### Cómo funciona
 
-**Proveedores admitidos:**
-- Buzón
--Google Drive
--OneDrive
+- Cada dispositivo genera un **código de sincronización** (una cadena aleatoria) la primera vez que abres los ajustes de Sync.
+- Comparte ese código con tus otros dispositivos — ya sea copiándolo o escaneando el código QR que se muestra en los ajustes de Sync.
+- Cuando dos dispositivos comparten un código, sus datos de lectura (documentos, extractos, elementos de aprendizaje, historial de repaso, ajustes) se sincronizan automáticamente siempre que estén en línea al mismo tiempo. Los archivos adjuntos a tus documentos se sincronizan a través de la misma sala.
+- El código de sincronización es lo único que concede acceso a una sala. Mantenlo privado — cualquiera que lo tenga podrá leer tus datos sincronizados.
 
-**Opciones de sincronización:**
-- Sincronización automática de cambios
-- Intervalo de sincronización (manual, 15 min, 30 min, 1 h)
-- Sincronización al iniciar/cerrar la aplicación
-- Manejo de conflictos
+#### Conectando tus dispositivos
+
+1. Abre **Ajustes → Sync** en tu primer dispositivo (p. ej. el de escritorio). Anota el código de sincronización que se muestra ahí o muestra su código QR.
+2. Abre **Ajustes → Sync** en tu segundo dispositivo (p. ej. tu teléfono).
+3. Puedes:
+   - Tocar **Scan** y apuntar la cámara al código QR del primer dispositivo, o
+   - Pegar el código de sincronización en el campo "Join another code" y tocar "Join".
+4. El segundo dispositivo se une a la sala y comienza a sincronizarse inmediatamente — no es necesario recargar ni reiniciar.
+5. Repite esto para cada dispositivo que quieras mantener sincronizado.
+
+> **Consejo:** El botón "New" genera un código de sincronización nuevo. Úsalo solo si quieres empezar de cero — los dispositivos con el código antiguo dejarán de sincronizarse con los del código nuevo.
+
+#### Qué se sincroniza
+
+- Documentos y sus metadatos
+- Extractos (resaltados y notas)
+- Elementos de aprendizaje (tarjetas, huecos, preguntas y respuestas)
+- Historial de repaso y estado de programación
+- Ajustes de la aplicación
+- Archivos adjuntos a los documentos (PDFs, EPUBs, etc.)
+
+#### Descarga automática de archivos
+
+En **File Sync**, elige la frecuencia con la que los archivos nuevos se descargan en cada dispositivo:
+
+- **Always** — descargar automáticamente cada archivo en cuanto aparezca en la sala.
+- **WiFi only** — descarga automática solo por WiFi (útil en planes de datos móviles).
+- **Manual** — nunca descargar automáticamente; cada archivo muestra un botón de descarga que tocas cuando lo quieres.
+
+#### Cifrado de extremo a extremo (opcional)
+
+La sincronización funciona por defecto en modo "solo TLS": tus datos viajan cifrados por la red y el código de sincronización actúa como secreto compartido. Si deseas mayor protección, puedes activar el **cifrado de extremo a extremo**, que cifra tus datos en tu dispositivo antes de que salgan, de modo que el servidor de sincronización solo ve texto cifrado.
+
+Cuando el cifrado está activo, el código QR incorpora tu secreto de sala — compártelo solo con dispositivos de confianza.
+
+#### Privacidad
+
+Todos tus datos de lectura se almacenan primero localmente en tus dispositivos. La sincronización es una comodidad opcional que refleja esos datos en tus dispositivos a través de tu sala compartida. No se envía nada a ningún servidor excepto a los proveedores de IA que hayas configurado personalmente.
 
 #### Copia de seguridad y restauración
 

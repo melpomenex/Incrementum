@@ -229,6 +229,20 @@ if (!isTauri() && isPWA()) {
   });
 }
 
+// Boot the Yjs sync provider on every Tauri profile (desktop + mobile). The
+// provider itself (getYjsSync) is the part we need everywhere; the localStorage
+// mirroring above is intentionally PWA-only. Without this, yjs sync never
+// initializes on Android/iOS (it only started lazily if a file-sync hook
+// happened to mount), so scan-to-join would "join" a dormant sync stack. See
+// overhaul-cross-device-sync tasks.md section 8 (Tauri enablement).
+if (isTauri()) {
+  import("./lib/yjsSync")
+    .then(({ getYjsSync }) => getYjsSync())
+    .catch((error) => {
+      console.error("[main.tsx] Failed to initialize Yjs sync on Tauri:", error);
+    });
+}
+
 // Dev/Tauri: ensure no service worker or cache is present to avoid stale assets.
 if ((import.meta.env.DEV || isTauri()) && "serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {

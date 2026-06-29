@@ -949,23 +949,53 @@ Incrementum supports four scheduling algorithms. Choose the one that best fits y
 
 ### Sync Settings
 
-#### Browser Sync
-- Enable/disable browser extension sync
-- Sync interval (minutes)
-- Conflict resolution (local wins / remote wins / ask)
+Incrementum syncs your reading data across your devices over a **shared sync room**. There is no account, no server login, and no API key — every device that knows the same sync code joins the same room and shares the same data. This is the only sync system in the app.
 
-#### Cloud Sync
+#### How it works
 
-**Supported Providers:**
-- Dropbox
-- Google Drive
-- OneDrive
+- Each device generates a **sync code** (a random string) the first time you open Sync settings.
+- Share that code with your other devices — either copy it, or scan the QR code shown in Sync settings.
+- When two devices share a code, their reading data (documents, extracts, learning items, review history, settings) sync automatically whenever they're online at the same time. Files attached to your documents sync through the same room.
+- The sync code is the only thing that grants access to a room. Keep it private — anyone with it can read your synced data.
 
-**Sync Options:**
-- Auto-sync on changes
-- Sync interval (manual, 15min, 30min, 1hr)
-- Sync on app start/close
-- Conflict handling
+#### Connecting your devices
+
+1. Open **Settings → Sync** on your first device (e.g. desktop). Note the sync code shown there, or display its QR code.
+2. Open **Settings → Sync** on your second device (e.g. your phone).
+3. Either:
+   - Tap **Scan** and point the camera at the QR code on the first device, or
+   - Paste the sync code into the "Join another code" field and tap **Join**.
+4. The second device joins the room and begins syncing immediately — no reload or restart needed.
+5. Repeat for every device you want to keep in sync.
+
+> **Tip:** The "New" button generates a fresh sync code. Use it only if you want to start over — devices on the old code will stop syncing with devices on the new one.
+
+#### What syncs
+
+- Documents and their metadata
+- Extracts (highlights and notes)
+- Learning items (flashcards, cloze deletions, Q&A)
+- Review history and scheduling state
+- App settings
+- Files attached to documents (PDFs, EPUBs, etc.)
+
+#### File auto-download
+
+Under **File Sync**, choose how aggressively new files are pulled onto each device:
+
+- **Always** — download every file automatically as it appears in the room.
+- **WiFi only** — auto-download only on WiFi (useful on mobile data plans).
+- **Manual** — never auto-download; each file shows a download button you tap when you want it.
+
+#### End-to-end encryption (optional)
+
+Sync runs in "TLS only" mode by default: your data travels encrypted over the network, and the sync code acts as a shared secret. If you want stronger protection, you can enable **end-to-end encryption**, which encrypts your data on your device before it ever leaves, so the sync server only ever sees ciphertext.
+
+When encryption is on, the QR code embeds your room secret — share it only with devices you trust.
+
+#### Privacy
+
+All of your reading data is stored locally on your devices first. Sync is an optional convenience that mirrors that data across your devices over your shared room. Nothing is sent to any server except the AI providers you have personally configured.
 
 #### Backup & Restore
 

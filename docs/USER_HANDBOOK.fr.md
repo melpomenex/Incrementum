@@ -909,23 +909,53 @@ Incrementum prend en charge quatre algorithmes de planification. Choisissez celu
 
 ### Paramètres de synchronisation
 
-#### Synchronisation du navigateur
-- Activer/désactiver la synchronisation des extensions de navigateur
-- Intervalle de synchronisation (minutes)
-- Résolution de conflits (victoires locales / victoires à distance / demande)
+Incrementum synchronise vos données de lecture entre vos appareils via une **salle de synchronisation partagée** (sync room). Il n'y a pas de compte, pas de connexion au serveur ni de clé API — chaque appareil qui connaît le même code de synchronisation rejoint la même salle et partage les mêmes données. Il s'agit du seul système de synchronisation de l'application.
 
-#### Synchronisation avec le cloud
+#### Comment ça marche
 
-**Fournisseurs pris en charge :**
-- Boîte de dépôt
-- Google Drive
--OneDrive
+- Chaque appareil génère un **code de synchronisation** (une chaîne aléatoire) la première fois que vous ouvrez les réglages de Sync.
+- Partagez ce code avec vos autres appareils — soit en le copiant, soit en scannant le code QR affiché dans les réglages de Sync.
+- Lorsque deux appareils partagent un code, leurs données de lecture (documents, extraits, éléments d'apprentissage, historique de révision, réglages) se synchronisent automatiquement dès qu'ils sont en ligne en même temps. Les fichiers joints à vos documents sont synchronisés via la même salle.
+- Le code de synchronisation est la seule chose qui donne accès à une salle. Gardez-le privé — quiconque le possède peut lire vos données synchronisées.
 
-**Options de synchronisation :**
-- Synchronisation automatique sur les modifications
-- Intervalle de synchronisation (manuel, 15 min, 30 min, 1 h)
-- Synchronisation au démarrage/fermeture de l'application
-- Gestion des conflits
+#### Connecter vos appareils
+
+1. Ouvrez **Réglages → Sync** sur votre premier appareil (par ex. le bureau). Notez le code de synchronisation affiché, ou affichez son code QR.
+2. Ouvrez **Réglages → Sync** sur votre second appareil (par ex. votre téléphone).
+3. Soit :
+   - Appuyez sur **Scan** et pointez l'appareil photo vers le code QR du premier appareil, ou
+   - Collez le code de synchronisation dans le champ « Join another code » et appuyez sur « Join ».
+4. Le second appareil rejoint la salle et commence à se synchroniser immédiatement — aucun rechargement ni redémarrage nécessaire.
+5. Répétez l'opération pour chaque appareil que vous souhaitez garder synchronisé.
+
+> **Astuce :** Le bouton « New » génère un nouveau code de synchronisation. Ne l'utilisez que si vous voulez repartir de zéro — les appareils sur l'ancien code cesseront de se synchroniser avec ceux sur le nouveau code.
+
+#### Ce qui se synchronise
+
+- Documents et leurs métadonnées
+- Extraits (surlignages et notes)
+- Éléments d'apprentissage (cartes mémo, textes à trous, questions/réponses)
+- Historique de révision et état de planification
+- Réglages de l'application
+- Fichiers joints aux documents (PDF, EPUB, etc.)
+
+#### Téléchargement automatique des fichiers
+
+Sous **File Sync**, choisissez avec quelle agressivité les nouveaux fichiers sont récupérés sur chaque appareil :
+
+- **Always** — télécharger automatiquement chaque fichier dès qu'il apparaît dans la salle.
+- **WiFi only** — téléchargement automatique uniquement en WiFi (utile sur les forfaits mobiles).
+- **Manual** — jamais de téléchargement automatique ; chaque fichier affiche un bouton de téléchargement sur lequel vous appuyez quand vous le souhaitez.
+
+#### Chiffrement de bout en bout (facultatif)
+
+La synchronisation fonctionne par défaut en mode « TLS uniquement » : vos données voyagent chiffrées sur le réseau, et le code de synchronisation agit comme un secret partagé. Si vous souhaitez une protection renforcée, vous pouvez activer le **chiffrement de bout en bout**, qui chiffre vos données sur votre appareil avant qu'elles ne le quittent, afin que le serveur de synchronisation ne voie que du texte chiffré.
+
+Lorsque le chiffrement est actif, le code QR intègre votre secret de salle — ne le partagez qu'avec des appareils de confiance.
+
+#### Confidentialité
+
+Toutes vos données de lecture sont d'abord stockées localement sur vos appareils. La synchronisation est une commodité facultative qui reflète ces données sur vos appareils via votre salle partagée. Rien n'est envoyé vers un serveur, à l'exception des fournisseurs d'IA que vous avez personnellement configurés.
 
 #### Sauvegarde et restauration
 

@@ -2424,6 +2424,7 @@ export const ja: Dict = {
   "settings.syncQrCameraFailed": "カメラの起動に失敗しました",
   "settings.syncQrInstruction":
     "デスクトップ Web アプリに表示されている QR コードにカメラを向けてください。",
+  "settings.syncQrInvalidCode": "そのコードは有効な同期コードではありません。同期設定に表示されている QR コードにかざしてください。",
   "settings.syncQrScanCode": "同期コードをスキャン",
   "settings.themeAnimated": "アニメーション",
   "settings.themeCount": "{count} 個のテーマが利用可能",

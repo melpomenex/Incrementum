@@ -9,6 +9,18 @@ import { createError } from '../middleware/errorHandler.js';
 
 export const filesRouter = Router();
 
+// DEPRECATED: This file-upload server belongs to the account-based REST sync
+// path, which is superseded by room-based Yjs sync (files now flow through the
+// yjs file-service at sync.readsync.org, keyed by room). New clients never hit
+// these routes. See openspec/changes/overhaul-cross-device-sync/tasks.md task
+// 9.2; this is slated for removal in task 9.5.
+filesRouter.use((_req, res, next) => {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', 'Sat, 31 Dec 2025 23:59:59 GMT');
+  console.warn('[deprecated] /files REST endpoint hit — clients should migrate to room-based Yjs file sync');
+  next();
+});
+
 const storagePath = process.env.STORAGE_PATH || './uploads';
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {

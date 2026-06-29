@@ -2801,6 +2801,7 @@ export const en: Dict = {
   "syncSettings.join": "Join",
   "syncSettings.scan": "Scan",
   "syncSettings.reloadAfterJoin": "After joining a code, reload the app on this device.",
+  "syncSettings.scanToJoinHint": "Scan the QR code shown in Sync settings on another device, or paste a sync code, to join its room.",
   "syncSettings.syncStatus": "Sync Status",
   "syncSettings.lastSync": "Last sync:",
   "syncSettings.nextSync": "Next sync:",
@@ -3293,6 +3294,7 @@ export const en: Dict = {
   "settings.syncQrScanCode": "Scan sync code",
   "settings.syncQrCameraFailed": "Failed to start camera",
   "settings.syncQrInstruction": "Point your camera at the QR code shown on the desktop web app.",
+  "settings.syncQrInvalidCode": "That code isn't a valid sync code. Aim at the QR shown in Sync settings.",
 
   "settings.themeAnimated": "animated",
   "settings.themeGalleryTitle": "Theme Gallery",
