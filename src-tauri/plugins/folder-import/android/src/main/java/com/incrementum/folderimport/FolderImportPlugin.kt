@@ -86,6 +86,13 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
         pendingUrl = url
       }
     }
+
+    // Must match DEFAULT_EXTENSIONS in src/lib.rs.
+    private val DEFAULT_EXTENSIONS = arrayOf(
+      "pdf", "epub", "md", "markdown", "txt", "html", "htm", "json",
+      "mp3", "wav", "m4a", "m4b", "aac", "ogg", "flac", "opus", "wma",
+      "mp4", "webm", "mov", "mkv", "avi", "m4v",
+    )
   }
 
   override fun load(webView: android.webkit.WebView) {
@@ -553,12 +560,5 @@ class FolderImportPlugin(private val activity: Activity) : Plugin(activity) {
     return cleaned.ifEmpty { DEFAULT_EXTENSIONS.toSet() }
   }
 
-  companion object {
-    // Must match DEFAULT_EXTENSIONS in src/lib.rs.
-    private val DEFAULT_EXTENSIONS = arrayOf(
-      "pdf", "epub", "md", "markdown", "txt", "html", "htm", "json",
-      "mp3", "wav", "m4a", "m4b", "aac", "ogg", "flac", "opus", "wma",
-      "mp4", "webm", "mov", "mkv", "avi", "m4v",
-    )
-  }
+
 }
