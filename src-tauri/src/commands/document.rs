@@ -816,6 +816,96 @@ pub async fn read_document_file(
     Ok(base64_string)
 }
 
+/// Hash a document file (SHA-256) and report its size without base64-encoding
+/// the whole file over IPC. Used by the file-sync registration path to compute
+/// a manifest entry's contentHash + sizeBytes cheaply.
+///
+/// Returns `[sha256-hex, size-bytes]`.
+#[tauri::command]
+pub async fn hash_document_file(
+    file_path: String,
+) -> Result<(String, u64)> {
+    use sha2::{Sha256, Digest};
+
+    let canonical = std::fs::canonicalize(&file_path)
+        .map_err(|e| IncrementumError::Internal(format!("Invalid path: {}", e)))?;
+
+    let metadata = std::fs::metadata(&canonical)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to stat file: {}", e)))?;
+    let size = metadata.len();
+
+    let mut file = std::fs::File::open(&canonical)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to open file: {}", e)))?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to hash file: {}", e)))?;
+    let hash_bytes = hasher.finalize();
+    let hash_hex = hash_bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+
+    Ok((hash_hex, size))
+}
+
+/// Write received sync bytes to app-managed storage and return the resulting
+/// path. Mirrors `copy_media_to_app_storage` but takes bytes directly (the
+/// source is a peer device over the sync relay, not an on-disk file). The
+/// caller then updates the document's `file_path` via `update_document_file_path`.
+///
+/// `file_type` selects the storage subdir ("audio" for audiobooks/music,
+/// "documents" for PDF/EPUB/etc.) so received files land in the same place
+/// imports do and the existing viewer/read paths work unchanged.
+#[tauri::command]
+pub async fn save_synced_file(
+    bytes: Vec<u8>,
+    filename: String,
+    file_type: String,
+    app: tauri::AppHandle,
+) -> Result<String> {
+    use tauri::Manager;
+
+    let subdir = match file_type.as_str() {
+        "audio" => "audio",
+        "video" => "video",
+        _ => "documents",
+    };
+
+    let dest_dir = app
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("incrementum").join(subdir))
+        .map_err(|e| IncrementumError::Internal(format!("Failed to resolve app data dir: {}", e)))?;
+
+    std::fs::create_dir_all(&dest_dir)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to create {} directory: {}", subdir, e)))?;
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let safe_filename = filename.replace(['/', '\\', ':'], "_");
+    let stored_filename = format!("{}-{}", timestamp, safe_filename);
+    let dest_path = dest_dir.join(&stored_filename);
+
+    std::fs::write(&dest_path, &bytes)
+        .map_err(|e| IncrementumError::Internal(format!("Failed to write synced file: {}", e)))?;
+
+    Ok(dest_path.to_string_lossy().to_string())
+}
+
+/// Update a document's `file_path` in the database after a synced file has
+/// been written to app storage. This makes a received file loadable by the
+/// existing viewer (which reads via `read_document_file` / `convertFileSrc`).
+#[tauri::command]
+pub async fn update_document_file_path(
+    document_id: String,
+    file_path: String,
+    repo: State<'_, Repository>,
+) -> Result<Document> {
+    let mut doc = repo
+        .get_document(&document_id)
+        .await?
+        .ok_or_else(|| IncrementumError::NotFound(format!("Document {}", document_id)))?;
+    doc.file_path = file_path;
+    let updated = repo.update_document(&document_id, &doc).await?;
+    Ok(updated)
+}
+
 /// Result from fetching URL content
 #[derive(serde::Serialize)]
 pub struct FetchedUrlContent {

@@ -9,6 +9,7 @@ import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivU
 import { listen, isTauri, isNativeMobile } from "../lib/tauri";
 import { useToastStore, ToastType } from "../components/common/Toast";
 import { enrichAudiobookDocument, isAudiobookFile } from "../api/audiobooks";
+import { registerImportedFileSync } from "../lib/fileSyncRegistration";
 
 /**
  * Mobile file picker: uses the WebView's <input type=file>, which Android/iOS
@@ -353,6 +354,16 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     try {
       const collectionId = useCollectionStore.getState().activeCollectionId;
       const doc = await documentsApi.importDocument(filePath, collectionId);
+
+      // Register with sync manifest (best-effort, see importFromFiles).
+      const fileId = await registerImportedFileSync(doc).catch((e) => {
+        console.warn("[documentStore] file-sync registration failed", e);
+        return null;
+      });
+      if (fileId) {
+        doc.fileId = fileId;
+      }
+
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
@@ -393,6 +404,20 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
         try {
           const doc = await documentsApi.importDocument(filePath, collectionId);
+
+          // Register the file with the sync manifest so other devices in the
+          // room can discover + pull it. Best-effort: failures (sync disabled,
+          // file unreadable) are logged by the helper and must not break the
+          // local import. Runs after the document is persisted so even if
+          // registration fails the doc is safely stored.
+          const fileId = await registerImportedFileSync(doc).catch((e) => {
+            console.warn("[documentStore] file-sync registration failed", e);
+            return null;
+          });
+          if (fileId) {
+            doc.fileId = fileId;
+          }
+
           imported.push(doc);
 
           if (autoSegment) {

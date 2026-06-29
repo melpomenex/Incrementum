@@ -30,6 +30,7 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { isTauri } from "../../lib/tauri";
+import { ReaderFileDownload } from "../sync/ReaderFileDownload";
 import { useMobileShell } from "../../hooks/useMobileShell";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { ContextMenu, ContextMenuItemType, type ContextMenuItem } from "../common/ContextMenu";
@@ -5891,6 +5892,7 @@ export function DocumentViewer({
                 <p className="text-sm text-muted-foreground">
                   {t("viewer.fileRemovedOrReimport")}
                 </p>
+                {currentDocument && <ReaderFileDownload doc={currentDocument} />}
               </div>
             </div>
           ) : (

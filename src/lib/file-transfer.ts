@@ -3,28 +3,65 @@
  *
  * Files are transferred in chunks through the existing Yjs WebSocket connection.
  * The server acts as a pure relay - it does not store files.
+ *
+ * Wire format (all binary, no JSON, no base64):
+ *   Every frame is `[0x20][1-byte subtype][subtype-specific bytes]`.
+ *   0x20 is a custom message-type byte that the forked y-websocket relay's
+ *   `default:` case forwards verbatim to all other connections in the room
+ *   (see yjs-sync/utils.js messageListener). It is intentionally NOT a
+ *   y-websocket type (0=sync, 1=awareness, 2=auth, 3=query-awareness) and NOT
+ *   0x10 (encrypted-sync), so the encrypted provider leaves these frames
+ *   untouched on both send and receive paths.
+ *
+ * Subtypes:
+ *   0x01 file-request   [u32 requestIdLen][requestId][u32 fileIdLen][fileId]
+ *   0x02 file-response  [u32 requestIdLen][requestId][u8 accepted][u32 totalChunks]
+ *   0x03 file-chunk     [u32 requestIdLen][requestId][u32 chunkIndex][u32 totalChunks][raw bytes...]
+ *   0x04 file-complete  [u32 requestIdLen][requestId]
+ *   0x05 file-error     [u32 requestIdLen][requestId][u32 msgLen][utf8 message]
+ *
+ * `u32` = 4-byte little-endian unsigned int. String lengths are byte lengths
+ * (UTF-8). Chunk data is appended raw after the header — no base64, so a 64KB
+ * chunk is 64KB on the wire, not ~85KB.
  */
 
 import { WebsocketProvider } from "y-websocket";
 import { FileManifest, getDeviceId } from "./file-manifest";
 
-/** Chunk size for file transfers (64KB) */
+/** Wire message-type byte for the file-transfer protocol. */
+const FILE_TRANSFER_TYPE = 0x20;
+
+/** Subtype bytes (second byte of every frame, after FILE_TRANSFER_TYPE). */
+const SUBTYPE = {
+  REQUEST: 0x01,
+  RESPONSE: 0x02,
+  CHUNK: 0x03,
+  COMPLETE: 0x04,
+  ERROR: 0x05,
+} as const;
+
+/** Chunk size for file transfers (64KB of payload per chunk frame). */
 export const CHUNK_SIZE = 64 * 1024;
 
-/** Message types for the file transfer protocol */
+/** Decoded file-transfer control message (used internally + in tests). */
+// fileId is optional on the non-request variants because the wire protocol
+// only carries requestId there — the handler resolves fileId via the transfer
+// record (inboundTransfers/outboundTransfers) keyed on requestId. Encoding a
+// response/complete/error also only needs requestId, so callers build these
+// without fileId.
 export type FileTransferMessage =
   | { type: "file-request"; fileId: string; requesterDeviceId: string; requestId: string }
-  | { type: "file-response"; fileId: string; requestId: string; accepted: boolean; totalChunks: number }
+  | { type: "file-response"; fileId?: string; requestId: string; accepted: boolean; totalChunks: number }
   | {
       type: "file-chunk";
-      fileId: string;
+      fileId?: string;
       requestId: string;
       chunkIndex: number;
       totalChunks: number;
-      data: string;
-    } // data is base64 encoded
-  | { type: "file-complete"; fileId: string; requestId: string }
-  | { type: "file-error"; fileId: string; requestId: string; error: string };
+      data: Uint8Array;
+    }
+  | { type: "file-complete"; fileId?: string; requestId: string }
+  | { type: "file-error"; fileId?: string; requestId: string; error: string };
 
 /** Transfer state for a file being received */
 export interface InboundTransfer {
@@ -46,6 +83,163 @@ export interface OutboundTransfer {
   sentChunks: number;
   startedAt: number;
   lastChunkAt: number;
+}
+
+// ─── Binary codec helpers ───────────────────────────────────────────────────
+// Tiny length-prefixed encoder/decoder. We avoid lib0 here because these
+// frames are NOT y-websocket sync frames — they ride the relay's opaque
+// forwarding path, so a self-contained format keeps the protocol decoupled
+// from y-protocol versioning and is easy to test in isolation.
+
+function writeU32LE(bytes: number[], value: number): void {
+  // value >>> 0 coerces to uint32; safe for lengths up to 4GB.
+  const v = value >>> 0;
+  bytes.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff);
+}
+
+function readU32LE(view: Uint8Array, offset: number): number {
+  // Bounds-check: a truncated frame must not silently read 0 (which would
+  // produce a valid-looking but wrong message). Let the decoder's catch
+  // convert this to a null drop.
+  if (offset < 0 || offset + 4 > view.length) {
+    throw new RangeError("readU32LE: out of bounds");
+  }
+  return (
+    (view[offset] |
+      (view[offset + 1] << 8) |
+      (view[offset + 2] << 16) |
+      (view[offset + 3] << 24)) >>>
+    0
+  );
+}
+
+function writeUtf8(bytes: number[], str: string): void {
+  const encoded = new TextEncoder().encode(str);
+  writeU32LE(bytes, encoded.length);
+  for (let i = 0; i < encoded.length; i++) bytes.push(encoded[i]);
+}
+
+function readUtf8(view: Uint8Array, offset: number): { value: string; next: number } {
+  const len = readU32LE(view, offset);
+  const start = offset + 4;
+  const value = new TextDecoder().decode(view.subarray(start, start + len));
+  return { value, next: start + len };
+}
+
+/**
+ * Encode a control message (all subtypes except chunk) to a binary frame.
+ * Chunk messages are encoded separately by `encodeChunkFrame` because their
+ * payload is raw bytes, not a string.
+ */
+function encodeControlFrame(msg: FileTransferMessage): Uint8Array {
+  const bytes: number[] = [FILE_TRANSFER_TYPE];
+  switch (msg.type) {
+    case "file-request":
+      bytes.push(SUBTYPE.REQUEST);
+      writeUtf8(bytes, msg.requestId);
+      writeUtf8(bytes, msg.fileId);
+      writeUtf8(bytes, msg.requesterDeviceId);
+      break;
+    case "file-response":
+      bytes.push(SUBTYPE.RESPONSE);
+      writeUtf8(bytes, msg.requestId);
+      bytes.push(msg.accepted ? 1 : 0);
+      writeU32LE(bytes, msg.totalChunks);
+      break;
+    case "file-complete":
+      bytes.push(SUBTYPE.COMPLETE);
+      writeUtf8(bytes, msg.requestId);
+      break;
+    case "file-error":
+      bytes.push(SUBTYPE.ERROR);
+      writeUtf8(bytes, msg.requestId);
+      writeUtf8(bytes, msg.error);
+      break;
+    default:
+      throw new Error(`encodeControlFrame: not a control message: ${(msg as FileTransferMessage).type}`);
+  }
+  return new Uint8Array(bytes);
+}
+
+/**
+ * Encode a chunk frame. Layout:
+ *   [0x20][0x03][u32 requestIdLen][requestId][u32 chunkIndex][u32 totalChunks][raw data]
+ */
+function encodeChunkFrame(
+  requestId: string,
+  chunkIndex: number,
+  totalChunks: number,
+  data: Uint8Array,
+): Uint8Array {
+  const encReqId = new TextEncoder().encode(requestId);
+  // header: type + subtype + reqIdLen + reqId + chunkIndex + totalChunks
+  const headerLen = 1 + 1 + 4 + encReqId.length + 4 + 4;
+  const frame = new Uint8Array(headerLen + data.length);
+  let p = 0;
+  frame[p++] = FILE_TRANSFER_TYPE;
+  frame[p++] = SUBTYPE.CHUNK;
+  frame.set(u32Bytes(encReqId.length), p); p += 4;
+  frame.set(encReqId, p); p += encReqId.length;
+  frame.set(u32Bytes(chunkIndex), p); p += 4;
+  frame.set(u32Bytes(totalChunks), p); p += 4;
+  frame.set(data, p);
+  return frame;
+}
+
+function u32Bytes(value: number): Uint8Array {
+  const v = value >>> 0;
+  return new Uint8Array([v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff]);
+}
+
+/**
+ * Decode an inbound frame into a FileTransferMessage, or null if the frame is
+ * not a file-transfer frame (byte 0 !== 0x20). Throws on truncated/malformed
+ * frames — callers should catch and drop, since a malformed peer frame must
+ * never crash the sync stack.
+ */
+export function decodeFileTransferFrame(data: Uint8Array): FileTransferMessage | null {
+  if (data.length < 2 || data[0] !== FILE_TRANSFER_TYPE) return null;
+  const subtype = data[1];
+  try {
+    switch (subtype) {
+      case SUBTYPE.REQUEST: {
+        let off = 2;
+        const req = readUtf8(data, off); off = req.next;
+        const fid = readUtf8(data, off); off = fid.next;
+        const dev = readUtf8(data, off);
+        return { type: "file-request", requestId: req.value, fileId: fid.value, requesterDeviceId: dev.value };
+      }
+      case SUBTYPE.RESPONSE: {
+        let off = 2;
+        const req = readUtf8(data, off); off = req.next;
+        const accepted = data[off] !== 0; off += 1;
+        const totalChunks = readU32LE(data, off);
+        return { type: "file-response", requestId: req.value, accepted, totalChunks };
+      }
+      case SUBTYPE.CHUNK: {
+        let off = 2;
+        const req = readUtf8(data, off); off = req.next;
+        const chunkIndex = readU32LE(data, off); off += 4;
+        const totalChunks = readU32LE(data, off); off += 4;
+        const chunkData = data.subarray(off);
+        return { type: "file-chunk", requestId: req.value, chunkIndex, totalChunks, data: chunkData };
+      }
+      case SUBTYPE.COMPLETE: {
+        const req = readUtf8(data, 2);
+        return { type: "file-complete", requestId: req.value };
+      }
+      case SUBTYPE.ERROR: {
+        let off = 2;
+        const req = readUtf8(data, off); off = req.next;
+        const errMsg = readUtf8(data, off);
+        return { type: "file-error", requestId: req.value, error: errMsg.value };
+      }
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
 }
 
 /** File transfer events */
@@ -84,6 +278,11 @@ export class FileTransferManager {
     this.manifest = manifest;
     this.deviceId = getDeviceId();
 
+    // Rehydrate previously-received files from the IndexedDB cache so this
+    // device can serve them to peers and the UI shows them as "synced" right
+    // after launch instead of "waiting".
+    void this.rehydrateCachedFiles();
+
     // Listen for custom messages (file transfer protocol)
     this.provider.awareness.on("change", this.handleAwarenessChange.bind(this));
 
@@ -111,26 +310,49 @@ export class FileTransferManager {
     });
   }
 
+  /**
+   * Load every cached file Blob into the in-memory localFiles map. Run once at
+   * construction. Failures are non-fatal — a missing cache just means the
+   * device can't seed that file until it's re-fetched.
+   */
+  private async rehydrateCachedFiles(): Promise<void> {
+    try {
+      const ids = await getAllCachedFileIds();
+      for (const id of ids) {
+        const blob = await getCachedFile(id);
+        if (blob) {
+          this.localFiles.set(id, blob);
+        }
+      }
+      if (ids.length > 0) {
+        this.manifest.updateMyPresence(Array.from(this.localFiles.keys()));
+      }
+    } catch (err) {
+      console.warn("[FileTransferManager] failed to rehydrate cached files", err);
+    }
+  }
+
   private setupWebSocketHandlers(ws: WebSocket): void {
-    // We use awareness protocol's broadcast function for custom messages
-    // since y-websocket doesn't have a direct custom message API
+    // Intercept inbound binary frames that carry our file-transfer protocol
+    // (type byte 0x20). All other frames (yjs sync/awareness binary, any text)
+    // pass through to the original handler y-websocket installed.
     const originalOnMessage = ws.onmessage;
 
     ws.onmessage = (event) => {
-      // Check if this is a file transfer message (JSON with our type)
-      if (typeof event.data === "string") {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg && typeof msg.type === "string" && msg.type.startsWith("file-")) {
-            this.handleFileTransferMessage(msg as FileTransferMessage);
-            return;
+      const data = event.data;
+      // Our frames are always binary ArrayBuffers/BlobViews. y-websocket also
+      // sends binary, so we must peek byte 0 to distinguish: 0x20 = ours.
+      if (data instanceof ArrayBuffer) {
+        const bytes = new Uint8Array(data);
+        if (bytes.length >= 2 && bytes[0] === FILE_TRANSFER_TYPE) {
+          const msg = decodeFileTransferFrame(bytes);
+          if (msg) {
+            this.handleFileTransferMessage(msg);
           }
-        } catch {
-          // Not JSON, ignore
+          return;
         }
       }
-
-      // Pass through to original handler
+      // Not ours — hand to y-websocket's handler.
       if (originalOnMessage) {
         originalOnMessage.call(ws, event);
       }
@@ -182,25 +404,34 @@ export class FileTransferManager {
     this.startOutboundTransfer(fileId, requestId, requesterDeviceId, fileBlob);
   }
 
-  private handleFileResponse(msg: { type: "file-response"; fileId: string; requestId: string; accepted: boolean; totalChunks: number }): void {
-    const { fileId, requestId, accepted, totalChunks } = msg;
+  private handleFileResponse(msg: { type: "file-response"; fileId?: string; requestId: string; accepted: boolean; totalChunks: number }): void {
+    const { requestId, accepted, totalChunks } = msg;
 
     // We should be waiting for this response
     const transfer = this.outboundTransfers.get(requestId);
     if (!transfer) return;
 
     if (!accepted) {
-      this.emit({ type: "transfer-error", fileId, requestId, error: "Request rejected by source" });
+      this.emit({ type: "transfer-error", fileId: transfer.fileId, requestId, error: "Request rejected by source" });
       this.outboundTransfers.delete(requestId);
       return;
     }
 
     transfer.totalChunks = totalChunks;
-    this.emit({ type: "transfer-started", fileId, requestId, direction: "outbound" });
+    this.emit({ type: "transfer-started", fileId: transfer.fileId, requestId, direction: "outbound" });
   }
 
-  private handleFileChunk(msg: { type: "file-chunk"; fileId: string; requestId: string; chunkIndex: number; totalChunks: number; data: string }): void {
-    const { fileId, requestId, chunkIndex, totalChunks, data } = msg;
+  private handleFileChunk(msg: {
+    type: "file-chunk";
+    requestId: string;
+    chunkIndex: number;
+    totalChunks: number;
+    data: Uint8Array;
+  }): void {
+    const { requestId, chunkIndex, totalChunks, data } = msg;
+    // The decoder returns a subarray view into the frame buffer; copy it so the
+    // chunk outlives the pooled receive buffer and is safe to retain in the map.
+    const chunkData = data.slice();
 
     const transfer = this.inboundTransfers.get(requestId);
     if (!transfer) {
@@ -208,21 +439,19 @@ export class FileTransferManager {
       return;
     }
 
-    // Decode base64 chunk
-    const chunkData = this.base64ToUint8Array(data);
     transfer.receivedChunks.set(chunkIndex, chunkData);
     transfer.lastChunkAt = Date.now();
 
     // Calculate progress
     const progress = transfer.receivedChunks.size / totalChunks;
-    this.emit({ type: "transfer-progress", fileId, requestId, progress });
+    this.emit({ type: "transfer-progress", fileId: transfer.fileId, requestId, progress });
 
     if (transfer.receivedChunks.size === totalChunks) {
       this.assembleAndComplete(transfer);
     }
   }
 
-  private handleFileComplete(msg: { type: "file-complete"; fileId: string; requestId: string }): void {
+  private handleFileComplete(msg: { type: "file-complete"; fileId?: string; requestId: string }): void {
     const { requestId } = msg;
     const transfer = this.inboundTransfers.get(requestId);
     if (transfer && transfer.receivedChunks.size === transfer.totalChunks) {
@@ -230,8 +459,13 @@ export class FileTransferManager {
     }
   }
 
-  private handleFileError(msg: { type: "file-error"; fileId: string; requestId: string; error: string }): void {
-    const { fileId, requestId, error } = msg;
+  private handleFileError(msg: { type: "file-error"; fileId?: string; requestId: string; error: string }): void {
+    const { requestId, error } = msg;
+    // Resolve fileId from whichever transfer record holds it; the wire error
+    // frame carries only requestId.
+    const inTx = this.inboundTransfers.get(requestId);
+    const outTx = this.outboundTransfers.get(requestId);
+    const fileId = msg.fileId ?? inTx?.fileId ?? outTx?.fileId ?? "";
     this.emit({ type: "transfer-error", fileId, requestId, error });
 
     this.inboundTransfers.delete(requestId);
@@ -276,27 +510,23 @@ export class FileTransferManager {
     };
     this.outboundTransfers.set(requestId, transfer);
 
-    // Read and send chunks
+    // Read and send chunks. Raw bytes on the wire — no base64 — via the binary
+    // chunk frame encoder.
     for (let i = 0; i < totalChunks; i++) {
       const start = i * CHUNK_SIZE;
       const end = Math.min(start + CHUNK_SIZE, blob.size);
-      const chunk = blob.slice(start, end);
-      const chunkBuffer = await chunk.arrayBuffer();
-      const chunkBase64 = this.uint8ArrayToBase64(new Uint8Array(chunkBuffer));
+      const chunkBuffer = await blob.slice(start, end).arrayBuffer();
+      const chunkBytes = new Uint8Array(chunkBuffer);
 
-      this.sendMessage({
-        type: "file-chunk",
-        fileId,
-        requestId,
-        chunkIndex: i,
-        totalChunks,
-        data: chunkBase64,
-      });
+      this.sendFrame(
+        encodeChunkFrame(requestId, i, totalChunks, chunkBytes),
+      );
 
       transfer.sentChunks = i + 1;
       transfer.lastChunkAt = Date.now();
 
-      // Small delay to avoid overwhelming the connection
+      // Small delay to avoid overwhelming the relay / backpressuring the WS.
+      // Chunk frames carry 64KB each; yielding lets the event loop drain sends.
       await this.delay(10);
     }
 
@@ -406,6 +636,13 @@ export class FileTransferManager {
     this.localFiles.set(transfer.fileId, blob);
     this.manifest.updateMyPresence(Array.from(this.localFiles.keys()));
 
+    // Persist to IndexedDB so the file survives a reload. Without this, a
+    // received file lived only in this manager's in-memory map and was lost
+    // the moment the app closed — leaving the UI stuck on "waiting" forever.
+    cacheFile(transfer.fileId, blob).catch((err) => {
+      console.warn("[FileTransferManager] failed to cache received file", transfer.fileId, err);
+    });
+
     this.emit({ type: "transfer-complete", fileId: transfer.fileId, requestId: transfer.requestId, blob });
     this.inboundTransfers.delete(transfer.requestId);
   }
@@ -421,26 +658,28 @@ export class FileTransferManager {
   }
 
   private sendMessage(msg: FileTransferMessage): void {
-    if (this.provider.ws && this.provider.ws.readyState === WebSocket.OPEN) {
-      this.provider.ws.send(JSON.stringify(msg));
+    if (msg.type === "file-chunk") {
+      // Chunks go through encodeChunkFrame (raw bytes); sendMessage is for
+      // control messages only. This branch is defensive — the outbound path
+      // calls sendFrame(encodeChunkFrame(...)) directly.
+      this.sendFrame(
+        encodeChunkFrame(msg.requestId, msg.chunkIndex, msg.totalChunks, msg.data),
+      );
+      return;
     }
+    this.sendFrame(encodeControlFrame(msg));
   }
 
-  private uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+  /**
+   * Send a fully-encoded binary frame on the live WebSocket. No-op if the
+   * socket isn't OPEN (the caller may retry on reconnect for control frames;
+   * chunk sends are part of a transfer that the peer can re-request).
+   */
+  private sendFrame(frame: Uint8Array): void {
+    const ws = this.provider.ws;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(frame);
     }
-    return btoa(binary);
-  }
-
-  private base64ToUint8Array(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
   }
 
   private delay(ms: number): Promise<void> {

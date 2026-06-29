@@ -9,6 +9,16 @@ export interface Document {
   fileType: "pdf" | "epub" | "markdown" | "html" | "youtube" | "audio" | "video" | "other";
   content?: string;  // Extracted text content
   contentHash?: string;
+  /**
+   * Sync manifest identifier for this document's binary file. Set when the
+   * document is imported on a device with sync enabled (see documentStore
+   * `registerImportedFileSync`), so other devices in the same sync room can
+   * discover + pull the file via the FileManifest / FileTransferManager.
+   * Absent on documents created before file sync, or when sync is disabled.
+   * This is metadata only — it rides the state-sync (localStorage bridge),
+   * not the Rust/SQLite schema.
+   */
+  fileId?: string;
   totalPages?: number;
   currentPage?: number;
   currentScrollPercent?: number;

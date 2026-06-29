@@ -245,6 +245,17 @@ if (isPWA() || isTauri()) {
 if (isTauri()) {
   import("./lib/yjsSync")
     .then(({ getYjsSync }) => getYjsSync())
+    .then(() =>
+      // Initialize the file-sync subsystem (FileManifest + FileTransferManager)
+      // once the shared yjs doc is ready. Without this, the manifest/transfer
+      // singletons are never constructed and imported files can't be discovered
+      // or pulled across devices. Idempotent via ensureFileSyncReady's guard.
+      import("./lib/useFileSync")
+        .then(({ ensureFileSyncReady }) => ensureFileSyncReady())
+        // Start the auto-download watcher (honors sync.autoDownloadMode).
+        .then(() => import("./lib/autoFileSyncDownload"))
+        .then(({ startAutoFileSyncDownload }) => startAutoFileSyncDownload()),
+    )
     .catch((error) => {
       console.error("[main.tsx] Failed to initialize Yjs sync on Tauri:", error);
     });

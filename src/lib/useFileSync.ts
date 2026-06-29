@@ -25,9 +25,13 @@ let transferManagerInstance: FileTransferManager | null = null;
 let initPromise: Promise<void> | null = null;
 
 /**
- * Initialize file sync (must be called before getFileManifest)
+ * Initialize file sync (must be called before getFileManifest).
+ *
+ * Idempotent: safe to call from the boot path (main.tsx) and again lazily from
+ * any registration/download call — the `initPromise` guard means the singletons
+ * are constructed exactly once per session.
  */
-async function ensureFileSyncReady(): Promise<void> {
+export async function ensureFileSyncReady(): Promise<void> {
   if (manifestInstance && transferManagerInstance) return;
 
   if (!initPromise) {

@@ -69,6 +69,7 @@ import { getYouTubeThumbnail, extractYouTubeTimestamp } from "../../api/youtube"
 import { useMobileShell } from "../../hooks/useMobileShell";
 import { useLongPress } from "../../hooks/useLongPress";
 import { invokeCommand, isTauri, isNativeMobile } from "../../lib/tauri";
+import { DocumentFileSyncBadge } from "../sync/DocumentFileSyncBadge";
 import { importAnkiPackage } from "../../utils/ankiImport";
 import { useI18n } from "../../lib/i18n";
 import { findCompanionDoc } from "../../utils/documentPairing";
@@ -1339,6 +1340,7 @@ export function DocumentsView({ onOpenDocument, onReadAlong, enableYouTubeImport
                             <span className="px-2 py-0.5 rounded bg-muted/60 text-muted-foreground">
                               {doc.fileType}
                             </span>
+                            <DocumentFileSyncBadge doc={doc} />
                             {(doc.fileType === 'audio' || doc.fileType === 'video') && (() => {
                               const store = useTranscriptionQueueStore.getState();
                               const entry = store.getEntryForDocument(doc.id);
