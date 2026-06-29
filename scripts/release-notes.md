@@ -1,3 +1,5 @@
-### Fixed
-- **EPUB/PDF download affordance for synced files** — opening a synced document whose file hasn't transferred yet no longer shows a dead-end "source not loaded" error. Both the EPUB and PDF viewers now offer a download button in the error state, so you can pull the file from another device and re-open it.
-- **Floating extract button dismissal** — the extract button that appears when you highlight text (bottom-right) now closes when you click elsewhere or press Escape. Previously it could only be dismissed by clicking the button itself.
+### Fixed & Improved
+- **Cross-device file sync** — Fixed a bug where `fileId` was not persisted in the database, preventing peers from downloading document file contents (EPUBs/PDFs).
+- **Self-download loop** — Fixed sync hook to correctly identify local/imported files on the owner device as synced instead of offering a download button.
+- **Fallback download button** — Rendered the download control on the viewer fallback screen to enable downloading missing files from peers.
+- **TypeScript & Test fixes** — Corrected local store mock path in Yjs replication tests and resolved Document interface shadowing type error in `EPUBViewer.tsx`.
