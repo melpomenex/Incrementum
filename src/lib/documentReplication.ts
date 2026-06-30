@@ -41,6 +41,37 @@ let initPromise: Promise<void> | null = null;
 let documentsMap: Y.Map<Document> | null = null;
 
 /**
+ * filePath schemes that are the document's CONTENT rather than a device-local
+ * filesystem location, and therefore must survive replication to other devices.
+ * YouTube imports store the watch URL in filePath (the viewer extracts the video
+ * id from it); web/URL imports use `browser-fetched://`; the clipboard inbox and
+ * screenshot/bundle imports use their own schemes. Absolute paths (/home/...,
+ * C:\...) and bare filenames are device-local and excluded — those docs reach
+ * peers through the file-sync layer, not via filePath.
+ */
+const PORTABLE_FILEPATH_SCHEMES = [
+  "http://",
+  "https://",
+  "browser-fetched://",
+  "clipboard://",
+  "screenshot://",
+  "bundle://",
+];
+
+function isPortableFilePath(
+  filePath: string | undefined,
+  fileType?: string,
+): boolean {
+  if (!filePath) return false;
+  // The "youtube" / "video" fileTypes are URL-backed by construction
+  // (importYouTubeVideo / import_twitter_video store the source URL in filePath).
+  if (fileType === "youtube") return true;
+  return PORTABLE_FILEPATH_SCHEMES.some((scheme) =>
+    filePath.startsWith(scheme),
+  );
+}
+
+/**
  * Initialize the replication layer: attach to the shared yjs doc's `documents`
  * map and subscribe to remote changes. Idempotent; safe to call from boot and
  * lazily from the publish path.
@@ -240,10 +271,17 @@ async function handleRemoteDocument(docId: string): Promise<void> {
     if (local && local.id !== docToUpsert.id) {
       docToUpsert.id = local.id;
     }
-    // If local exists and has a filePath, preserve it. Otherwise, set it to ""
-    // since the remote path is meaningless on this device.
+    // If local exists and has a filePath, preserve it. Otherwise decide by
+    // filePath kind: URL/identifier filePaths (YouTube links, web articles,
+    // clipboard://, screenshot://, bundle://, …) are the document's CONTENT,
+    // not a device-local filesystem location, so they must be preserved on the
+    // receiver — blanking them would make the doc unopenable. True local paths
+    // (e.g. /home/user/book.epub) are meaningless on other devices and get
+    // cleared to "" (the file arrives separately via the file-sync layer).
     if (local && local.filePath) {
       docToUpsert.filePath = local.filePath;
+    } else if (isPortableFilePath(remote.filePath, remote.fileType)) {
+      docToUpsert.filePath = remote.filePath ?? "";
     } else {
       docToUpsert.filePath = "";
     }

@@ -628,6 +628,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         console.warn('[DocumentStore] Failed to update document fully:', updateError);
       }
 
+      // Publish the doc row to the sync room so other devices' libraries
+      // receive it. URL imports (YouTube, web articles, etc.) store the URL in
+      // filePath and have no local file bytes to transfer via the file-sync
+      // layer — the URL IS the content, so the receiver opens it directly.
+      // Without this publish, the doc never leaves the importing device.
+      await publishDocument(doc).catch((e) => {
+        console.warn("[documentStore] document publish failed", e);
+      });
+
       set((state) => ({
         documents: [...state.documents, doc],
         isImporting: false,
@@ -690,6 +699,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       } catch (updateError) {
         console.warn('[DocumentStore] Failed to update document fully:', updateError);
       }
+
+      // Publish the doc row to the sync room (see importFromUrl). arXiv imports
+      // are URL/PDF-content documents with no device-local file to transfer.
+      await publishDocument(doc).catch((e) => {
+        console.warn("[documentStore] document publish failed", e);
+      });
 
       set((state) => ({
         documents: [...state.documents, doc],

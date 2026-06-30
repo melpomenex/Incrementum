@@ -159,6 +159,82 @@ describe("documentReplication conflict resolution", () => {
       expect(doc.currentScrollPercent).toBe(73);
     });
   });
+
+  it("preserves a YouTube doc's URL filePath on the receiver (URL IS the content)", async () => {
+    // YouTube imports store the watch URL in filePath; the viewer extracts the
+    // video id from it. Blanking it on the receiver would make the doc
+    // unopenable. fileType "youtube" marks filePath as portable.
+    map.set(
+      "doc-yt",
+      makeDoc("doc-yt", {
+        title: "Some YouTube Video",
+        filePath: "https://www.youtube.com/watch?v=n04A6phTTVc",
+        fileType: "youtube",
+        dateModified: "2026-06-01T00:00:00.000Z",
+      }),
+    );
+
+    await vi.waitFor(() => {
+      const call = mocks.invokeCommand.mock.calls.find(
+        (c) =>
+          c[0] === "upsert_synced_document" &&
+          (c[1] as { document: Document }).document?.id === "doc-yt",
+      );
+      expect(call).toBeTruthy();
+      const doc = (call![1] as { document: Document }).document;
+      expect(doc.filePath).toBe("https://www.youtube.com/watch?v=n04A6phTTVc");
+    });
+  });
+
+  it("preserves a browser-fetched web-article filePath on the receiver", async () => {
+    // Web/URL imports use the browser-fetched:// scheme, which is also content,
+    // not a device-local path.
+    map.set(
+      "doc-web",
+      makeDoc("doc-web", {
+        title: "Some Article",
+        filePath: "browser-fetched://article-1234-abcd",
+        fileType: "html",
+        dateModified: "2026-06-01T00:00:00.000Z",
+      }),
+    );
+
+    await vi.waitFor(() => {
+      const call = mocks.invokeCommand.mock.calls.find(
+        (c) =>
+          c[0] === "upsert_synced_document" &&
+          (c[1] as { document: Document }).document?.id === "doc-web",
+      );
+      expect(call).toBeTruthy();
+      expect((call![1] as { document: Document }).document.filePath).toBe(
+        "browser-fetched://article-1234-abcd",
+      );
+    });
+  });
+
+  it("blanks a device-local filePath on the receiver (file arrives via file-sync)", async () => {
+    // Regression guard: an EPUB imported from a local path must still have its
+    // meaningless-on-the-receiver filePath cleared, so the UI shows the
+    // "available to download" state rather than a broken local path.
+    map.set(
+      "doc-local",
+      makeDoc("doc-local", {
+        filePath: "/home/sender/books/epub.epub",
+        fileType: "epub",
+        dateModified: "2026-06-01T00:00:00.000Z",
+      }),
+    );
+
+    await vi.waitFor(() => {
+      const call = mocks.invokeCommand.mock.calls.find(
+        (c) =>
+          c[0] === "upsert_synced_document" &&
+          (c[1] as { document: Document }).document?.id === "doc-local",
+      );
+      expect(call).toBeTruthy();
+      expect((call![1] as { document: Document }).document.filePath).toBe("");
+    });
+  });
 });
 
 describe("republishDocumentPosition", () => {

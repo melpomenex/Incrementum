@@ -462,7 +462,17 @@ export async function importYouTubeVideo(url: string, collectionId?: string): Pr
   if (isWebMode()) {
     return await browserInvoke<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
   }
-  return await invokeCommand<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
+  const doc = await invokeCommand<Document>("import_youtube_video", { url, collectionId: collectionId ?? null });
+  // Publish so other devices' libraries receive the YouTube doc. Its filePath
+  // is the watch URL (the content), so the receiver opens it directly — no
+  // file-sync transfer involved. Fire-and-forget; dynamic import avoids the
+  // static cycle (documentReplication -> this module).
+  if (doc) {
+    void import("../lib/documentReplication")
+      .then(({ publishDocument }) => publishDocument(doc))
+      .catch(() => {});
+  }
+  return doc;
 }
 
 /**
@@ -491,7 +501,17 @@ export async function fetchTwitterVideoInfo(url: string): Promise<TwitterVideoIn
  * Tauri-only — throws when invoked outside the desktop app.
  */
 export async function importTwitterVideo(url: string, collectionId?: string): Promise<Document> {
-  return await invokeCommand<Document>("import_twitter_video", { url, collectionId: collectionId ?? null });
+  const doc = await invokeCommand<Document>("import_twitter_video", { url, collectionId: collectionId ?? null });
+  // Publish the doc row so other devices see it. Unlike YouTube, a Twitter
+  // import downloads a local MP4 (device-local filePath), so the receiver still
+  // needs the file-sync layer to obtain the bytes — but the row must exist on
+  // the peer first for the download to be triggered. Fire-and-forget.
+  if (doc) {
+    void import("../lib/documentReplication")
+      .then(({ publishDocument }) => publishDocument(doc))
+      .catch(() => {});
+  }
+  return doc;
 }
 
 /**
