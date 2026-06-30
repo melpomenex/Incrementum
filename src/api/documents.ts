@@ -8,6 +8,10 @@ import { serializeViewState } from "../lib/readerPosition";
 import { Document } from "../types/document";
 import type { BulkOperationResult } from "./extract-bulk";
 import type { ViewState } from "../types/readerPosition";
+import { extractYouTubeVideoId } from "../utils/youtubeEmbed";
+
+/** Thin alias so the dedupe intent reads clearly at the call site. */
+const extractYouTubeVideoIdFromUrl = extractYouTubeVideoId;
 
 /**
  * Check if running in web mode (not Tauri)
@@ -438,6 +442,24 @@ export async function fetchUrlContent(url: string): Promise<FetchedUrlContent> {
  * transcript on demand from the hosted readsync.org API.
  */
 export async function importYouTubeVideo(url: string, collectionId?: string): Promise<Document> {
+  // Dedupe by video id: re-importing the same YouTube URL used to create a new
+  // doc row each time (new id), and every copy synced to other devices —
+  // producing the "4 duplicates" explosion on the phone. If a youtube doc with
+  // this video id already exists, return it instead of creating a duplicate.
+  // Matches the check in useURLMetadata, but enforced at the import source so
+  // every entry point is covered.
+  const vidId = extractYouTubeVideoIdFromUrl(url);
+  if (vidId) {
+    try {
+      const existing = (await getDocuments()).find(
+        (d) => d && d.fileType === "youtube" && typeof d.filePath === "string" && d.filePath.includes(vidId),
+      );
+      if (existing) return existing;
+    } catch {
+      // Non-fatal: fall through to normal import if the lookup fails.
+    }
+  }
+
   if (isNativeMobile()) {
     // Resolve a title via oEmbed (best-effort; thumbnail comes from the viewer).
     let title = `YouTube: ${url}`;
