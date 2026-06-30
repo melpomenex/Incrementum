@@ -216,6 +216,24 @@ export function EPUBViewer({
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
   const [showTocDrawer, setShowTocDrawer] = useState(false);
   const [showDesktopToc, setShowDesktopToc] = useState(true);
+  const [containerHasSize, setContainerHasSize] = useState(false);
+
+  // ResizeObserver to track container visibility/dimensions
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setContainerHasSize(true);
+        }
+      }
+    });
+    observer.observe(viewerRef.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const handleOpenToc = () => {
@@ -642,6 +660,8 @@ export function EPUBViewer({
   }, [rendition]);
 
   useEffect(() => {
+    if (!containerHasSize || (!fileUrl && !fileData)) return;
+
     let mounted = true;
     let bookInstance: any = null;
     let renditionInstance: any = null;
@@ -1167,7 +1187,7 @@ export function EPUBViewer({
     // Note: onLoad, onContextTextChange, onSelectionChange, and onProgressChange are
     // intentionally excluded from deps - they use refs to avoid destroying and
     // recreating the EPUB book when parent callbacks change.
-  }, [fileData, fileUrl, documentId]);
+  }, [fileData, fileUrl, documentId, containerHasSize]);
 
   const lastDisplayedCfiRef = useRef<string | null>(null);
 

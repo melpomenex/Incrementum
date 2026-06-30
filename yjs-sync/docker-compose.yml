@@ -69,6 +69,8 @@ services:
     image: caddy:2-alpine
     env_file:
       - .env
+    environment:
+      - GODEBUG=http2xconnect=1
     dns:
       - 1.1.1.1
       - 8.8.8.8

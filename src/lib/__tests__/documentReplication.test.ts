@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   getYjsSync: vi.fn(),
   loadDocuments: vi.fn().mockResolvedValue(undefined),
   localDocuments: [] as import("../../types").Document[],
+  getDocument: vi.fn(),
+  getDocuments: vi.fn(),
 }));
 
 vi.mock("../tauri", async (importOriginal) => {
@@ -30,6 +32,10 @@ vi.mock("../../stores/documentStore", () => ({
     }),
     setState: vi.fn(),
   },
+}));
+vi.mock("../../api/documents", () => ({
+  getDocument: mocks.getDocument,
+  getDocuments: mocks.getDocuments,
 }));
 
 import type { Document } from "../../types";
@@ -73,6 +79,10 @@ beforeAll(async () => {
 // Reset per-test shared state without re-importing the module (the observer
 // singleton must persist). localDocuments defaults to empty each test.
 beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.invokeCommand.mockResolvedValue({});
+  mocks.getDocument.mockResolvedValue(null);
+  mocks.getDocuments.mockResolvedValue([]);
   mocks.localDocuments = [];
 });
 
@@ -88,6 +98,25 @@ describe("documentReplication conflict resolution", () => {
     });
   });
 
+  it("preserves a local SQLite filePath when the store has not loaded yet", async () => {
+    mocks.getDocument.mockResolvedValueOnce(makeDoc("doc-sqlite", {
+      filePath: "/local/doc-sqlite.epub",
+      dateModified: "2026-01-01T00:00:00.000Z",
+    }));
+
+    map.set("doc-sqlite", makeDoc("doc-sqlite", {
+      filePath: "/remote/doc-sqlite.epub",
+      dateModified: "2026-06-01T00:00:00.000Z",
+    }));
+
+    await vi.waitFor(() => {
+      const call = mocks.invokeCommand.mock.calls.find(
+        (c) => (c[1] as { document: Document }).document?.id === "doc-sqlite",
+      );
+      expect((call?.[1] as { document: Document }).document.filePath).toBe("/local/doc-sqlite.epub");
+    });
+  });
+
   it("does NOT upsert a remote doc older than the local copy", async () => {
     mocks.localDocuments = [makeDoc("doc-skip", { dateModified: "2026-06-01T00:00:00.000Z" })];
     map.set("doc-skip", makeDoc("doc-skip", { dateModified: "2026-01-01T00:00:00.000Z" }));
@@ -98,5 +127,112 @@ describe("documentReplication conflict resolution", () => {
       (c) => (c[1] as { document: Document }).document?.id === "doc-skip",
     );
     expect(calls.length).toBe(0);
+  });
+
+  it("upserts remote reading-position fields (currentCfi, positionJson, progressPercent) into local SQLite", async () => {
+    // Regression for the receiver half of cross-device position sync: the
+    // upsert payload must carry the unified position fields, not just the
+    // legacy CFI. Previously these were dropped, so even when a position was
+    // published the receiver could not restore PDF/page/video positions.
+    map.set(
+      "doc-pos",
+      makeDoc("doc-pos", {
+        currentCfi: "epubcfi(/6/4!/4/2/1:0)",
+        currentScrollPercent: 73,
+        positionJson: '{"type":"cfi","cfi":"epubcfi(/6/4!/4/2/1:0)"}',
+        progressPercent: 73,
+        dateModified: "2026-06-01T00:00:00.000Z",
+      }),
+    );
+
+    await vi.waitFor(() => {
+      const call = mocks.invokeCommand.mock.calls.find(
+        (c) =>
+          c[0] === "upsert_synced_document" &&
+          (c[1] as { document: Document }).document?.id === "doc-pos",
+      );
+      expect(call).toBeTruthy();
+      const doc = (call![1] as { document: Document }).document;
+      expect(doc.currentCfi).toBe("epubcfi(/6/4!/4/2/1:0)");
+      expect(doc.positionJson).toBe('{"type":"cfi","cfi":"epubcfi(/6/4!/4/2/1:0)"}');
+      expect(doc.progressPercent).toBe(73);
+      expect(doc.currentScrollPercent).toBe(73);
+    });
+  });
+});
+
+describe("republishDocumentPosition", () => {
+  // Position saves fire rapidly (scroll/timeupdate); republish must coalesce
+  // a burst into one Yjs publish to avoid ballooning the shared CRDT doc.
+  // Fake timers let us advance the debounce window deterministically.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("coalesces rapid saves into a single publish", async () => {
+    const setSpy = vi.spyOn(map, "set");
+    const doc = makeDoc("doc-debounce", {
+      currentCfi: "epubcfi(/6/4!/4/2/1:0)",
+      dateModified: "2026-06-01T00:00:00.000Z",
+    });
+    // Seed local with the same dateModified so the observer echo (fired when
+    // publishDocument calls map.set) no-ops via the dateModified conflict
+    // rule — keeping the set-spy count attributable to republish alone.
+    mocks.localDocuments = [doc];
+
+    const { republishDocumentPosition } = await import("../documentReplication");
+    republishDocumentPosition(doc);
+    republishDocumentPosition(doc);
+    republishDocumentPosition(doc);
+
+    // Still within the debounce window: nothing published yet.
+    await vi.advanceTimersByTimeAsync(500);
+    expect(setSpy.mock.calls.filter(([k]) => k === "doc-debounce").length).toBe(0);
+
+    // Cross the debounce threshold: exactly one publish fires.
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(setSpy.mock.calls.filter(([k]) => k === "doc-debounce").length).toBe(1);
+    expect(map.get("doc-debounce")?.currentCfi).toBe("epubcfi(/6/4!/4/2/1:0)");
+    setSpy.mockRestore();
+  });
+
+  it("publishes a passed Document without refetching", async () => {
+    const doc = makeDoc("doc-direct", {
+      currentCfi: "epubcfi(/6/4)",
+      dateModified: "2026-06-01T00:00:00.000Z",
+    });
+    // Silence the observer echo for this doc so getDocument is attributable
+    // only to the republish path.
+    mocks.localDocuments = [doc];
+
+    const { republishDocumentPosition } = await import("../documentReplication");
+    republishDocumentPosition(doc);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    // Doc form must NOT refetch the doc it was handed — the caller already
+    // had the fresh row. (The id-form path is covered by the next test.)
+    expect(mocks.getDocument).not.toHaveBeenCalledWith("doc-direct");
+    expect(map.get("doc-direct")?.currentCfi).toBe("epubcfi(/6/4)");
+  });
+
+  it("refetches by id when only a string is passed", async () => {
+    const doc = makeDoc("doc-byid", {
+      positionJson: '{"type":"cfi","cfi":"x"}',
+      progressPercent: 42,
+      dateModified: "2026-06-01T00:00:00.000Z",
+    });
+    mocks.getDocument.mockResolvedValue(doc);
+    mocks.localDocuments = [doc];
+
+    const { republishDocumentPosition } = await import("../documentReplication");
+    republishDocumentPosition("doc-byid");
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(mocks.getDocument).toHaveBeenCalledWith("doc-byid");
+    expect(map.get("doc-byid")?.positionJson).toBe('{"type":"cfi","cfi":"x"}');
+    expect(map.get("doc-byid")?.progressPercent).toBe(42);
   });
 });

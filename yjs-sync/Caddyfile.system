@@ -1,0 +1,89 @@
+{
+	email gnomer@gmail.com
+	admin off
+	# Stop serving the catch-all HTTP->HTTPS redirect for arbitrary hostnames.
+	# This is the root cause of the SNI/CDN abuse: unknown domains pointed at
+	# this IP were getting 308 redirects, making the server an open relay.
+	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
+}
+
+# --- Explicit redirect to HTTPS for OUR domains only (since the
+# --- automatic catch-all redirect is now disabled above). ---
+http://irc.itstheje.ws, http://sync.readsync.org {
+	redir https://{host}{uri} permanent
+}
+
+irc.itstheje.ws {
+	reverse_proxy 127.0.0.1:9001 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/cryptirc.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}
+
+sync.readsync.org {
+	@not_ws {
+		not header Connection *Upgrade*
+		not header Upgrade websocket
+	}
+	encode @not_ws zstd gzip
+
+	@files {
+		path /files/*
+	}
+
+	# 100MB per file upload
+	request_body @files {
+		max_size 100MB
+	}
+
+	reverse_proxy @files 127.0.0.1:8787
+
+	# y-websocket relay: both HTTP and WebSocket upgrade proxy to the broker.
+	reverse_proxy 127.0.0.1:1234 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/yjs-sync.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}
+
+# --- Catch-all deny: any hostname not matched above gets a hard 410.
+# --- No more redirects, no cert issuance, no participation in abuse. ---
+:80 {
+	respond "Not Found" 404
+}
+
+:443 {
+	# Internal (self-signed) TLS so junk SNI completes a handshake but
+	# never triggers a real Let's Encrypt cert request.
+	tls internal
+	respond "Not Found" 404
+}

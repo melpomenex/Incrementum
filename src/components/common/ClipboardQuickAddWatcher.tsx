@@ -10,7 +10,7 @@ const POLL_MS = 1400;
 
 async function ensureClipboardInboxDocument(): Promise<string> {
   const docs = await getDocuments();
-  const existing = docs.find((doc) => doc.filePath === "clipboard://inbox" || doc.title === "Clipboard Inbox");
+  const existing = docs.find((doc) => doc && (doc.filePath === "clipboard://inbox" || doc.title === "Clipboard Inbox"));
   if (existing) return existing.id;
   const created = await createDocument("Clipboard Inbox", "clipboard://inbox", "markdown");
   return created.id;

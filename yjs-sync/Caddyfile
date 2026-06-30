@@ -1,11 +1,16 @@
+{
+  servers {
+    protocols h1 h2
+  }
+}
+
 # Replace with your domain, e.g. sync.readsync.org
 {$YJS_SYNC_HOSTNAME} {
-  encode zstd gzip
-
-  @ws {
-    header Connection *Upgrade*
-    header Upgrade websocket
+  @not_ws {
+    not header Connection *Upgrade*
+    not header Upgrade websocket
   }
+  encode @not_ws zstd gzip
 
   @files {
     path /files/*
@@ -19,7 +24,6 @@
   }
 
   reverse_proxy @files file-service:8787
-  reverse_proxy @ws yjs-sync:1234
   reverse_proxy yjs-sync:1234
 }
 

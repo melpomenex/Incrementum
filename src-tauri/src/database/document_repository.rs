@@ -125,11 +125,13 @@ impl DocumentRepository {
             r#"
             INSERT OR REPLACE INTO documents (
                 id, title, file_path, file_type, content, content_hash,
-                total_pages, current_page, current_scroll_percent, current_cfi, current_view_state, category, tags,
+                total_pages, current_page, current_scroll_percent, current_cfi, current_view_state,
+                position_json, progress_percent,
+                category, tags,
                 date_added, date_modified, date_last_reviewed,
                 extract_count, learning_item_count, priority_rating, priority_slider, priority_score,
                 is_archived, is_favorite, is_dismissed, metadata, cover_image_url, cover_image_source
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29)
             "#,
         )
         .bind(&document.id)
@@ -143,6 +145,8 @@ impl DocumentRepository {
         .bind(document.current_scroll_percent)
         .bind(&document.current_cfi)
         .bind(&document.current_view_state)
+        .bind(&document.position_json)
+        .bind(document.progress_percent)
         .bind(&document.category)
         .bind(tags_json)
         .bind(document.date_added)

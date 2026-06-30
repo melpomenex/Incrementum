@@ -4,8 +4,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { FileManifest, FileManifestEntry, getDeviceId } from "./file-manifest";
-import { FileTransferManager, getCachedFile } from "./file-transfer";
-import { getYjsSync } from "./yjsSync";
+import { FileTransferManager, getCachedFile, deleteCachedFile } from "./file-transfer";
+import { getYjsSync, getSyncRoomId, registerRoomChangeListener } from "./yjsSync";
 
 export type FileSyncStatus =
   | "synced" // File is stored locally
@@ -32,6 +32,14 @@ let initPromise: Promise<void> | null = null;
  * are constructed exactly once per session.
  */
 export async function ensureFileSyncReady(): Promise<void> {
+  const sync = await getYjsSync();
+  if (manifestInstance && manifestInstance.getDoc() !== sync.doc) {
+    transferManagerInstance?.dispose();
+    manifestInstance = null;
+    transferManagerInstance = null;
+    initPromise = null;
+  }
+
   if (manifestInstance && transferManagerInstance) return;
 
   if (!initPromise) {
@@ -82,11 +90,15 @@ export function getFileTransferManager(): FileTransferManager {
   return transferManagerInstance;
 }
 
-/**
- * Hook to get sync status for a specific file
- */
 export function useFileSyncStatus(fileId: string | null): FileSyncState {
   const [state, setState] = useState<FileSyncState>({ status: "waiting" });
+  const [roomId, setRoomId] = useState(() => getSyncRoomId());
+
+  useEffect(() => {
+    return registerRoomChangeListener(() => {
+      setRoomId(getSyncRoomId());
+    });
+  }, []);
 
   useEffect(() => {
     if (!fileId) {
@@ -112,12 +124,18 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
         }
 
         const cached = await getCachedFile(fileId);
-        if (cached && mounted) {
+        if (cached && cached.size > 0 && mounted) {
           setState({ status: "synced" });
           return;
         }
+        if (cached && cached.size === 0) {
+          await deleteCachedFile(fileId).catch((err) => {
+            console.warn("[useFileSyncStatus] failed to delete empty cached file", fileId, err);
+          });
+        }
 
-        const available = manifest.isFileAvailable(fileId);
+        const inManifest = manifest.getAllFiles().some((f) => f.id === fileId);
+        const available = inManifest || manifest.isFileAvailable(fileId, { excludeDeviceId: manifest.getDeviceId() });
         if (mounted) {
           setState({ status: available ? "available" : "waiting" });
         }
@@ -127,7 +145,13 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
 
       // Subscribe to manifest changes
       unsubManifest = manifest.subscribe((event) => {
-        if (event.type === "device-online" || event.type === "device-offline" || event.type === "device-files-updated") {
+        if (
+          event.type === "device-online" ||
+          event.type === "device-offline" ||
+          event.type === "device-files-updated" ||
+          event.type === "file-added" ||
+          event.type === "file-removed"
+        ) {
           checkStatus();
         }
       });
@@ -166,7 +190,7 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
       unsubManifest?.();
       unsubTransfer?.();
     };
-  }, [fileId]);
+  }, [fileId, roomId]);
 
   return state;
 }
@@ -176,6 +200,13 @@ export function useFileSyncStatus(fileId: string | null): FileSyncState {
  */
 export function useAllFileSyncStatus(): Map<string, FileSyncState> {
   const [states, setStates] = useState<Map<string, FileSyncState>>(new Map());
+  const [roomId, setRoomId] = useState(() => getSyncRoomId());
+
+  useEffect(() => {
+    return registerRoomChangeListener(() => {
+      setRoomId(getSyncRoomId());
+    });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -196,9 +227,14 @@ export function useAllFileSyncStatus(): Map<string, FileSyncState> {
         for (const file of files) {
           const isLocal = transferManager.hasFileLocal(file.id);
           const cached = isLocal ? null : await getCachedFile(file.id);
-          const available = manifest.isFileAvailable(file.id);
+          if (cached && cached.size === 0) {
+            await deleteCachedFile(file.id).catch((err) => {
+              console.warn("[useAllFileSyncStatus] failed to delete empty cached file", file.id, err);
+            });
+          }
+          const available = manifest.isFileAvailable(file.id, { excludeDeviceId: manifest.getDeviceId() });
 
-          if (isLocal || cached) {
+          if (isLocal || (cached && cached.size > 0)) {
             newStates.set(file.id, { status: "synced" });
           } else if (available) {
             newStates.set(file.id, { status: "available" });
@@ -254,7 +290,7 @@ export function useAllFileSyncStatus(): Map<string, FileSyncState> {
       unsubManifest?.();
       unsubTransfer?.();
     };
-  }, []);
+  }, [roomId]);
 
   return states;
 }

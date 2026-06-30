@@ -27,6 +27,8 @@
 
 import { WebsocketProvider } from "y-websocket";
 import { FileManifest, getDeviceId } from "./file-manifest";
+import { getSyncRoomId } from "./yjsSync";
+import { downloadRoomFile } from "./yjs-file-service";
 
 /** Wire message-type byte for the file-transfer protocol. */
 const FILE_TRANSFER_TYPE = 0x20;
@@ -279,6 +281,8 @@ export class FileTransferManager {
   private pendingRequests: Map<string, { fileId: string; resolve: (blob: Blob) => void; reject: (err: Error) => void }> =
     new Map();
 
+  private presenceHeartbeat: ReturnType<typeof setInterval> | null = null;
+
   constructor(provider: WebsocketProvider, manifest: FileManifest) {
     this.provider = provider;
     this.manifest = manifest;
@@ -314,6 +318,11 @@ export class FileTransferManager {
         this.checkPendingRequests(event.hasFiles);
       }
     });
+
+    this.refreshPresence();
+    this.presenceHeartbeat = setInterval(() => {
+      this.refreshPresence();
+    }, 30000);
   }
 
   /**
@@ -326,12 +335,14 @@ export class FileTransferManager {
       const ids = await getAllCachedFileIds();
       for (const id of ids) {
         const blob = await getCachedFile(id);
-        if (blob) {
+        if (blob && blob.size > 0) {
           this.localFiles.set(id, blob);
+        } else if (blob && blob.size === 0) {
+          await deleteCachedFile(id);
         }
       }
-      if (ids.length > 0) {
-        this.manifest.updateMyPresence(Array.from(this.localFiles.keys()));
+      if (this.localFiles.size > 0) {
+        this.refreshPresence();
       }
     } catch (err) {
       console.warn("[FileTransferManager] failed to rehydrate cached files", err);
@@ -388,10 +399,19 @@ export class FileTransferManager {
   private handleFileRequest(msg: { type: "file-request"; fileId: string; requesterDeviceId: string; requestId: string }): void {
     const { fileId, requesterDeviceId, requestId } = msg;
 
+    if (requesterDeviceId === this.deviceId) {
+      return;
+    }
+
     const fileBlob = this.localFiles.get(fileId);
     const loader = this.localFileLoaders.get(fileId);
     if (!fileBlob && !loader) {
-      // We don't have it (neither eager nor lazy), ignore.
+      // We don't have it (neither eager nor lazy), ignore. If our own
+      // presence somehow listed it, refresh so peers stop requesting us.
+      const presence = this.manifest.getDevicePresence(this.deviceId);
+      if (presence?.hasFiles.includes(fileId)) {
+        this.refreshPresence();
+      }
       return;
     }
 
@@ -402,6 +422,21 @@ export class FileTransferManager {
     // lazy loader to read bytes from disk on demand. The actual transfer
     // (chunking + sending) only happens once we have the bytes.
     const resolveAndSend = async (blob: Blob) => {
+      if (blob.size === 0) {
+        this.localFiles.delete(fileId);
+        this.localFileLoaders.delete(fileId);
+        this.refreshPresence();
+        void deleteCachedFile(fileId).catch((err) => {
+          console.warn("[FileTransferManager] failed to delete empty cached file", fileId, err);
+        });
+        this.sendMessage({
+          type: "file-error",
+          fileId,
+          requestId,
+          error: "Source file is empty",
+        });
+        return;
+      }
       const totalChunks = Math.ceil(blob.size / CHUNK_SIZE);
       this.sendMessage({
         type: "file-response",
@@ -414,7 +449,21 @@ export class FileTransferManager {
     };
 
     if (fileBlob) {
-      void resolveAndSend(fileBlob);
+      if (fileBlob.size === 0) {
+        this.localFiles.delete(fileId);
+        this.refreshPresence();
+        void deleteCachedFile(fileId).catch((err) => {
+          console.warn("[FileTransferManager] failed to delete empty cached file", fileId, err);
+        });
+        this.sendMessage({
+          type: "file-error",
+          fileId,
+          requestId,
+          error: "Source file is empty",
+        });
+      } else {
+        void resolveAndSend(fileBlob);
+      }
     } else if (loader) {
       loader()
         .then((blob) => resolveAndSend(blob))
@@ -433,18 +482,26 @@ export class FileTransferManager {
   private handleFileResponse(msg: { type: "file-response"; fileId?: string; requestId: string; accepted: boolean; totalChunks: number }): void {
     const { requestId, accepted, totalChunks } = msg;
 
-    // We should be waiting for this response
-    const transfer = this.outboundTransfers.get(requestId);
+    // The requester is receiving a source's acceptance. This must update the
+    // inbound transfer record created by requestFile(); otherwise completion
+    // assembles against the initial 0 chunk count.
+    const transfer = this.inboundTransfers.get(requestId);
     if (!transfer) return;
 
     if (!accepted) {
       this.emit({ type: "transfer-error", fileId: transfer.fileId, requestId, error: "Request rejected by source" });
-      this.outboundTransfers.delete(requestId);
+      this.inboundTransfers.delete(requestId);
+      return;
+    }
+
+    if (totalChunks <= 0) {
+      this.emit({ type: "transfer-error", fileId: transfer.fileId, requestId, error: "Source returned an empty file" });
+      this.inboundTransfers.delete(requestId);
       return;
     }
 
     transfer.totalChunks = totalChunks;
-    this.emit({ type: "transfer-started", fileId: transfer.fileId, requestId, direction: "outbound" });
+    this.emit({ type: "transfer-started", fileId: transfer.fileId, requestId, direction: "inbound" });
   }
 
   private handleFileChunk(msg: {
@@ -465,14 +522,38 @@ export class FileTransferManager {
       return;
     }
 
+    if (totalChunks <= 0 || chunkIndex >= totalChunks || chunkData.length === 0) {
+      this.emit({
+        type: "transfer-error",
+        fileId: transfer.fileId,
+        requestId,
+        error: "Invalid file chunk received",
+      });
+      this.inboundTransfers.delete(requestId);
+      return;
+    }
+
+    if (transfer.totalChunks === 0) {
+      transfer.totalChunks = totalChunks;
+    } else if (transfer.totalChunks !== totalChunks) {
+      this.emit({
+        type: "transfer-error",
+        fileId: transfer.fileId,
+        requestId,
+        error: "Inconsistent chunk count received",
+      });
+      this.inboundTransfers.delete(requestId);
+      return;
+    }
+
     transfer.receivedChunks.set(chunkIndex, chunkData);
     transfer.lastChunkAt = Date.now();
 
     // Calculate progress
-    const progress = transfer.receivedChunks.size / totalChunks;
+    const progress = transfer.receivedChunks.size / transfer.totalChunks;
     this.emit({ type: "transfer-progress", fileId: transfer.fileId, requestId, progress });
 
-    if (transfer.receivedChunks.size === totalChunks) {
+    if (transfer.receivedChunks.size === transfer.totalChunks) {
       this.assembleAndComplete(transfer);
     }
   }
@@ -504,9 +585,18 @@ export class FileTransferManager {
    * holding every document's content in RAM for the whole session.
    */
   registerLocalFile(fileId: string, blob: Blob): void {
+    if (blob.size === 0) {
+      this.localFiles.delete(fileId);
+      this.refreshPresence();
+      void deleteCachedFile(fileId).catch((err) => {
+        console.warn("[FileTransferManager] failed to delete empty cached file", fileId, err);
+      });
+      return;
+    }
+
     this.localFiles.set(fileId, blob);
     this.localFileLoaders.delete(fileId);
-    this.manifest.updateMyPresence(this.allOwnedFileIds());
+    this.refreshPresence();
   }
 
   /**
@@ -521,7 +611,7 @@ export class FileTransferManager {
     // If we previously had an in-memory copy, drop it — the loader is now the
     // source of truth, and we don't want to advertise/serve a stale blob.
     this.localFiles.delete(fileId);
-    this.manifest.updateMyPresence(this.allOwnedFileIds());
+    this.refreshPresence();
   }
 
   /**
@@ -540,7 +630,7 @@ export class FileTransferManager {
   unregisterLocalFile(fileId: string): void {
     this.localFiles.delete(fileId);
     this.localFileLoaders.delete(fileId);
-    this.manifest.updateMyPresence(this.allOwnedFileIds());
+    this.refreshPresence();
   }
 
   private async startOutboundTransfer(
@@ -598,15 +688,36 @@ export class FileTransferManager {
    */
   async requestFile(fileId: string): Promise<Blob> {
     const local = this.localFiles.get(fileId);
-    if (local) {
+    if (local && local.size > 0) {
       return local;
     }
-
-    const sources = this.manifest.findDevicesWithFile(fileId);
-    if (sources.length === 0) {
-      return new Promise((resolve, reject) => {
-        this.pendingRequests.set(fileId, { fileId, resolve, reject });
+    if (local && local.size === 0) {
+      this.localFiles.delete(fileId);
+      this.refreshPresence();
+      void deleteCachedFile(fileId).catch((err) => {
+        console.warn("[FileTransferManager] failed to delete empty cached file", fileId, err);
       });
+    }
+
+    // Try downloading from the HTTP file-service first (server-backed async sync)
+    try {
+      const room = getSyncRoomId();
+      const blob = await downloadRoomFile(room, fileId);
+      if (blob && blob.size > 0) {
+        this.localFiles.set(fileId, blob);
+        this.refreshPresence();
+        await cacheFile(fileId, blob).catch((e) => {
+          console.warn("[FileTransferManager] failed to cache downloaded file", fileId, e);
+        });
+        return blob;
+      }
+    } catch (downloadErr) {
+      console.log("[FileTransferManager] file-service download failed or not on server, falling back to P2P:", downloadErr);
+    }
+
+    const sources = this.manifest.findDevicesWithFile(fileId, { excludeDeviceId: this.deviceId });
+    if (sources.length === 0) {
+      throw new Error("No online device currently has this file");
     }
 
     const requestId = `${this.deviceId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -651,8 +762,6 @@ export class FileTransferManager {
       requestId,
     });
 
-    this.emit({ type: "transfer-started", fileId, requestId, direction: "inbound" });
-
     return transferPromise;
   }
 
@@ -675,6 +784,17 @@ export class FileTransferManager {
     }
 
     const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    if (totalLength === 0) {
+      this.emit({
+        type: "transfer-error",
+        fileId: transfer.fileId,
+        requestId: transfer.requestId,
+        error: "Received empty file",
+      });
+      this.inboundTransfers.delete(transfer.requestId);
+      return;
+    }
+
     const combined = new Uint8Array(totalLength);
     let offset = 0;
     for (const chunk of chunks) {
@@ -686,7 +806,7 @@ export class FileTransferManager {
     const blob = new Blob([combined], { type: entry?.contentType || "application/octet-stream" });
 
     this.localFiles.set(transfer.fileId, blob);
-    this.manifest.updateMyPresence(Array.from(this.localFiles.keys()));
+    this.refreshPresence();
 
     // Persist to IndexedDB so the file survives a reload. Without this, a
     // received file lived only in this manager's in-memory map and was lost
@@ -701,12 +821,19 @@ export class FileTransferManager {
 
   private checkPendingRequests(availableFiles: string[]): void {
     for (const [fileId, pending] of this.pendingRequests) {
-      if (availableFiles.includes(fileId)) {
+      const hasRemoteSource =
+        availableFiles.includes(fileId) &&
+        this.manifest.isFileAvailable(fileId, { excludeDeviceId: this.deviceId });
+      if (hasRemoteSource) {
         // Source is now available, start transfer
         this.pendingRequests.delete(fileId);
         this.requestFile(fileId).then(pending.resolve).catch(pending.reject);
       }
     }
+  }
+
+  private refreshPresence(): void {
+    this.manifest.updateMyPresence(this.allOwnedFileIds());
   }
 
   private sendMessage(msg: FileTransferMessage): void {
@@ -795,7 +922,19 @@ export class FileTransferManager {
    * Mark this device as going offline
    */
   disconnect(): void {
+    this.stopPresenceHeartbeat();
     this.manifest.goOffline();
+  }
+
+  dispose(): void {
+    this.disconnect();
+    for (const pending of this.pendingRequests.values()) {
+      pending.reject(new Error("File sync was reset"));
+    }
+    this.listeners.clear();
+    this.inboundTransfers.clear();
+    this.outboundTransfers.clear();
+    this.pendingRequests.clear();
   }
 
   subscribe(listener: FileTransferListener): () => void {
@@ -813,6 +952,13 @@ export class FileTransferManager {
         console.error("[FileTransferManager] Listener error:", err);
       }
     });
+  }
+
+  private stopPresenceHeartbeat(): void {
+    if (this.presenceHeartbeat) {
+      clearInterval(this.presenceHeartbeat);
+      this.presenceHeartbeat = null;
+    }
   }
 }
 

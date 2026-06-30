@@ -1,0 +1,28 @@
+[Unit]
+Description=Incrementum Yjs File Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=leisrich
+Group=leisrich
+WorkingDirectory=/home/leisrich/yjs-sync/file-service
+ExecStart=/home/leisrich/.nvm/versions/node/v20.20.2/bin/node index.js
+Restart=on-failure
+RestartSec=5
+Environment=PORT=8787
+Environment=FILES_DATA_DIR=/home/leisrich/yjs-sync/data/files
+Environment=NODE_ENV=production
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/leisrich/yjs-sync/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

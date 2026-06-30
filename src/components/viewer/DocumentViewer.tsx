@@ -31,6 +31,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useDocumentStore, useTabsStore, useQueueStore } from "../../stores";
 import { isTauri } from "../../lib/tauri";
 import { ReaderFileDownload } from "../sync/ReaderFileDownload";
+import { clearInvalidSyncedFilePath } from "../../lib/fileSyncRegistration";
 import { useMobileShell } from "../../hooks/useMobileShell";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { ContextMenu, ContextMenuItemType, type ContextMenuItem } from "../common/ContextMenu";
@@ -1772,6 +1773,15 @@ export function DocumentViewer({
 
     if (needsFileData) {
       setFileData(null);
+      // No file path means the document row was replicated from another device
+      // but its file hasn't been downloaded here yet (or the path was lost in a
+      // prior sync cycle). This is an expected state, not a crash: leave
+      // fileData null so the viewer renders the "needs download / not synced"
+      // fallback below instead of throwing a confusing load error.
+      if (!doc.filePath) {
+        setIsLoading(false);
+        return;
+      }
       try {
         // Load file data directly via backend for both PDFs and EPUBs in Tauri.
         // The convertFileSrc URL approach causes WebKit/CORS errors on Linux (WebKitGTK)
@@ -1781,6 +1791,13 @@ export function DocumentViewer({
         const rawBytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           rawBytes[i] = binaryString.charCodeAt(i);
+        }
+        if (rawBytes.length === 0) {
+          if (doc.fileId) {
+            await clearInvalidSyncedFilePath(doc.id, doc.fileId, "read returned zero bytes");
+            updateDocument(doc.id, { filePath: "", dateModified: doc.dateModified });
+          }
+          throw new Error(`${inferredType.toUpperCase()} file is empty.`);
         }
         // Ensure the Uint8Array has its own independent ArrayBuffer.
         // WebView2 (Windows) can detach the buffer during IPC transfer, causing
@@ -1977,6 +1994,37 @@ export function DocumentViewer({
       }
     };
   }, [documentId, setCurrentDocument, loadDocumentData, docType]);
+
+  // Re-load the open document's file bytes when its filePath arrives after the
+  // viewer was already mounted — i.e. the post-sync-download case. The main load
+  // effect above runs at most once per documentId (guarded by
+  // lastLoadedDocumentIdRef), so without this, a freshly-downloaded EPUB/PDF
+  // would leave the viewer stuck on "source not loaded" until the user navigates
+  // away and back. We only act when this is the open document, the path just
+  // became usable, and we don't already have file data for it.
+  // Guard the deref: if currentDocument is null (e.g. launch before a doc is
+  // selected) and documentId is also undefined, `currentDocument?.id ===
+  // documentId` is `undefined === undefined` → true, which would then evaluate
+  // `currentDocument.filePath` on a null object and crash. Require a real
+  // currentDocument before reading its path.
+  const openFilePath =
+    currentDocument && currentDocument.id === documentId
+      ? currentDocument.filePath
+      : undefined;
+  useEffect(() => {
+    if (!documentId || !openFilePath) return;
+    // Only file-based types (pdf/epub) need a reload; audio/video/markdown/etc.
+    // resolve their source through a different path.
+    const ext = openFilePath.split(".").pop()?.toLowerCase();
+    const inferred = normalizeDocumentType(currentDocument?.fileType) ?? normalizeDocumentType(ext);
+    if (inferred !== "pdf" && inferred !== "epub") return;
+    if (fileData || epubUrl) return; // already loaded
+    // Allow the main load effect's guard to re-admit this document, then load.
+    lastLoadedDocumentIdRef.current = null;
+    if (currentDocument) {
+      void loadDocumentData(currentDocument);
+    }
+  }, [openFilePath, documentId, currentDocument, fileData, epubUrl, loadDocumentData]);
 
   useEffect(() => {
     if (initialViewMode) {

@@ -23,7 +23,10 @@ import { invokeCommand, isTauri } from "./tauri";
 import { getYjsSync, getSyncRoomId } from "./yjsSync";
 import { FileManifestEntry, getDeviceId } from "./file-manifest";
 import { getFileManifest, getFileTransferManager, ensureFileSyncReady } from "./useFileSync";
-import { readDocumentFile } from "../api/documents";
+import { deleteCachedFile } from "./file-transfer";
+import { uploadRoomFile, checkRoomFileExists } from "./yjs-file-service";
+import { readDocumentFile, upsertSyncedDocument } from "../api/documents";
+import { publishDocument, ensureDocumentReplicationReady } from "./documentReplication";
 
 /**
  * Register an imported document's file with the sync manifest.
@@ -63,6 +66,11 @@ export async function registerImportedFileSync(
       { filePath: doc.filePath },
     );
 
+    if (sizeBytes === 0) {
+      console.warn("[fileSyncRegistration] refusing to register zero-byte file for sync", doc.id);
+      return null;
+    }
+
     // Dedupe: if a file with the same content hash is already in the manifest
     // (imported on this or another device), reuse its id instead of adding a
     // duplicate entry.
@@ -94,6 +102,21 @@ export async function registerImportedFileSync(
       return base64ToBlob(base64, mimeForFileType(doc.fileType));
     });
 
+    // Upload the file to the file-service in the background so other devices can sync it asynchronously
+    void (async () => {
+      try {
+        const base64 = await readDocumentFile(doc.filePath);
+        const mime = mimeForFileType(doc.fileType);
+        const blob = base64ToBlob(base64, mime);
+        const filename = doc.title || doc.filePath.split(/[\\/]/).pop() || doc.id;
+        const file = new File([blob], filename, { type: mime });
+        await uploadRoomFile(file, getSyncRoomId(), fileId);
+        console.log("[fileSyncRegistration] successfully uploaded file to file-service:", fileId);
+      } catch (uploadErr) {
+        console.warn("[fileSyncRegistration] background file-service upload failed:", fileId, uploadErr);
+      }
+    })();
+
     // Persist the fileId on the document so the UI can render sync status and
     // so re-imports don't re-register. We update the store-side doc; the Rust
     // schema has no fileId column (it's metadata carried by the state-sync).
@@ -111,35 +134,199 @@ export async function registerImportedFileSync(
  */
 export async function registerExistingFilesSync(docs: Document[]): Promise<void> {
   if (!isTauri()) return;
-  const docsWithFileId = docs.filter((d) => d.fileId && d.filePath);
-  if (docsWithFileId.length === 0) return;
+  if (docs.length === 0) return;
 
   try {
     await getYjsSync();
     await ensureFileSyncReady();
+    await ensureDocumentReplicationReady();
 
+    const manifest = getFileManifest();
     const transferManager = getFileTransferManager();
 
-    for (const doc of docsWithFileId) {
-      const fileId = doc.fileId!;
-      // Only register if not already registered (avoid unnecessary overhead)
-      if (!transferManager.hasFileLocal(fileId)) {
+    for (const doc of docs) {
+      if (!doc || !doc.filePath) continue;
+
+      let fileId = doc.fileId;
+      let localInfo: { contentHash: string; sizeBytes: number } | null = null;
+
+      const getLocalInfo = async () => {
+        if (localInfo) return localInfo;
+        const [contentHash, sizeBytes] = await invokeCommand<[string, number]>(
+          "hash_document_file",
+          { filePath: doc.filePath },
+        );
+        if (sizeBytes === 0) {
+          if (fileId) {
+            await clearInvalidSyncedFilePath(doc.id, fileId, "zero-byte local file");
+            doc.filePath = "";
+          }
+          return null;
+        }
+        localInfo = { contentHash, sizeBytes };
+        return localInfo;
+      };
+
+      // 1. If the document has no fileId (imported before sync setup), generate one
+      if (!fileId) {
+        try {
+          const info = await getLocalInfo();
+          if (!info) continue;
+
+          const existing = manifest.findByHash(info.contentHash);
+          fileId = existing.length > 0 ? existing[0].id : crypto.randomUUID();
+
+          if (existing.length === 0) {
+            const entry: FileManifestEntry = {
+              id: fileId,
+              room: getSyncRoomId(),
+              filename: doc.title || doc.filePath.split(/[\\/]/).pop() || doc.id,
+              contentType: mimeForFileType(doc.fileType),
+              sizeBytes: info.sizeBytes,
+              contentHash: info.contentHash,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: getDeviceId(),
+            };
+            manifest.addFile(entry);
+          }
+
+          doc.fileId = fileId;
+          // Update the store document in place + SQLite
+          doc.metadata = { ...doc.metadata, fileId };
+          await documentsApiUpsert(doc).catch((e) => {
+            console.warn("[fileSyncRegistration] failed to save fileId to SQLite metadata", e);
+          });
+        } catch (hashErr) {
+          console.warn("[fileSyncRegistration] failed to hash file during sync initialization", doc.id, hashErr);
+          continue;
+        }
+      } else {
+        // 2. If it has a fileId, ensure it has a manifest entry so other peers know about it
+        const inManifest = manifest.getAllFiles().find((f) => f.id === fileId);
+        if (!inManifest) {
+          try {
+            const info = await getLocalInfo();
+            if (!info) continue;
+            const entry: FileManifestEntry = {
+              id: fileId,
+              room: getSyncRoomId(),
+              filename: doc.title || doc.filePath.split(/[\\/]/).pop() || doc.id,
+              contentType: mimeForFileType(doc.fileType),
+              sizeBytes: info.sizeBytes,
+              contentHash: info.contentHash,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: getDeviceId(),
+            };
+            manifest.addFile(entry);
+          } catch (hashErr) {
+            console.warn("[fileSyncRegistration] failed to hash existing file for manifest", doc.id, hashErr);
+          }
+        }
+      }
+
+      // 3. Register the file loader with the transfer manager if not already present
+      if (fileId && !transferManager.hasFileLocal(fileId)) {
         transferManager.registerLocalFileLoader(fileId, async () => {
           const base64 = await readDocumentFile(doc.filePath);
-          return base64ToBlob(base64, mimeForFileType(doc.fileType));
+          const blob = base64ToBlob(base64, mimeForFileType(doc.fileType));
+          if (blob.size === 0) {
+            throw new Error("Local sync file is empty");
+          }
+          return blob;
         });
       }
+
+      // 3.5 Upload the file to the file-service in the background if it's not already on the server
+      if (fileId) {
+        const currentFileId = fileId;
+        void (async () => {
+          try {
+            const room = getSyncRoomId();
+            const exists = await checkRoomFileExists(room, currentFileId);
+            if (!exists) {
+              const base64 = await readDocumentFile(doc.filePath);
+              const mime = mimeForFileType(doc.fileType);
+              const blob = base64ToBlob(base64, mime);
+              if (blob.size > 0) {
+                const filename = doc.title || doc.filePath.split(/[\\/]/).pop() || doc.id;
+                const file = new File([blob], filename, { type: mime });
+                await uploadRoomFile(file, room, currentFileId);
+                console.log("[fileSyncRegistration] background-uploaded existing file to file-service:", currentFileId);
+              }
+            }
+          } catch (uploadErr) {
+            // Ignore background upload failures silently (e.g. offline, temporary error)
+          }
+        })();
+      }
+
+      // 4. Publish the document metadata row to Yjs so other devices replicate the row
+      await publishDocument(doc).catch((e) => {
+        console.warn("[fileSyncRegistration] failed to publish existing document", doc.id, e);
+      });
     }
   } catch (err) {
     console.warn("[fileSyncRegistration] failed to register existing files for sync", err);
   }
 }
 
+// Inline helper because of cyclic imports or naming
+async function documentsApiUpsert(doc: Document): Promise<Document> {
+  return upsertSyncedDocument(doc);
+}
+
+/**
+ * Clear a synced document's local file pointer when the file behind it is known
+ * to be unusable (for example, a failed old Android save that left a zero-byte
+ * EPUB). The manifest `fileId` stays intact so the UI can request the file from
+ * another peer again.
+ */
+export async function clearInvalidSyncedFilePath(
+  docId: string,
+  fileId?: string | null,
+  reason = "invalid local file",
+): Promise<void> {
+  if (!isTauri()) return;
+
+  console.warn("[fileSyncRegistration] clearing invalid synced file path", docId, reason);
+
+  try {
+    await invokeCommand("update_document_file_path", {
+      documentId: docId,
+      filePath: "",
+    });
+  } catch (err) {
+    console.warn("[fileSyncRegistration] failed to clear invalid file path", docId, err);
+  }
+
+  if (!fileId) return;
+
+  try {
+    await ensureFileSyncReady();
+    getFileTransferManager().unregisterLocalFile(fileId);
+  } catch (err) {
+    console.warn("[fileSyncRegistration] failed to unregister invalid local file", fileId, err);
+  }
+
+  try {
+    await deleteCachedFile(fileId);
+  } catch (err) {
+    console.warn("[fileSyncRegistration] failed to delete invalid cached file", fileId, err);
+  }
+}
+
+const pendingSaves = new Map<string, Promise<string | null>>();
+
 /**
  * Save a file received from a peer to app-managed storage and point the given
  * document at it. Called by the download flow after a transfer completes.
  *
  * Returns the new local file path, or null on failure.
+ *
+ * Large files (EPUBs/PDFs can be several MB) are streamed to disk in 256 KB
+ * chunks via the staging commands, because the Tauri IPC on Android is JSON-
+ * only — passing the whole file as a single `Vec<u8>` (`Array.from`) hangs or
+ * OOMs the WebView. Small files use the one-shot `save_synced_file` path.
  */
 export async function saveReceivedFileSync(
   docId: string,
@@ -149,30 +336,94 @@ export async function saveReceivedFileSync(
   filename: string,
 ): Promise<string | null> {
   if (!isTauri()) return null;
-  try {
+
+  const existing = pendingSaves.get(fileId);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = (async () => {
+    try {
+      if (blob.size === 0) {
+        throw new Error("Refusing to save an empty synced file");
+      }
+
+      const storedPath = await persistReceivedBytes(blob, filename, fileType);
+      if (!storedPath) return null;
+
+      const [, storedSize] = await invokeCommand<[string, number]>(
+        "hash_document_file",
+        { filePath: storedPath },
+      );
+      if (storedSize !== blob.size) {
+        throw new Error(`Synced file persisted with wrong size: expected ${blob.size}, got ${storedSize}`);
+      }
+
+      await invokeCommand("update_document_file_path", {
+        documentId: docId,
+        filePath: storedPath,
+      });
+      // Register the freshly-saved file with the transfer manager so this device
+      // can now also serve it to further peers.
+      try {
+        await ensureFileSyncReady();
+        getFileTransferManager().registerLocalFile(fileId, blob);
+      } catch (e) {
+        console.warn("[fileSyncRegistration] could not register received file for serving", e);
+      }
+      return storedPath;
+    } catch (err) {
+      console.error("[fileSyncRegistration] failed to save received file", docId, err);
+      return null;
+    } finally {
+      pendingSaves.delete(fileId);
+    }
+  })();
+
+  pendingSaves.set(fileId, promise);
+  return promise;
+}
+
+/**
+ * Write a received blob to app-managed storage and return its absolute path.
+ * Uses chunked staging for files above the small-file threshold so the JSON IPC
+ * payload stays bounded on Android; falls back to the one-shot command otherwise.
+ */
+const SMALL_FILE_THRESHOLD = 512 * 1024; // 512 KiB — one-shot payload stays modest.
+const STREAM_CHUNK_SIZE = 256 * 1024; // 256 KiB per IPC payload — matches the import path.
+
+async function persistReceivedBytes(
+  blob: Blob,
+  filename: string,
+  fileType: string,
+): Promise<string | null> {
+  if (blob.size <= SMALL_FILE_THRESHOLD) {
     const bytes = new Uint8Array(await blob.arrayBuffer());
-    const storedPath = await invokeCommand<string>("save_synced_file", {
+    return invokeCommand<string>("save_synced_file", {
       bytes: Array.from(bytes),
       filename,
       fileType,
     });
-    await invokeCommand("update_document_file_path", {
-      documentId: docId,
-      filePath: storedPath,
-    });
-    // Register the freshly-saved file with the transfer manager so this device
-    // can now also serve it to further peers.
-    try {
-      await ensureFileSyncReady();
-      getFileTransferManager().registerLocalFile(fileId, blob);
-    } catch (e) {
-      console.warn("[fileSyncRegistration] could not register received file for serving", e);
-    }
-    return storedPath;
-  } catch (err) {
-    console.error("[fileSyncRegistration] failed to save received file", docId, err);
-    return null;
   }
+
+  // Stream the blob to disk in bounded chunks via the staging commands. The
+  // staged file lands under app_data_dir/imports, which read_document_file can
+  // open like any other absolute path.
+  const stagedPath = await invokeCommand<string>("stage_import_file_start", { fileName: filename });
+  const total = blob.size;
+  for (let offset = 0; offset < total; offset += STREAM_CHUNK_SIZE) {
+    const slice = blob.slice(offset, Math.min(offset + STREAM_CHUNK_SIZE, total));
+    const buf = new Uint8Array(await slice.arrayBuffer());
+    const written = await invokeCommand<number>("append_import_file_chunk", {
+      stagedPath,
+      chunk: Array.from(buf),
+    });
+    const expected = Math.min(offset + STREAM_CHUNK_SIZE, total);
+    if (written !== expected) {
+      throw new Error(`Chunked synced file write mismatch: expected ${expected}, got ${written}`);
+    }
+  }
+  return stagedPath;
 }
 
 function mimeForFileType(fileType: Document["fileType"]): string {

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-VPS_HOST="REDACTED_IP"
-VPS_USER="REDACTED_USER"
+VPS_HOST="100.98.201.21"
+VPS_USER="leisrich"
 REMOTE_DIR="/home/${VPS_USER}/yjs-sync"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

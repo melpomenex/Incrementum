@@ -54,6 +54,12 @@ export type FileManifestEvent =
 type FileManifestListener = (event: FileManifestEvent) => void;
 
 const DEVICE_ID_KEY = "incrementum_device_id";
+const DEVICE_PRESENCE_TTL_MS = 2 * 60 * 1000;
+
+interface DeviceLookupOptions {
+  excludeDeviceId?: string;
+  includeStale?: boolean;
+}
 
 /**
  * Generate a unique device ID
@@ -139,6 +145,15 @@ export class FileManifest {
   }
 
   /**
+   * The Yjs document this manifest is bound to. Callers (e.g. useFileSync's
+   * room-transition staleness check) compare this against the active sync doc to
+   * detect that the manifest must be rebuilt after a room switch.
+   */
+  getDoc(): Y.Doc {
+    return this.doc;
+  }
+
+  /**
    * Add a file to the manifest
    */
   addFile(entry: FileManifestEntry): void {
@@ -212,10 +227,13 @@ export class FileManifest {
   /**
    * Get all online devices
    */
-  getOnlineDevices(): DevicePresence[] {
+  getOnlineDevices(options: Pick<DeviceLookupOptions, "includeStale"> = {}): DevicePresence[] {
     const devices: DevicePresence[] = [];
     this.devicesMap.forEach((value) => {
-      devices.push(value as unknown as DevicePresence);
+      const presence = value as unknown as DevicePresence;
+      if (options.includeStale || this.isPresenceFresh(presence)) {
+        devices.push(presence);
+      }
     });
     return devices;
   }
@@ -230,15 +248,18 @@ export class FileManifest {
   /**
    * Find devices that have a specific file
    */
-  findDevicesWithFile(fileId: string): DevicePresence[] {
-    return this.getOnlineDevices().filter((d) => d.hasFiles.includes(fileId));
+  findDevicesWithFile(fileId: string, options: DeviceLookupOptions = {}): DevicePresence[] {
+    return this.getOnlineDevices({ includeStale: options.includeStale }).filter((d) => {
+      if (options.excludeDeviceId && d.deviceId === options.excludeDeviceId) return false;
+      return d.hasFiles.includes(fileId);
+    });
   }
 
   /**
    * Check if a file is available from any online device
    */
-  isFileAvailable(fileId: string): boolean {
-    return this.findDevicesWithFile(fileId).length > 0;
+  isFileAvailable(fileId: string, options: DeviceLookupOptions = {}): boolean {
+    return this.findDevicesWithFile(fileId, options).length > 0;
   }
 
   subscribe(listener: FileManifestListener): () => void {
@@ -256,6 +277,12 @@ export class FileManifest {
         console.error("[FileManifest] Listener error:", err);
       }
     });
+  }
+
+  private isPresenceFresh(presence: DevicePresence): boolean {
+    const lastSeenMs = Date.parse(presence.lastSeen);
+    if (!Number.isFinite(lastSeenMs)) return false;
+    return Date.now() - lastSeenMs <= DEVICE_PRESENCE_TTL_MS;
   }
 }
 

@@ -20,6 +20,10 @@ const mocks = vi.hoisted(() => ({
   getFileManifest: vi.fn(),
   getFileTransferManager: vi.fn(),
   readDocumentFile: vi.fn(),
+  upsertSyncedDocument: vi.fn(),
+  ensureDocumentReplicationReady: vi.fn().mockResolvedValue(undefined),
+  publishDocument: vi.fn().mockResolvedValue(undefined),
+  deleteCachedFile: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../tauri", () => ({
@@ -32,14 +36,24 @@ vi.mock("../yjsSync", () => ({
   getSyncRoomId: mocks.getSyncRoomId,
 }));
 
+vi.mock("../documentReplication", () => ({
+  ensureDocumentReplicationReady: mocks.ensureDocumentReplicationReady,
+  publishDocument: mocks.publishDocument,
+}));
+
 vi.mock("../useFileSync", () => ({
   ensureFileSyncReady: mocks.ensureFileSyncReady,
   getFileManifest: mocks.getFileManifest,
   getFileTransferManager: mocks.getFileTransferManager,
 }));
 
+vi.mock("../file-transfer", () => ({
+  deleteCachedFile: mocks.deleteCachedFile,
+}));
+
 vi.mock("../../api/documents", () => ({
   readDocumentFile: mocks.readDocumentFile,
+  upsertSyncedDocument: mocks.upsertSyncedDocument,
 }));
 
 import { registerImportedFileSync, registerExistingFilesSync } from "../fileSyncRegistration";
@@ -71,6 +85,7 @@ function makeManifestMock() {
     addFile: vi.fn((entry: Record<string, unknown>) => { entries.set(entry.id as string, entry); }),
     findByHash: vi.fn(() => [] as Record<string, unknown>[]),
     getFile: vi.fn((id: string) => entries.get(id) ?? null),
+    getAllFiles: vi.fn(() => Array.from(entries.values())),
   };
 }
 
@@ -79,6 +94,7 @@ function makeTransferManagerMock() {
     registerLocalFile: vi.fn(),
     registerLocalFileLoader: vi.fn(),
     hasFileLocal: vi.fn(() => false),
+    unregisterLocalFile: vi.fn(),
   };
 }
 
@@ -155,10 +171,25 @@ describe("registerImportedFileSync", () => {
     expect(fileId).toBe("already-known-file");
     expect(manifest.addFile).not.toHaveBeenCalled();
   });
+
+  it("refuses to register a zero-byte imported file", async () => {
+    mocks.invokeCommand.mockResolvedValueOnce(["emptyhash", 0] as [string, number]);
+    const manifest = makeManifestMock();
+    const transferManager = makeTransferManagerMock();
+    mocks.getFileManifest.mockReturnValue(manifest);
+    mocks.getFileTransferManager.mockReturnValue(transferManager);
+
+    const fileId = await registerImportedFileSync(makeDoc());
+
+    expect(fileId).toBeNull();
+    expect(manifest.addFile).not.toHaveBeenCalled();
+    expect(transferManager.registerLocalFileLoader).not.toHaveBeenCalled();
+  });
 });
 
 describe("registerExistingFilesSync", () => {
   it("registers existing documents with fileId with the transfer manager", async () => {
+    mocks.invokeCommand.mockResolvedValue(["abc123hash", 1024] as [string, number]);
     const manifest = makeManifestMock();
     const transferManager = makeTransferManagerMock();
     mocks.getFileManifest.mockReturnValue(manifest);
@@ -167,7 +198,7 @@ describe("registerExistingFilesSync", () => {
     const docs = [
       makeDoc({ id: "doc-1", fileId: "file-1" }),
       makeDoc({ id: "doc-2", fileId: "file-2", filePath: "" }), // missing filePath
-      makeDoc({ id: "doc-3", fileId: undefined }), // missing fileId
+      makeDoc({ id: "doc-3", fileId: undefined, filePath: "" }), // missing fileId + filePath
     ];
 
     await registerExistingFilesSync(docs);
@@ -175,5 +206,26 @@ describe("registerExistingFilesSync", () => {
     // Registers doc-1 since it has fileId and filePath, others skipped
     expect(transferManager.registerLocalFileLoader).toHaveBeenCalledTimes(1);
     expect(transferManager.registerLocalFileLoader.mock.calls[0][0]).toBe("file-1");
+  });
+
+  it("clears and unregisters a zero-byte synced file path", async () => {
+    mocks.invokeCommand.mockResolvedValueOnce(["emptyhash", 0] as [string, number]);
+    mocks.invokeCommand.mockResolvedValueOnce({} as never); // update_document_file_path
+    const manifest = makeManifestMock();
+    const transferManager = makeTransferManagerMock();
+    mocks.getFileManifest.mockReturnValue(manifest);
+    mocks.getFileTransferManager.mockReturnValue(transferManager);
+
+    await registerExistingFilesSync([
+      makeDoc({ id: "doc-empty", fileId: "file-empty" }),
+    ]);
+
+    expect(mocks.invokeCommand).toHaveBeenCalledWith("update_document_file_path", {
+      documentId: "doc-empty",
+      filePath: "",
+    });
+    expect(transferManager.unregisterLocalFile).toHaveBeenCalledWith("file-empty");
+    expect(mocks.deleteCachedFile).toHaveBeenCalledWith("file-empty");
+    expect(transferManager.registerLocalFileLoader).not.toHaveBeenCalled();
   });
 });

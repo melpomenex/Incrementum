@@ -80,8 +80,8 @@ const storage = multer.diskStorage({
       cb(e);
     }
   },
-  filename: (_req, _file, cb) => {
-    const id = crypto.randomUUID();
+  filename: (req, _file, cb) => {
+    const id = req.query.id || crypto.randomUUID();
     cb(null, `${id}.bin`);
   },
 });
@@ -156,6 +156,11 @@ app.get("/files/:room/:id", async (req, res) => {
   const m = await readMeta(meta);
   if (!m || m.deletedAt) return res.status(404).json({ error: "Not found" });
 
+  m.lastAccessedAt = new Date().toISOString();
+  await writeMeta(meta, m).catch((err) => {
+    console.warn("Failed to update lastAccessedAt metadata:", err);
+  });
+
   // Use absolute path for sendFile.
   res.setHeader("Content-Type", m.contentType || "application/octet-stream");
   res.setHeader("Content-Disposition", `attachment; filename="${(m.filename || "file").replace(/"/g, "")}"`);
@@ -185,6 +190,57 @@ app.delete("/files/:room/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+async function runCleanup() {
+  try {
+    const rooms = await fs.readdir(DATA_DIR);
+    const now = Date.now();
+    const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days of inactivity
+
+    for (const room of rooms) {
+      const dir = path.join(DATA_DIR, room);
+      const stat = await fs.stat(dir).catch(() => null);
+      if (!stat || !stat.isDirectory()) continue;
+
+      const files = await fs.readdir(dir);
+      const jsonFiles = files.filter((f) => f.endsWith(".json"));
+
+      for (const jsonFile of jsonFiles) {
+        const metaPath = path.join(dir, jsonFile);
+        const m = await readMeta(metaPath);
+        if (!m) continue;
+
+        const id = m.id;
+        const blobPath = path.join(dir, `${id}.bin`);
+
+        const lastUsedStr = m.lastAccessedAt || m.createdAt || m.uploadedAt;
+        const lastUsed = lastUsedStr ? Date.parse(lastUsedStr) : 0;
+        const isStale = lastUsed && (now - lastUsed > MAX_AGE_MS);
+
+        if (m.deletedAt || isStale || !lastUsed) {
+          console.log(`[Cleanup] Deleting stale/deleted file: room=${room}, id=${id}, lastUsed=${lastUsedStr}`);
+          try {
+            await fs.unlink(blobPath);
+          } catch (e) {}
+          try {
+            await fs.unlink(metaPath);
+          } catch (e) {}
+        }
+      }
+
+      // Check if room directory is empty now, if so remove it
+      const remaining = await fs.readdir(dir).catch(() => []);
+      if (remaining.length === 0) {
+        console.log(`[Cleanup] Removing empty room directory: ${room}`);
+        await fs.rmdir(dir).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.error("[Cleanup] error during clean cycle:", err);
+  }
+}
+
 app.listen(PORT, async () => {
   await fs.mkdir(DATA_DIR, { recursive: true });
+  runCleanup();
+  setInterval(runCleanup, 24 * 60 * 60 * 1000);
 });

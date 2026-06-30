@@ -11,6 +11,9 @@ type YjsSyncState = {
   url: string;
   room: string;
   encrypted: boolean;
+  /** Detaches the visibilitychange listener added in getYjsSync. Null when no
+   *  listener was attached (e.g. no document, or persistence-less build). */
+  visibilityCleanup: (() => void) | null;
 };
 
 const DEFAULT_SYNC_URL = "wss://sync.readsync.org";
@@ -222,6 +225,7 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         url,
         room,
         encrypted: (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
+        visibilityCleanup: null,
       };
 
       let idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -274,6 +278,14 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         }
       }
       document.addEventListener("visibilitychange", handleVisibilityChange);
+      // Track the listener so resetYjsSync() can detach it on teardown — without
+      // this, every room rebuild leaks a visibilitychange handler that keeps
+      // calling disconnect()/connect() on a destroyed provider.
+      if (instance) {
+        instance.visibilityCleanup = () => {
+          document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+      }
 
       resetIdleTimer();
 
@@ -363,6 +375,21 @@ export async function resetYjsSync(): Promise<void> {
     } catch (e) {
       console.warn("[YjsSync] Error disconnecting provider:", e);
     }
+    // Detach the visibility listener before destroying the provider so a
+    // hidden/visible toggle can't call connect()/disconnect() on a dead
+    // provider mid-teardown.
+    try {
+      instance.visibilityCleanup?.();
+    } catch (e) {
+      console.warn("[YjsSync] Error removing visibility listener:", e);
+    }
+    if (instance.persistence) {
+      try {
+        await instance.persistence.destroy();
+      } catch (e) {
+        console.warn("[YjsSync] Error destroying persistence:", e);
+      }
+    }
     try {
       instance.doc.destroy();
     } catch (e) {
@@ -391,6 +418,17 @@ export async function resetYjsSync(): Promise<void> {
  * best available state and an error is thrown so the caller can fall back to a
  * reload.
  */
+export type RoomChangeListener = () => void | Promise<void>;
+
+export const roomChangeListeners = new Set<RoomChangeListener>();
+
+export function registerRoomChangeListener(listener: RoomChangeListener): () => void {
+  roomChangeListeners.add(listener);
+  return () => {
+    roomChangeListeners.delete(listener);
+  };
+}
+
 export async function rejoinRoom(roomId: string): Promise<YjsSyncState> {
   if (!roomId) throw new Error("rejoinRoom: roomId is required");
 
@@ -409,7 +447,24 @@ export async function rejoinRoom(roomId: string): Promise<YjsSyncState> {
   await resetYjsSync();
 
   // Rebuild against the new room. getYjsSync() reads the room ID we just wrote.
-  return getYjsSync();
+  const newState = await getYjsSync();
+
+  // Notify listeners that room has changed, awaiting each so replication /
+  // file-sync reinit fully settles against the new doc before we return. Fire-
+  // and-forget here let callers race ahead and issue writes against the stale
+  // doc during the transition. A listener that throws is logged and isolated so
+  // one bad subscriber can't abort the rest of the transition.
+  await Promise.all(
+    Array.from(roomChangeListeners).map(async (listener) => {
+      try {
+        await listener();
+      } catch (e) {
+        console.error("[YjsSync] room change listener failed:", e);
+      }
+    }),
+  );
+
+  return newState;
 }
 
 // Export synchronous version for backward compatibility

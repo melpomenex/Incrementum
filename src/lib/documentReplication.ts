@@ -34,6 +34,7 @@ import { invokeCommand, isTauri } from "./tauri";
 import { getYjsSync } from "./yjsSync";
 import type { Document } from "../types";
 import { useDocumentStore } from "../stores/documentStore";
+import { getDocument, getDocuments } from "../api/documents";
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;
@@ -45,7 +46,15 @@ let documentsMap: Y.Map<Document> | null = null;
  * lazily from the publish path.
  */
 export async function ensureDocumentReplicationReady(): Promise<void> {
-  if (initialized) return;
+  const sync = await getYjsSync();
+  if (initialized && documentsMap && documentsMap.doc === sync.doc) return;
+
+  if (documentsMap && documentsMap.doc !== sync.doc) {
+    initialized = false;
+    initPromise = null;
+    documentsMap = null;
+  }
+
   if (!initPromise) {
     initPromise = (async () => {
       try {
@@ -85,13 +94,87 @@ export async function publishDocument(doc: Document): Promise<void> {
   try {
     await ensureDocumentReplicationReady();
     if (!documentsMap) return;
-    // Drop heavy extracted text — it's large and regenerable, and the receiver
-    // can re-extract from the file once downloaded. Everything else goes.
-    const { content: _content, ...lightweight } = doc;
+    // Drop fields that are large and either regenerable or device-specific, so
+    // the shared CRDT document stays small. The Yjs doc grows monotonically
+    // (deletes are permanent tombstones), so publishing a few hundred-KB
+    // cover-image data-URLs here bloats the doc to multiple MB — which then
+    // makes the sync exchange so large that connections drop before the
+    // handshake completes, breaking replication entirely. This was the actual
+    // root cause of the "nothing syncs" failure in the field.
+    //
+    //   content          — extracted text; receiver re-extracts from the file.
+    //   coverImageUrl    — often a 100KB+ base64 data-URL; receiver regenerates
+    //                      its own cover from the downloaded file.
+    //   currentViewState — device-specific (window size, zoom).
+    const {
+      content: _content,
+      coverImageUrl: _coverImageUrl,
+      currentViewState: _currentViewState,
+      ...lightweight
+    } = doc;
     documentsMap.set(doc.id, lightweight as Document);
   } catch (err) {
     console.warn("[documentReplication] publish failed", doc.id, err);
   }
+}
+
+/**
+ * Trailing debounce window for position re-publishes. Reading-position saves
+ * fire frequently (scroll/timeupdate/relocate tick many times per second), and
+ * every publish appends a Y.Map entry that the CRDT retains forever as a
+ * tombstone — so collapsing a burst of saves into one publish is what keeps
+ * the shared doc from ballooning into multi-MB sync exchanges that drop the
+ * connection before handshake completes (the original "nothing syncs" failure).
+ */
+const POSITION_REPUBLISH_DEBOUNCE_MS = 1500;
+const pendingPositionRepublish = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Re-publish a document to the shared `documents` map after a reading-position
+ * change, so other devices in the room learn the new CFI / page / scroll /
+ * time position. This is the missing link for cross-device position sync:
+ * `publishDocument` only runs at import time, but position is written later by
+ * the viewers via `update_document_progress` / `save_document_position`, which
+ * until now touched only local SQLite.
+ *
+ * Accepts either the full updated Document (preferred — avoids a SQLite
+ * round-trip) or just the id (refetched via `getDocument`). Fire-and-forget by
+ * design: callers (viewer save paths) must never block on sync. Coalesces
+ * rapid successive calls for the same doc id via a trailing debounce.
+ *
+ * The existing `handleRemoteDocument` conflict check (dateModified newest-wins)
+ * prevents an echo loop: the receiver upserts the remote row verbatim
+ * (including its `dateModified`), so a re-broadcast of that same timestamp is
+ * a no-op. `publishDocument` also strips device-local fields, so position is
+ * the only thing that actually changes on the wire.
+ */
+export function republishDocumentPosition(docOrId: Document | string): void {
+  if (!isTauri()) return;
+  const docId = typeof docOrId === "string" ? docOrId : docOrId.id;
+  if (!docId) return;
+
+  const existing = pendingPositionRepublish.get(docId);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    pendingPositionRepublish.delete(docId);
+    void (async () => {
+      try {
+        await ensureDocumentReplicationReady();
+        const doc =
+          typeof docOrId === "string" ? await getDocument(docOrId) : docOrId;
+        if (doc) await publishDocument(doc);
+      } catch (err) {
+        console.warn(
+          "[documentReplication] position republish failed",
+          docId,
+          err,
+        );
+      }
+    })();
+  }, POSITION_REPUBLISH_DEBOUNCE_MS);
+
+  pendingPositionRepublish.set(docId, timer);
 }
 
 /**
@@ -105,9 +188,44 @@ async function handleRemoteDocument(docId: string): Promise<void> {
   const remote = documentsMap.get(docId);
   if (!remote) return; // entry was deleted; deletion sync is out of scope here.
 
-  // Conflict check: only write if remote is newer than local (or local absent).
   const localDocs = useDocumentStore.getState().documents ?? [];
-  const local = localDocs.find((d) => d.id === docId);
+
+  // Dedupe by fileId: each book has one sync-manifest fileId shared across
+  // devices, but each device originally created its own document row with its
+  // own id. If a local row already exists for the same fileId under a DIFFERENT
+  // id, upserting `remote` as-is would create a duplicate (one row per device
+  // id). Instead, adopt the local row's id so `INSERT OR REPLACE` updates the
+  // existing row in place, and preserve device-local state (filePath, reading
+  // position). Falls back to the remote id when there's no local match.
+  const remoteFileId = remote.fileId;
+  let sameFileIdLocal = remoteFileId
+    ? localDocs.find((d) => d.fileId === remoteFileId)
+    : undefined;
+
+  let local = localDocs.find((d) => d.id === docId) ?? sameFileIdLocal;
+
+  // The replication layer can initialize before the document store has loaded
+  // from SQLite on cold startup. Consult SQLite before deciding "local absent";
+  // otherwise a remote row can overwrite a valid local filePath with "".
+  if (!local) {
+    try {
+      local = (await getDocument(docId)) ?? undefined;
+    } catch (err) {
+      console.warn("[documentReplication] failed to load local document by id", docId, err);
+    }
+  }
+
+  if (!local && remoteFileId) {
+    try {
+      const persistedDocs = await getDocuments();
+      sameFileIdLocal = persistedDocs.find((d) => d.fileId === remoteFileId);
+      local = sameFileIdLocal;
+    } catch (err) {
+      console.warn("[documentReplication] failed to load local documents for fileId dedupe", docId, err);
+    }
+  }
+
+  // Conflict check: only write if remote is newer than local (or local absent).
   if (local) {
     const localMs = Date.parse(local.dateModified || local.dateAdded);
     const remoteMs = Date.parse(remote.dateModified || remote.dateAdded);
@@ -117,9 +235,30 @@ async function handleRemoteDocument(docId: string): Promise<void> {
   }
 
   try {
-    // Upsert into SQLite. filePath stays as the remote (source) path; the
-    // receiver will overwrite it with its own path once the file downloads.
-    await invokeCommand("upsert_synced_document", { document: remote });
+    const docToUpsert = { ...remote };
+    // Reuse the local row's id when deduping by fileId (see above).
+    if (local && local.id !== docToUpsert.id) {
+      docToUpsert.id = local.id;
+    }
+    // If local exists and has a filePath, preserve it. Otherwise, set it to ""
+    // since the remote path is meaningless on this device.
+    if (local && local.filePath) {
+      docToUpsert.filePath = local.filePath;
+    } else {
+      docToUpsert.filePath = "";
+    }
+    // Preserve device-local fields the sender intentionally strips (see
+    // publishDocument): coverImageUrl is regenerated by each device from its
+    // own copy of the file, and currentViewState is screen-size-specific. The
+    // remote payload omits these, so without preserving them here the
+    // INSERT OR REPLACE would blank the receiver's cover on every sync.
+    if (local) {
+      if (local.coverImageUrl) docToUpsert.coverImageUrl = local.coverImageUrl;
+      if (local.coverImageSource) docToUpsert.coverImageSource = local.coverImageSource;
+      if (local.currentViewState) docToUpsert.currentViewState = local.currentViewState;
+    }
+
+    await invokeCommand("upsert_synced_document", { document: docToUpsert });
     // Reload so the new row shows in the library.
     await useDocumentStore.getState().loadDocuments();
   } catch (err) {

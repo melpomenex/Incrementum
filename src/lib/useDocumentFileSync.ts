@@ -44,11 +44,20 @@ export function useDocumentFileSync(doc: Document | null | undefined): DocumentF
       const storedPath = await saveReceivedFileSync(docId, fileId, blob, fileType, title);
       if (storedPath) {
         // Update the store so the UI reflects the now-local file immediately.
-        useDocumentStore.setState((state) => ({
-          documents: state.documents.map((d) =>
-            d.id === docId ? { ...d, filePath: storedPath } : d,
-          ),
-        }));
+        useDocumentStore.setState((state) => {
+          const updatedDocs = state.documents.map((d) =>
+            d.id === docId ? { ...d, filePath: storedPath } : d
+          );
+          const currentDoc = state.currentDocument;
+          const updatedCurrentDoc =
+            currentDoc && currentDoc.id === docId
+              ? { ...currentDoc, filePath: storedPath }
+              : currentDoc;
+          return {
+            documents: updatedDocs,
+            currentDocument: updatedCurrentDoc,
+          };
+        });
       }
     } catch (err) {
       console.error("[useDocumentFileSync] download failed", docId, err);

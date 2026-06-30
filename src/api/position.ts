@@ -50,6 +50,15 @@ export async function saveDocumentPosition(
   }
   // Tauri invoke expects camelCase for snake_case Rust parameters.
   await invokeCommand('save_document_position', { documentId, position });
+
+  // Re-publish the document so other devices receive the new unified position
+  // (position_json + progress_percent). The command returns void, so we pass
+  // the id and let the replication layer refetch the freshly-written row.
+  // Fire-and-forget: the local save already succeeded. Dynamic import avoids
+  // the static cycle (documentReplication -> api/documents -> ... ).
+  void import('../lib/documentReplication')
+    .then(({ republishDocumentPosition }) => republishDocumentPosition(documentId))
+    .catch(() => {});
 }
 
 /**

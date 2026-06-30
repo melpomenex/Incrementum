@@ -1,8 +1,8 @@
 #!/bin/bash
 # Deploy transcript service using Docker (containerized)
 
-VPS_HOST="REDACTED_IP"
-VPS_USER="REDACTED_USER"
+VPS_HOST="100.98.201.21"
+VPS_USER="leisrich"
 REMOTE_DIR="/home/${VPS_USER}/yjs-sync"
 
 echo "=========================================="
@@ -23,7 +23,7 @@ ssh ${VPS_USER}@${VPS_HOST} "mkdir -p ${REMOTE_DIR}"
 
 # Copy all necessary files
 echo "[2/5] Copying files..."
-scp docker-compose.yml Caddyfile Dockerfile.transcript service.py ${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/
+scp -r docker-compose.yml Caddyfile Dockerfile.transcript service.py server.js utils.js Dockerfile.files file-service ${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/
 
 # Create .env file
 echo "[3/5] Creating .env file..."
@@ -62,12 +62,12 @@ if ! grep -q "ipv6=false" /etc/docker/daemon.json 2>/dev/null; then
 fi
 
 cd ${REMOTE_DIR}
-docker-compose down
-docker-compose pull
-docker-compose build transcript-service
-docker-compose up -d
-docker-compose ps
-docker-compose logs --tail=20 transcript-service
+docker compose down
+docker compose pull
+docker compose build transcript-service
+docker compose up -d
+docker compose ps
+docker compose logs --tail=20 transcript-service
 REMOTE
 
 echo ""
@@ -88,5 +88,5 @@ echo "Test a transcript fetch:"
 echo "  curl -H \"X-API-Key: ${API_KEY}\" https://transcripts.readsync.org/transcript/dQw4w9WgXcQ"
 echo ""
 echo "View logs:"
-echo "  ssh ${VPS_USER}@${VPS_HOST} 'cd ${REMOTE_DIR} && docker-compose logs -f transcript-service'"
+echo "  ssh ${VPS_USER}@${VPS_HOST} 'cd ${REMOTE_DIR} && docker compose logs -f transcript-service'"
 echo ""

@@ -26,7 +26,8 @@ export function mapDocument(doc: Document | null): Document | null {
 }
 
 export function mapDocuments(docs: Document[]): Document[] {
-  return docs.map((d) => mapDocument(d) as Document);
+  if (!docs || !Array.isArray(docs)) return [];
+  return docs.map((d) => mapDocument(d)).filter((d): d is Document => d !== null);
 }
 
 export async function getDocuments(collectionId?: string): Promise<Document[]> {
@@ -527,13 +528,27 @@ export async function updateDocumentProgressAuto(
     }
 
     // Tauri invoke expects camelCase for snake_case Rust parameters.
-    return await invokeCommand<Document>("update_document_progress", {
+    const updated = await invokeCommand<Document>("update_document_progress", {
       id,
       currentPage: currentPage ?? null,
       currentScrollPercent: currentScrollPercent ?? null,
       currentCfi: currentCfi ?? null,
       currentViewState: viewStatePayload,
     });
+
+    // Re-publish so other devices learn the new position. The command returns
+    // the full updated Document, so we pass it straight through (no refetch).
+    // Dynamic import breaks the static cycle: documentReplication imports this
+    // module. Fire-and-forget — the local save already succeeded; sync must
+    // never block the viewer's save path.
+    if (updated) {
+      void import("../lib/documentReplication")
+        .then(({ republishDocumentPosition }) =>
+          republishDocumentPosition(updated),
+        )
+        .catch(() => {});
+    }
+    return updated;
   } catch (error) {
     // Non-critical — scroll/page position save can fail (e.g. disk I/O on Pi)
     // without affecting the user experience. Log but don't surface.

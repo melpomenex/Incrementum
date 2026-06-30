@@ -43,13 +43,17 @@ export function parseYjsFilePath(filePath: string): { room: string; id: string; 
   return { room, id, filename };
 }
 
-export async function uploadRoomFile(file: File, room?: string): Promise<YjsFileMeta> {
+export async function uploadRoomFile(file: File, room?: string, id?: string): Promise<YjsFileMeta> {
   const useRoom = room || getSyncRoomId();
   const form = new FormData();
   form.append("file", file);
 
   const base = getYjsFileServiceBaseUrl();
-  const res = await fetch(`${base}/files/${encodeURIComponent(useRoom)}`, {
+  const url = new URL(`${base}/files/${encodeURIComponent(useRoom)}`);
+  if (id) {
+    url.searchParams.set("id", id);
+  }
+  const res = await fetch(url.toString(), {
     method: "POST",
     body: form,
   });
@@ -70,5 +74,17 @@ export async function downloadRoomFile(room: string, id: string): Promise<Blob> 
     throw new Error(`yjs file download failed (${res.status}): ${text || res.statusText}`);
   }
   return await res.blob();
+}
+
+export async function checkRoomFileExists(room: string, id: string): Promise<boolean> {
+  try {
+    const base = getYjsFileServiceBaseUrl();
+    const res = await fetch(`${base}/files/${encodeURIComponent(room)}/${encodeURIComponent(id)}`, {
+      method: "HEAD",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 

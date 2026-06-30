@@ -11,6 +11,7 @@ import { useToastStore, ToastType } from "../components/common/Toast";
 import { enrichAudiobookDocument, isAudiobookFile } from "../api/audiobooks";
 import { registerImportedFileSync, registerExistingFilesSync } from "../lib/fileSyncRegistration";
 import { publishDocument } from "../lib/documentReplication";
+import { registerRoomChangeListener } from "../lib/yjsSync";
 
 /**
  * Mobile file picker: uses the WebView's <input type=file>, which Android/iOS
@@ -778,5 +779,10 @@ if (isTauri()) {
     }
   ).catch((err) => {
     console.warn("[DocumentStore] Failed to register listener for browser-sync://document-saved:", err);
+  });
+
+  registerRoomChangeListener(() => {
+    const docs = useDocumentStore.getState().documents;
+    void registerExistingFilesSync(docs);
   });
 }

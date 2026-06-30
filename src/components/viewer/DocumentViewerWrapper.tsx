@@ -125,6 +125,13 @@ export function DocumentViewer({
     setPdfOcrContextText(null);
 
     const loadDocumentContent = async () => {
+      // No document is open (e.g. the viewer mounted at launch before a tab is
+      // selected). Guard against the empty id: get_document rejects with
+      // "missing required key id" otherwise, which spams the console at startup.
+      if (!documentId) {
+        setDocumentContent(undefined);
+        return;
+      }
       try {
         const doc = await documentsApi.getDocument(documentId);
         if (isActive) {
