@@ -91,6 +91,7 @@ class MainActivity : TauriActivity() {
     private fun hookWebViewPermissions() {
         val wv = findWebView(window.decorView.rootView) ?: return
         wv.settings.mediaPlaybackRequiresUserGesture = false
+        WebView.setWebContentsDebuggingEnabled(true)
         wv.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 runOnUiThread {
