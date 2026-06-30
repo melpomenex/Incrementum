@@ -502,13 +502,30 @@ export async function fetchTwitterVideoInfo(url: string): Promise<TwitterVideoIn
  */
 export async function importTwitterVideo(url: string, collectionId?: string): Promise<Document> {
   const doc = await invokeCommand<Document>("import_twitter_video", { url, collectionId: collectionId ?? null });
-  // Publish the doc row so other devices see it. Unlike YouTube, a Twitter
-  // import downloads a local MP4 (device-local filePath), so the receiver still
-  // needs the file-sync layer to obtain the bytes — but the row must exist on
-  // the peer first for the download to be triggered. Fire-and-forget.
+  // Twitter downloads a local MP4, so — unlike YouTube — the receiver needs the
+  // file-sync layer to obtain the bytes. Register the file (manifest entry +
+  // lazy loader + background upload to the file-service), stamp the fileId onto
+  // the doc + metadata, persist it, then publish the row. Mirrors the local-
+  // file import path (see documentStore.importFromFile). Fire-and-forget via
+  // dynamic import to avoid the static cycle (fileSyncRegistration ->
+  // documentReplication -> this module).
   if (doc) {
-    void import("../lib/documentReplication")
-      .then(({ publishDocument }) => publishDocument(doc))
+    void import("../lib/fileSyncRegistration")
+      .then(async ({ registerImportedFileSync }) => {
+        const fileId = await registerImportedFileSync(doc).catch((e) => {
+          console.warn("[importTwitterVideo] file-sync registration failed", e);
+          return null;
+        });
+        if (fileId) {
+          doc.fileId = fileId;
+          doc.metadata = { ...doc.metadata, fileId };
+          await upsertSyncedDocument(doc).catch((e) => {
+            console.warn("[importTwitterVideo] failed to save fileId to metadata", e);
+          });
+        }
+        const { publishDocument } = await import("../lib/documentReplication");
+        await publishDocument(doc);
+      })
       .catch(() => {});
   }
   return doc;
