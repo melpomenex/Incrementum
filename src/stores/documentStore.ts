@@ -9,7 +9,7 @@ import { importFromUrl as importFromUrlUtil, importFromArxiv as importFromArxivU
 import { listen, isTauri, isNativeMobile } from "../lib/tauri";
 import { useToastStore, ToastType } from "../components/common/Toast";
 import { enrichAudiobookDocument, isAudiobookFile } from "../api/audiobooks";
-import { registerImportedFileSync } from "../lib/fileSyncRegistration";
+import { registerImportedFileSync, registerExistingFilesSync } from "../lib/fileSyncRegistration";
 import { publishDocument } from "../lib/documentReplication";
 
 /**
@@ -153,6 +153,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       const collectionId = useCollectionStore.getState().activeCollectionId;
       const docs = await documentsApi.getDocuments(collectionId);
       set({ documents: docs, isLoading: false });
+      void registerExistingFilesSync(docs);
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to load documents",

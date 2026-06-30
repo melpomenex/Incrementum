@@ -105,6 +105,37 @@ export async function registerImportedFileSync(
 }
 
 /**
+ * Register all existing documents that have a fileId with the file sync subsystem.
+ * Called at startup/load time so that the device can advertise and serve files
+ * that were imported in previous sessions.
+ */
+export async function registerExistingFilesSync(docs: Document[]): Promise<void> {
+  if (!isTauri()) return;
+  const docsWithFileId = docs.filter((d) => d.fileId && d.filePath);
+  if (docsWithFileId.length === 0) return;
+
+  try {
+    await getYjsSync();
+    await ensureFileSyncReady();
+
+    const transferManager = getFileTransferManager();
+
+    for (const doc of docsWithFileId) {
+      const fileId = doc.fileId!;
+      // Only register if not already registered (avoid unnecessary overhead)
+      if (!transferManager.hasFileLocal(fileId)) {
+        transferManager.registerLocalFileLoader(fileId, async () => {
+          const base64 = await readDocumentFile(doc.filePath);
+          return base64ToBlob(base64, mimeForFileType(doc.fileType));
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[fileSyncRegistration] failed to register existing files for sync", err);
+  }
+}
+
+/**
  * Save a file received from a peer to app-managed storage and point the given
  * document at it. Called by the download flow after a transfer completes.
  *

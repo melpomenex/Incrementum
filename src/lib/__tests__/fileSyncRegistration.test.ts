@@ -42,7 +42,7 @@ vi.mock("../../api/documents", () => ({
   readDocumentFile: mocks.readDocumentFile,
 }));
 
-import { registerImportedFileSync } from "../fileSyncRegistration";
+import { registerImportedFileSync, registerExistingFilesSync } from "../fileSyncRegistration";
 import type { Document } from "../../types";
 
 function makeDoc(overrides: Partial<Document> = {}): Document {
@@ -154,5 +154,26 @@ describe("registerImportedFileSync", () => {
 
     expect(fileId).toBe("already-known-file");
     expect(manifest.addFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("registerExistingFilesSync", () => {
+  it("registers existing documents with fileId with the transfer manager", async () => {
+    const manifest = makeManifestMock();
+    const transferManager = makeTransferManagerMock();
+    mocks.getFileManifest.mockReturnValue(manifest);
+    mocks.getFileTransferManager.mockReturnValue(transferManager);
+
+    const docs = [
+      makeDoc({ id: "doc-1", fileId: "file-1" }),
+      makeDoc({ id: "doc-2", fileId: "file-2", filePath: "" }), // missing filePath
+      makeDoc({ id: "doc-3", fileId: undefined }), // missing fileId
+    ];
+
+    await registerExistingFilesSync(docs);
+
+    // Registers doc-1 since it has fileId and filePath, others skipped
+    expect(transferManager.registerLocalFileLoader).toHaveBeenCalledTimes(1);
+    expect(transferManager.registerLocalFileLoader.mock.calls[0][0]).toBe("file-1");
   });
 });
