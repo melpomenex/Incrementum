@@ -26,7 +26,7 @@ import { getFileManifest, getFileTransferManager, ensureFileSyncReady } from "./
 import { deleteCachedFile } from "./file-transfer";
 import { uploadRoomFile, checkRoomFileExists } from "./yjs-file-service";
 import { readDocumentFile, upsertSyncedDocument } from "../api/documents";
-import { publishDocument, ensureDocumentReplicationReady } from "./documentReplication";
+import { publishDocument, ensureDocumentReplicationReady, isPortableFilePath } from "./documentReplication";
 
 /**
  * Register an imported document's file with the sync manifest.
@@ -145,7 +145,12 @@ export async function registerExistingFilesSync(docs: Document[]): Promise<void>
     const transferManager = getFileTransferManager();
 
     for (const doc of docs) {
-      if (!doc || !doc.filePath) continue;
+      // Skip docs with no filePath, or whose filePath is a URL/identifier
+      // (YouTube watch URLs, browser-fetched://, clipboard://, …) rather than a
+      // local filesystem path. These have no on-disk bytes to hash, so calling
+      // hash_document_file would fail with "Invalid path" for every such doc
+      // on every startup — noisy and wasteful. They sync as rows, not files.
+      if (!doc || !doc.filePath || isPortableFilePath(doc.filePath, doc.fileType)) continue;
 
       let fileId = doc.fileId;
       let localInfo: { contentHash: string; sizeBytes: number } | null = null;

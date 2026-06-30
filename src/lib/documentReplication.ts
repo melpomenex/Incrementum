@@ -58,7 +58,7 @@ const PORTABLE_FILEPATH_SCHEMES = [
   "bundle://",
 ];
 
-function isPortableFilePath(
+export function isPortableFilePath(
   filePath: string | undefined,
   fileType?: string,
 ): boolean {

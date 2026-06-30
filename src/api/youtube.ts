@@ -187,7 +187,11 @@ export async function fetchYouTubeVideoInfo(videoId: string): Promise<YouTubeVid
   if (isTauri()) {
     try {
       const { invokeCommand } = await import("../lib/tauri");
-      const result = await invokeCommand<YouTubeVideo | null>("fetch_youtube_video_info", { videoId });
+      // The Rust command is `get_youtube_video_info` and takes a full watch URL
+      // (yt-dlp resolves it), not a bare videoId. Tauri auto-converts the
+      // snake_case response fields to camelCase.
+      const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const result = await invokeCommand<YouTubeVideo | null>("get_youtube_video_info", { url: watchUrl });
       if (result) {
         return result;
       }

@@ -39,6 +39,23 @@ vi.mock("../yjsSync", () => ({
 vi.mock("../documentReplication", () => ({
   ensureDocumentReplicationReady: mocks.ensureDocumentReplicationReady,
   publishDocument: mocks.publishDocument,
+  // Inline copy of the real classifier. The startup-loop tests rely on it
+  // actually distinguishing local paths (pass through) from URL schemes
+  // (skip). Inlined rather than imported so the mock stays self-contained and
+  // doesn't pull documentReplication's transitive (documentStore → tauri)
+  // imports into the mock.
+  isPortableFilePath: (filePath: string | undefined, fileType?: string) => {
+    if (!filePath) return false;
+    if (fileType === "youtube") return true;
+    return [
+      "http://",
+      "https://",
+      "browser-fetched://",
+      "clipboard://",
+      "screenshot://",
+      "bundle://",
+    ].some((s) => filePath.startsWith(s));
+  },
 }));
 
 vi.mock("../useFileSync", () => ({
@@ -227,5 +244,27 @@ describe("registerExistingFilesSync", () => {
     expect(transferManager.unregisterLocalFile).toHaveBeenCalledWith("file-empty");
     expect(mocks.deleteCachedFile).toHaveBeenCalledWith("file-empty");
     expect(transferManager.registerLocalFileLoader).not.toHaveBeenCalled();
+  });
+
+  it("skips docs whose filePath is a URL/identifier (no on-disk bytes to hash)", async () => {
+    // YouTube watch URLs, browser-fetched://, etc. are content, not local
+    // paths. The startup loop must not call hash_document_file on them — that
+    // fails with "Invalid path" for every such doc on every boot.
+    mocks.invokeCommand.mockResolvedValue(["abc123hash", 1024] as [string, number]);
+    const manifest = makeManifestMock();
+    const transferManager = makeTransferManagerMock();
+    mocks.getFileManifest.mockReturnValue(manifest);
+    mocks.getFileTransferManager.mockReturnValue(transferManager);
+
+    await registerExistingFilesSync([
+      makeDoc({ id: "doc-yt", filePath: "https://www.youtube.com/watch?v=abc", fileType: "youtube" }),
+      makeDoc({ id: "doc-web", filePath: "browser-fetched://article-1", fileType: "html" }),
+      makeDoc({ id: "doc-local", filePath: "/data/book.epub", fileType: "epub" }),
+    ]);
+
+    // Only the local-path doc is hashed; URL-backed docs are skipped entirely.
+    expect(mocks.invokeCommand).toHaveBeenCalledTimes(1);
+    expect(mocks.invokeCommand.mock.calls[0][0]).toBe("hash_document_file");
+    expect(transferManager.registerLocalFileLoader).toHaveBeenCalledTimes(1);
   });
 });
