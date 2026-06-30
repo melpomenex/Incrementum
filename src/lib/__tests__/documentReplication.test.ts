@@ -235,6 +235,42 @@ describe("documentReplication conflict resolution", () => {
       expect((call![1] as { document: Document }).document.filePath).toBe("");
     });
   });
+
+  it("does NOT let a partial (no-filePath) republish clobber an existing YouTube URL", async () => {
+    // The real-world bug: a later publish arrived MISSING the filePath field
+    // (a partial republish), and the receiver overwrote its good YouTube URL
+    // with "" — making the doc unopenable ("player broken"). The receiver must
+    // preserve its existing portable filePath when the remote value is absent.
+    mocks.localDocuments = [
+      makeDoc("doc-yt-partial", {
+        filePath: "https://www.youtube.com/watch?v=n04A6phTTVc",
+        fileType: "youtube",
+        dateModified: "2026-06-01T00:00:00.000Z",
+      }),
+    ];
+    // Remote update is NEWER but carries an empty filePath.
+    map.set(
+      "doc-yt-partial",
+      makeDoc("doc-yt-partial", {
+        filePath: "",
+        fileType: "youtube",
+        dateModified: "2026-06-02T00:00:00.000Z",
+      }),
+    );
+
+    await vi.waitFor(() => {
+      const call = mocks.invokeCommand.mock.calls.find(
+        (c) =>
+          c[0] === "upsert_synced_document" &&
+          (c[1] as { document: Document }).document?.id === "doc-yt-partial",
+      );
+      expect(call).toBeTruthy();
+      // The receiver must keep its YouTube URL, not accept the empty clobber.
+      expect((call![1] as { document: Document }).document.filePath).toBe(
+        "https://www.youtube.com/watch?v=n04A6phTTVc",
+      );
+    });
+  });
 });
 
 describe("republishDocumentPosition", () => {

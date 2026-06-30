@@ -271,17 +271,30 @@ async function handleRemoteDocument(docId: string): Promise<void> {
     if (local && local.id !== docToUpsert.id) {
       docToUpsert.id = local.id;
     }
-    // If local exists and has a filePath, preserve it. Otherwise decide by
-    // filePath kind: URL/identifier filePaths (YouTube links, web articles,
-    // clipboard://, screenshot://, bundle://, …) are the document's CONTENT,
-    // not a device-local filesystem location, so they must be preserved on the
-    // receiver — blanking them would make the doc unopenable. True local paths
-    // (e.g. /home/user/book.epub) are meaningless on other devices and get
-    // cleared to "" (the file arrives separately via the file-sync layer).
+    // Decide the receiver's filePath. Three cases:
+    //  1. Local already has a filePath → keep it (it's this device's own path
+    //     or the URL it already resolved). Never let a remote update blank it.
+    //  2. Local has none, remote has a portable (URL/identifier) filePath →
+    //     adopt the remote value (it's the content: YouTube URL, web article…).
+    //  3. Local has none, remote filePath is a device-local path or absent → "".
+    //
+    // CRITICAL: a remote publish that is MISSING filePath (a partial republish,
+    // observed in the field) must NOT overwrite a portable filePath we already
+    // hold. For youtube/web docs the filePath IS the content — blanking it
+    // makes the doc unopenable ("player broken" symptom). So when the doc is of
+    // a portable type and the remote value is empty, fall back to any local
+    // portable filePath before accepting "".
     if (local && local.filePath) {
       docToUpsert.filePath = local.filePath;
-    } else if (isPortableFilePath(remote.filePath, remote.fileType)) {
-      docToUpsert.filePath = remote.filePath ?? "";
+    } else if (remote.filePath && isPortableFilePath(remote.filePath, remote.fileType)) {
+      docToUpsert.filePath = remote.filePath;
+    } else if (
+      isPortableFilePath(undefined, remote.fileType) &&
+      local && isPortableFilePath(local.filePath, local.fileType)
+    ) {
+      // Portable-type doc, remote sent no filePath: preserve our existing URL
+      // rather than clobbering it with "".
+      docToUpsert.filePath = local.filePath;
     } else {
       docToUpsert.filePath = "";
     }

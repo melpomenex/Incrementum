@@ -446,23 +446,37 @@ impl DocumentRepository {
     }
 
     /// Update a document's basic fields
+    ///
+    /// Callers frequently pass PARTIAL updates (e.g. `{ title }` to refresh a
+    /// fetched YouTube title, or `{ isArchived }` on archive). The store path
+    /// spreads the full doc, but direct api.updateDocument callers send partials;
+    /// a missing `file_path` deserializes to `""` and would silently blank the
+    /// column — destroying the YouTube watch URL whose filePath IS the content.
+    /// Treat empty-string as "not provided" (→ NULL) and COALESCE so a partial
+    /// update preserves the existing content-bearing columns.
     pub async fn update_document(&self, id: &str, updates: &Document) -> Result<Document> {
         let tags_json = serde_json::to_string(&updates.tags)?;
+        let file_path = if updates.file_path.is_empty() { None } else { Some(&updates.file_path) };
+        let category = updates.category.as_ref().filter(|c| !c.is_empty());
 
         sqlx::query(
             r#"
             UPDATE documents SET
-                title = ?1, file_path = ?2, current_page = ?3, category = ?4,
+                title = ?1,
+                file_path = COALESCE(?2, file_path),
+                current_page = COALESCE(?3, current_page),
+                category = COALESCE(?4, category),
                 tags = ?5, date_modified = ?6, priority_rating = ?7,
                 priority_slider = ?8, priority_score = ?9,
-                is_archived = ?10, is_favorite = ?11, total_pages = ?12
+                is_archived = ?10, is_favorite = ?11,
+                total_pages = COALESCE(?12, total_pages)
             WHERE id = ?13
             "#,
         )
         .bind(&updates.title)
-        .bind(&updates.file_path)
+        .bind(file_path)
         .bind(updates.current_page)
-        .bind(&updates.category)
+        .bind(category)
         .bind(&tags_json)
         .bind(updates.date_modified)
         .bind(updates.priority_rating)
