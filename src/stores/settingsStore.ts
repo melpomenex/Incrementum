@@ -793,16 +793,28 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "incrementum-settings",
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, version: number) => {
+        const p = (persisted ?? {}) as Partial<Settings> & { settings?: Partial<Settings> };
+        const root = p.settings ?? p;
         // v2 -> v3: the floating Document Assistant mic orb used to default to ON.
         // It eats screen space and most users never used it, so it now defaults to
         // OFF and is opt-in via Settings → AI. Reset any previously persisted value
         // so existing users also get the new default.
-        const p = (persisted ?? {}) as Partial<Settings> & { settings?: Partial<Settings> };
-        const root = p.settings ?? p;
         if (root?.ai && version < 3) {
           root.ai.pwaAssistantButtonEnabled = false;
+        }
+        // v3 -> v4: ensure the yjs sync settings field exists with defaults.
+        // The onRehydrateStorage merge already applies defaults, but we
+        // explicitly seed it here so the toggle renders correctly even if a
+        // user opens Settings before the rehydration callback fires.
+        if (version < 4) {
+          if (root?.sync) {
+            root.sync = {
+              ...root.sync,
+              yjs: { enabled: true },
+            };
+          }
         }
         return persisted as SettingsState;
       },
