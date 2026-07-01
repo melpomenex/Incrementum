@@ -122,6 +122,12 @@ export interface SyncSettings {
     intervalMinutes: number;
     lastSync: number;
   };
+  /** Yjs CRDT-based real-time sync. Defaults to enabled for backward
+   *  compatibility; toggle off in Settings → Sync to reduce network
+   *  connections and DB pool contention when cross-device sync isn't needed. */
+  yjs: {
+    enabled: boolean;
+  };
 }
 
 // API Settings

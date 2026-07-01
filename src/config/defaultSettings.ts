@@ -94,6 +94,9 @@ export const defaultSettings: Settings = {
       intervalMinutes: 0,
       lastSync: 0,
     },
+    yjs: {
+      enabled: true,
+    },
   },
 
   api: {
