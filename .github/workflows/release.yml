@@ -50,6 +50,16 @@ jobs:
             required: false
 
     runs-on: ${{ matrix.platform }}
+    # Job-level env so EVERY step sees these — critically the `prebuild`
+    # hook (npm run build → prebuild → node scripts/download-sidecars.js) and
+    # the "Build sidecar binaries" step run BEFORE the "Build Tauri application"
+    # step. When these were only set on the Tauri step, download-sidecars took
+    # its `!bundleRuntime` early-exit on Windows and never created the
+    # pocket-tts / notebooklm .exe sidecars, so the bundler failed with
+    # "resource path `bin\pocket-tts-x86_64-pc-windows-msvc.exe` doesn't exist".
+    env:
+      NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+      POCKET_TTS_BUNDLE_RUNTIME: "1"
 
     steps:
       - name: Checkout repository
@@ -303,6 +313,11 @@ jobs:
 
   release-appimage:
     runs-on: ubuntu-latest
+    # See the `release` job: bundle-runtime flags must be visible to the
+    # `prebuild` hook and sidecar step too, not just the Tauri build step.
+    env:
+      NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+      POCKET_TTS_BUNDLE_RUNTIME: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

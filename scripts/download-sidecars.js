@@ -46,13 +46,22 @@ function getTargetTriple() {
   const arch = process.arch;
 
   if (platform === 'win32') {
-    return 'x86_64-pc-windows-msvc';
+    // process.arch on Windows runners is x64; arm64 Windows isn't targeted yet.
+    return arch === 'arm64' ? 'aarch64-pc-windows-msvc' : 'x86_64-pc-windows-msvc';
   } else if (platform === 'darwin') {
     return arch === 'arm64' ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin';
   } else if (platform === 'linux') {
-    return 'x86_64-unknown-linux-gnu';
+    // Derive the target triple from the host arch rather than hardcoding x86_64.
+    // The linux-aarch64 job runs on an arm64 runner (process.arch === 'arm64'),
+    // so it must produce aarch64-unknown-linux-gnu sidecars. Previously this
+    // always returned x86_64-unknown-linux-gnu, which made the "already exists"
+    // short-circuit match the committed x86_64 sidecars and skip provisioning
+    // aarch64 ones — Tauri then failed with "resource path
+    // `bin/whisper-aarch64-unknown-linux-gnu` doesn't exist".
+    const linuxArch = arch === 'arm64' ? 'aarch64' : 'x86_64';
+    return `${linuxArch}-unknown-linux-gnu`;
   }
-  
+
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
 }
 
@@ -943,13 +952,21 @@ async function main() {
   }
 
   if (platform === 'linux') {
-    // Linux FFmpeg
+    // Linux FFmpeg (vestigial: ffmpeg isn't a Tauri externalBin — it's resolved
+    // from PATH / deb `depends` at runtime — but we still stage a binary for
+    // completeness). Pick the static build matching the host arch so we never
+    // produce a wrong-arch ffmpeg (e.g. an x86_64 binary labeled
+    // ffmpeg-aarch64-unknown-linux-gnu on the arm64 runner).
+    const isArm64 = targetTriple.startsWith('aarch64');
     console.log('Downloading FFmpeg (Linux)...');
-    const ffmpegArchive = 'ffmpeg-linux-x64.tar.xz';
-    downloadFile([
-      'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz',
-      'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz',
-    ], ffmpegArchive);
+    const ffmpegArchive = `ffmpeg-linux-${isArm64 ? 'arm64' : 'x64'}.tar.xz`;
+    const ffmpegUrls = isArm64
+      ? ['https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz']
+      : [
+          'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz',
+          'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz',
+        ];
+    downloadFile(ffmpegUrls, ffmpegArchive);
     execSync(`tar -xf ${shellQuote(ffmpegArchive)}`);
     const extractedFolders = fs.readdirSync('.')
       .filter(f => f.startsWith('ffmpeg-') && fs.statSync(f).isDirectory());

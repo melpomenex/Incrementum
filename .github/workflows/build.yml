@@ -15,6 +15,13 @@ jobs:
   build-fast:
     if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')
     runs-on: windows-latest
+    # Job-level env so the `prebuild` hook (npm run build → prebuild →
+    # download-sidecars.js) bundles the pocket-tts/notebooklm sidecars too.
+    # Without this the bundler fails: "resource path
+    # `bin\pocket-tts-x86_64-pc-windows-msvc.exe` doesn't exist".
+    env:
+      NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+      POCKET_TTS_BUNDLE_RUNTIME: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -109,6 +116,12 @@ jobs:
             required: false
 
     runs-on: ${{ matrix.platform }}
+    # Job-level env so the `prebuild` hook and "Build sidecar binaries" step
+    # (both run before the Tauri build) bundle the pocket-tts/notebooklm
+    # sidecars. See build-fast for the Windows failure this prevents.
+    env:
+      NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+      POCKET_TTS_BUNDLE_RUNTIME: "1"
 
     steps:
       - name: Checkout repository
@@ -289,6 +302,10 @@ jobs:
   build-appimage:
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # See build-fast: bundle-runtime flags must reach the prebuild hook + sidecar step.
+    env:
+      NOTEBOOKLM_BUNDLE_RUNTIME: "1"
+      POCKET_TTS_BUNDLE_RUNTIME: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
