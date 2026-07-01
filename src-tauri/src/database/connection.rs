@@ -111,12 +111,20 @@ impl Database {
             // NORMAL synchronous with WAL gives good durability/performance trade-off
             .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
 
-        // Create connection pool — 5 is sufficient for a single-user desktop app
+        // Create connection pool — increased to 20 to handle concurrent
+        // user operations (e.g. bulk delete) alongside sync processes (Yjs
+        // CRDT sync, localStorage sync, file sync) without exhausting the
+        // pool and causing "pool timed out" errors on heavy workloads.
         let pool = PoolOptions::<Sqlite>::new()
-            .max_connections(5)
-            .acquire_timeout(Duration::from_secs(30))
+            .max_connections(20)
+            .acquire_timeout(Duration::from_secs(60))
             .connect_with(options)
-            .await?;
+            .await.map_err(|e| {
+                IncrementumError::Internal(format!(
+                    "Database connection pool failed (check if another process has the DB locked): {}",
+                    e
+                ))
+            })?;
 
         // Close the pool if any subsequent step fails so we don't leave a
         // half-initialized connection pool around after returning an error.
