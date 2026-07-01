@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.59.1] - 2026-07-01
+
+### Fixed & Improved
+- **Windows build now produces an installer** — The v1.59.0 Windows release failed because the Pocket TTS / NotebookLM sidecars were never provisioned (the bundle-runtime flags were only set on the Tauri build step, but the sidecar download runs earlier via the `prebuild` hook). These flags now apply to the whole job, so the Windows NSIS installer builds and publishes correctly again.
+- **Linux aarch64 (arm64) release builds correctly** — The sidecar provisioning script always detected the target as `x86_64` even on the arm64 runner, so it skipped building `aarch64-unknown-linux-gnu` sidecars and the Tauri bundle failed. Target-triple detection now derives the architecture from the host (`arm64` → `aarch64-unknown-linux-gnu`), and the vestigial Linux FFmpeg download fetches the matching-arch static build instead of a wrong-arch binary.
+
 ## [1.59.0] - 2026-06-30
 
 ### Added
