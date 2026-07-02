@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.62.1] - 2026-07-02
+
+### Fixed & Improved
+- **Scroll-mode menu no longer gets stuck hidden** — In the optimal queue, the top-layer controls (settings icon, item details, Read button, Dismiss button) would auto-hide and become impossible to bring back after you pressed play on a YouTube video or navigated to another item. The auto-hide effect was deregistering its own mouse/touch/keyboard listeners the moment the controls hid, leaving no way to re-show them (only the `h`/`?` key worked). The listeners now stay attached for the lifetime of the page and any movement, touch, or keystroke brings the menu straight back — which also recovers from the YouTube `<iframe>` swallowing pointer events over the video.
+
 ## [1.62.0] - 2026-07-02
 
 ### Added
