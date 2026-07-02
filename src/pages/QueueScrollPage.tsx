@@ -2168,10 +2168,17 @@ export function QueueScrollPage() {
     return () => window.removeEventListener("incrementum-queue-swipe", handleBridge as EventListener);
   }, [goToNext, goToPrevious]);
 
-  // Auto-hide controls after 3 seconds of idle (both mobile/touch and desktop)
+  // Auto-hide controls after 3 seconds of idle (both mobile/touch and desktop).
+  //
+  // The interaction listeners stay attached even while the controls are
+  // hidden, so any mouse movement, touch, or keystroke brings them straight
+  // back. This is essential because some content — notably the YouTube
+  // <iframe> — swallows pointer events: if the idle timer fires while the
+  // cursor is over the video (or after navigating to a new item), the menu
+  // must still be recoverable. Earlier this effect early-returned while
+  // hidden, deregistering these listeners and leaving the top-layer menu
+  // (settings, item details, read/dismiss) permanently stuck invisible.
   useEffect(() => {
-    if (!showControls) return;
-
     let hideTimeout: ReturnType<typeof setTimeout>;
 
     const resetTimer = () => {
@@ -2179,23 +2186,31 @@ export function QueueScrollPage() {
       hideTimeout = setTimeout(() => setShowControls(false), 3000);
     };
 
-    resetTimer();
-
     const handleInteraction = () => {
+      setShowControls(true);
       resetTimer();
     };
 
+    // "h"/"?" are the manual show/hide toggle handled by the keydown effect
+    // below; don't let them force the controls back on through this listener.
+    const handleKeyInteraction = (e: KeyboardEvent) => {
+      if (e.key === "h" || e.key === "?") return;
+      handleInteraction();
+    };
+
+    resetTimer();
+
     window.addEventListener("mousemove", handleInteraction);
     window.addEventListener("touchstart", handleInteraction, { passive: true });
-    window.addEventListener("keydown", handleInteraction);
+    window.addEventListener("keydown", handleKeyInteraction);
 
     return () => {
       window.removeEventListener("mousemove", handleInteraction);
       window.removeEventListener("touchstart", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener("keydown", handleKeyInteraction);
       clearTimeout(hideTimeout);
     };
-  }, [showControls]);
+  }, []);
 
   // Handle rating (for documents, flashcards, or mark as read for RSS)
   const handleRating = async (rating: number) => {
