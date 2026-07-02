@@ -266,7 +266,7 @@ export async function testAnkiConnection(url: string = "http://localhost:8765"):
       }),
     });
     const data = await response.json();
-    return data !== null;
+    return data !== null && !data?.error;
   } catch {
     return false;
   }
@@ -276,32 +276,50 @@ export async function testAnkiConnection(url: string = "http://localhost:8765"):
  * Get all Anki decks
  */
 export async function getAnkiDecks(url: string = "http://localhost:8765"): Promise<string[]> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "deckNames",
-      version: 6,
-    }),
-  });
-  const data = await response.json();
-  return data || [];
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "deckNames",
+        version: 6,
+      }),
+    });
+    const data = await response.json();
+    if (data?.error) {
+      console.error("AnkiConnect error (deckNames):", data.error);
+      return [];
+    }
+    return data?.result || [];
+  } catch (err) {
+    console.error("Failed to fetch Anki decks:", err);
+    return [];
+  }
 }
 
 /**
  * Get all Anki models
  */
 export async function getAnkiModels(url: string = "http://localhost:8765"): Promise<string[]> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "modelNames",
-      version: 6,
-    }),
-  });
-  const data = await response.json();
-  return data || [];
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "modelNames",
+        version: 6,
+      }),
+    });
+    const data = await response.json();
+    if (data?.error) {
+      console.error("AnkiConnect error (modelNames):", data.error);
+      return [];
+    }
+    return data?.result || [];
+  } catch (err) {
+    console.error("Failed to fetch Anki models:", err);
+    return [];
+  }
 }
 
 /**
@@ -334,7 +352,7 @@ export async function createAnkiNote(
   if (data.error) {
     throw new Error(data.error);
   }
-  return data || 0;
+  return data?.result ?? 0;
 }
 
 /**
@@ -364,7 +382,7 @@ export async function createAnkiNotes(
   if (data.error) {
     throw new Error(data.error);
   }
-  return data || [];
+  return data?.result || [];
 }
 
 /**
