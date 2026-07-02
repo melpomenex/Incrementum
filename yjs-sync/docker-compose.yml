@@ -13,6 +13,10 @@ services:
     environment:
       - YPERSISTENCE=/data
       - PORT=1234
+      # Durable rolling log of encrypted sync frames (task 1.8b). Enables async
+      # state sync: a device that joins after the writer went offline receives
+      # the backlog. Lives under the persisted /data volume. See frameLog.js.
+      - FRAME_LOG_DIR=/data/frame-log
     volumes:
       - yjs_data:/data
       - yjs_app:/app

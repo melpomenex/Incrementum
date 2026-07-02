@@ -8,6 +8,26 @@ import type { TranscriptSegment as SyncTranscriptSegment } from "../components/m
 /**
  * Import a podcast episode as a document in the incremental reading system.
  */
+
+/**
+ * Load an episode's full row in the sync wire shape (camelCase), for the
+ * podcast replication publish hooks. Returns null if the episode isn't local
+ * (the field-LWW merge handles absence). Uses the dedicated sync read command
+ * so we don't depend on a store being warm.
+ */
+async function loadEpisodeForSync(
+  episodeId: string,
+): Promise<import("../lib/sync/entities/podcasts").SyncedPodcastEpisode | null> {
+  try {
+    return await invokeCommand<import("../lib/sync/entities/podcasts").SyncedPodcastEpisode | null>(
+      "get_synced_podcast_episode",
+      { id: episodeId },
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function importPodcastEpisodeAsDocument(episodeId: string, collectionId?: string): Promise<any> {
   if (isTauri()) {
     return invokeCommand<any>("import_podcast_episode_as_document", { episodeId, collectionId: collectionId ?? null });
@@ -270,7 +290,19 @@ export async function markEpisodePlayed(
   played: boolean = true,
 ): Promise<void> {
   if (isTauri()) {
-    return invokeCommand<void>("mark_episode_played", { episodeId, played });
+    await invokeCommand<void>("mark_episode_played", { episodeId, played });
+    // Replicate the played change. Fire-and-forget so playback UX never waits
+    // on sync; field-LWW (played_at/unplayed_at) resolves concurrent toggles.
+    void (async () => {
+      try {
+        const { publishEpisodePlayed } = await import("../lib/sync/entities/podcasts");
+        const row = await loadEpisodeForSync(episodeId);
+        if (row) await publishEpisodePlayed({ row, played });
+      } catch (err) {
+        console.warn("[podcast] sync publish played failed (non-fatal)", err);
+      }
+    })();
+    return;
   }
   if (shouldUseHttp()) {
     const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/played`, {
@@ -285,14 +317,30 @@ export async function markEpisodePlayed(
 }
 
 /**
- * Update playback position for an episode.
+ * Update playback position for an episode. Position is high-churn (the audio
+ * element's `timeupdate` fires ~4×/sec), so the sync publish is debounced
+ * per-episode (1.5s) to keep the shared CRDT doc small.
  */
 export async function updateEpisodePosition(
   episodeId: string,
   position: number,
 ): Promise<void> {
   if (isTauri()) {
-    return invokeCommand<void>("update_episode_position", { episodeId, position });
+    await invokeCommand<void>("update_episode_position", { episodeId, position });
+    // Debounced publish — coalesces a burst of position ticks into one wire write.
+    void (async () => {
+      try {
+        const { publishEpisodePositionDebounced } = await import("../lib/sync/entities/podcasts");
+        publishEpisodePositionDebounced(episodeId, async () => {
+          const row = await loadEpisodeForSync(episodeId);
+          if (!row) throw new Error("episode not found");
+          return { ...row, playbackPosition: position };
+        });
+      } catch (err) {
+        console.warn("[podcast] sync publish position failed (non-fatal)", err);
+      }
+    })();
+    return;
   }
   if (shouldUseHttp()) {
     const res = await fetch(`${getApiBaseUrl()}/api/podcast/episodes/${episodeId}/position`, {

@@ -260,7 +260,29 @@ if (isTauri()) {
         // library mirrors across devices (SQLite is per-device; without this,
         // imported docs never appear on other devices even with file sync).
         .then(() => import("./lib/documentReplication"))
-        .then(({ ensureDocumentReplicationReady }) => ensureDocumentReplicationReady()),
+        .then(({ ensureDocumentReplicationReady }) => ensureDocumentReplicationReady())
+        // Initialize flashcard + review-history replication: subscribes to the
+        // shared 'learningItems' and 'reviews' maps so a card reviewed on one
+        // device appears with its new schedule on every device (the paramount
+        // cross-device case). No-op outside Tauri.
+        .then(() => import("./lib/sync/entities/flashcards"))
+        .then(({ ensureFlashcardSyncReady }) => ensureFlashcardSyncReady())
+        // Initialize RSS replication (feeds + article read/queued state).
+        .then(() => import("./lib/sync/entities/rss"))
+        .then(({ ensureRssSyncReady }) => ensureRssSyncReady())
+        // Initialize podcast replication (feeds + episode position/played/
+        // download-intent). Audio bytes are never replicated — each device
+        // downloads from the feed URL; we sync only state + intent.
+        .then(() => import("./lib/sync/entities/podcasts"))
+        .then(({ ensurePodcastSyncReady }) => ensurePodcastSyncReady())
+        // Backfill: on first sync-room join, publish the local library into the
+        // shared doc so other devices receive it. Background, non-blocking.
+        .then(() => import("./lib/sync/migrate"))
+        .then(({ runSyncMigrationIfNeeded }) =>
+          runSyncMigrationIfNeeded().catch((e) =>
+            console.warn("[main.tsx] sync migration failed (non-fatal)", e),
+          ),
+        ),
     )
     .catch((error) => {
       console.error("[main.tsx] Failed to initialize Yjs sync on Tauri:", error);

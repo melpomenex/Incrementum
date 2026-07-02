@@ -43,6 +43,7 @@ pub mod substack;
 pub mod rss_features;
 pub mod curated_feeds;
 pub mod podcast;
+pub mod sync;
 pub mod tas;
 pub use crate::error::Result;
 
@@ -85,6 +86,7 @@ pub use rss_features::*;
 pub use mcp::*;
 
 pub use podcast::*;
+pub use sync::*;
 pub use tas::*;
 pub use cloud::oauth::*;
 pub use cloud::backup::*;

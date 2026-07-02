@@ -132,6 +132,25 @@ export function ReviewHome({ onStartReview, onOpenDeckManager }: ReviewHomeProps
     return () => window.removeEventListener("open-flashcard-studio", handler);
   }, []);
 
+  // Reactive refresh: when a card arrives via sync (reviewed on another
+  // device), reload the due list so the home screen's counts reflect it. This
+  // is the "open the app and see your updated queue" moment. Debounced so a
+  // burst of synced cards triggers one reload, not N.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => { void loadStats(); }, 400);
+    };
+    const events = ["incrementum:synced-card", "incrementum:synced-card-deleted"];
+    for (const ev of events) window.addEventListener(ev, schedule);
+    return () => {
+      if (t) clearTimeout(t);
+      for (const ev of events) window.removeEventListener(ev, schedule);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCollectionId]);
+
   const activeDecks = useMemo(
     () => activeDeckIds.map((id) => (decks || []).find((d) => d.id === id)).filter((d): d is StudyDeck => d != null),
     [decks, activeDeckIds]

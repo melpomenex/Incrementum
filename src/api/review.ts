@@ -32,7 +32,7 @@ export async function submitReview(
   }
 ): Promise<LearningItem> {
   const normalizedSessionId = sessionId?.trim() ? sessionId : undefined;
-  return await invokeCommand<LearningItem>("submit_review", {
+  const updated = await invokeCommand<LearningItem>("submit_review", {
     item_id: itemId,
     itemId,
     rating,
@@ -48,6 +48,40 @@ export async function submitReview(
     no_schedule_update: options?.noScheduleUpdate,
     noScheduleUpdate: options?.noScheduleUpdate,
   });
+
+  // Replicate the review to other devices. Fire-and-forget — never blocks the
+  // review UX on sync, and never fails the review if sync is offline. The card
+  // row (with its new due_date/reps/stability) is published with a fresh sync
+  // clock so the receiver's last-writer-wins merge takes it; the review event
+  // is appended to the revlog under a deterministic id so two devices reviewing
+  // the same card both count once.
+  if (!options?.noScheduleUpdate) {
+    void (async () => {
+      try {
+        const { publishCard, publishReview, toSyncedLearningItem } = await import("../lib/sync/entities/flashcards");
+        const { nowHLC } = await import("../lib/sync/syncClock");
+        const synced = toSyncedLearningItem(updated as unknown as Record<string, unknown>);
+        synced.updated_at = nowHLC();
+        await Promise.all([
+          publishCard(synced),
+          publishReview({
+            itemId,
+            collectionId: synced.collection_id,
+            rating,
+            timeTaken,
+            resultDueDate: synced.due_date,
+            resultInterval: synced.interval,
+            resultEase: synced.ease_factor,
+            sessionId: normalizedSessionId,
+          }),
+        ]);
+      } catch (err) {
+        console.warn("[review] sync publish failed (non-fatal)", err);
+      }
+    })();
+  }
+
+  return updated;
 }
 
 export async function restoreLearningItemState(

@@ -41,6 +41,11 @@ const map = require('lib0/dist/map.cjs')
 
 const debounce = require('lodash.debounce')
 
+// Encrypted-frame rolling log (task 1.8b). Optional server-side persistence so
+// async encrypted sync works (device A writes, device B downloads later when A
+// is offline). Gated on FRAME_LOG_DIR; no-op when unset. See frameLog.js.
+const frameLog = require('./frameLog')
+
 // Inlined from y-websocket/bin/callback.js so this fork can run outside
 // the y-websocket package directory (the upstream bin/utils.js uses a
 // relative require('./callback.js') that doesn't resolve from our location,
@@ -212,17 +217,21 @@ const messageListener = (conn, doc, message) => {
       // FORK: opaque-forwarding default case. Stock y-websocket silently
       // drops unknown message-type bytes; we forward them verbatim to every
       // other connection in the same room. The bytes are NOT applied to the
-      // server's Yjs doc, NOT persisted, and NOT re-encoded — clients that
-      // understand the type (e.g. encrypted-sync frames) handle them; the
-      // relay stays a dumb forwarder for anything it doesn't recognize.
+      // server's Yjs doc, NOT re-encoded — clients that understand the type
+      // (e.g. encrypted-sync frames) handle them; the relay stays a dumb
+      // forwarder for anything it doesn't recognize.
       //
-      // Limitation: frames are forwarded live only. A peer that connects
-      // after the frame was sent will not receive it. Async delivery needs
-      // a separate persistence layer (see task 1.8b).
+      // Persistence: the raw frame is also appended to the room's rolling
+      // encrypted-frame log (frameLog.js) so a peer connecting later — after
+      // every live peer has disconnected, or after a relay restart — receives
+      // the backlog on connect. This is what makes async encrypted sync work
+      // (device A writes at 9am, device B downloads at noon). No-op when
+      // FRAME_LOG_DIR is unset.
       default: {
         doc.conns.forEach((_, c) => {
           if (c !== conn) send(doc, c, message)
         })
+        try { frameLog.appendFrame(doc.name, message) } catch (e) { /* persistence is best-effort */ }
       }
     }
   } catch (err) {
@@ -264,6 +273,23 @@ exports.setupWSConnection = (conn, req, { docName = req.url.slice(1).split('?')[
   const doc = getYDoc(docName, gc)
   doc.conns.set(conn, new Set())
   conn.on('message', message => messageListener(conn, doc, new Uint8Array(message)))
+
+  // Replay persisted encrypted frames for this room to the new connection,
+  // before the standard sync-step-1 handshake below. This delivers the backlog
+  // of encrypted state to a device that is joining after the writers went
+  // offline — the core async-sync path. Each frame is forwarded verbatim (the
+  // client's encryptedProvider decrypts). Best-effort: if the read fails or
+  // the log is disabled, sync proceeds with the standard handshake only.
+  try {
+    if (frameLog.frameLogEnabled()) {
+      const frames = frameLog.readFrames(docName)
+      for (const frame of frames) {
+        send(doc, conn, frame)
+      }
+    }
+  } catch (e) {
+    console.warn(`[frameLog] replay failed for room ${docName}: ${e.message}`)
+  }
 
   let pongReceived = true
   const pingInterval = setInterval(() => {

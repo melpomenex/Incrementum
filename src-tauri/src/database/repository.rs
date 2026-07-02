@@ -76,6 +76,64 @@ impl Repository {
         }
     }
 
+    /// Decode one `learning_items` row into a `LearningItem`. Centralized so the
+    /// four read methods stay in sync (and so the `updated_at` sync-clock field
+    /// is mapped consistently — it is `None` on legacy rows until next review).
+    pub fn row_to_learning_item(row: &SqliteRow) -> Result<LearningItem> {
+        let item_type_str: String = row.try_get("item_type")?;
+        let state_str: String = row.try_get("state")?;
+        let tags_json: String = row.try_get("tags")?;
+        let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+        let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
+        let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
+        let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
+        let interaction_metadata = interaction_metadata_json
+            .as_deref()
+            .and_then(|value| serde_json::from_str(value).ok());
+
+        let stability: Option<f64> = row.try_get("memory_state_stability").ok();
+        let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
+        let memory_state = Self::parse_memory_state(stability, difficulty);
+
+        let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
+        let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
+
+        let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
+        let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
+            .as_deref()
+            .and_then(|value| serde_json::from_str(value).ok());
+
+        Ok(LearningItem {
+            id: row.try_get("id")?,
+            collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
+            extract_id: row.try_get("extract_id")?,
+            document_id: row.try_get("document_id")?,
+            item_type: Self::parse_item_type(&item_type_str),
+            question: row.try_get("question")?,
+            answer: row.try_get("answer")?,
+            cloze_text: row.try_get("cloze_text")?,
+            cloze_ranges,
+            difficulty: row.try_get("difficulty")?,
+            interval: row.try_get("interval")?,
+            ease_factor: row.try_get("ease_factor")?,
+            due_date: row.try_get("due_date")?,
+            date_created: row.try_get("date_created")?,
+            date_modified: row.try_get("date_modified")?,
+            last_review_date: row.try_get("last_review_date")?,
+            review_count: row.try_get("review_count")?,
+            lapses: row.try_get("lapses")?,
+            state: Self::parse_item_state(&state_str),
+            is_suspended: row.try_get("is_suspended")?,
+            tags,
+            image_asset_ids,
+            interaction_metadata,
+            memory_state,
+            algorithm_type,
+            algorithm_state,
+            updated_at: row.try_get("updated_at").ok(),
+        })
+    }
+
     // Helper to decode possibly-corrupt UTF-8 text columns without panicking.
     fn decode_optional_text(row: &SqliteRow, column: &str) -> Option<String> {
         match row.try_get::<Option<String>, _>(column) {
@@ -1568,8 +1626,8 @@ impl Repository {
                 ease_factor, due_date, date_created, date_modified,
                 last_review_date, review_count, lapses, state,
                 is_suspended, tags, image_asset_ids, interaction_metadata, memory_state_stability, memory_state_difficulty,
-                algorithm_type, algorithm_state
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
+                algorithm_type, algorithm_state, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)
             "#,
         )
         .bind(&item.id)
@@ -1599,6 +1657,7 @@ impl Repository {
         .bind(difficulty)
         .bind(&item.algorithm_type)
         .bind(&item.algorithm_state)
+        .bind(&item.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -1621,57 +1680,7 @@ impl Repository {
 
         let mut items = Vec::new();
         for row in rows {
-            let item_type_str: String = row.try_get("item_type")?;
-            let state_str: String = row.try_get("state")?;
-            let tags_json: String = row.try_get("tags")?;
-            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
-            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
-            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
-            let interaction_metadata = interaction_metadata_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            let stability: Option<f64> = row.try_get("memory_state_stability").ok();
-            let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
-            let memory_state = Self::parse_memory_state(stability, difficulty);
-
-            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
-            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
-
-            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
-            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            items.push(LearningItem {
-                id: row.try_get("id")?,
-                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
-                extract_id: row.try_get("extract_id")?,
-                document_id: row.try_get("document_id")?,
-                item_type: Self::parse_item_type(&item_type_str),
-                question: row.try_get("question")?,
-                answer: row.try_get("answer")?,
-                cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges,
-                difficulty: row.try_get("difficulty")?,
-                interval: row.try_get("interval")?,
-                ease_factor: row.try_get("ease_factor")?,
-                due_date: row.try_get("due_date")?,
-                date_created: row.try_get("date_created")?,
-                date_modified: row.try_get("date_modified")?,
-                last_review_date: row.try_get("last_review_date")?,
-                review_count: row.try_get("review_count")?,
-                lapses: row.try_get("lapses")?,
-                state: Self::parse_item_state(&state_str),
-                is_suspended: row.try_get("is_suspended")?,
-                tags,
-                image_asset_ids,
-                interaction_metadata,
-                memory_state,
-                algorithm_type,
-                algorithm_state,
-            });
+            items.push(Self::row_to_learning_item(&row)?);
         }
 
         Ok(items)
@@ -1685,57 +1694,7 @@ impl Repository {
 
         let mut items = Vec::new();
         for row in rows {
-            let item_type_str: String = row.try_get("item_type")?;
-            let state_str: String = row.try_get("state")?;
-            let tags_json: String = row.try_get("tags")?;
-            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
-            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
-            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
-            let interaction_metadata = interaction_metadata_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            let stability: Option<f64> = row.try_get("memory_state_stability").ok();
-            let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
-            let memory_state = Self::parse_memory_state(stability, difficulty);
-
-            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
-            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
-
-            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
-            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            items.push(LearningItem {
-                id: row.try_get("id")?,
-                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
-                extract_id: row.try_get("extract_id")?,
-                document_id: row.try_get("document_id")?,
-                item_type: Self::parse_item_type(&item_type_str),
-                question: row.try_get("question")?,
-                answer: row.try_get("answer")?,
-                cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges,
-                difficulty: row.try_get("difficulty")?,
-                interval: row.try_get("interval")?,
-                ease_factor: row.try_get("ease_factor")?,
-                due_date: row.try_get("due_date")?,
-                date_created: row.try_get("date_created")?,
-                date_modified: row.try_get("date_modified")?,
-                last_review_date: row.try_get("last_review_date")?,
-                review_count: row.try_get("review_count")?,
-                lapses: row.try_get("lapses")?,
-                state: Self::parse_item_state(&state_str),
-                is_suspended: row.try_get("is_suspended")?,
-                tags,
-                image_asset_ids,
-                interaction_metadata,
-                memory_state,
-                algorithm_type,
-                algorithm_state,
-            });
+            items.push(Self::row_to_learning_item(&row)?);
         }
 
         Ok(items)
@@ -1749,57 +1708,7 @@ impl Repository {
 
         let mut items = Vec::new();
         for row in rows {
-            let item_type_str: String = row.try_get("item_type")?;
-            let state_str: String = row.try_get("state")?;
-            let tags_json: String = row.try_get("tags")?;
-            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
-            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
-            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
-            let interaction_metadata = interaction_metadata_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            let stability: Option<f64> = row.try_get("memory_state_stability").ok();
-            let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
-            let memory_state = Self::parse_memory_state(stability, difficulty);
-
-            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
-            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
-
-            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
-            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            items.push(LearningItem {
-                id: row.try_get("id")?,
-                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
-                extract_id: row.try_get("extract_id")?,
-                document_id: row.try_get("document_id")?,
-                item_type: Self::parse_item_type(&item_type_str),
-                question: row.try_get("question")?,
-                answer: row.try_get("answer")?,
-                cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges,
-                difficulty: row.try_get("difficulty")?,
-                interval: row.try_get("interval")?,
-                ease_factor: row.try_get("ease_factor")?,
-                due_date: row.try_get("due_date")?,
-                date_created: row.try_get("date_created")?,
-                date_modified: row.try_get("date_modified")?,
-                last_review_date: row.try_get("last_review_date")?,
-                review_count: row.try_get("review_count")?,
-                lapses: row.try_get("lapses")?,
-                state: Self::parse_item_state(&state_str),
-                is_suspended: row.try_get("is_suspended")?,
-                tags,
-                image_asset_ids,
-                interaction_metadata,
-                memory_state,
-                algorithm_type,
-                algorithm_state,
-            });
+            items.push(Self::row_to_learning_item(&row)?);
         }
 
         Ok(items)
@@ -1822,7 +1731,8 @@ impl Repository {
                 state = ?4, review_count = ?5, lapses = ?6,
                 last_review_date = ?7, date_modified = ?8,
                 memory_state_stability = ?9, memory_state_difficulty = ?10,
-                interaction_metadata = ?12, algorithm_type = ?13, algorithm_state = ?14
+                interaction_metadata = ?12, algorithm_type = ?13, algorithm_state = ?14,
+                updated_at = COALESCE(?15, updated_at)
             WHERE id = ?11
             "#,
         )
@@ -1840,6 +1750,7 @@ impl Repository {
         .bind(&interaction_metadata_json)
         .bind(&item.algorithm_type)
         .bind(&item.algorithm_state)
+        .bind(&item.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -1853,57 +1764,7 @@ impl Repository {
 
         let mut items = Vec::new();
         for row in rows {
-            let item_type_str: String = row.try_get("item_type")?;
-            let state_str: String = row.try_get("state")?;
-            let tags_json: String = row.try_get("tags")?;
-            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-            let image_asset_ids_json: String = row.try_get("image_asset_ids").unwrap_or_else(|_| "[]".to_string());
-            let image_asset_ids: Vec<String> = serde_json::from_str(&image_asset_ids_json).unwrap_or_default();
-            let interaction_metadata_json: Option<String> = row.try_get("interaction_metadata").ok();
-            let interaction_metadata = interaction_metadata_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            let stability: Option<f64> = row.try_get("memory_state_stability").ok();
-            let difficulty: Option<f64> = row.try_get("memory_state_difficulty").ok();
-            let memory_state = Self::parse_memory_state(stability, difficulty);
-
-            let algorithm_type: String = row.try_get("algorithm_type").unwrap_or_else(|_| "fsrs".to_string());
-            let algorithm_state: Option<String> = row.try_get("algorithm_state").ok();
-
-            let cloze_ranges_json: Option<String> = row.try_get("cloze_ranges").ok();
-            let cloze_ranges: Option<Vec<(usize, usize)>> = cloze_ranges_json
-                .as_deref()
-                .and_then(|value| serde_json::from_str(value).ok());
-
-            items.push(LearningItem {
-                id: row.try_get("id")?,
-                collection_id: row.try_get("collection_id").unwrap_or_else(|_| DEFAULT_COLLECTION_ID.to_string()),
-                extract_id: row.try_get("extract_id")?,
-                document_id: row.try_get("document_id")?,
-                item_type: Self::parse_item_type(&item_type_str),
-                question: row.try_get("question")?,
-                answer: row.try_get("answer")?,
-                cloze_text: row.try_get("cloze_text")?,
-                cloze_ranges,
-                difficulty: row.try_get("difficulty")?,
-                interval: row.try_get("interval")?,
-                ease_factor: row.try_get("ease_factor")?,
-                due_date: row.try_get("due_date")?,
-                date_created: row.try_get("date_created")?,
-                date_modified: row.try_get("date_modified")?,
-                last_review_date: row.try_get("last_review_date")?,
-                review_count: row.try_get("review_count")?,
-                lapses: row.try_get("lapses")?,
-                state: Self::parse_item_state(&state_str),
-                is_suspended: row.try_get("is_suspended")?,
-                tags,
-                image_asset_ids,
-                interaction_metadata,
-                memory_state,
-                algorithm_type,
-                algorithm_state,
-            });
+            items.push(Self::row_to_learning_item(&row)?);
         }
 
         Ok(items)

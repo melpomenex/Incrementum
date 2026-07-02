@@ -1,9 +1,30 @@
 #!/bin/bash
 # Deploy transcript service using Docker (containerized)
 
-VPS_HOST="100.98.201.21"
-VPS_USER="leisrich"
-REMOTE_DIR="/home/${VPS_USER}/yjs-sync"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables from .env if it exists
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "$line" ]] && continue
+    export "$line"
+  done < "${SCRIPT_DIR}/.env"
+else
+  echo "Missing ${SCRIPT_DIR}/.env file"
+  echo "Copy .env.example -> .env and configure it before running deployment."
+  exit 1
+fi
+
+# Configuration
+VPS_HOST="${VPS_HOST:-}"
+VPS_USER="${VPS_USER:-}"
+REMOTE_DIR="${REMOTE_DIR:-/home/${VPS_USER}/yjs-sync}"
+
+if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ]; then
+  echo "Error: VPS_HOST and VPS_USER must be set in your .env file."
+  exit 1
+fi
 
 echo "=========================================="
 echo "Deploying Transcript Service (Docker)"
@@ -29,13 +50,13 @@ scp -r docker-compose.yml Caddyfile Dockerfile.transcript service.py server.js u
 echo "[3/5] Creating .env file..."
 ssh ${VPS_USER}@${VPS_HOST} << EOF
 cat > ${REMOTE_DIR}/.env << ENVEOF
-YJS_SYNC_HOSTNAME=sync.readsync.org
-TRANSCRIPT_HOSTNAME=transcripts.readsync.org
+YJS_SYNC_HOSTNAME=${YJS_SYNC_HOSTNAME:-sync.readsync.org}
+TRANSCRIPT_HOSTNAME=${TRANSCRIPT_HOSTNAME:-transcripts.readsync.org}
 TRANSCRIPT_API_KEY=${API_KEY}
-PROXY_HOST=REDACTED_PROXY
-PROXY_PORT=10001
-PROXY_USER=REDACTED_USER
-PROXY_PASS=REDACTED_PASS
+PROXY_HOST=${PROXY_HOST:-}
+PROXY_PORT=${PROXY_PORT:-}
+PROXY_USER=${PROXY_USER:-}
+PROXY_PASS=${PROXY_PASS:-}
 ENVEOF
 EOF
 

@@ -593,6 +593,38 @@ export function updateFeed(feedId: string, updates: Partial<Feed>): void {
 /**
  * Mark item as read
  */
+/**
+ * Build a minimal article-state wire object for the sync publish path. Identity
+ * fields (url/title/guid) are pulled from the locally-cached item when present
+ * so the receiver can create a stub article row on first sight; they're
+ * optional because the field-LWW merge only needs the state + clocks. Used by
+ * the read/queued publish hooks.
+ */
+function emptyArticleState(
+  itemId: string,
+  feedId: string,
+  item?: { title?: string; url?: string; link?: string; guid?: string; published_date?: string; author?: string; image_url?: string; date_added?: string },
+) {
+  return {
+    id: itemId,
+    feed_id: feedId,
+    url: item?.url ?? item?.link ?? `rss://${itemId}`,
+    guid: item?.guid ?? null,
+    title: item?.title ?? "",
+    author: item?.author ?? null,
+    published_date: item?.published_date ?? null,
+    image_url: item?.image_url ?? null,
+    is_read: false,
+    read_at: null,
+    unread_at: null,
+    is_queued: false,
+    queued_at: null,
+    unqueued_at: null,
+    updated_at: "",
+    date_added: item?.date_added ?? new Date().toISOString(),
+  };
+}
+
 export function markItemRead(feedId: string, itemId: string, read: boolean = true): void {
   const feed = getFeed(feedId);
   if (!feed) return;
@@ -1565,6 +1597,20 @@ export async function markItemReadAuto(
   if (isTauri()) {
     // In Tauri mode, use the backend command to update SQLite
     await invokeCommand("mark_rss_article_read", { id: itemId, isRead: read, is_read: read });
+    // Replicate the read-state change. Fire-and-forget so the UI never waits
+    // on sync. The field-LWW merge uses the transition clock so two devices
+    // toggling concurrently resolve deterministically (the newer wins).
+    void (async () => {
+      try {
+        const { publishRssArticleReadState } = await import("../lib/sync/entities/rss");
+        await publishRssArticleReadState({
+          article: emptyArticleState(itemId, feedId),
+          isRead: read,
+        });
+      } catch (err) {
+        console.warn("[RSS] sync publish read-state failed (non-fatal)", err);
+      }
+    })();
     return;
   }
   if (shouldUseHttpBackend()) {
@@ -1613,6 +1659,18 @@ export async function toggleItemFavoriteAuto(feedId: string, itemId: string): Pr
 
   if (isTauri()) {
     await invokeCommand("toggle_rss_article_queued", { id: itemId });
+    // Replicate the queued (star/save) state. Fire-and-forget.
+    void (async () => {
+      try {
+        const { publishRssArticleQueuedState } = await import("../lib/sync/entities/rss");
+        await publishRssArticleQueuedState({
+          article: emptyArticleState(itemId, feedId, item),
+          isQueued: !item?.favorite,
+        });
+      } catch (err) {
+        console.warn("[RSS] sync publish queued-state failed (non-fatal)", err);
+      }
+    })();
   } else if (shouldUseHttpBackend()) {
     try {
       // In HTTP-backed mode, queued status is used as the persisted favorite flag.

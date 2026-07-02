@@ -1714,6 +1714,104 @@ pub const MIGRATIONS: &[Migration] = &[
             ON podcast_transcript_segments(episode_id, start_ms);
         "#,
     ),
+    Migration::new(
+        "053_sync_state_columns",
+        r#"
+        -- Cross-device sync support columns. These monotonic sync-clock fields
+        -- (written by the frontend via nowHLC()) make safe last-writer-wins and
+        -- field-level merges possible across offline devices. Several previously
+        -- bare booleans/scalars (rss is_read/is_queued, podcast played/position)
+        -- gain transition timestamps so concurrent edits resolve deterministically.
+
+        -- Per-install device id, used in deterministic review ids and as the
+        -- tiebreaker in sync-clock comparisons. Single row, created lazily.
+        CREATE TABLE IF NOT EXISTS sync_device_id (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            value TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        -- Soft-delete / tombstone mirror for SQLite (belt-and-suspenders for
+        -- late joiners alongside the Yjs tombstones).
+        CREATE TABLE IF NOT EXISTS sync_tombstones (
+            entity TEXT NOT NULL,
+            key TEXT NOT NULL,
+            deleted_at TEXT NOT NULL,
+            PRIMARY KEY (entity, key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_tombstones_deleted_at ON sync_tombstones(deleted_at);
+
+        -- Flashcards: learning_items is a denormalized SRS projection; whole-row
+        -- LWW on updated_at. Backfill from date_modified for existing rows.
+        ALTER TABLE learning_items ADD COLUMN updated_at TEXT;
+        UPDATE learning_items SET updated_at = COALESCE(date_modified, date_created)
+            WHERE updated_at IS NULL;
+        CREATE INDEX IF NOT EXISTS idx_learning_items_updated_at ON learning_items(updated_at);
+
+        -- Review log: append-only by deterministic id (item_id, reviewed_at_ms,
+        -- device_id). The unique index enforces idempotency — INSERT OR IGNORE
+        -- collapses replays. reviewed_at_ms holds the canonical event time used
+        -- both for the deterministic id and chronological ordering.
+        ALTER TABLE review_results ADD COLUMN device_id TEXT;
+        ALTER TABLE review_results ADD COLUMN reviewed_at_ms INTEGER;
+        UPDATE review_results
+            SET reviewed_at_ms = CAST(strftime('%s', timestamp) AS INTEGER) * 1000
+            WHERE reviewed_at_ms IS NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_review_results_deterministic
+            ON review_results(item_id, reviewed_at_ms, device_id)
+            WHERE reviewed_at_ms IS NOT NULL;
+
+        ALTER TABLE review_sessions ADD COLUMN updated_at TEXT;
+        ALTER TABLE review_sessions ADD COLUMN device_id TEXT;
+
+        -- Extracts (upstream of cards; provenance). Whole-row LWW.
+        ALTER TABLE extracts ADD COLUMN updated_at TEXT;
+        UPDATE extracts SET updated_at = COALESCE(date_modified, date_created)
+            WHERE updated_at IS NULL AND date_modified IS NOT NULL;
+
+        -- RSS: article read/starred state gains transition timestamps so two
+        -- devices toggling concurrently don't race on bare booleans.
+        ALTER TABLE rss_articles ADD COLUMN read_at TEXT;
+        ALTER TABLE rss_articles ADD COLUMN unread_at TEXT;
+        ALTER TABLE rss_articles ADD COLUMN queued_at TEXT;
+        ALTER TABLE rss_articles ADD COLUMN unqueued_at TEXT;
+        ALTER TABLE rss_articles ADD COLUMN updated_at TEXT;
+        UPDATE rss_articles SET read_at = date_added WHERE is_read = 1 AND read_at IS NULL;
+
+        ALTER TABLE rss_feeds ADD COLUMN updated_at TEXT;
+        ALTER TABLE rss_feeds ADD COLUMN deleted_at TEXT;
+        UPDATE rss_feeds SET updated_at = date_added WHERE updated_at IS NULL;
+
+        ALTER TABLE rss_folders ADD COLUMN updated_at TEXT;
+        ALTER TABLE rss_folders ADD COLUMN deleted_at TEXT;
+        UPDATE rss_folders SET updated_at = created_at WHERE updated_at IS NULL;
+
+        ALTER TABLE rss_feed_folders ADD COLUMN updated_at TEXT;
+        ALTER TABLE rss_annotations ADD COLUMN deleted_at TEXT;
+
+        -- Podcasts: played/position are high-churn scalars; per-field clocks
+        -- (played_at, position_updated_at) drive field-level merge so a position
+        -- tick never clobbers a just-set played flag and vice versa.
+        -- download_intent is the synced "should be downloaded" flag — each device
+        -- honors it subject to its own wifi/storage settings; audio bytes are
+        -- never replicated.
+        ALTER TABLE podcast_episodes ADD COLUMN played_at TEXT;
+        ALTER TABLE podcast_episodes ADD COLUMN unplayed_at TEXT;
+        ALTER TABLE podcast_episodes ADD COLUMN position_updated_at TEXT;
+        ALTER TABLE podcast_episodes ADD COLUMN download_intent INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE podcast_episodes ADD COLUMN download_intent_at TEXT;
+        ALTER TABLE podcast_episodes ADD COLUMN download_intent_device TEXT;
+        ALTER TABLE podcast_episodes ADD COLUMN updated_at TEXT;
+        UPDATE podcast_episodes SET played_at = date_added WHERE played = 1 AND played_at IS NULL;
+        UPDATE podcast_episodes SET position_updated_at = date_added
+            WHERE playback_position > 0 AND position_updated_at IS NULL;
+
+        ALTER TABLE podcast_feeds ADD COLUMN updated_at TEXT;
+        ALTER TABLE podcast_feeds ADD COLUMN deleted_at TEXT;
+        UPDATE podcast_feeds SET updated_at = COALESCE(subscribed_at, datetime('now'))
+            WHERE updated_at IS NULL;
+        "#,
+    ),
 ];
 
 /// Get the migrations directory path

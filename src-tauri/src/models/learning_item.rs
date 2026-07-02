@@ -65,6 +65,13 @@ pub struct LearningItem {
     pub algorithm_type: String,
     /// Algorithm-specific state as JSON (e.g., SM-18 state, SM-2 params)
     pub algorithm_state: Option<String>,
+    /// Sync clock (HLC string from the frontend's `nowHLC()`). Drives
+    /// whole-row last-writer-wins merges across devices; separate from
+    /// `date_modified` (which also reflects local-only UI edits) so the sync
+    /// conflict check is unambiguous. Stored as TEXT; absent on legacy rows
+    /// until next review. `None` here means "not yet synced".
+    #[serde(default)]
+    pub updated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -113,6 +120,7 @@ impl LearningItem {
             memory_state: None,
             algorithm_type: "fsrs".to_string(),
             algorithm_state: None,
+            updated_at: None,
         }
     }
 

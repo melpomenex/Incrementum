@@ -648,6 +648,7 @@ fn parse_learning_item_row(row: &sqlx::sqlite::SqliteRow) -> Result<LearningItem
         memory_state,
         algorithm_type: "fsrs".to_string(),
         algorithm_state: None,
+        updated_at: None,
     })
 }
 

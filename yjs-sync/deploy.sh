@@ -1,11 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
-VPS_HOST="100.98.201.21"
-VPS_USER="leisrich"
-REMOTE_DIR="/home/${VPS_USER}/yjs-sync"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables from .env if it exists
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "$line" ]] && continue
+    export "$line"
+  done < "${SCRIPT_DIR}/.env"
+else
+  echo "Missing ${SCRIPT_DIR}/.env file"
+  echo "Copy .env.example -> .env and configure it before running deployment."
+  exit 1
+fi
+
+# Configuration
+VPS_HOST="${VPS_HOST:-}"
+VPS_USER="${VPS_USER:-}"
+REMOTE_DIR="${REMOTE_DIR:-/home/${VPS_USER}/yjs-sync}"
+
+if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ]; then
+  echo "Error: VPS_HOST and VPS_USER must be set in your .env file."
+  exit 1
+fi
 
 echo "=========================================="
 echo "Deploying Yjs Sync Server"
@@ -13,12 +32,6 @@ echo "=========================================="
 echo "Host: ${VPS_HOST}"
 echo "Remote dir: ${REMOTE_DIR}"
 echo ""
-
-if [ ! -f "${SCRIPT_DIR}/.env" ]; then
-  echo "Missing ${SCRIPT_DIR}/.env"
-  echo "Copy .env.example -> .env and set YJS_SYNC_HOSTNAME."
-  exit 1
-fi
 
 # Create remote directory
 ssh ${VPS_USER}@${VPS_HOST} "mkdir -p ${REMOTE_DIR}"
