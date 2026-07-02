@@ -10,6 +10,12 @@ export const ja: Dict = {
   "nav.analytics": "統計",
   "nav.settings": "設定",
   "nav.more": "その他",
+  "tabs.knowledgeNetwork": "知識ネットワーク",
+  "tabs.audiobookSync": "オーディブック同期",
+  "tabs.noTabsOpen": "タブが開かれていません",
+  "tabs.openTabToGetStarted": "開始するにはタブを開いてください",
+  "tabs.openDashboard": "ダッシュボードを開く",
+  "tabs.openDocuments": "ドキュメントを開く",
   "common.search": "検索",
   "common.save": "保存",
   "common.export": "エクスポート",
@@ -2646,6 +2652,9 @@ export const ja: Dict = {
   "syncSettings.quickSettings": "クイック設定",
   "syncSettings.reloadAfterJoin":
     "コードに参加した後、このデバイスでアプリをリロードしてください。",
+  "syncSettings.realtimeSync": "リアルタイム同期",
+  "syncSettings.realtimeSyncDesc":
+    "WebSocket経由でデバイス間のデータをリアルタイムに同期します。このデバイスのみを使用する場合は、ネットワーク接続を減らすためにオフにしてください。",
   "syncSettings.scan": "スキャン",
   "syncSettings.scanQrDesc": "携帯電話でこの QR コードをスキャンして同じ同期ルームに参加。",
   "syncSettings.status": "ステータス",

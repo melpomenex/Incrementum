@@ -10,6 +10,12 @@ export const fr: Dict = {
   "nav.analytics": "Statistiques",
   "nav.settings": "Paramètres",
   "nav.more": "Plus",
+  "tabs.knowledgeNetwork": "Réseau de connaissances",
+  "tabs.audiobookSync": "Synchronisation de livre audio",
+  "tabs.noTabsOpen": "Aucun onglet ouvert",
+  "tabs.openTabToGetStarted": "Ouvrez un onglet pour commencer",
+  "tabs.openDashboard": "Ouvrir le tableau de bord",
+  "tabs.openDocuments": "Ouvrir les documents",
   "common.search": "Rechercher",
   "common.save": "Enregistrer",
   "common.export": "Exporter",
@@ -2712,6 +2718,9 @@ export const fr: Dict = {
   "syncSettings.quickSettings": "Paramètres rapides",
   "syncSettings.reloadAfterJoin":
     "Après avoir rejoint un code, rechargez l'application sur cet appareil.",
+  "syncSettings.realtimeSync": "Synchronisation en temps réel",
+  "syncSettings.realtimeSyncDesc":
+    "Synchronise les données entre appareils en temps réel via WebSocket. Désactivez-la pour réduire les connexions réseau lorsque vous n'utilisez que cet appareil.",
   "syncSettings.scan": "Scanner",
   "syncSettings.scanQrDesc":
     "Scannez ce code QR sur votre téléphone pour rejoindre la même salle de synchronisation.",

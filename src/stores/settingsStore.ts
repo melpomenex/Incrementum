@@ -288,6 +288,10 @@ interface SyncSettings {
   lastSync?: string;
   /** Auto-download behavior for files from other devices */
   autoDownloadMode: "always" | "wifi-only" | "manual";
+  /** Yjs CRDT real-time sync toggle. Mirrors types/settings.ts SyncSettings. */
+  yjs: {
+    enabled: boolean;
+  };
 }
 
 /**
@@ -629,6 +633,7 @@ export const defaultSettings: Settings = {
     interval: 3600,
     onStartup: false,
     autoDownloadMode: "wifi-only",
+    yjs: { enabled: true },
   },
   importExport: {
     autoBackup: false,

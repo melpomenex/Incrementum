@@ -456,10 +456,11 @@ export function SyncSettings() {
             <div className="flex items-center gap-2">
               <ArrowsClockwise className="w-4 h-4 text-primary" />
               <div>
-                <p className="text-sm font-medium text-foreground">Real-time sync</p>
+                <p className="text-sm font-medium text-foreground">
+                  {t("syncSettings.realtimeSync")}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Sync data across devices in real time via WebSocket. Turn off to reduce network
-                  connections when you only use this device.
+                  {t("syncSettings.realtimeSyncDesc")}
                 </p>
               </div>
             </div>

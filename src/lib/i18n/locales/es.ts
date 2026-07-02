@@ -10,6 +10,12 @@ export const es: Dict = {
   "nav.analytics": "Estadísticas",
   "nav.settings": "Ajustes",
   "nav.more": "Más",
+  "tabs.knowledgeNetwork": "Red de conocimiento",
+  "tabs.audiobookSync": "Sincronización de audiolibros",
+  "tabs.noTabsOpen": "No hay pestañas abiertas",
+  "tabs.openTabToGetStarted": "Abre una pestaña para comenzar",
+  "tabs.openDashboard": "Abrir panel de control",
+  "tabs.openDocuments": "Abrir documentos",
   "common.search": "Buscar",
   "common.save": "Guardar",
   "common.export": "Exportar",
@@ -2695,6 +2701,9 @@ export const es: Dict = {
   "syncSettings.quickSettings": "Ajustes rápidos",
   "syncSettings.reloadAfterJoin":
     "Después de unirte a un código, recarga la app en este dispositivo.",
+  "syncSettings.realtimeSync": "Sincronización en tiempo real",
+  "syncSettings.realtimeSyncDesc":
+    "Sincroniza datos entre dispositivos en tiempo real mediante WebSocket. Desactívalo para reducir las conexiones de red cuando solo usas este dispositivo.",
   "syncSettings.scan": "Escanear",
   "syncSettings.scanQrDesc":
     "Escanea este código QR en tu teléfono para unirte a la misma sala de sincronización.",

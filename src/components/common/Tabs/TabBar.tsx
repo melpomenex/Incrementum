@@ -3,6 +3,7 @@ import type { Tab } from "../../../stores";
 import { TabContextMenu } from "./TabContextMenu";
 import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
 import { getTabIcon } from "../../tabs/TabIcons";
+import { useI18n } from "../../../lib/i18n";
 
 interface TabBarProps {
   tabs: Tab[];
@@ -29,6 +30,54 @@ export function TabBar({
   onDragEnd,
   onSplitPane,
 }: TabBarProps) {
+  const { t } = useI18n();
+
+  const getTabTitle = (tab: Tab) => {
+    switch (tab.type) {
+      case "dashboard":
+        return t("nav.dashboard");
+      case "queue":
+        return t("nav.queue");
+      case "queue-scroll":
+        return t("queue.scrollMode");
+      case "review":
+        return t("review.title");
+      case "documents":
+        return t("nav.documents");
+      case "analytics":
+        return t("nav.analytics");
+      case "settings":
+        return t("nav.settings");
+      case "podcast":
+        return t("toolbar.podcasts");
+      case "rss":
+        return t("dashboard.rssFeeds");
+      case "newsletter":
+        return t("newsletterDirectory.title");
+      case "knowledge-sphere":
+        return t("toolbar.knowledgeSphere");
+      case "knowledge-network":
+        return t("tabs.knowledgeNetwork");
+      case "doc-qa":
+        return t("toolbar.documentQA");
+      case "notebooklm":
+        return t("toolbar.notebooklm");
+      case "image-registry":
+        return t("nav.images");
+      case "continue-reading":
+        return t("nav.continue");
+      case "audiobook-epub-sync":
+        return t("tabs.audiobookSync");
+      case "web-browser":
+        if (tab.title === "Web Browser") {
+          return t("toolbar.webBrowser");
+        }
+        return tab.title;
+      default:
+        return tab.title;
+    }
+  };
+
   const [contextMenu, setContextMenu] = useState<{
     tabId: string;
     x: number;
@@ -321,7 +370,7 @@ export function TabBar({
                   ${tab.closable ? "group" : ""}
                 `}
                 style={{ cursor: tab.closable ? "grab" : "default" }}
-                title={tab.title}
+                title={getTabTitle(tab)}
               >
                 {/* Drag indicator line */}
                 {isDragOver && draggedIndex !== null && draggedIndex > index && (
@@ -347,15 +396,15 @@ export function TabBar({
                     }
                   `}
                 >
-                  {tab.title}
+                  {getTabTitle(tab)}
                 </span>
 
                 {/* Close button - compact in narrow mode */}
                 {tab.closable && (
                   <button
                     onClick={(e) => {
-                      e.stopPropagation();
-                      onTabClose(tab.id);
+                       e.stopPropagation();
+                       onTabClose(tab.id);
                     }}
                     className={`
                       flex items-center justify-center flex-shrink-0
@@ -367,7 +416,7 @@ export function TabBar({
                         : "ml-0.5 md:ml-1 w-5 h-5"
                       }
                     `}
-                    aria-label={`Close ${tab.title}`}
+                    aria-label={`${t("tabContextMenu.close")} ${getTabTitle(tab)}`}
                   >
                     <X className={isNarrow ? "w-3 h-3" : "w-3.5 h-3.5"} />
                   </button>

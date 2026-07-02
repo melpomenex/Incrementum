@@ -3,6 +3,7 @@ import { useTabsStore, normalizePane, type TabPane } from "../../../stores";
 import { SplitPaneContainer } from "./SplitPaneContainer";
 import { TabContent } from "./TabContent";
 import { useMobileShell } from "../../../hooks/useMobileShell";
+import { useI18n } from "../../../lib/i18n";
 
 /**
  * Walk a pane tree (which may contain splits) and return the first tab pane,
@@ -205,28 +206,29 @@ export function Tabs() {
 }
 
 function EmptyState() {
+  const { t } = useI18n();
   return (
     <div className="flex items-center justify-center h-full">
       <div className="text-center">
         <div className="text-6xl mb-4">📭</div>
         <h3 className="text-xl font-semibold text-foreground mb-2">
-          No tabs open
+          {t("tabs.noTabsOpen")}
         </h3>
         <p className="text-muted-foreground mb-6">
-          Open a tab to get started
+          {t("tabs.openTabToGetStarted")}
         </p>
         <div className="flex gap-2 justify-center">
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("navigate", { detail: "/dashboard" }))}
             className="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity"
           >
-            Open Dashboard
+            {t("tabs.openDashboard")}
           </button>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("navigate", { detail: "/documents" }))}
             className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:opacity-90 transition-opacity"
           >
-            Open Documents
+            {t("tabs.openDocuments")}
           </button>
         </div>
       </div>
