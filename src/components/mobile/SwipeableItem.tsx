@@ -128,12 +128,14 @@ export const SwipeableItem = memo(function SwipeableItem({
         "swipeable-item",
         "relative",
         "overflow-hidden",
-        "touch-action-none",
+        "touch-pan-y",
         disabled && "pointer-events-none opacity-50",
         className
       )}
       style={{
-        touchAction: "none",
+        // pan-y lets the browser handle vertical panning (so the queue list
+        // scrolls) while still allowing JS to handle horizontal swipe actions.
+        touchAction: "pan-y",
         userSelect: "none",
         WebkitUserSelect: "none",
       }}

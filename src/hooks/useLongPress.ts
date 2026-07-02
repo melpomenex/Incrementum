@@ -26,6 +26,9 @@ export function useLongPress(
   onTouchMove: (e: React.TouchEvent) => void;
   onTouchEnd: () => void;
   onTouchCancel: () => void;
+  /** True if the long-press fired during the most recent touch. Handy to
+   *  suppress a click that would otherwise immediately follow the press. */
+  didFire: () => boolean;
 } {
   const threshold = options?.threshold ?? 500;
   const moveTolerance = options?.moveTolerance ?? 10;
@@ -88,5 +91,6 @@ export function useLongPress(
     onTouchMove,
     onTouchEnd,
     onTouchCancel: onTouchEnd,
+    didFire: () => triggeredRef.current,
   };
 }

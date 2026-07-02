@@ -8,7 +8,7 @@
  * - Uses cards optimized for touch
  */
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
   Archive,
@@ -17,11 +17,13 @@ import {
   Calendar,
   CalendarBlank,
   CaretDown,
+  Check,
   Clock,
   DeviceMobile,
   MagnifyingGlass,
   Play,
   Sliders,
+  Trash,
   X,
 } from "@phosphor-icons/react";
 import { useQueueStore } from "../../stores/queueStore";
@@ -29,8 +31,11 @@ import type { QueueItem } from "../../types/queue";
 import { useToast } from "../common/Toast";
 import { cn } from "../../utils";
 import { SwipeableItem } from "./SwipeableItem";
+import { PullToRefresh } from "./PullToRefresh";
 import { bulkSuspendItems, bulkUnsuspendItems, postponeItem } from "../../api/queue";
 import { useI18n } from "../../lib/i18n";
+import { useLongPress } from "../../hooks/useLongPress";
+import { useIsActiveTab } from "../common/Tabs";
 import { MobileScheduleView } from "../schedule/MobileScheduleView";
 
 interface MobileQueueViewProps {
@@ -41,6 +46,11 @@ interface MobileQueueViewProps {
 
 type QuickFilter = "today" | "all" | "new";
 
+// sessionStorage key for the queue list scroll offset. Survives the
+// display:none → visible cycle (and a full remount) so the queue doesn't
+// jump back to the top when the user returns from another tab.
+const SCROLL_RESTORE_KEY = "incrementum.mobileQueue.scroll";
+
 export function MobileQueueView({
   onStartReview,
   onOpenDocument,
@@ -49,16 +59,28 @@ export function MobileQueueView({
   const {
     items,
     isLoading,
+    selectedIds,
     loadQueue,
     loadDueDocumentsOnly,
     setQueueFilterMode,
+    setSelected,
+    clearSelection,
+    bulkSuspend,
+    bulkUnsuspend,
+    bulkDelete,
   } = useQueueStore(
     useShallow((state) => ({
       items: state.items,
       isLoading: state.isLoading,
+      selectedIds: state.selectedIds,
       loadQueue: state.loadQueue,
       loadDueDocumentsOnly: state.loadDueDocumentsOnly,
       setQueueFilterMode: state.setQueueFilterMode,
+      setSelected: state.setSelected,
+      clearSelection: state.clearSelection,
+      bulkSuspend: state.bulkSuspend,
+      bulkUnsuspend: state.bulkUnsuspend,
+      bulkDelete: state.bulkDelete,
     }))
   );
 
@@ -68,6 +90,59 @@ export function MobileQueueView({
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("today");
   const { t } = useI18n();
   const toast = useToast();
+
+  // Multi-select mode: entered via long-press on a row. While active, tapping a
+  // row toggles selection instead of opening it.
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  // --- Scroll position preservation across tab switches ---
+  // MobileQueueView is kept mounted (display:none) when inactive, so React
+  // state survives — but scrollTop is DOM state that resets to 0 when the
+  // element is hidden. We capture it continuously and restore on reactivation.
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const savedScrollRef = useRef(0);
+  const isActiveTab = useIsActiveTab();
+  const wasActiveRef = useRef(isActiveTab);
+
+  // Persist scroll continuously so a remount (e.g. after scroll mode) can also
+  // restore it, not just the keep-alive hide/show cycle.
+  useEffect(() => {
+    const el = listScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      savedScrollRef.current = el.scrollTop;
+      try {
+        sessionStorage.setItem(SCROLL_RESTORE_KEY, String(el.scrollTop));
+      } catch {
+        // sessionStorage may be unavailable (private mode); ref still holds it.
+      }
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // On a false → true (re)activation, restore the saved scroll position.
+  useEffect(() => {
+    if (!wasActiveRef.current && isActiveTab) {
+      const restore = () => {
+        const el = listScrollRef.current;
+        if (!el) return;
+        let top = savedScrollRef.current;
+        if (!top) {
+          try {
+            top = Number(sessionStorage.getItem(SCROLL_RESTORE_KEY)) || 0;
+          } catch {
+            top = 0;
+          }
+        }
+        el.scrollTo({ top });
+      };
+      // Defer until after the tab is actually visible (display:none → block),
+      // otherwise scrollTop can't be set.
+      requestAnimationFrame(restore);
+    }
+    wasActiveRef.current = isActiveTab;
+  }, [isActiveTab]);
 
   // Undo toast state
   const [undoState, setUndoState] = useState<{
@@ -160,16 +235,7 @@ export function MobileQueueView({
     }
   };
 
-  const getDueBadge = (item: QueueItem) => {
-    if (!item.dueDate) return null;
-    const due = new Date(item.dueDate);
-    const now = new Date();
-    const daysDiff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysDiff <= 0) return { label: t("mobileQueue.dueNow"), color: "bg-red-500" };
-    if (daysDiff <= 3) return { label: t("mobileQueue.daysShort", { count: daysDiff }), color: "bg-orange-500" };
-    return { label: t("mobileQueue.daysShort", { count: daysDiff }), color: "bg-blue-500" };
-  };
+  // Note: getDueBadge is defined at module level (below) so QueueRow can share it.
 
   // Swipe handlers
   const handleSuspend = useCallback(async (item: QueueItem) => {
@@ -261,6 +327,45 @@ export function MobileQueueView({
       setUndoState(null);
     }
   }, [undoState, loadQueue, toast]);
+
+  // --- Multi-select helpers ---
+  const enterSelection = useCallback((itemId: string) => {
+    setSelectionMode(true);
+    setSelected(itemId, true);
+  }, [setSelected]);
+
+  const toggleSelect = useCallback((itemId: string) => {
+    // Reuse the store's current selection to decide toggle direction so we
+    // don't depend on stale closure state.
+    const isSelected = useQueueStore.getState().selectedIds.has(itemId);
+    setSelected(itemId, !isSelected);
+  }, [setSelected]);
+
+  const exitSelection = useCallback(() => {
+    clearSelection();
+    setSelectionMode(false);
+  }, [clearSelection]);
+
+  const handleBulkSuspend = useCallback(async () => {
+    await bulkSuspend();
+    toast.success(t("mobileQueue.itemSuspended"), "");
+    exitSelection();
+    loadQueue();
+  }, [bulkSuspend, toast, t, exitSelection, loadQueue]);
+
+  const handleBulkRestore = useCallback(async () => {
+    await bulkUnsuspend();
+    toast.success(t("mobileQueue.itemRestored"), "");
+    exitSelection();
+    loadQueue();
+  }, [bulkUnsuspend, toast, t, exitSelection, loadQueue]);
+
+  const handleBulkDelete = useCallback(async () => {
+    await bulkDelete();
+    toast.success(t("mobileQueue.itemSuspended"), "");
+    exitSelection();
+    loadQueue();
+  }, [bulkDelete, toast, t, exitSelection, loadQueue]);
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -431,113 +536,55 @@ export function MobileQueueView({
         </div>
       </div>
 
-      {/* Items List */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32 text-muted-foreground">
-            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mr-2" />
-            {t("mobileQueue.loading")}
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-              <BookOpen className="w-8 h-8 text-muted-foreground" />
+      {/* Items List — wrapped in PullToRefresh for swipe-down reload. The inner
+          div is the scroll container (data-scroll-container) so PullToRefresh
+          can detect scroll-top, and its scrollTop is preserved across tab
+          switches via listScrollRef (see restore effect above). */}
+      <PullToRefresh onRefresh={() => loadQueue()}>
+        <div ref={listScrollRef} className="flex-1 overflow-y-auto h-full" data-scroll-container="true">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32 text-muted-foreground">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mr-2" />
+              {t("mobileQueue.loading")}
             </div>
-            <p className="text-muted-foreground mb-2">
-              {activeTab === "reading"
-                ? t("mobileQueue.noDocumentsReady")
-                : t("mobileQueue.noCardsDueReview")}
-            </p>
-            <p className="text-sm text-muted-foreground/70">
-              {activeTab === "reading"
-                ? t("mobileQueue.importToStart")
-                : t("mobileQueue.allCaughtUp")}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {filteredItems.map((item) => {
-              const dueBadge = getDueBadge(item);
-              return (
-                <SwipeableItem
+          ) : filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                <BookOpen className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground mb-2">
+                {activeTab === "reading"
+                  ? t("mobileQueue.noDocumentsReady")
+                  : t("mobileQueue.noCardsDueReview")}
+              </p>
+              <p className="text-sm text-muted-foreground/70">
+                {activeTab === "reading"
+                  ? t("mobileQueue.importToStart")
+                  : t("mobileQueue.allCaughtUp")}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {filteredItems.map((item) => (
+                <QueueRow
                   key={item.id}
-                  leftAction={{
-                    icon: <Calendar className="w-5 h-5" />,
-                    label: t("mobileQueue.postpone"),
-                    color: "#6366f1",
-                    bgColor: "rgba(99, 102, 241, 0.15)",
-                  }}
-                  rightAction={{
-                    icon: <Archive className="w-5 h-5" />,
-                    label: t("mobileQueue.suspend"),
-                    color: "#6366f1",
-                    bgColor: "rgba(99, 102, 241, 0.15)",
-                  }}
-                  onSwipeLeft={() => handlePostpone(item)}
-                  onSwipeRight={() => handleSuspend(item)}
-                  className="border-b border-border last:border-b-0"
-                >
-                  <button
-                    onClick={() =>
-                      activeTab === "reading"
-                        ? onOpenDocument?.(item)
-                        : onStartReview?.(item.learningItemId ?? item.id)
-                    }
-                    className="w-full px-4 py-4 flex items-start gap-3 active:bg-muted/50 transition-colors text-left"
-                  >
-                    {/* Icon/Status */}
-                    <div className="flex-shrink-0 mt-0.5">
-                      {activeTab === "reading" ? (
-                        <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center",
-                          dueBadge ? "bg-red-500/10" : "bg-muted"
-                        )}>
-                          <BookOpen className={cn(
-                            "w-5 h-5",
-                            dueBadge ? "text-red-500" : "text-muted-foreground"
-                          )} />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <Brain className="w-5 h-5 text-purple-500" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-1">
-                        {item.documentTitle}
-                      </h3>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {dueBadge && (
-                          <span className={cn(
-                            "px-1.5 py-0.5 rounded text-white font-medium",
-                            dueBadge.color
-                          )}>
-                            {dueBadge.label}
-                          </span>
-                        )}
-                        {item.category && (
-                          <span className="bg-muted px-1.5 py-0.5 rounded">
-                            {item.category}
-                          </span>
-                        )}
-                        {item.documentFileType && (
-                          <span className="uppercase">{item.documentFileType}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Chevron */}
-                    <CaretDown className="w-5 h-5 text-muted-foreground -rotate-90 flex-shrink-0 mt-2" />
-                  </button>
-                </SwipeableItem>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  item={item}
+                  activeTab={activeTab}
+                  selectionMode={selectionMode}
+                  isSelected={selectedIds.has(item.id)}
+                  onEnterSelection={enterSelection}
+                  onToggleSelect={toggleSelect}
+                  onOpenDocument={onOpenDocument}
+                  onStartReview={onStartReview}
+                  onSwipeLeft={handlePostpone}
+                  onSwipeRight={handleSuspend}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </PullToRefresh>
 
       {/* Stats Footer */}
       <div className="px-4 py-2 border-t border-border bg-card/30 text-center text-xs text-muted-foreground">
@@ -581,8 +628,198 @@ export function MobileQueueView({
           </div>
         </div>
       )}
+
+      {/* Multi-select action bar — appears above the bottom nav when one or
+          more items are selected. Anchored fixed so it floats over the list. */}
+      {selectionMode && (
+        <div className="fixed left-0 right-0 z-40 px-4 py-3 bg-card border-t border-border"
+          style={{ bottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={exitSelection}
+              className="px-3 py-2 rounded-lg text-sm text-muted-foreground active:bg-muted"
+            >
+              {t("common.cancel")}
+            </button>
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.size}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkRestore}
+                disabled={selectedIds.size === 0}
+                className="p-2 rounded-lg bg-muted text-foreground disabled:opacity-40 active:scale-95"
+                aria-label={t("mobileQueue.itemRestored")}
+              >
+                <Archive className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleBulkSuspend}
+                disabled={selectedIds.size === 0}
+                className="p-2 rounded-lg bg-muted text-foreground disabled:opacity-40 active:scale-95"
+                aria-label={t("mobileQueue.suspend")}
+              >
+                <Calendar className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={selectedIds.size === 0}
+                className="p-2 rounded-lg bg-destructive text-destructive-foreground disabled:opacity-40 active:scale-95"
+                aria-label={t("common.delete")}
+              >
+                <Trash className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </>
       )}
     </div>
+  );
+}
+
+// --- QueueRow: extracted so the long-press hook is called at the top level of
+//     a component (not inside a .map() callback, which would violate the Rules
+//     of Hooks). ---
+interface QueueRowProps {
+  item: QueueItem;
+  activeTab: "reading" | "review" | "schedule";
+  selectionMode: boolean;
+  isSelected: boolean;
+  onEnterSelection: (itemId: string) => void;
+  onToggleSelect: (itemId: string) => void;
+  onOpenDocument?: (item: QueueItem) => void;
+  onStartReview?: (itemId?: string) => void;
+  onSwipeLeft: (item: QueueItem) => void;
+  onSwipeRight: (item: QueueItem) => void;
+  t: (key: string, params?: Record<string, unknown>) => string;
+}
+
+function getDueBadge(item: QueueItem, t: (key: string, params?: Record<string, unknown>) => string) {
+  if (!item.dueDate) return null;
+  const due = new Date(item.dueDate);
+  const now = new Date();
+  const daysDiff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (daysDiff <= 0) return { label: t("mobileQueue.dueNow"), color: "bg-red-500" };
+  if (daysDiff <= 3) return { label: t("mobileQueue.daysShort", { count: daysDiff }), color: "bg-orange-500" };
+  return { label: t("mobileQueue.daysShort", { count: daysDiff }), color: "bg-blue-500" };
+}
+
+function QueueRow({
+  item,
+  activeTab,
+  selectionMode,
+  isSelected,
+  onEnterSelection,
+  onToggleSelect,
+  onOpenDocument,
+  onStartReview,
+  onSwipeLeft,
+  onSwipeRight,
+  t,
+}: QueueRowProps) {
+  const dueBadge = getDueBadge(item, t);
+  // Long-press enters selection mode and selects this item. The tap that would
+  // otherwise immediately follow a long-press is suppressed via didFire().
+  const rowLongPress = useLongPress(() => onEnterSelection(item.id));
+
+  return (
+    <SwipeableItem
+      leftAction={{
+        icon: <Calendar className="w-5 h-5" />,
+        label: t("mobileQueue.postpone"),
+        color: "#6366f1",
+        bgColor: "rgba(99, 102, 241, 0.15)",
+      }}
+      rightAction={{
+        icon: <Archive className="w-5 h-5" />,
+        label: t("mobileQueue.suspend"),
+        color: "#6366f1",
+        bgColor: "rgba(99, 102, 241, 0.15)",
+      }}
+      onSwipeLeft={() => onSwipeLeft(item)}
+      onSwipeRight={() => onSwipeRight(item)}
+      disabled={selectionMode}
+      className={cn(
+        "border-b border-border last:border-b-0",
+        selectionMode && isSelected && "bg-primary/10",
+      )}
+    >
+      <button
+        {...(selectionMode ? {} : rowLongPress)}
+        onClick={() => {
+          if (selectionMode) {
+            onToggleSelect(item.id);
+            return;
+          }
+          if (rowLongPress.didFire()) return; // suppress tap right after long-press
+          if (activeTab === "reading") {
+            onOpenDocument?.(item);
+          } else {
+            onStartReview?.(item.learningItemId ?? item.id);
+          }
+        }}
+        className="w-full px-4 py-4 flex items-start gap-3 active:bg-muted/50 transition-colors text-left"
+      >
+        {/* Selection checkbox / Icon-Status */}
+        <div className="flex-shrink-0 mt-0.5">
+          {selectionMode ? (
+            <div className={cn(
+              "w-6 h-6 rounded-full border-2 flex items-center justify-center",
+              isSelected
+                ? "bg-primary border-primary text-primary-foreground"
+                : "border-muted-foreground/40"
+            )}>
+              {isSelected && <Check className="w-4 h-4" weight="bold" />}
+            </div>
+          ) : activeTab === "reading" ? (
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center",
+              dueBadge ? "bg-red-500/10" : "bg-muted"
+            )}>
+              <BookOpen className={cn(
+                "w-5 h-5",
+                dueBadge ? "text-red-500" : "text-muted-foreground"
+              )} />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <Brain className="w-5 h-5 text-purple-500" />
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-1">
+            {item.documentTitle}
+          </h3>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {dueBadge && (
+              <span className={cn(
+                "px-1.5 py-0.5 rounded text-white font-medium",
+                dueBadge.color
+              )}>
+                {dueBadge.label}
+              </span>
+            )}
+            {item.category && (
+              <span className="bg-muted px-1.5 py-0.5 rounded">
+                {item.category}
+              </span>
+            )}
+            {item.documentFileType && (
+              <span className="uppercase">{item.documentFileType}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <CaretDown className="w-5 h-5 text-muted-foreground -rotate-90 flex-shrink-0 mt-2" />
+      </button>
+    </SwipeableItem>
   );
 }

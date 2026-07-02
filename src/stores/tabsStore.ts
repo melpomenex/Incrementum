@@ -122,6 +122,10 @@ export interface TabsState {
   rootPane: Pane;
   closedTabs: Tab[];
   activeTabHistory: string[];
+  // Tabs the user navigated "back" past — consumed by goToNextTab() (the
+  // forward counterpart to the edge-swipe-back gesture). Mirrors the back
+  // history's most-recent-last ordering.
+  forwardTabHistory: string[];
 
   // Actions
   addTab: (tab: Omit<Tab, "id">, targetPaneId?: string) => string;
@@ -130,6 +134,11 @@ export interface TabsState {
   setActiveTab: (paneId: string, tabId: string) => void;
   updateTab: (tabId: string, updates: Partial<Tab>) => void;
   reopenLastClosedTab: () => void;
+  // Navigate to the previous tab (edge-swipe back). Returns true if navigation
+  // happened — useful for callers that want to confirm a gesture was consumed.
+  goToPreviousTab: () => boolean;
+  // Navigate forward (edge-swipe forward). Returns true if navigation happened.
+  goToNextTab: () => boolean;
   closeOtherTabs: (tabId: string) => void;
   closeTabsToRight: (tabId: string) => void;
   closeAllTabs: () => void;
@@ -348,6 +357,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   rootPane: createTabPane(),
   closedTabs: [],
   activeTabHistory: [],
+  forwardTabHistory: [],
 
   getDefaultTabs: () => {
     return [];
@@ -613,6 +623,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         activeTabId: tabId,
       })),
       activeTabHistory: [...state.activeTabHistory.filter((x) => x !== tabId), tabId],
+      // A direct navigation invalidates any forward history (browser semantics).
+      forwardTabHistory: [],
     }));
     get().saveTabs();
   },
@@ -664,6 +676,106 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       };
     });
     setTimeout(() => get().saveTabs(), 0);
+  },
+
+  // Edge-swipe back: activate the tab visited just before the current one.
+  // Pushes the current tab onto forwardTabHistory (so goToNextTab can return).
+  // No-ops (returns false) if there's no tab to go back to.
+  goToPreviousTab: () => {
+    const state = get();
+    const history = state.activeTabHistory;
+    // History is most-recent-last; the current active tab is the last entry.
+    // We need the entry before it that is still open and in the first tab pane
+    // (mobile only renders the first tab pane).
+    const findFirstTabPane = (p: Pane): TabPane | null => {
+      if (p.type === "tabs") return p;
+      if (p.type === "split") {
+        for (const child of p.children) {
+          const found = findFirstTabPane(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const firstPane = findFirstTabPane(state.rootPane);
+    if (!firstPane) return false;
+    const openIds = new Set(firstPane.tabIds);
+
+    if (history.length < 2) return false;
+
+    // Walk back from the end, skipping the current tab, to find a valid target.
+    let targetId: string | null = null;
+    for (let i = history.length - 2; i >= 0; i--) {
+      if (openIds.has(history[i])) {
+        targetId = history[i];
+        break;
+      }
+    }
+    if (!targetId || targetId === firstPane.activeTabId) return false;
+
+    const currentId = firstPane.activeTabId;
+    set((s) => ({
+      rootPane: updatePaneInTree(s.rootPane, firstPane.id, (p) => ({
+        ...(p as TabPane),
+        activeTabId: targetId!,
+      })),
+      // Move current tab to the forward stack so goToNextTab can retrace it.
+      forwardTabHistory: currentId
+        ? [...s.forwardTabHistory.filter((x) => x !== currentId), currentId]
+        : s.forwardTabHistory,
+    }));
+    setTimeout(() => get().saveTabs(), 0);
+    return true;
+  },
+
+  // Edge-swipe forward: retrace a prior "back". Consumes forwardTabHistory.
+  // Returns false if there is nowhere to go forward.
+  goToNextTab: () => {
+    const state = get();
+    const findFirstTabPane = (p: Pane): TabPane | null => {
+      if (p.type === "tabs") return p;
+      if (p.type === "split") {
+        for (const child of p.children) {
+          const found = findFirstTabPane(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const firstPane = findFirstTabPane(state.rootPane);
+    if (!firstPane) return false;
+    const openIds = new Set(firstPane.tabIds);
+
+    if (state.forwardTabHistory.length === 0) return false;
+
+    let targetId: string | null = null;
+    for (let i = state.forwardTabHistory.length - 1; i >= 0; i--) {
+      if (openIds.has(state.forwardTabHistory[i])) {
+        targetId = state.forwardTabHistory[i];
+        break;
+      }
+    }
+    if (!targetId || targetId === firstPane.activeTabId) return false;
+
+    const currentId = firstPane.activeTabId;
+    set((s) => ({
+      rootPane: updatePaneInTree(s.rootPane, firstPane.id, (p) => ({
+        ...(p as TabPane),
+        activeTabId: targetId!,
+      })),
+      // Pop the target off the forward stack; re-add current so a subsequent
+      // back/forward ping-pongs correctly.
+      forwardTabHistory: currentId
+        ? [
+            ...s.forwardTabHistory.filter(
+              (x) => x !== targetId && x !== currentId
+            ),
+            currentId,
+          ]
+        : s.forwardTabHistory.filter((x) => x !== targetId),
+    }));
+    setTimeout(() => get().saveTabs(), 0);
+    return true;
   },
 
   closeOtherTabs: (tabId) => {

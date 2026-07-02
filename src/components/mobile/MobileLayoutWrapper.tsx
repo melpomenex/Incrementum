@@ -9,9 +9,13 @@
 
 import { useEffect, useState } from "react";
 import { PWAInstallPrompt, OfflineIndicator } from "./PWAComponents";
-import { MobileNavigation } from "./MobileNavigation";
-import { useQueueStore } from "../../stores";
+import { MobileNavigation, PRIMARY_NAV_TAB_TYPES } from "./MobileNavigation";
+import { useQueueStore, useTabsStore } from "../../stores";
+import type { Pane, TabPane } from "../../stores";
 import { useMobileShell } from "../../hooks/useMobileShell";
+import { useEdgeSwipeBack } from "../../hooks/useEdgeSwipeBack";
+import { useEdgeSwipeForward } from "../../hooks/useEdgeSwipeForward";
+import { useSwipeBetweenTabs } from "../../hooks/useSwipeBetweenTabs";
 
 interface MobileLayoutWrapperProps {
   children: React.ReactNode;
@@ -21,6 +25,67 @@ export function MobileLayoutWrapper({ children }: MobileLayoutWrapperProps) {
   const { items: queueItems } = useQueueStore();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isMobile = useMobileShell();
+
+  // --- Global mobile navigation gestures ---
+  // Edge-swipe back / forward move through the user's tab history; the full-width
+  // horizontal swipe cycles between adjacent bottom-nav tabs. All three are
+  // disabled in fullscreen reading so they never fight immersive viewers, and
+  // useSwipeBetweenTabs itself skips edge-origin and .swipeable-item touches.
+  const gesturesDisabled = !isMobile || isFullscreen;
+
+  useEdgeSwipeBack(
+    () => {
+      useTabsStore.getState().goToPreviousTab();
+    },
+    { disabled: gesturesDisabled },
+  );
+  useEdgeSwipeForward(
+    () => {
+      useTabsStore.getState().goToNextTab();
+    },
+    { disabled: gesturesDisabled },
+  );
+  useSwipeBetweenTabs(
+    (direction) => {
+      const state = useTabsStore.getState();
+      // Resolve the currently active tab in the first tab pane (the only pane
+      // rendered on mobile).
+      const findFirstTabPane = (p: Pane): TabPane | null => {
+        if (p.type === "tabs") return p;
+        if (p.type === "split") {
+          for (const c of p.children) {
+            const f = findFirstTabPane(c);
+            if (f) return f;
+          }
+        }
+        return null;
+      };
+      const firstPane = findFirstTabPane(state.rootPane);
+      if (!firstPane || !firstPane.activeTabId) return;
+      const activeTab = state.tabs.find((t) => t.id === firstPane.activeTabId);
+      if (!activeTab) return;
+      const order = PRIMARY_NAV_TAB_TYPES;
+      const idx = order.indexOf(activeTab.type);
+      // If the active tab isn't one of the primary nav tabs, jump to the Queue
+      // (index 1) which is the most natural "home" on mobile.
+      if (idx === -1) {
+        const target = order[1];
+        const tab = state.tabs.find((t) => t.type === target);
+        if (tab && firstPane.tabIds.includes(tab.id)) {
+          state.setActiveTab(firstPane.id, tab.id);
+        }
+        return;
+      }
+      const nextIdx =
+        (idx + (direction === "left" ? 1 : -1) + order.length) % order.length;
+      const targetType = order[nextIdx];
+      const tab = state.tabs.find((t) => t.type === targetType);
+      if (tab && firstPane.tabIds.includes(tab.id)) {
+        state.setActiveTab(firstPane.id, tab.id);
+      }
+    },
+    { disabled: gesturesDisabled },
+  );
 
   // Calculate badge counts
   const dueCount = queueItems.filter(item => {

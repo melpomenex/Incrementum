@@ -15,6 +15,11 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
+    // Pin the NDK version to match what's installed locally
+    // (/opt/homebrew/share/android-commandlinetools/ndk/27.2.12479018). Without
+    // this, AGP defaults android.ndkVersion to a different patch (e.g.
+    // 27.0.12077973) and the build fails with [CXX1104].
+    ndkVersion = "27.2.12479018"
     namespace = "com.incrementum.app"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"

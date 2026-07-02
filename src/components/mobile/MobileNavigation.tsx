@@ -55,6 +55,19 @@ interface NavItem {
   badge?: "review" | "rss";
 }
 
+/**
+ * The bottom-nav primary tabs in left-to-right display order, expressed as
+ * their tab types. Exported so gesture handlers (e.g. useSwipeBetweenTabs) can
+ * cycle to the adjacent tab without duplicating the nav definition.
+ */
+export const PRIMARY_NAV_TAB_TYPES: TabType[] = [
+  "dashboard",
+  "queue",
+  "review",
+  "documents",
+  "settings",
+];
+
 // Primary nav items shown on mobile bottom nav
 const primaryNavItems: NavItem[] = [
   {
