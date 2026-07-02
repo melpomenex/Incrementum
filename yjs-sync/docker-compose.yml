@@ -25,6 +25,8 @@ services:
       # restarts pick up edits without rebuilding.
       - ./server.js:/app/server.js:ro
       - ./utils.js:/app/utils.js:ro
+      # Encrypted-frame rolling log (required by utils.js; see frameLog.js).
+      - ./frameLog.js:/app/frameLog.js:ro
     networks:
       - internal
     restart: unless-stopped
