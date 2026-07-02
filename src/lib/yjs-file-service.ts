@@ -1,4 +1,5 @@
 import { getSyncRoomId } from "./yjsSync";
+import { useSettingsStore } from "../stores/settingsStore";
 
 export type YjsFileMeta = {
   id: string;
@@ -20,7 +21,8 @@ function wsUrlToHttpOrigin(wsUrl: string): string {
 }
 
 export function getYjsFileServiceBaseUrl(): string {
-  const wsUrl = import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_YJS_SYNC_URL;
+  const state = useSettingsStore.getState();
+  const wsUrl = state?.settings?.sync?.yjs?.url || import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_YJS_SYNC_URL;
   return wsUrlToHttpOrigin(wsUrl);
 }
 

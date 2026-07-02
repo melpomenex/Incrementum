@@ -28,6 +28,7 @@ const mockProvider = {
     disconnectCalls += 1;
     mockProvider.wsconnected = false;
   }),
+  destroy: vi.fn(),
   on: vi.fn(),
   off: vi.fn(),
   ws: undefined as unknown,
@@ -78,6 +79,18 @@ beforeEach(async () => {
   providerConstructionCount = 0;
   mockProvider.wsconnected = false;
   localStorage.clear();
+
+  const { useSettingsStore } = await import("../../stores/settingsStore");
+  useSettingsStore.getState().updateSettings({
+    sync: {
+      enabled: false,
+      provider: "dropbox",
+      interval: 3600,
+      onStartup: false,
+      autoDownloadMode: "wifi-only",
+      yjs: { enabled: true, url: "" },
+    },
+  });
 
   const { resetYjsSync } = await import("../yjsSync");
   await resetYjsSync();
@@ -168,3 +181,50 @@ describe("IndexeddbPersistence guard", () => {
     }
   });
 });
+
+describe("updateYjsSyncStatus", () => {
+  it("rebuilds the provider with the new URL from settings", async () => {
+    const { getYjsSync, updateYjsSyncStatus } = await import("../yjsSync");
+    const { useSettingsStore } = await import("../../stores/settingsStore");
+
+    // Initialize first
+    const initialSync = await getYjsSync();
+    expect(initialSync.url).toBe("wss://sync.readsync.org");
+
+    // Update settings store with a custom url
+    useSettingsStore.getState().updateSettings({
+      sync: {
+        ...useSettingsStore.getState().settings.sync,
+        yjs: { enabled: true, url: "wss://my-custom.sync.server" },
+      },
+    });
+
+    // Apply URL update
+    const updatedSync = await updateYjsSyncStatus();
+    expect(updatedSync.url).toBe("wss://my-custom.sync.server");
+    expect(providerConstructionCount).toBe(2); // Initial build + URL update rebuild
+  });
+
+  it("rejoinRoom triggers updateYjsSyncStatus on URL change for the same room", async () => {
+    const { rejoinRoom } = await import("../yjsSync");
+    const { useSettingsStore } = await import("../../stores/settingsStore");
+
+    // Join room first
+    const state1 = await rejoinRoom("same-room-test");
+    expect(state1.url).toBe("wss://sync.readsync.org");
+
+    // Update URL setting
+    useSettingsStore.getState().updateSettings({
+      sync: {
+        ...useSettingsStore.getState().settings.sync,
+        yjs: { enabled: true, url: "wss://custom-rejoin-url" },
+      },
+    });
+
+    // Rejoin the same room - should trigger URL change rebuild
+    const state2 = await rejoinRoom("same-room-test");
+    expect(state2.url).toBe("wss://custom-rejoin-url");
+    expect(state2.room).toBe("same-room-test");
+  });
+});
+

@@ -291,6 +291,7 @@ interface SyncSettings {
   /** Yjs CRDT real-time sync toggle. Mirrors types/settings.ts SyncSettings. */
   yjs: {
     enabled: boolean;
+    url?: string;
   };
 }
 
@@ -633,7 +634,7 @@ export const defaultSettings: Settings = {
     interval: 3600,
     onStartup: false,
     autoDownloadMode: "wifi-only",
-    yjs: { enabled: true },
+    yjs: { enabled: false, url: "" },
   },
   importExport: {
     autoBackup: false,

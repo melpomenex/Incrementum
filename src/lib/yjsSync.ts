@@ -32,13 +32,13 @@ function isSyncDebugEnabled(): boolean {
 }
 
 /** Read the user's preference for Yjs CRDT sync from the settings store.
- *  Defaults to true if the setting is missing or the store isn't ready yet. */
+ *  Defaults to false if the setting is missing or the store isn't ready yet. */
 function isYjsSyncEnabled(): boolean {
   try {
     const state = useSettingsStore.getState();
-    return state?.settings?.sync?.yjs?.enabled ?? true;
+    return state?.settings?.sync?.yjs?.enabled ?? false;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -168,7 +168,8 @@ export async function getYjsSync(): Promise<YjsSyncState> {
   try {
     await checkAndRepairCorruption();
 
-    const url = import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
+    const state = useSettingsStore.getState();
+    const url = state?.settings?.sync?.yjs?.url || import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
     const room = import.meta.env.VITE_YJS_ROOM || getSyncRoomId();
 
     let doc: Y.Doc;
@@ -464,12 +465,119 @@ export function registerRoomChangeListener(listener: RoomChangeListener): () => 
   };
 }
 
+export async function updateYjsSyncStatus(): Promise<YjsSyncState> {
+  if (!instance) {
+    return getYjsSync();
+  }
+
+  const state = useSettingsStore.getState();
+  const yjsEnabled = state?.settings?.sync?.yjs?.enabled ?? true;
+  const targetUrl = state?.settings?.sync?.yjs?.url || import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
+
+  console.info(`[YjsSync] Updating sync connection state. Enabled: ${yjsEnabled}, URL: ${targetUrl}`);
+
+  // Disconnect/destroy the old provider
+  try {
+    instance.provider.disconnect();
+    if (typeof (instance.provider as any).destroy === "function") {
+      (instance.provider as any).destroy();
+    }
+  } catch (e) {
+    console.warn("[YjsSync] Error tearing down old provider:", e);
+  }
+
+  // Clear visibility listener
+  try {
+    instance.visibilityCleanup?.();
+    instance.visibilityCleanup = null;
+  } catch (e) {
+    console.warn("[YjsSync] Error cleaning visibility listener:", e);
+  }
+
+  // Build the new provider
+  const provider = yjsEnabled
+    ? await buildProvider(targetUrl, instance.room, instance.doc)
+    : new WebsocketProvider(targetUrl, instance.room, instance.doc, { connect: false });
+
+  // Update instance properties
+  instance.provider = provider;
+  instance.url = targetUrl;
+  instance.encrypted = yjsEnabled && (provider as any).__encrypted === true;
+
+  if (yjsEnabled) {
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    const IDLE_MS = 5 * 60 * 1000;
+    let disconnectedFromIdle = false;
+
+    function resetIdleTimer() {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (provider.shouldConnect && provider.wsconnected) {
+          provider.disconnect();
+          disconnectedFromIdle = true;
+        }
+      }, IDLE_MS);
+    }
+
+    function reconnectIfNeeded() {
+      if (disconnectedFromIdle && !provider.wsconnected) {
+        provider.connect();
+        disconnectedFromIdle = false;
+      }
+      resetIdleTimer();
+    }
+
+    instance.doc.on("update", reconnectIfNeeded);
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        if (provider.wsconnected) {
+          provider.disconnect();
+          if (idleTimer) clearTimeout(idleTimer);
+        }
+      } else {
+        if (!provider.wsconnected) {
+          provider.connect();
+          resetIdleTimer();
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    instance.visibilityCleanup = () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      instance?.doc.off("update", reconnectIfNeeded);
+    };
+
+    resetIdleTimer();
+  }
+
+  // Notify listeners
+  await Promise.all(
+    Array.from(roomChangeListeners).map(async (listener) => {
+      try {
+        await listener();
+      } catch (e) {
+        console.error("[YjsSync] room change listener failed during sync update:", e);
+      }
+    }),
+  );
+
+  return instance;
+}
+
 export async function rejoinRoom(roomId: string): Promise<YjsSyncState> {
   if (!roomId) throw new Error("rejoinRoom: roomId is required");
 
   const currentRoom = instance?.room;
+  const currentUrl = instance?.url;
+  const state = useSettingsStore.getState();
+  const targetUrl = state?.settings?.sync?.yjs?.url || import.meta.env.VITE_YJS_SYNC_URL || DEFAULT_SYNC_URL;
+
   if (currentRoom === roomId) {
-    // Already on the requested room. Avoid the IndexedDB wipe below.
+    if (currentUrl !== targetUrl) {
+      return updateYjsSyncStatus();
+    }
+    // Already on the requested room and URL. Avoid the IndexedDB wipe below.
     return instance ?? (await getYjsSync());
   }
 

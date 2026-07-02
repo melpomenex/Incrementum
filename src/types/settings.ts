@@ -127,6 +127,7 @@ export interface SyncSettings {
    *  connections and DB pool contention when cross-device sync isn't needed. */
   yjs: {
     enabled: boolean;
+    url?: string;
   };
 }
 

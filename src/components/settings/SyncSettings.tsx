@@ -12,7 +12,7 @@ import {
   Scan,
   WifiHigh,
 } from "@phosphor-icons/react";
-import { createNewSyncRoomId, getSyncRoomId, setSyncRoomId, rejoinRoom } from "../../lib/yjsSync";
+import { createNewSyncRoomId, getSyncRoomId, setSyncRoomId, rejoinRoom, updateYjsSyncStatus } from "../../lib/yjsSync";
 import { useI18n } from "../../lib/i18n";
 import { isNativeMobile, isPWA } from "../../lib/tauri";
 import { QRCodeCanvas } from "qrcode.react";
@@ -60,6 +60,12 @@ export function SyncSettings() {
   const { settings, updateSettings } = useSettingsStore();
   const syncSettings = settings.sync;
   const autoDownloadMode = syncSettings?.autoDownloadMode ?? "wifi-only";
+
+  const [customUrl, setCustomUrl] = useState(syncSettings?.yjs?.url || "");
+
+  useEffect(() => {
+    setCustomUrl(syncSettings?.yjs?.url || "");
+  }, [syncSettings?.yjs?.url]);
 
   useEffect(() => {
     setRoomId(getSyncRoomId());
@@ -109,6 +115,25 @@ export function SyncSettings() {
       document.body.style.overflow = original;
     };
   }, [showScanner]);
+
+  const handleApplyUrl = async () => {
+    try {
+      const targetUrl = customUrl.trim();
+      updateSettings({
+        sync: {
+          ...syncSettings,
+          yjs: {
+            ...syncSettings.yjs,
+            url: targetUrl,
+          },
+        },
+      });
+      await updateYjsSyncStatus();
+      setRoomMessage(`Applied sync server URL: ${targetUrl || "Default (wss://sync.readsync.org)"}`);
+    } catch (err) {
+      setRoomMessage(`Failed to apply sync server URL: ${(err as Error).message}`);
+    }
+  };
 
   const handleCopyRoom = async () => {
     try {
@@ -469,18 +494,56 @@ export function SyncSettings() {
                 type="checkbox"
                 className="sr-only peer"
                 checked={syncSettings.yjs.enabled}
-                onChange={(e) =>
+                onChange={async (e) => {
+                  const isChecked = e.target.checked;
                   updateSettings({
                     sync: {
                       ...syncSettings,
-                      yjs: { enabled: e.target.checked },
+                      yjs: {
+                        ...syncSettings.yjs,
+                        enabled: isChecked,
+                      },
                     },
-                  })
-                }
+                  });
+                  await updateYjsSyncStatus().catch((err) =>
+                    console.error("[SyncSettings] failed to update sync status", err)
+                  );
+                }}
               />
               <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
+
+          {syncSettings.yjs.enabled && (
+            <div className="mt-4 pt-4 border-t border-border space-y-2">
+              <label className="block text-xs font-medium text-foreground">
+                {t("syncSettings.endpoint")} (WebSocket)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter") {
+                      await handleApplyUrl();
+                    }
+                  }}
+                  placeholder="wss://sync.readsync.org"
+                />
+                <button
+                  onClick={handleApplyUrl}
+                  className="px-3 py-2 bg-primary hover:bg-primary/95 text-primary-foreground font-medium rounded text-xs transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave blank to use the default server (<code className="font-mono text-foreground">wss://sync.readsync.org</code>). If using a self-hosted yjs-sync server, specify your websocket endpoint.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
