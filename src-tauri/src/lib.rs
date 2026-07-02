@@ -412,9 +412,7 @@ pub fn run() {
     }
 
     builder = builder
-        // Temporarily disabled - may cause Windows crash on startup
-        // TODO: Re-enable with proper Windows notification handling
-        //.plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init())
         ;
 
     // Desktop release builds serve the frontend over http://localhost via the

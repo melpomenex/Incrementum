@@ -51,6 +51,13 @@ impl From<tauri_plugin_shell::Error> for IncrementumError {
     }
 }
 
+// Implement From<tauri_plugin_notification::Error> for IncrementumError
+impl From<tauri_plugin_notification::Error> for IncrementumError {
+    fn from(e: tauri_plugin_notification::Error) -> Self {
+        IncrementumError::Internal(e.to_string())
+    }
+}
+
 // Implement From<anyhow::Error> for IncrementumError
 impl From<anyhow::Error> for IncrementumError {
     fn from(e: anyhow::Error) -> Self {
