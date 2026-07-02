@@ -17,7 +17,9 @@ import {
   Upload,
   WarningCircle,
   X,
+  YoutubeLogo,
 } from "@phosphor-icons/react";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { YouTubePlaylistManager } from "../media/YouTubePlaylistManager";
 import { NotebookLMWorkspace } from "./NotebookLMWorkspace";
 import {
@@ -56,12 +58,24 @@ type IntegrationType =
   | "extension"
   | "youtube"
   | "youtube-cookies"
+  | "youtube-transcript"
   | "notebooklm";
 
 export function IntegrationSettings() {
   const { t } = useI18n();
   const [settings, setSettings] = useState(getIntegrationSettings());
   const [activeTab, setActiveTab] = useState<IntegrationType>("obsidian");
+
+  const { settings: globalSettings, updateSettings } = useSettingsStore();
+
+  const handleUpdateTranscriptSettings = (updates: Partial<{ transcriptServerUrl: string; transcriptServerApiKey: string }>) => {
+    updateSettings({
+      youtube: {
+        ...globalSettings.youtube,
+        ...updates,
+      }
+    });
+  };
 
   // Obsidian state
   const [obsidianVault, setObsidianVault] = useState("");
@@ -381,6 +395,17 @@ export function IntegrationSettings() {
         >
           <Cookie className="w-4 h-4" />
           {t("integrations.youtubeCookies")}
+        </button>
+        <button
+          onClick={() => setActiveTab("youtube-transcript")}
+          className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+            activeTab === "youtube-transcript"
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground hover:opacity-90"
+          }`}
+        >
+          <YoutubeLogo className="w-4 h-4" />
+          {t("integrations.youtubeTranscript") || "Transcript Server"}
         </button>
       </div>
 
@@ -918,6 +943,53 @@ export function IntegrationSettings() {
                 </ol>
                 <p className="text-xs text-muted-foreground mt-3">
                   {t("integrations.cookieImportantNote")}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "youtube-transcript" && (
+        <div className="bg-card text-card-foreground border border-border rounded-xl p-6 shadow-sm">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">YouTube Transcript Server</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure your own self-hosted YouTube Transcript service (as detailed in yjs-sync/TRANSCRIPT_SERVICE.md) to query transcripts independently.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Server Endpoint Base URL
+                </label>
+                <input
+                  type="url"
+                  value={globalSettings.youtube?.transcriptServerUrl || ""}
+                  onChange={(e) => handleUpdateTranscriptSettings({ transcriptServerUrl: e.target.value })}
+                  placeholder="https://transcripts.yourdomain.com"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  The API endpoint will automatically resolve to <code>{"{Server URL}/api/youtube/transcript"}</code>. Leave blank to use the default service.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Server API Key
+                </label>
+                <input
+                  type="password"
+                  value={globalSettings.youtube?.transcriptServerApiKey || ""}
+                  onChange={(e) => handleUpdateTranscriptSettings({ transcriptServerApiKey: e.target.value })}
+                  placeholder="Enter your transcript server api key"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm font-mono"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Required if your self-hosted transcript service is configured with a <code>TRANSCRIPT_API_KEY</code>.
                 </p>
               </div>
             </div>

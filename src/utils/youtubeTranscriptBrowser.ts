@@ -220,11 +220,25 @@ async function fetchFromApi(videoId: string, language?: string): Promise<Transcr
     const { getCookiesForApi } = await import('./youtubeCookies');
     const cookies = getCookiesForApi();
 
-    const response = await fetch(`${TRANSCRIPT_API_BASE}/api/youtube/transcript?${params.toString()}`, {
+    const { useSettingsStore } = await import('../stores/settingsStore');
+    const settings = useSettingsStore.getState().settings;
+    const customUrl = settings.youtube?.transcriptServerUrl;
+    const customApiKey = settings.youtube?.transcriptServerApiKey;
+
+    const base = customUrl 
+      ? customUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '')
+      : TRANSCRIPT_API_BASE;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (customApiKey) {
+      headers['X-API-Key'] = customApiKey;
+    }
+
+    const response = await fetch(`${base}/api/youtube/transcript?${params.toString()}`, {
       method: cookies.length > 0 ? 'POST' : 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: cookies.length > 0 ? JSON.stringify({ cookies }) : undefined,
     });
 

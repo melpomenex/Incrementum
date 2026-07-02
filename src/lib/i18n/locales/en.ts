@@ -3466,6 +3466,7 @@ export const en: Dict = {
   "integrations.failedToggleExtensionServer": "Failed to toggle extension server",
   "integrations.youtubePlaylists": "YouTube Playlists",
   "integrations.youtubeCookies": "YouTube Cookies",
+  "integrations.youtubeTranscript": "Transcript Server",
   "integrations.youtubeAuthCookies": "YouTube Authentication Cookies",
   "integrations.cookiesCount": "{count} cookies",
   "integrations.whyUploadCookies": "Why upload cookies?",

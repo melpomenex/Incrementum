@@ -442,6 +442,10 @@ export interface RSSSummarySettings {
 interface YouTubeSettings {
   apiKey?: string;
   enabled: boolean;
+  /** Custom YouTube transcript API server base URL */
+  transcriptServerUrl?: string;
+  /** API Key to authenticate with the custom transcript server */
+  transcriptServerApiKey?: string;
 }
 
 /**
@@ -725,6 +729,8 @@ export const defaultSettings: Settings = {
   youtube: {
     apiKey: undefined,
     enabled: false,
+    transcriptServerUrl: undefined,
+    transcriptServerApiKey: undefined,
   },
   features: {
     notebooklmEnabled: false,
