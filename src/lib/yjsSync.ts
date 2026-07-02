@@ -3,6 +3,7 @@ import { WebsocketProvider } from "y-websocket";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { EncryptedWebsocketProvider } from "./sync/encryptedProvider";
 import { getCachedSubKeys } from "./sync/roomCrypto";
+import { useSettingsStore } from "../stores/settingsStore";
 
 type YjsSyncState = {
   doc: Y.Doc;
@@ -28,6 +29,17 @@ function isSyncDebugEnabled(): boolean {
   if (import.meta.env.VITE_DEBUG_NETWORK === "1") return true;
   if (typeof window === "undefined") return false;
   return localStorage.getItem("incrementum.debug.network") === "1";
+}
+
+/** Read the user's preference for Yjs CRDT sync from the settings store.
+ *  Defaults to true if the setting is missing or the store isn't ready yet. */
+function isYjsSyncEnabled(): boolean {
+  try {
+    const state = useSettingsStore.getState();
+    return state?.settings?.sync?.yjs?.enabled ?? true;
+  } catch {
+    return true;
+  }
 }
 
 function generateRoomId(): string {
@@ -194,11 +206,23 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         persistence = null;
       }
 
-      const provider = await buildProvider(url, room, doc);
+      const yjsEnabled = isYjsSyncEnabled();
+
+      if (!yjsEnabled) {
+        console.info(
+          "[YjsSync] Yjs sync is disabled by user setting. Creating offline-only doc.",
+        );
+      }
+
+      const provider = yjsEnabled
+        ? await buildProvider(url, room, doc)
+        : new WebsocketProvider(url, room, doc, { connect: false });
 
       if (isSyncDebugEnabled()) {
         console.debug("[YjsSync] provider constructed", {
-          encrypted: provider !== undefined && (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
+          encrypted:
+            yjsEnabled &&
+            (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
         });
       }
 
@@ -224,70 +248,81 @@ export async function getYjsSync(): Promise<YjsSyncState> {
         persistence,
         url,
         room,
-        encrypted: (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
+        encrypted:
+          yjsEnabled &&
+          (provider as unknown as { __encrypted?: boolean }).__encrypted === true,
         visibilityCleanup: null,
       };
 
-      let idleTimer: ReturnType<typeof setTimeout> | null = null;
-      const IDLE_MS = 5 * 60 * 1000; // 5 minutes
-      let disconnectedFromIdle = false;
+      // Only set up idle timer & visibility reconnect when sync is enabled.
+      // When disabled, the provider was created with { connect: false } and
+      // should stay disconnected indefinitely (offline-only mode).
+      if (yjsEnabled) {
+        let idleTimer: ReturnType<typeof setTimeout> | null = null;
+        const IDLE_MS = 5 * 60 * 1000; // 5 minutes
+        let disconnectedFromIdle = false;
 
-      function resetIdleTimer() {
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => {
-          if (provider.shouldConnect && provider.wsconnected) {
-            provider.disconnect();
-            disconnectedFromIdle = true;
-            if (isSyncDebugEnabled()) {
+        function resetIdleTimer() {
+          if (idleTimer) clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => {
+            if (provider.shouldConnect && provider.wsconnected) {
+              provider.disconnect();
+              disconnectedFromIdle = true;
+              if (isSyncDebugEnabled()) {
+              }
             }
-          }
-        }, IDLE_MS);
-      }
-
-      function reconnectIfNeeded() {
-        if (disconnectedFromIdle && !provider.wsconnected) {
-          provider.connect();
-          disconnectedFromIdle = false;
-          if (isSyncDebugEnabled()) {
-          }
+          }, IDLE_MS);
         }
-        resetIdleTimer();
-      }
 
-      // Listen for local document updates to reset the idle timer
-      doc.on("update", () => {
-        reconnectIfNeeded();
-      });
-
-      // Disconnect when page is hidden, reconnect when visible
-      function handleVisibilityChange() {
-        if (document.hidden) {
-          if (provider.wsconnected) {
-            provider.disconnect();
-            if (idleTimer) clearTimeout(idleTimer);
-            if (isSyncDebugEnabled()) {
-            }
-          }
-        } else {
-          if (!provider.wsconnected) {
+        function reconnectIfNeeded() {
+          if (disconnectedFromIdle && !provider.wsconnected) {
             provider.connect();
-            resetIdleTimer();
+            disconnectedFromIdle = false;
             if (isSyncDebugEnabled()) {
             }
           }
+          resetIdleTimer();
         }
-      }
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-      // Track the listener so resetYjsSync() can detach it on teardown — without
-      // this, every room rebuild leaks a visibilitychange handler that keeps
-      // calling disconnect()/connect() on a destroyed provider.
-      if (instance) {
-        instance.visibilityCleanup = () => {
-          document.removeEventListener("visibilitychange", handleVisibilityChange);
-        };
-      }
 
-      resetIdleTimer();
+        // Listen for local document updates to reset the idle timer
+        doc.on("update", () => {
+          reconnectIfNeeded();
+        });
+
+        // Disconnect when page is hidden, reconnect when visible
+        function handleVisibilityChange() {
+          if (document.hidden) {
+            if (provider.wsconnected) {
+              provider.disconnect();
+              if (idleTimer) clearTimeout(idleTimer);
+              if (isSyncDebugEnabled()) {
+              }
+            }
+          } else {
+            if (!provider.wsconnected) {
+              provider.connect();
+              resetIdleTimer();
+              if (isSyncDebugEnabled()) {
+              }
+            }
+          }
+        }
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        // Track the listener so resetYjsSync() can detach it on teardown — without
+        // this, every room rebuild leaks a visibilitychange handler that keeps
+        // calling disconnect()/connect() on a destroyed provider.
+        if (instance) {
+          instance.visibilityCleanup = () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+          };
+        }
+
+        resetIdleTimer();
+      } else {
+        console.info(
+          "[YjsSync] Yjs sync is disabled — visibility reconnect & idle timer skipped",
+        );
+      }
 
       return instance;
     } catch (initError) {
